@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+/* @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap'); */
+
+@import 'tailwindcss';
+
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+	name: 'mytheme';
+
+	default: false;
+	prefersdark: false;
+	color-scheme: 'light';
+	--color-base-100: oklch(98% 0 0);
+	--color-base-200: oklch(96% 0.001 286.375);
+	--color-base-300: oklch(92% 0.004 286.32);
+	--color-base-content: oklch(21% 0.006 285.885);
+	--color-primary: oklch(82% 0.189 84.429);
+	--color-primary-content: oklch(27% 0.077 45.635);
+	--color-secondary: oklch(77% 0.152 181.912);
+	--color-secondary-content: oklch(27% 0.046 192.524);
+	--color-accent: oklch(76% 0.177 163.223);
+	--color-accent-content: oklch(26% 0.051 172.552);
+	--color-neutral: oklch(44% 0.017 285.786);
+	--color-neutral-content: oklch(98% 0 0);
+	--color-info: oklch(54% 0.245 262.881);
+	--color-info-content: oklch(97% 0.014 254.604);
+	--color-success: oklch(59% 0.145 163.225);
+	--color-success-content: oklch(97% 0.021 166.113);
+	--color-warning: oklch(66% 0.179 58.318);
+	--color-warning-content: oklch(98% 0.022 95.277);
+	--color-error: oklch(59% 0.249 0.584);
+	--color-error-content: oklch(97% 0.014 343.198);
+	--radius-selector: 0rem;
+	--radius-field: 0.25rem;
+	--radius-box: 2rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 1;
+	--noise: 0;
+}
+
+@theme {
+	--font-display: 'Roboto', 'ui-sans-serif', 'system-ui', 'sans-serif';
+	--font-roboto: 'Roboto', sans-serif;
+}
