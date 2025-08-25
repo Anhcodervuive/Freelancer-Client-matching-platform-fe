@@ -3,7 +3,11 @@ export const routes = {
 		home: '/'
 	},
 	auth: {
-		signin: 'signin',
-		signup: 'signup'
+		signin: '/signin',
+		signup: '/signup',
+		verify: '/verify'
+	},
+	error: {
+		notFound: '/404'
 	}
 }

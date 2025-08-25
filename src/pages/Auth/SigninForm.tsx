@@ -1,103 +1,142 @@
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
-import { useDispatch } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
 import { toast } from 'react-toastify'
-import { routes } from '~/config/routes'
+import { Eye, EyeOff, Lock, Mail, Github, Chrome } from 'lucide-react'
 import type { AppDispatch } from '~/redux/store'
 import { signinUserAPI } from '~/redux/user/userSlice'
 import { EMAIL_RULE, EMAIL_RULE_MESSAGE, FIELD_REQUIRED_MESSAGE } from '~/utils/validator'
+import { routes } from '~/config/routes'
 
 export type SigninInputs = {
 	email: string
 	password: string
 }
 
-const SigninForm = () => {
+export default function SigninForm() {
+	const dispatch: AppDispatch = useDispatch()
+	const navigate = useNavigate()
+
 	const {
 		register,
 		handleSubmit,
 		formState: { errors }
 	} = useForm<SigninInputs>()
-	const dispatch: AppDispatch = useDispatch()
-	const navigate = useNavigate()
-	const [isShowPassword, setIsShowPasswor] = useState(false)
-	const onSubmit: SubmitHandler<SigninInputs> = data => {
-		dispatch(signinUserAPI(data))
-		toast.promise(dispatch(signinUserAPI(data)), { pending: 'Logging in...' }).then(res => {
-			console.log(res)
+
+	const [showPassword, setShowPassword] = useState(false)
+	const [submitting, setSubmitting] = useState(false)
+
+	const onSubmit: SubmitHandler<SigninInputs> = async data => {
+		try {
+			setSubmitting(true)
+			await toast.promise(
+				// Nếu thunk của bạn hỗ trợ unwrap(), có thể dùng: await dispatch(signinUserAPI(data)).unwrap()
+				dispatch(signinUserAPI(data)),
+				{ pending: 'Signing you in...' }
+			)
 			navigate(routes.comons.home)
-		})
+		} catch (err) {
+			console.log(err)
+			// Lỗi đã được toast trong thunk hoặc interceptor; có thể bổ sung tại đây nếu cần
+		} finally {
+			setSubmitting(false)
+		}
 	}
+
 	return (
-		<div className='flex flex-col items-center justify-center h-full w-full'>
-			<div className='w-2/3'>
-				<Link to={'/'} className='btn btn-link px-0 md:hidden' role='button'>
-					<ArrowLeft />
-					Home
-				</Link>
-				<h1 className='mb-8'>Workreap</h1>
-				<div className='mb-8'>
-					<h2>Sign in</h2>
-					<h5 className='text-gray-400'>
-						Or you don't have an account?{' '}
-						<Link className='text-info' to={'/signup'}>
-							Sign up
-						</Link>
-					</h5>
-				</div>
-				<form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-3'>
-					<fieldset className='fieldset'>
-						<legend className='fieldset-legend text-lg'>Email</legend>
-						<input
-							type='text'
-							{...register('email', {
-								required: FIELD_REQUIRED_MESSAGE,
-								pattern: {
-									value: EMAIL_RULE,
-									message: EMAIL_RULE_MESSAGE
-								}
-							})}
-							className='input input-md w-full'
-							placeholder='Type here'
-						/>
-						{errors.email && <div className='mt-1 text-sm text-error'>{errors.email.message}</div>}
-					</fieldset>
-					<fieldset className='fieldset'>
-						<legend className='fieldset-legend text-lg'>Password</legend>
-						<div className='relative'>
-							<input
-								type={isShowPassword ? 'text' : 'password'}
-								{...register('password', { required: FIELD_REQUIRED_MESSAGE })}
-								className='input input-md w-full'
-								placeholder='Type here'
-							/>
-							<button
-								type='button'
-								className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary focus:outline-none z-10'
-								tabIndex={-1}
-								onClick={() => setIsShowPasswor(!isShowPassword)}>
-								{isShowPassword ? <EyeOff /> : <Eye />}
-							</button>
-						</div>
-						{errors.password && <div className='mt-1 text-sm text-error'>{errors.password.message}</div>}
-					</fieldset>
-					<div className='flex flex-col gap-4 justify-center items-center'>
-						<p className='text-gray-400'>
-							Forgot your password?{' '}
-							<Link to='/' className='text-info'>
-								Reset password
+		<div className='min-h-screen'>
+			{/* Right panel / form */}
+			<div className='flex items-center justify-center bg-base-100'>
+				<div className='w-full max-w-md p-6'>
+					<div className='mb-8'>
+						<h1 className='text-3xl font-bold tracking-tight'>Workreap</h1>
+						<p className='mt-2 text-base-content/60'>
+							New here?{' '}
+							<Link to={routes.auth.signup} className='link link-primary font-medium'>
+								Create an account
 							</Link>
 						</p>
-						<button type='submit' className='btn btn-primary btn-wide'>
-							Sign up
-						</button>
 					</div>
-				</form>
+
+					<div className='card bg-base-100 border border-base-200 shadow-xl rounded-2xl'>
+						<div className='card-body'>
+							<h2 className='card-title mb-2'>Sign in</h2>
+
+							{/* Social auth */}
+							<div className='grid grid-cols-2 gap-2'>
+								<button type='button' className='btn btn-outline w-full'>
+									<Chrome size={18} />
+									Google
+								</button>
+								<button type='button' className='btn btn-outline w-full'>
+									<Github size={18} />
+									GitHub
+								</button>
+							</div>
+
+							<div className='divider'>or continue with email</div>
+
+							<form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
+								{/* Email */}
+								<div>
+									<label className='label text-sm font-medium'>Email</label>
+									<div className='relative'>
+										<input
+											type='email'
+											placeholder='you@example.com'
+											{...register('email', {
+												required: FIELD_REQUIRED_MESSAGE,
+												pattern: { value: EMAIL_RULE, message: EMAIL_RULE_MESSAGE }
+											})}
+											className={`input input-bordered w-full pl-10 ${errors.email ? 'input-error' : ''}`}
+										/>
+										<Mail className='absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50' size={18} />
+									</div>
+									{errors.email && <p className='text-xs text-error mt-1'>{errors.email.message}</p>}
+								</div>
+
+								{/* Password */}
+								<div>
+									<label className='label text-sm font-medium'>Password</label>
+									<div className='relative'>
+										<input
+											type={showPassword ? 'text' : 'password'}
+											placeholder='••••••••'
+											{...register('password', { required: FIELD_REQUIRED_MESSAGE })}
+											className={`input input-bordered w-full pl-10 pr-10 ${errors.password ? 'input-error' : ''}`}
+										/>
+										<Lock className='absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50' size={18} />
+										<button
+											type='button'
+											className='absolute right-3 top-1/2 -translate-y-1/2 text-base-content/60 hover:text-primary'
+											tabIndex={-1}
+											onClick={() => setShowPassword(v => !v)}>
+											{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+										</button>
+									</div>
+									{errors.password && <p className='text-xs text-error mt-1'>{errors.password.message}</p>}
+								</div>
+
+								<div className='flex items-center justify-end text-sm'>
+									<Link to={'/'} className='link link-primary'>
+										Forgot password?
+									</Link>
+								</div>
+
+								<button type='submit' className={`btn btn-primary w-full ${submitting ? 'btn-disabled' : ''}`}>
+									{submitting && <span className='loading loading-spinner'></span>}
+									{submitting ? 'Signing in...' : 'Sign in'}
+								</button>
+							</form>
+						</div>
+					</div>
+
+					<p className='mt-6 text-center text-xs text-base-content/60'>
+						Protected by reCAPTCHA and subject to our Terms & Privacy.
+					</p>
+				</div>
 			</div>
 		</div>
 	)
 }
-
-export default SigninForm

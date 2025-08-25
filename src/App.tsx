@@ -14,17 +14,13 @@ import HomePage from './pages/Comons/HomePage'
 import { checkAuthenticatedUser, checkWhetherUserLoginMiddleware } from './middlewares/auth'
 import { injectStore } from './utils/injectedStore'
 import { routes } from './config/routes'
+import NotFoundPage from './pages/Error/NotFoundPage'
 
 const persistor = persistStore(store)
 
 injectStore(store)
 
 const router = createBrowserRouter([
-	{
-		path: routes.comons.home,
-		loader: checkAuthenticatedUser,
-		element: <HomePage />
-	},
 	{
 		path: routes.auth.signup,
 		loader: checkWhetherUserLoginMiddleware,
@@ -34,6 +30,23 @@ const router = createBrowserRouter([
 		path: routes.auth.signin,
 		loader: checkWhetherUserLoginMiddleware,
 		element: <AuthPage />
+	},
+	{
+		path: routes.auth.verify,
+		loader: checkWhetherUserLoginMiddleware,
+		element: <AuthPage />
+	},
+
+	{
+		path: routes.comons.home,
+		loader: checkAuthenticatedUser,
+		element: <HomePage />
+	},
+
+	// Error
+	{
+		path: '*',
+		element: <NotFoundPage />
 	}
 ])
 
