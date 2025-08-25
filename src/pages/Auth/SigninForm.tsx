@@ -1,14 +1,15 @@
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
-import { Link } from 'react-router-dom'
-import {
-	EMAIL_RULE,
-	EMAIL_RULE_MESSAGE,
-	FIELD_REQUIRED_MESSAGE,
-} from '~/utils/validator'
+import { useDispatch } from 'react-redux'
+import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
+import { routes } from '~/config/routes'
+import type { AppDispatch } from '~/redux/store'
+import { signinUserAPI } from '~/redux/user/userSlice'
+import { EMAIL_RULE, EMAIL_RULE_MESSAGE, FIELD_REQUIRED_MESSAGE } from '~/utils/validator'
 
-type Inputs = {
+export type SigninInputs = {
 	email: string
 	password: string
 }
@@ -17,11 +18,18 @@ const SigninForm = () => {
 	const {
 		register,
 		handleSubmit,
-		formState: { errors },
-	} = useForm<Inputs>()
+		formState: { errors }
+	} = useForm<SigninInputs>()
+	const dispatch: AppDispatch = useDispatch()
+	const navigate = useNavigate()
 	const [isShowPassword, setIsShowPasswor] = useState(false)
-	const onSubmit: SubmitHandler<Inputs> = (data) => console.log(data)
-
+	const onSubmit: SubmitHandler<SigninInputs> = data => {
+		dispatch(signinUserAPI(data))
+		toast.promise(dispatch(signinUserAPI(data)), { pending: 'Logging in...' }).then(res => {
+			console.log(res)
+			navigate(routes.comons.home)
+		})
+	}
 	return (
 		<div className='flex flex-col items-center justify-center h-full w-full'>
 			<div className='w-2/3'>
@@ -48,17 +56,13 @@ const SigninForm = () => {
 								required: FIELD_REQUIRED_MESSAGE,
 								pattern: {
 									value: EMAIL_RULE,
-									message: EMAIL_RULE_MESSAGE,
-								},
+									message: EMAIL_RULE_MESSAGE
+								}
 							})}
 							className='input input-md w-full'
 							placeholder='Type here'
 						/>
-						{errors.email && (
-							<div className='mt-1 text-sm text-error'>
-								{errors.email.message}
-							</div>
-						)}
+						{errors.email && <div className='mt-1 text-sm text-error'>{errors.email.message}</div>}
 					</fieldset>
 					<fieldset className='fieldset'>
 						<legend className='fieldset-legend text-lg'>Password</legend>
@@ -77,11 +81,7 @@ const SigninForm = () => {
 								{isShowPassword ? <EyeOff /> : <Eye />}
 							</button>
 						</div>
-						{errors.password && (
-							<div className='mt-1 text-sm text-error'>
-								{errors.password.message}
-							</div>
-						)}
+						{errors.password && <div className='mt-1 text-sm text-error'>{errors.password.message}</div>}
 					</fieldset>
 					<div className='flex flex-col gap-4 justify-center items-center'>
 						<p className='text-gray-400'>

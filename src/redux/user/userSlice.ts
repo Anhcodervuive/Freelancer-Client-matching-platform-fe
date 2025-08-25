@@ -1,0 +1,69 @@
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import type { User } from '~/types/user'
+import type { RootState } from '~/redux/store'
+import authorizeAxiosInstance from '~/utils/authorizeAxios'
+import { toast } from 'react-toastify'
+import type { SigninInputs } from '~/pages/Auth/SigninForm'
+
+export type UserState = {
+	currentUser: User
+}
+
+const initialState: UserState = {
+	currentUser: null
+}
+
+const authBaseUrl = '/auth'
+
+export const signinUserAPI = createAsyncThunk('user/signinUserAPI', async (data: SigninInputs, { rejectWithValue }) => {
+	try {
+		const res = await authorizeAxiosInstance.post(`${authBaseUrl}/signin`, data)
+		return res.data
+	} catch (error) {
+		return rejectWithValue(error)
+	}
+})
+
+export const logoutUserAPI = createAsyncThunk('user/logoutUserAPI', async (showSuccessMessage: boolean = true) => {
+	try {
+		const res = await authorizeAxiosInstance.post(`${authBaseUrl}/logout`)
+		if (showSuccessMessage) {
+			toast.success('Logged out successfully!')
+		}
+
+		return res.data
+	} catch (error) {
+		console.log(error)
+	}
+})
+
+const userSlice = createSlice({
+	name: 'user',
+	initialState,
+	reducers: {},
+	extraReducers: builder => {
+		builder
+			.addCase(signinUserAPI.fulfilled, (state, action) => {
+				const user = action.payload
+
+				state.currentUser = user
+			})
+			.addCase(logoutUserAPI.fulfilled, state => {
+				state.currentUser = null
+			})
+	}
+})
+
+// Selector: nơi dành cho các component bên dưới gọi bằng hook useSelector để lấy dữ liệu
+// từ trong redux store ra xử dụng
+export interface SelectCurrentUserState {
+	user: {
+		currentUser: User | null
+	}
+}
+
+export const selectCurrentUser = (state: RootState): User | null => {
+	return state.user.currentUser
+}
+
+export default userSlice.reducer
