@@ -28,14 +28,20 @@ export default function SigninForm() {
 	const [showPassword, setShowPassword] = useState(false)
 	const [submitting, setSubmitting] = useState(false)
 	const params = new URLSearchParams(window.location.search)
-	const user = Object.fromEntries(params.entries())
+	const param = Object.fromEntries(params.entries())
 
 	useEffect(() => {
-		if (user?.id) {
-			dispatch(siginGoogle(user))
+		if (param?.id) {
+			dispatch(siginGoogle(param))
 			navigate(routes.comons.home)
 		}
-	}, [dispatch, navigate, user])
+	}, [dispatch, navigate, param])
+
+	useEffect(() => {
+		if (param?.error) {
+			toast.error(param.error)
+		}
+	}, [param.error])
 
 	const onSubmit: SubmitHandler<SigninInputs> = async data => {
 		try {
