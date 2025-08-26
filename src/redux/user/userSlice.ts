@@ -40,7 +40,12 @@ export const logoutUserAPI = createAsyncThunk('user/logoutUserAPI', async (showS
 const userSlice = createSlice({
 	name: 'user',
 	initialState,
-	reducers: {},
+	reducers: {
+		siginGoogle: (state, action) => {
+			const user = action.payload
+			state.currentUser = user
+		}
+	},
 	extraReducers: builder => {
 		builder
 			.addCase(signinUserAPI.fulfilled, (state, action) => {
@@ -65,5 +70,7 @@ export interface SelectCurrentUserState {
 export const selectCurrentUser = (state: RootState): User | null => {
 	return state.user.currentUser
 }
+
+export const { siginGoogle } = userSlice.actions
 
 export default userSlice.reducer

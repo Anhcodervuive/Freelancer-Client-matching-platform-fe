@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { verifyUserAPI } from '~/apis/auth.api'
+import { resendVerifyEmailAPI, verifyUserAPI } from '~/apis/auth.api'
 import { routes } from '~/config/routes'
 // import { MailCheck, MailWarning } from 'lucide-react' // Nếu bạn xài lucide-react
 
@@ -42,7 +42,7 @@ const VerifyPage = () => {
 		setIsResending(true)
 		setShowSentMsg(false)
 		try {
-			// await resendVerifyEmailAPI(email)
+			await resendVerifyEmailAPI(email)
 			setShowSentMsg(true)
 			toast.success('Đã gửi lại email xác thực!')
 			setResendCooldown(RESEND_COOLDOWN)

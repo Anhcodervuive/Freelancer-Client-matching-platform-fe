@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { toast } from 'react-toastify'
-import { Eye, EyeOff, Lock, Mail, Github, Chrome } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Chrome } from 'lucide-react'
 import type { AppDispatch } from '~/redux/store'
-import { signinUserAPI } from '~/redux/user/userSlice'
+import { siginGoogle, signinUserAPI } from '~/redux/user/userSlice'
 import { EMAIL_RULE, EMAIL_RULE_MESSAGE, FIELD_REQUIRED_MESSAGE } from '~/utils/validator'
 import { routes } from '~/config/routes'
+import env from '~/config/environment'
 
 export type SigninInputs = {
 	email: string
@@ -26,6 +27,15 @@ export default function SigninForm() {
 
 	const [showPassword, setShowPassword] = useState(false)
 	const [submitting, setSubmitting] = useState(false)
+	const params = new URLSearchParams(window.location.search)
+	const user = Object.fromEntries(params.entries())
+
+	useEffect(() => {
+		if (user?.id) {
+			dispatch(siginGoogle(user))
+			navigate(routes.comons.home)
+		}
+	}, [dispatch, navigate, user])
 
 	const onSubmit: SubmitHandler<SigninInputs> = async data => {
 		try {
@@ -64,15 +74,11 @@ export default function SigninForm() {
 							<h2 className='card-title mb-2'>Sign in</h2>
 
 							{/* Social auth */}
-							<div className='grid grid-cols-2 gap-2'>
-								<button type='button' className='btn btn-outline w-full'>
+							<div className=''>
+								<a href={`${env.ROOT_URL}/auth/google`} className='btn btn-outline w-full'>
 									<Chrome size={18} />
 									Google
-								</button>
-								<button type='button' className='btn btn-outline w-full'>
-									<Github size={18} />
-									GitHub
-								</button>
+								</a>
 							</div>
 
 							<div className='divider'>or continue with email</div>

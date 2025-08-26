@@ -12,6 +12,11 @@ export const verifyUserAPI = async (token: string) => {
 	return response.data
 }
 
+export const resendVerifyEmailAPI = async (email: string) => {
+	const response = await authorizeAxiosInstance.post(`${authBaseUrl}/resend-verify-email/${email}`)
+	return response.data
+}
+
 export const refreshTokenAPI = async () => {
 	const response = await authorizeAxiosInstance.post(`${authBaseUrl}/refresh_token`)
 	return response.data
