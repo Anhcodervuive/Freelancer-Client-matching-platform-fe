@@ -15,12 +15,38 @@ import { checkAuthenticatedUser, checkWhetherUserLoginMiddleware } from './middl
 import { injectStore } from './utils/injectedStore'
 import { routes } from './config/routes'
 import NotFoundPage from './pages/Error/NotFoundPage'
+import CommonLayout from './layouts/CommonLayout'
+import AdminLayout from './layouts/AdminLayout'
+import AdminProjects from './pages/Admin/AdminProjects'
 
 const persistor = persistStore(store)
 
 injectStore(store)
 
 const router = createBrowserRouter([
+	// Common
+	{
+		element: <CommonLayout />,
+		children: [
+			{
+				path: routes.comons.home,
+				element: <HomePage />
+			}
+		]
+	},
+	// Admin
+	{
+		path: '/admin',
+		loader: checkAuthenticatedUser,
+		element: <AdminLayout />,
+		children: [
+			{
+				path: 'projects',
+				element: <AdminProjects />
+			}
+		]
+	},
+	// Auth
 	{
 		path: routes.auth.signup,
 		loader: checkWhetherUserLoginMiddleware,
@@ -35,12 +61,6 @@ const router = createBrowserRouter([
 		path: routes.auth.verify,
 		loader: checkWhetherUserLoginMiddleware,
 		element: <AuthPage />
-	},
-
-	{
-		path: routes.comons.home,
-		loader: checkAuthenticatedUser,
-		element: <HomePage />
 	},
 
 	// Error
