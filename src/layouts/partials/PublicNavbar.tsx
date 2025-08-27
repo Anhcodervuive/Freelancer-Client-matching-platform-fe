@@ -1,13 +1,18 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useSelector } from 'react-redux'
+import { selectCurrentUser } from '~/redux/user/userSlice'
+import UserMenu from './UserMenu'
+import NotificationDropdown from './NotificationDropdown'
 
 export default function PublicNavbar() {
 	const [open, setOpen] = useState(false)
+	const user = useSelector(selectCurrentUser)
 	const navigate = useNavigate()
 
 	return (
 		<header className='sticky top-0 z-40 bg-base-100/90 backdrop-blur border-b border-base-200'>
-			<div className='max-w-7xl mx-auto px-4 py-3 flex items-center gap-3'>
+			<div className='max-w-[1500px] mx-auto px-4 py-3 flex items-center gap-3'>
 				<Link to='/' className='flex items-center gap-2 font-semibold'>
 					<span className='inline-flex size-8 rounded-full bg-primary' />
 					<span>Workreap-ish</span>
@@ -56,12 +61,21 @@ export default function PublicNavbar() {
 							if (e.key === 'Enter') navigate('/search?q=' + (e.target as HTMLInputElement).value)
 						}}
 					/>
-					<Link to='/signin' className='btn btn-sm'>
-						Sign in
-					</Link>
-					<Link to='/register' className='btn btn-sm btn-primary'>
-						Register
-					</Link>
+					{user ? (
+						<>
+							<NotificationDropdown />
+							<UserMenu user={{ name: user.displayName, avatar: user.avatar, role: user.role }} />
+						</>
+					) : (
+						<>
+							<Link to='/signin' className='btn btn-sm'>
+								Sign in
+							</Link>
+							<Link to='/register' className='btn btn-sm btn-primary'>
+								Register
+							</Link>
+						</>
+					)}
 				</div>
 
 				{/* Mobile */}

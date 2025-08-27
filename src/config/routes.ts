@@ -7,6 +7,9 @@ export const routes = {
 		signup: '/signup',
 		verify: '/verify'
 	},
+	me: {
+		profile: '/me/profile'
+	},
 	error: {
 		notFound: '/404'
 	}

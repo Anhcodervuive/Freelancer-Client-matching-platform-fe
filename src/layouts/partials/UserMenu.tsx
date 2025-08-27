@@ -1,0 +1,48 @@
+import { Link, useNavigate } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
+import { logoutUserAPI } from '~/redux/user/userSlice'
+import { routes } from '~/config/routes'
+import type { AppDispatch } from '~/redux/store'
+
+export default function UserMenu({ user }: { user: { name?: string; avatar?: string; role?: string } }) {
+	const dispatch: AppDispatch = useDispatch()
+	const navigate = useNavigate()
+	const handleLogout = async () => {
+		await dispatch(logoutUserAPI(false)).unwrap()
+		navigate(routes.auth.signin)
+	}
+	return (
+		<div className='dropdown dropdown-end'>
+			<label tabIndex={0} className='btn btn-ghost btn-circle avatar'>
+				<div className='w-8 rounded-full overflow-hidden bg-primary/20 grid place-items-center'>
+					{user.avatar ? (
+						<img src={user.avatar} alt={user.name} />
+					) : (
+						<span className='font-semibold text-sm'>
+							{user
+								.name!.split(' ')
+								.map(x => x[0])
+								.join('')}
+						</span>
+					)}
+				</div>
+			</label>
+			<ul tabIndex={0} className='menu menu-sm dropdown-content mt-3 p-2 shadow bg-base-100 rounded-box w-56'>
+				<li className='menu-title px-3'>Signed in as</li>
+				<li className='px-3 pb-2 text-sm font-medium'>{user.name}</li>
+				<li>
+					<Link to={routes.me.profile}>Profile</Link>
+				</li>
+				<li>
+					<Link to='/settings'>Settings</Link>
+				</li>
+				<li>
+					<Link to='/admin'>Dashboard</Link>
+				</li>
+				<li>
+					<button onClick={handleLogout}>Logout</button>
+				</li>
+			</ul>
+		</div>
+	)
+}

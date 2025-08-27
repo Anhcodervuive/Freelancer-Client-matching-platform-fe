@@ -18,6 +18,7 @@ import NotFoundPage from './pages/Error/NotFoundPage'
 import CommonLayout from './layouts/CommonLayout'
 import AdminLayout from './layouts/AdminLayout'
 import AdminProjects from './pages/Admin/AdminProjects'
+import ProfilePage from './pages/Me/ProfilePage'
 
 const persistor = persistStore(store)
 
@@ -31,6 +32,10 @@ const router = createBrowserRouter([
 			{
 				path: routes.comons.home,
 				element: <HomePage />
+			},
+			{
+				path: routes.me.profile,
+				element: <ProfilePage />
 			}
 		]
 	},

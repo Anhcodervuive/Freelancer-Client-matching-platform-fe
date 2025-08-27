@@ -4,7 +4,7 @@ import PublicFooter from './partials/PublicFooter'
 
 export default function CommonLayout() {
 	return (
-		<div className='min-h-dvh flex flex-col bg-base-100'>
+		<div className='min-h-dvh flex flex-col'>
 			<PublicNavbar />
 			<main className='flex-1'>
 				<Outlet />
