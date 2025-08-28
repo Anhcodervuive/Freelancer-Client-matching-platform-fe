@@ -1,3 +1,7 @@
+import { useSelector } from 'react-redux'
+import Languages from '~/components/profile/Languages'
+import { selectCurrentUser } from '~/redux/user/userSlice'
+
 const user = {
 	name: 'Du D.',
 	avatar: '/images/avatar.png', // đổi path
@@ -22,6 +26,7 @@ const bullets = [
 ]
 
 export default function ProfilePage() {
+	const reduxUser = useSelector(selectCurrentUser)
 	return (
 		<div className='max-w-7xl mx-auto px-3 md:px-4 py-6 space-y-6'>
 			{/* HEADER */}
@@ -106,14 +111,15 @@ export default function ProfilePage() {
 					</section>
 
 					{/* Languages */}
-					<section className='rounded-xl border border-base-200 bg-white/90 p-4'>
+					{/* <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
 						<h3 className='font-semibold mb-2'>Languages</h3>
 						{user.languages.map((l, i) => (
-							<div key={i} className='text-sm'>
-								<span className='font-medium'>{l.name}</span> <span className='text-base-content/60'>{l.level}</span>
+							<div key={i} className='text-sm flex gap-6'>
+								<span className='font-medium'>{l.name}:</span> <span className='text-base-content/60'>{l.level}</span>
 							</div>
 						))}
-					</section>
+					</section> */}
+					<Languages userId={reduxUser?.id} />
 				</div>
 
 				{/* RIGHT COLUMN (overview content) */}

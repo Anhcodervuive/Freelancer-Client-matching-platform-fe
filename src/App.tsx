@@ -19,8 +19,22 @@ import CommonLayout from './layouts/CommonLayout'
 import AdminLayout from './layouts/AdminLayout'
 import AdminProjects from './pages/Admin/AdminProjects'
 import ProfilePage from './pages/Me/ProfilePage'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const persistor = persistStore(store)
+
+const qc = new QueryClient({
+	defaultOptions: {
+		queries: {
+			refetchOnWindowFocus: false, // Không tự refetch khi đổi tab
+			retry: false, // Thử lại tối đa 2 lần khi lỗi
+			staleTime: 1000 * 60 * 5 // Cache "tươi" trong 5 phút
+		},
+		mutations: {
+			retry: 1 // Số lần retry cho mutation
+		}
+	}
+})
 
 injectStore(store)
 
@@ -78,12 +92,14 @@ const router = createBrowserRouter([
 function App() {
 	return (
 		<div className='font-display'>
-			<Provider store={store}>
-				<PersistGate persistor={persistor}>
-					<RouterProvider router={router} />
-				</PersistGate>
-				<ToastContainer />
-			</Provider>
+			<QueryClientProvider client={qc}>
+				<Provider store={store}>
+					<PersistGate persistor={persistor}>
+						<RouterProvider router={router} />
+					</PersistGate>
+					<ToastContainer />
+				</Provider>
+			</QueryClientProvider>
 		</div>
 	)
 }

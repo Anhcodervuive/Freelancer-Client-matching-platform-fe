@@ -13,14 +13,14 @@ export default tseslint.config([
 			js.configs.recommended,
 			tseslint.configs.recommended,
 			reactHooks.configs['recommended-latest'],
-			reactRefresh.configs.vite,
+			reactRefresh.configs.vite
 		],
 		languageOptions: {
 			ecmaVersion: 2020,
-			globals: globals.browser,
+			globals: globals.browser
 		},
 		rules: {
-			'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]' }],
-		},
-	},
+			'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }]
+		}
+	}
 ])

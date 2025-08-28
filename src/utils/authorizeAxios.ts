@@ -104,6 +104,7 @@ authorizeAxiosInstance.interceptors.response.use(
 		if (error?.response?.data?.message) {
 			errorMessage = error.response.data?.message
 		}
+		console.log(error)
 		// Dùng react toastify để hiển thị bất kỳ lỗi gì lên màn hình - Ngoại trừ mã 410 - GONE phục vụ lại việc tự động refresh lại token
 		if (error?.response?.status !== 410) {
 			console.log(error)
