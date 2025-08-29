@@ -31,7 +31,7 @@ const qc = new QueryClient({
 			staleTime: 1000 * 60 * 5 // Cache "tươi" trong 5 phút
 		},
 		mutations: {
-			retry: 1 // Số lần retry cho mutation
+			retry: false // Số lần retry cho mutation
 		}
 	}
 })

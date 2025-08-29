@@ -13,13 +13,11 @@ export function useProfileLanguages(userId?: string) {
 	})
 
 	const addOne = useMutation({
-		retry: false,
 		mutationFn: (p: { languageCode: string; proficiency: LanguageProficiency }) => addProfileLanguage({ userId, ...p }),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['profileLanguages', userId] })
 	})
 
 	const removeOne = useMutation({
-		retry: false,
 		mutationFn: (code: string) => deleteProfileLanguage(userId, code),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['profileLanguages', userId] })
 	})

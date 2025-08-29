@@ -1,6 +1,6 @@
 // components/profile/LanguagesSection.tsx
 import { useMemo, useState } from 'react'
-import { useProfileLanguages } from '~/hooks/api/useProfileLanguages'
+import { useProfileLanguages } from '~/hooks/api/useFreelancerLanguages'
 import LanguageManagerModal from './LanguageManagerModal'
 import { languageNameFromCode } from '~/constants/language'
 import type { LanguageProficiency } from '~/types/profile'

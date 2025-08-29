@@ -17,14 +17,16 @@ const baseUrl = env.ROOT_URL
 
 // Khởi tạo 1 axios instance mục đích custom và cấu hình chung cho dự án
 const authorizeAxiosInstance = axios.create({
-	baseURL: baseUrl
+	baseURL: baseUrl,
+	timeout: 1000 * 60 * 10,
+	withCredentials: true
 })
 
 // Thời gian chờ tối đa của 1 request: 10 phút
-authorizeAxiosInstance.defaults.timeout = 1000 * 60 * 10
+// authorizeAxiosInstance.defaults.timeout = 1000 * 60 * 10
 // withCredentials: sẽ cho phép axios tự động gửi cookie trong mỗi request lên BE (Phục vụ
 // việc chúng ta sẽ lưu JWT tokens (refresh & token) vào trong httpOnly Cookie của trình duyệt)
-authorizeAxiosInstance.defaults.withCredentials = true
+// authorizeAxiosInstance.defaults.withCredentials = true
 
 // Cấu hình bộ đánh chặn giữa request và response
 
@@ -88,10 +90,10 @@ authorizeAxiosInstance.interceptors.response.use(
 			// Cần return trường hợp refreshTokenPromise chạy thành công và xử lý thêm ở đây:
 			return refreshTokenPromise.then(() => {
 				/**
-   * Bước 1: Đối với Trường hợp nếu dự án cần lưu accessToken vào localstorage hoặc đâu đó thì sẽ viết thêm code xử lý ở đây.
-   * Hiện tại ở đây không cần bước 1 này vì chúng ta đã đưa accessToken vào cookie (xử lý từ phía BE)
-     sau khi api refreshToken được gọi thành công.
-   */
+	 * Bước 1: Đối với Trường hợp nếu dự án cần lưu accessToken vào localstorage hoặc đâu đó thì sẽ viết thêm code xử lý ở đây.
+	 * Hiện tại ở đây không cần bước 1 này vì chúng ta đã đưa accessToken vào cookie (xử lý từ phía BE)
+		 sau khi api refreshToken được gọi thành công.
+	*/
 
 				// Bước 2: Bước Quan trọng: Return lại axios instance của chúng ta kết hợp các originalRequests để
 				// gọi lại những api ban đầu bị lỗi
@@ -104,7 +106,6 @@ authorizeAxiosInstance.interceptors.response.use(
 		if (error?.response?.data?.message) {
 			errorMessage = error.response.data?.message
 		}
-		console.log(error)
 		// Dùng react toastify để hiển thị bất kỳ lỗi gì lên màn hình - Ngoại trừ mã 410 - GONE phục vụ lại việc tự động refresh lại token
 		if (error?.response?.status !== 410) {
 			console.log(error)
