@@ -1,5 +1,6 @@
 import { useSelector } from 'react-redux'
-import Languages from '~/components/profile/Languages'
+import { EducationSection } from '~/components/profile/freelancer/EducationSection'
+import LanguageSection from '~/components/profile/freelancer/LanguageSection'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 
 const user = {
@@ -87,7 +88,7 @@ export default function ProfilePage() {
 					</section>
 
 					{/* Education */}
-					<section className='rounded-xl border border-base-200 bg-white/90 p-4'>
+					{/* <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
 						<h3 className='font-semibold mb-2'>Education</h3>
 						{user.education.map((e, i) => (
 							<div key={i} className='text-sm'>
@@ -96,7 +97,8 @@ export default function ProfilePage() {
 								<div className='text-base-content/60 text-xs'>{e.time}</div>
 							</div>
 						))}
-					</section>
+					</section> */}
+					<EducationSection userId={reduxUser?.id} />
 
 					{/* Skills */}
 					<section className='rounded-xl border border-base-200 bg-white/90 p-4'>
@@ -110,16 +112,7 @@ export default function ProfilePage() {
 						</div>
 					</section>
 
-					{/* Languages */}
-					{/* <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
-						<h3 className='font-semibold mb-2'>Languages</h3>
-						{user.languages.map((l, i) => (
-							<div key={i} className='text-sm flex gap-6'>
-								<span className='font-medium'>{l.name}:</span> <span className='text-base-content/60'>{l.level}</span>
-							</div>
-						))}
-					</section> */}
-					<Languages userId={reduxUser?.id} />
+					<LanguageSection userId={reduxUser?.id} />
 				</div>
 
 				{/* RIGHT COLUMN (overview content) */}

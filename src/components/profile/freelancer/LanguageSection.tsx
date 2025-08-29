@@ -6,7 +6,7 @@ import { languageNameFromCode } from '~/constants/language'
 import type { LanguageProficiency } from '~/types/profile'
 import { Pencil, Plus } from 'lucide-react'
 
-type Props = { userId: string }
+type Props = { userId?: string }
 
 export default function LanguagesSection({ userId }: Props) {
 	const { listQ, addOne, removeOne } = useProfileLanguages(userId)

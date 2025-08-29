@@ -1,6 +1,6 @@
 // hooks/useProfileLanguages.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getAllProfileLanguage, addProfileLanguage, deleteProfileLanguage } from '~/apis/profileLanguage.api'
+import { getAllProfileLanguage, addProfileLanguage, deleteProfileLanguage } from '~/apis/freelancerProfile.api'
 import type { LanguageProficiency } from '~/types/profile'
 
 export function useProfileLanguages(userId?: string) {

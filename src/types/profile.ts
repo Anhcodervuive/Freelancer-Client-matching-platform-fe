@@ -7,3 +7,13 @@ export type ProfileLanguage = {
 	createdAt?: string
 	updatedAt?: string
 }
+
+export type FreelancerEducation = {
+	id?: string
+	freelancerId?: string
+	schoolName: string
+	degreeTitle?: string | null
+	fieldOfStudy?: string | null
+	startYear?: number | null
+	endYear?: number | null
+}
