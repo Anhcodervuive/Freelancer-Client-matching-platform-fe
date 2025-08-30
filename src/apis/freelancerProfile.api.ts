@@ -1,4 +1,4 @@
-import type { LanguageProficiency, ProfileLanguage } from '~/types/profile'
+import type { FreelancerProfile, LanguageProficiency, ProfileLanguage } from '~/types/profile'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
 const freelancerProfileBaseUrl = '/me'
@@ -45,6 +45,19 @@ export async function updateEducationAPI(payload: unknown, userId?: string, edut
 export async function deleteEducationAPI(userId?: string, edutionId?: string) {
 	const { data } = await authorizeAxiosInstance.delete(
 		`${freelancerProfileBaseUrl}/profile/${userId}/education/${edutionId}`
+	)
+	return data
+}
+
+export async function getFreelancerProfileAPI(userId?: string) {
+	const response = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/profile/${userId}/freelancer`)
+	return response.data
+}
+
+export async function updateFreelancerProfileAPI(payload: Partial<Omit<FreelancerProfile, 'userId'>>, userId?: string) {
+	const { data } = await authorizeAxiosInstance.put<FreelancerProfile>(
+		`${freelancerProfileBaseUrl}/profile/${userId}/freelancer`,
+		payload
 	)
 	return data
 }

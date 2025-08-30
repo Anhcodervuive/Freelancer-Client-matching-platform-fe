@@ -17,3 +17,10 @@ export type FreelancerEducation = {
 	startYear?: number | null
 	endYear?: number | null
 }
+
+export type FreelancerProfile = {
+	userId: string
+	title?: string | null
+	bio?: string | null
+	links?: string[] | null
+}

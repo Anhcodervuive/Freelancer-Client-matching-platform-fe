@@ -1,4 +1,5 @@
 import { useSelector } from 'react-redux'
+import AboutSection from '~/components/profile/freelancer/AboutSection'
 import { EducationSection } from '~/components/profile/freelancer/EducationSection'
 import LanguageSection from '~/components/profile/freelancer/LanguageSection'
 import { selectCurrentUser } from '~/redux/user/userSlice'
@@ -16,15 +17,6 @@ const user = {
 	skills: ['Web Development', 'Web Application'],
 	languages: [{ name: 'English', level: 'Conversational' }]
 }
-
-const profileTitle = 'Other - Software Development | API, API Development, CSS, CSS 3, Git'
-
-const bullets = [
-	'Over 2 years of experience in programming with good communication and quick learning skills',
-	'Strengths: Front-end technology and Back-end web application development',
-	'Proficiency in HTML, CSS, JavaScript',
-	'Strong proficiency in JavaScript, including DOM manipulation and the JavaScript object model'
-]
 
 export default function ProfilePage() {
 	const reduxUser = useSelector(selectCurrentUser)
@@ -70,34 +62,6 @@ export default function ProfilePage() {
 			<div className='grid grid-cols-1 md:grid-cols-[1.15fr_2fr] gap-4'>
 				{/* LEFT COLUMN (the small info blocks) */}
 				<div className='space-y-4'>
-					{/* Linked accounts */}
-					<section className='rounded-xl border border-base-200 bg-white/90 p-4'>
-						<h3 className='font-semibold mb-2'>Linked accounts</h3>
-						<div className='flex items-center gap-3'>
-							<img src={user.github.avatar} className='w-10 h-10 rounded-full object-cover border border-base-200' />
-							<div className='min-w-0'>
-								<div className='font-medium'>Đỗ Thanh Dũ</div>
-								<a className='text-xs text-green-700 underline' href={user.github.url}>
-									View profile
-								</a>
-							</div>
-						</div>
-						<button className='btn btn-xs btn-outline mt-3 text-red-600 border-red-200 hover:border-red-300'>
-							Unlink
-						</button>
-					</section>
-
-					{/* Education */}
-					{/* <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
-						<h3 className='font-semibold mb-2'>Education</h3>
-						{user.education.map((e, i) => (
-							<div key={i} className='text-sm'>
-								<div className='font-medium'>{e.school}</div>
-								<div className='text-base-content/70'>{e.degree}</div>
-								<div className='text-base-content/60 text-xs'>{e.time}</div>
-							</div>
-						))}
-					</section> */}
 					<EducationSection userId={reduxUser?.id} />
 
 					{/* Skills */}
@@ -117,23 +81,7 @@ export default function ProfilePage() {
 
 				{/* RIGHT COLUMN (overview content) */}
 				<div className='space-y-4'>
-					<section className='rounded-xl border border-base-200 bg-white/90 p-5'>
-						<div className='flex items-start gap-2 mb-2'>
-							<span className='inline-flex rounded-full border border-green-600 text-green-600 p-1'>
-								<svg className='w-4 h-4' fill='none' stroke='currentColor' strokeWidth={2} viewBox='0 0 24 24'>
-									<path strokeLinecap='round' strokeLinejoin='round' d='M15.232 5.232l3.536 3.536M9 11l6 6M3 21h18' />
-								</svg>
-							</span>
-							<h3 className='text-xl font-semibold leading-snug'>{profileTitle}</h3>
-						</div>
-						<div className='text-xs font-semibold mb-2'>$15.00/hr</div>
-						<div className='text-sm mb-2'>Intern Front-end developer</div>
-						<ul className='list-disc pl-5 text-sm text-base-content/80 space-y-1'>
-							{bullets.map((t, i) => (
-								<li key={i}>{t}</li>
-							))}
-						</ul>
-					</section>
+					<AboutSection userId={reduxUser?.id} />
 
 					{/* Portfolio section: (nếu cần cho y chang ảnh thì thêm ở đây) */}
 					{/* ... */}
