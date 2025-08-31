@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify'
 import BioEditor from '~/components/TextEditor'
 import { useFreelancerProfile } from '~/hooks/api/useFreelancerProfile'
 import LinkChip from '~/components/LinkChip'
+import { Pencil } from 'lucide-react'
 
 type Props = { userId?: string }
 
@@ -40,10 +41,32 @@ export default function AboutSection({ userId }: Props) {
 		if (title.length > 255) return
 		// sanitize trước khi lưu (cũng nên làm lại ở server)
 		const cleanBio = DOMPurify.sanitize(bioHtml, {
-			ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'a'],
+			ALLOWED_TAGS: [
+				'p',
+				'br',
+				'strong',
+				'em',
+				'u',
+				's',
+				'code',
+				'pre',
+				'ul',
+				'ol',
+				'li',
+				'blockquote',
+				'a',
+				'h1',
+				'h2',
+				'h3',
+				'h4',
+				'h5',
+				'h6',
+				'hr',
+				'mark',
+				'span'
+			],
 			ALLOWED_ATTR: ['href', 'target', 'rel']
 		})
-
 		await save({ title, bio: cleanBio, links })
 		setOpen(false)
 	}
@@ -51,7 +74,30 @@ export default function AboutSection({ userId }: Props) {
 	const safeBio = React.useMemo(
 		() =>
 			DOMPurify.sanitize(data?.bio || '', {
-				ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'a'],
+				ALLOWED_TAGS: [
+					'p',
+					'br',
+					'strong',
+					'em',
+					'u',
+					's',
+					'code',
+					'pre',
+					'ul',
+					'ol',
+					'li',
+					'blockquote',
+					'a',
+					'h1',
+					'h2',
+					'h3',
+					'h4',
+					'h5',
+					'h6',
+					'hr',
+					'mark',
+					'span'
+				],
 				ALLOWED_ATTR: ['href', 'target', 'rel']
 			}),
 		[data?.bio]
@@ -62,8 +108,8 @@ export default function AboutSection({ userId }: Props) {
 			<div className='card-body gap-3'>
 				<div className='flex items-center justify-between'>
 					<h2 className='text-2xl font-bold'>Profile overview</h2>
-					<button className='btn btn-sm' onClick={() => setOpen(true)}>
-						Edit
+					<button className='btn btn-sm btn-circle btn-ghost text-green-700' onClick={() => setOpen(true)}>
+						<Pencil />
 					</button>
 				</div>
 

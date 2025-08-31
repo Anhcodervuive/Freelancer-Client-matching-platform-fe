@@ -44,6 +44,12 @@ const userSlice = createSlice({
 		siginGoogle: (state, action) => {
 			const user = action.payload
 			state.currentUser = user
+		},
+		updateProfile: (state, action) => {
+			state.currentUser = {
+				...state.currentUser,
+				...action.payload
+			}
 		}
 	},
 	extraReducers: builder => {
@@ -71,6 +77,6 @@ export const selectCurrentUser = (state: RootState): User | null => {
 	return state.user.currentUser
 }
 
-export const { siginGoogle } = userSlice.actions
+export const { siginGoogle, updateProfile } = userSlice.actions
 
 export default userSlice.reducer

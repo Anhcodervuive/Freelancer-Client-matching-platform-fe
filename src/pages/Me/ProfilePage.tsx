@@ -1,4 +1,5 @@
 import { useSelector } from 'react-redux'
+import AvatarUploader from '~/components/profile/AvatarUploader'
 import AboutSection from '~/components/profile/freelancer/AboutSection'
 import { EducationSection } from '~/components/profile/freelancer/EducationSection'
 import LanguageSection from '~/components/profile/freelancer/LanguageSection'
@@ -26,20 +27,13 @@ export default function ProfilePage() {
 			<div className='rounded-xl border border-base-200 bg-white/90 p-5 md:p-6'>
 				<div className='flex flex-col sm:flex-row gap-4 sm:gap-6 items-start'>
 					{/* avatar */}
-					<div className='relative shrink-0'>
-						<img src={user.avatar} className='w-24 h-24 rounded-full object-cover bg-base-200' />
-						<button className='absolute -bottom-1 -right-1 bg-white border border-base-200 rounded-full p-1 shadow-sm'>
-							<svg
-								className='w-4 h-4 text-green-600'
-								fill='none'
-								stroke='currentColor'
-								strokeWidth={2}
-								viewBox='0 0 24 24'>
-								<path strokeLinecap='round' strokeLinejoin='round' d='M15.232 5.232l3.536 3.536M9 11l6 6M3 21h18' />
-							</svg>
+					{/* <div className='relative shrink-0'>
+						<img src={user.avatar ?? 'avatar.png'} className='w-24 h-24 rounded-full object-cover bg-base-200' />
+						<button className='absolute -bottom-1 -right-1 border border-green-700 bg-white/90 btn btn-ghost btn-circle text-green-700'>
+							<Pencil />
 						</button>
-					</div>
-
+					</div> */}
+					<AvatarUploader src={reduxUser?.avatar ?? 'avatar.png'} />
 					{/* name + location */}
 					<div className='flex-1 min-w-0'>
 						<h2 className='text-2xl font-bold leading-tight'>{user.name}</h2>
