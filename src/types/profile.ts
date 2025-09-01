@@ -5,10 +5,15 @@ export type Profile = {
 	firstName: string
 	lastName: string
 	email: string
+	phoneNumber: string
+	country: string
+	city: string
+	district: string
+	address: string
 	// add fields as needed
 }
 
-export type UpdateProfileDto = Partial<Pick<Profile, 'firstName' | 'lastName'>>
+export type UpdateProfileDto = Partial<Profile>
 
 export type ProfileLanguage = {
 	userId: string

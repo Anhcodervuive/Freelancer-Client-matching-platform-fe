@@ -9,8 +9,12 @@ export type User = {
 	email: string
 	firstName?: string
 	lastName?: string
-	displayName?: string
+	phoneNumber?: string
 	avatar?: string
+	country?: string
+	city?: string
+	district?: string
+	address?: string
 	role?: Role
 	createdAt?: Date
 	updatedAt?: Date

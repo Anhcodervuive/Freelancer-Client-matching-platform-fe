@@ -29,7 +29,6 @@ export default function UserMenu({ user }: { user: { name?: string; avatar?: str
 				</div>
 			</label>
 			<ul tabIndex={0} className='menu menu-sm dropdown-content mt-3 p-2 shadow bg-base-100 rounded-box w-56'>
-				<li className='menu-title px-3'>Signed in as</li>
 				<li className='px-3 pb-2 text-sm font-medium'>{user.name}</li>
 				{user.role == Role.FREELANCER && (
 					<li>
@@ -37,10 +36,7 @@ export default function UserMenu({ user }: { user: { name?: string; avatar?: str
 					</li>
 				)}
 				<li>
-					<Link to='/settings'>Settings</Link>
-				</li>
-				<li>
-					<Link to='/admin'>Dashboard</Link>
+					<Link to={routes.me.setting.contactInfo}>Settings</Link>
 				</li>
 				<li>
 					<button onClick={handleLogout}>Logout</button>

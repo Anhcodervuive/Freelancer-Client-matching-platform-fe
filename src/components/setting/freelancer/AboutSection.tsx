@@ -1,7 +1,7 @@
 // components/FreelancerAboutSection.tsx
 import React from 'react'
 import DOMPurify from 'dompurify'
-import BioEditor from '~/components/TextEditor'
+import BioEditor from '~/components/form/TextEditor'
 import { useFreelancerProfile } from '~/hooks/api/useFreelancerProfile'
 import LinkChip from '~/components/LinkChip'
 import { Pencil } from 'lucide-react'

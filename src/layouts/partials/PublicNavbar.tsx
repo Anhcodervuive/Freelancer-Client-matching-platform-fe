@@ -65,7 +65,7 @@ export default function PublicNavbar() {
 					{user ? (
 						<>
 							<NotificationDropdown />
-							<UserMenu user={{ name: user.displayName, avatar: user.avatar, role: user.role }} />
+							<UserMenu user={{ name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role }} />
 						</>
 					) : (
 						<>
