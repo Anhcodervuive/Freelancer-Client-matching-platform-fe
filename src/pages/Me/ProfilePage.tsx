@@ -1,8 +1,8 @@
 import { useSelector } from 'react-redux'
-import AvatarUploader from '~/components/profile/AvatarUploader'
-import AboutSection from '~/components/profile/freelancer/AboutSection'
-import { EducationSection } from '~/components/profile/freelancer/EducationSection'
-import LanguageSection from '~/components/profile/freelancer/LanguageSection'
+import AvatarUploader from '~/components/setting/AvatarUploader'
+import AboutSection from '~/components/setting/freelancer/AboutSection'
+import { EducationSection } from '~/components/setting/freelancer/EducationSection'
+import LanguageSection from '~/components/setting/freelancer/LanguageSection'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 
 const user = {
@@ -22,17 +22,10 @@ const user = {
 export default function ProfilePage() {
 	const reduxUser = useSelector(selectCurrentUser)
 	return (
-		<div className='max-w-7xl mx-auto px-3 md:px-4 py-6 space-y-6'>
+		<div className=''>
 			{/* HEADER */}
-			<div className='rounded-xl border border-base-200 bg-white/90 p-5 md:p-6'>
+			<div className='rounded-xl border border-base-200 bg-white/90 p-5 md:p-6 mb-4'>
 				<div className='flex flex-col sm:flex-row gap-4 sm:gap-6 items-start'>
-					{/* avatar */}
-					{/* <div className='relative shrink-0'>
-						<img src={user.avatar ?? 'avatar.png'} className='w-24 h-24 rounded-full object-cover bg-base-200' />
-						<button className='absolute -bottom-1 -right-1 border border-green-700 bg-white/90 btn btn-ghost btn-circle text-green-700'>
-							<Pencil />
-						</button>
-					</div> */}
 					<AvatarUploader src={reduxUser?.avatar ?? 'avatar.png'} />
 					{/* name + location */}
 					<div className='flex-1 min-w-0'>

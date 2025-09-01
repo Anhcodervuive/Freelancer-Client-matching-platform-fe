@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux'
 import { logoutUserAPI } from '~/redux/user/userSlice'
 import { routes } from '~/config/routes'
 import type { AppDispatch } from '~/redux/store'
+import { Role } from '~/types/user'
 
 export default function UserMenu({ user }: { user: { name?: string; avatar?: string; role?: string } }) {
 	const dispatch: AppDispatch = useDispatch()
@@ -30,9 +31,11 @@ export default function UserMenu({ user }: { user: { name?: string; avatar?: str
 			<ul tabIndex={0} className='menu menu-sm dropdown-content mt-3 p-2 shadow bg-base-100 rounded-box w-56'>
 				<li className='menu-title px-3'>Signed in as</li>
 				<li className='px-3 pb-2 text-sm font-medium'>{user.name}</li>
-				<li>
-					<Link to={routes.me.profile}>Profile</Link>
-				</li>
+				{user.role == Role.FREELANCER && (
+					<li>
+						<Link to={routes.me.freelancer.profile}>profile</Link>
+					</li>
+				)}
 				<li>
 					<Link to='/settings'>Settings</Link>
 				</li>

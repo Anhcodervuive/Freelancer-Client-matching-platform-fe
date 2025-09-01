@@ -4,6 +4,7 @@ import type { RootState } from '~/redux/store'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import { toast } from 'react-toastify'
 import type { SigninInputs } from '~/pages/Auth/SigninForm'
+import type { UpdateProfileDto } from '~/types/profile'
 
 export type UserState = {
 	currentUser: User
@@ -24,18 +25,35 @@ export const signinUserAPI = createAsyncThunk('user/signinUserAPI', async (data:
 	}
 })
 
-export const logoutUserAPI = createAsyncThunk('user/logoutUserAPI', async (showSuccessMessage: boolean = true) => {
-	try {
-		const res = await authorizeAxiosInstance.post(`${authBaseUrl}/logout`)
-		if (showSuccessMessage) {
-			toast.success('Logged out successfully!')
-		}
+export const logoutUserAPI = createAsyncThunk(
+	'user/logoutUserAPI',
+	async (showSuccessMessage: boolean = true, { rejectWithValue }) => {
+		try {
+			const res = await authorizeAxiosInstance.post(`${authBaseUrl}/logout`)
+			if (showSuccessMessage) {
+				toast.success('Logged out successfully!')
+			}
 
-		return res.data
-	} catch (error) {
-		console.log(error)
+			return res.data
+		} catch (error) {
+			console.log(error)
+			return rejectWithValue(error)
+		}
 	}
-})
+)
+
+export const updateProfileAPI = createAsyncThunk(
+	'user/updateProfileAPI',
+	async (data: UpdateProfileDto, { rejectWithValue }) => {
+		try {
+			const res = await authorizeAxiosInstance.put('/me/profile', data)
+			return res.data
+		} catch (error) {
+			console.log(error)
+			return rejectWithValue(error)
+		}
+	}
+)
 
 const userSlice = createSlice({
 	name: 'user',
@@ -61,6 +79,11 @@ const userSlice = createSlice({
 			})
 			.addCase(logoutUserAPI.fulfilled, state => {
 				state.currentUser = null
+			})
+			.addCase(updateProfileAPI.fulfilled, (state, action) => {
+				const updatedUser = action.payload
+
+				state.currentUser = updatedUser
 			})
 	}
 })

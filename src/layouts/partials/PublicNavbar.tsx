@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import UserMenu from './UserMenu'
 import NotificationDropdown from './NotificationDropdown'
+import { routes } from '~/config/routes'
 
 export default function PublicNavbar() {
 	const [open, setOpen] = useState(false)
@@ -98,11 +99,11 @@ export default function PublicNavbar() {
 						Search
 					</NavLink>
 					<div className='flex gap-2 pt-2'>
-						<Link to='/signin' className='btn btn-sm flex-1' onClick={() => setOpen(false)}>
+						<Link to={routes.auth.signin} className='btn btn-sm flex-1' onClick={() => setOpen(false)}>
 							Sign in
 						</Link>
-						<Link to='/register' className='btn btn-sm btn-primary flex-1' onClick={() => setOpen(false)}>
-							Register
+						<Link to={routes.auth.signup} className='btn btn-sm btn-primary flex-1' onClick={() => setOpen(false)}>
+							Sign up
 						</Link>
 					</div>
 				</div>

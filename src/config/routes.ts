@@ -8,7 +8,13 @@ export const routes = {
 		verify: '/verify'
 	},
 	me: {
-		profile: '/me/profile'
+		client: {},
+		freelancer: {
+			profile: '/me/freelancer/profile'
+		},
+		setting: {
+			contactInfo: '/me/setting/contact-info'
+		}
 	},
 	error: {
 		notFound: '/404'

@@ -1,5 +1,15 @@
 export type LanguageProficiency = 'BASIC' | 'CONVERSATIONAL' | 'FLUENT' | 'NATIVE'
 
+export type Profile = {
+	id: string
+	firstName: string
+	lastName: string
+	email: string
+	// add fields as needed
+}
+
+export type UpdateProfileDto = Partial<Pick<Profile, 'firstName' | 'lastName'>>
+
 export type ProfileLanguage = {
 	userId: string
 	languageCode: string // 'en'

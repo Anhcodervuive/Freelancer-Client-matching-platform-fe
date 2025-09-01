@@ -20,6 +20,8 @@ import AdminLayout from './layouts/AdminLayout'
 import AdminProjects from './pages/Admin/AdminProjects'
 import ProfilePage from './pages/Me/ProfilePage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import SettingLayout from './layouts/SettingLayout'
+import ContactInfo from './pages/Me/ContactInfo'
 
 const persistor = persistStore(store)
 
@@ -48,8 +50,19 @@ const router = createBrowserRouter([
 				element: <HomePage />
 			},
 			{
-				path: routes.me.profile,
+				path: routes.me.freelancer.profile,
 				element: <ProfilePage />
+			},
+			{
+				path: '/me/setting',
+				loader: checkAuthenticatedUser,
+				element: <SettingLayout />,
+				children: [
+					{
+						path: 'contact-info',
+						element: <ContactInfo />
+					}
+				]
 			}
 		]
 	},
