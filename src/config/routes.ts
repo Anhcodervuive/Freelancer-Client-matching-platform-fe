@@ -13,7 +13,12 @@ export const routes = {
 			profile: '/me/freelancer/profile'
 		},
 		setting: {
-			contactInfo: '/me/setting/contact-info'
+			contactInfo: '/me/setting/contact-info',
+			payment: {
+				list: '/me/setting/payment-method',
+				create: '/me/setting/payment-method/create',
+				edit: (id: string) => `/me/setting/payment-method/edit/${id}`
+			}
 		}
 	},
 	error: {

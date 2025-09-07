@@ -5,12 +5,19 @@ import type { AppDispatch } from '~/redux/store'
 import { selectCurrentUser, updateProfileAPI as updateProfileReduxAPI } from '~/redux/user/userSlice'
 import type { UpdateProfileDto } from '~/types/profile'
 import CountryAutocomplete, { type CountryOption } from '../form/CountryAutocomplete'
+import countryList from 'react-select-country-list'
 
 export function LocationCard() {
 	const data = useSelector(selectCurrentUser)
 	const dispatch: AppDispatch = useDispatch()
 	const [edit, setEdit] = useState(false)
-	const [countryVal, setCountryVal] = useState<CountryOption | null>()
+	const [countryVal, setCountryVal] = useState<CountryOption | null>(
+		data?.country
+			? countryList()
+					.getData()
+					.find(v => v.label === data.country!)!
+			: null
+	)
 	const [form, setForm] = useState<UpdateProfileDto>({
 		country: data?.country ?? '',
 		city: data?.city,

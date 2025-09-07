@@ -22,6 +22,10 @@ import ProfilePage from './pages/Me/ProfilePage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import SettingLayout from './layouts/SettingLayout'
 import ContactInfo from './pages/Me/ContactInfo'
+import PaymentMethodPage from './pages/Me/payment-method/PaymentMethodPage'
+import AddBillingMethodPage from './pages/Me/payment-method/AddPaymentMethodPage'
+import PaymentMethodWrapper from './pages/Me/payment-method/PaymentMethodWrapper'
+import EditPaymentMethod from './pages/Me/payment-method/EditPaymentMethod'
 
 const persistor = persistStore(store)
 
@@ -61,6 +65,24 @@ const router = createBrowserRouter([
 					{
 						path: 'contact-info',
 						element: <ContactInfo />
+					}
+				]
+			},
+			{
+				path: '/me/setting/payment-method',
+				element: <PaymentMethodWrapper />,
+				children: [
+					{
+						path: '',
+						element: <PaymentMethodPage />
+					},
+					{
+						path: 'create',
+						element: <AddBillingMethodPage />
+					},
+					{
+						path: 'edit/:id',
+						element: <EditPaymentMethod />
 					}
 				]
 			}
