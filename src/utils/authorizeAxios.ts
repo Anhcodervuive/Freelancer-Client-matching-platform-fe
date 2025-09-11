@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type AxiosRequestConfig } from 'axios'
 import type { ErrorResponse } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { refreshTokenAPI } from '~/apis/auth.api'
@@ -14,6 +14,18 @@ export function dispatchThunk(action: any) {
 }
 
 const baseUrl = env.ROOT_URL
+
+const isSigninUrl = (cfg: AxiosRequestConfig | undefined) => {
+	if (!cfg) return false
+	const raw = cfg.baseURL ? new URL(cfg.url ?? '', cfg.baseURL).toString() : cfg.url ?? ''
+	// có thể chỉ cần check pathname:
+	try {
+		const url = new URL(raw, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+		return url.pathname.toLowerCase().includes('/signin')
+	} catch {
+		return raw.toLowerCase().includes('/signin')
+	}
+}
 
 // Khởi tạo 1 axios instance mục đích custom và cấu hình chung cho dự án
 const authorizeAxiosInstance = axios.create({
@@ -58,7 +70,9 @@ authorizeAxiosInstance.interceptors.response.use(
 
 		// Trường hợp 1: Nếu như nhận mã 401 từ BE, thì gọi api đăng xuất luôn
 		if (error?.response?.status === 401) {
-			dispatchThunk(logoutUserAPI(false))
+			if (!isSigninUrl(error.config)) {
+				dispatchThunk(logoutUserAPI(false))
+			}
 		}
 		// Trường hợp 2: Nếu như nhận mã 410 từ BE, thì sẽ gọi api refresh token để làm mới lại accessToken
 		// Đầu tiên lấy được các request API đang bị lỗi thông qua error.config

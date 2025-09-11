@@ -11,7 +11,13 @@ import { persistStore } from 'redux-persist'
 
 import AuthPage from './pages/Auth'
 import HomePage from './pages/Comons/HomePage'
-import { checkAuthenticatedUser, checkWhetherUserLoginMiddleware } from './middlewares/auth'
+import {
+	checkAuthenticatedUser,
+	checkWhetherUserLoginMiddleware,
+	composeLoaders,
+	isAdminUser,
+	isFreelancerUser
+} from './middlewares/auth'
 import { injectStore } from './utils/injectedStore'
 import { routes } from './config/routes'
 import NotFoundPage from './pages/Error/NotFoundPage'
@@ -26,6 +32,7 @@ import PaymentMethodPage from './pages/Me/payment-method/PaymentMethodPage'
 import AddBillingMethodPage from './pages/Me/payment-method/AddPaymentMethodPage'
 import PaymentMethodWrapper from './pages/Me/payment-method/PaymentMethodWrapper'
 import EditPaymentMethod from './pages/Me/payment-method/EditPaymentMethod'
+import CategoryList from './pages/Admin/category/List'
 
 const persistor = persistStore(store)
 
@@ -55,6 +62,7 @@ const router = createBrowserRouter([
 			},
 			{
 				path: routes.me.freelancer.profile,
+				loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
 				element: <ProfilePage />
 			},
 			{
@@ -91,13 +99,18 @@ const router = createBrowserRouter([
 	// Admin
 	{
 		path: '/admin',
-		loader: checkAuthenticatedUser,
+		loader: composeLoaders(checkAuthenticatedUser, isAdminUser),
 		element: <AdminLayout />,
 		children: [
 			{
 				path: 'projects',
 				element: <AdminProjects />
-			}
+			},
+			{
+				path: 'categories',
+				element: <CategoryList />
+			},
+			{}
 		]
 	},
 	// Auth

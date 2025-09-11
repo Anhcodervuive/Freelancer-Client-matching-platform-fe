@@ -37,3 +37,39 @@ export const checkAuthenticatedUser = () => {
 
 	return null
 }
+
+export const isFreelancerUser = () => {
+	const persistedRoot = localStorage.getItem('persist:root')
+	if (!persistedRoot) throw redirect(routes.auth.signin)
+	const state = JSON.parse(persistedRoot)
+	const user = JSON.parse(state.user)
+	const currentUser = user.currentUser
+	if (currentUser.role !== 'FREELANCER') {
+		throw redirect(routes.comons.home)
+	}
+	return null
+}
+
+export const isClientUser = () => {
+	const persistedRoot = localStorage.getItem('persist:root')
+	if (!persistedRoot) throw redirect(routes.auth.signin)
+	const state = JSON.parse(persistedRoot)
+	const user = JSON.parse(state.user)
+	const currentUser = user.currentUser
+	if (currentUser.role !== 'CLIENT') {
+		throw redirect(routes.comons.home)
+	}
+	return null
+}
+
+export const isAdminUser = () => {
+	const persistedRoot = localStorage.getItem('persist:root')
+	if (!persistedRoot) throw redirect(routes.auth.signin)
+	const state = JSON.parse(persistedRoot)
+	const user = JSON.parse(state.user)
+	const currentUser = user.currentUser
+	if (currentUser.role !== 'ADMIN') {
+		throw redirect(routes.comons.home)
+	}
+	return null
+}
