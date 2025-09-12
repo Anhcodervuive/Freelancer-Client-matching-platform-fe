@@ -18,6 +18,11 @@ export const getAllCategories = async (prop: {
 	return response.data
 }
 
+export const getCategoryById = async (id: string) => {
+	const response = await authorizeAxiosInstance.get(`${baseUrl}/${id}`)
+	return response.data
+}
+
 export const createCategory = async (payload: Partial<Category>) => {
 	const resposne = await authorizeAxiosInstance.post(`${baseUrl}/`, payload)
 	return resposne.data

@@ -7,3 +7,5 @@ export const toSlug = (s: string) =>
 		.trim()
 		.replace(/\s+/g, '-')
 		.replace(/-+/g, '-')
+
+export const formatDate = (iso: string) => new Date(iso).toLocaleString()

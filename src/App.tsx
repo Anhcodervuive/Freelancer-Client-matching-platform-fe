@@ -33,6 +33,8 @@ import AddBillingMethodPage from './pages/Me/payment-method/AddPaymentMethodPage
 import PaymentMethodWrapper from './pages/Me/payment-method/PaymentMethodWrapper'
 import EditPaymentMethod from './pages/Me/payment-method/EditPaymentMethod'
 import CategoryList from './pages/Admin/category/List'
+import SpecialtiesGlobal from './pages/Admin/specialty/List'
+import CategorySpecialtiesPage from './pages/Admin/category/CategorySpecialties'
 
 const persistor = persistStore(store)
 
@@ -108,9 +110,21 @@ const router = createBrowserRouter([
 			},
 			{
 				path: 'categories',
-				element: <CategoryList />
+				children: [
+					{
+						path: '',
+						element: <CategoryList />
+					},
+					{
+						path: ':id',
+						element: <CategorySpecialtiesPage />
+					}
+				]
 			},
-			{}
+			{
+				path: 'specialties',
+				element: <SpecialtiesGlobal />
+			}
 		]
 	},
 	// Auth

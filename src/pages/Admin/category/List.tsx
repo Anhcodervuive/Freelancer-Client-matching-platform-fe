@@ -1,19 +1,23 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Pencil, Trash2, RefreshCcw, CheckCircle2, XCircle } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, RefreshCcw, CheckCircle2, XCircle, Info } from 'lucide-react'
 import type { Category } from '~/types/Category'
 import CategoryFormModal from './FormModal'
 import ConfirmDelete from '~/components/ConfirmDelete'
 import { createCategory, deleteCategory, getAllCategories, updateCategory } from '~/apis/admin/category.api'
 import { toast } from 'react-toastify'
+import { useDebounce } from '~/hooks/comons/useDebounce'
+import { Link } from 'react-router-dom'
+import { routes } from '~/config/routes'
 
 const formatDate = (iso: string) => new Date(iso).toLocaleString()
 
 // ---------- Main Page ----------
 export default function AdminCategories() {
 	const [page, setPage] = useState(1)
-	const [limit] = useState(10)
+	const [limit] = useState(3)
 	const [search, setSearch] = useState('')
+	const searchDebouced = useDebounce<string>(search, 1000)
 
 	const [modalOpen, setModalOpen] = useState(false)
 	const [editing, setEditing] = useState<Category | null>(null)
@@ -22,11 +26,11 @@ export default function AdminCategories() {
 	const [toDelete, setToDelete] = useState<Category | null>(null)
 
 	const qc = useQueryClient()
-	const qKey = useMemo(() => ['categories', { page, limit, search }], [page, limit, search])
+	const qKey = useMemo(() => ['categories', { page, limit, searchDebouced }], [page, limit, searchDebouced])
 
 	const { data, isLoading, isError, refetch, isFetching } = useQuery({
 		queryKey: qKey,
-		queryFn: () => getAllCategories({ page, limit, search })
+		queryFn: () => getAllCategories({ page, limit, search: searchDebouced })
 	})
 
 	// Mutations
@@ -163,7 +167,7 @@ export default function AdminCategories() {
 										) : null}
 									</td>
 									<td>
-										<div className='badge badge-outline'>{c.slug}</div>
+										<div className='badge'>{c.slug}</div>
 									</td>
 									<td>
 										{c.isActive ? (
@@ -193,6 +197,9 @@ export default function AdminCategories() {
 												}}>
 												<Trash2 className='size-4' />
 											</button>
+											<Link to={routes.admin.category.detail(c.id)} className='btn btn-sm btn-info'>
+												<Info />
+											</Link>
 										</div>
 									</td>
 								</tr>

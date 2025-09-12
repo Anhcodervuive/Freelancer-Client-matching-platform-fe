@@ -21,6 +21,12 @@ export const routes = {
 			}
 		}
 	},
+	admin: {
+		category: {
+			list: '/admin/categories',
+			detail: (id: string = 'id') => `/admin/categories/${id}`
+		}
+	},
 	error: {
 		notFound: '/404'
 	}
