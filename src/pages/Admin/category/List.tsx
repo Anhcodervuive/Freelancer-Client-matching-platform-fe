@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Pencil, Trash2, RefreshCcw, CheckCircle2, XCircle, Info } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, RefreshCcw, CheckCircle2, XCircle, EllipsisVertical } from 'lucide-react'
 import type { Category } from '~/types/Category'
 import CategoryFormModal from './FormModal'
 import ConfirmDelete from '~/components/ConfirmDelete'
@@ -197,9 +197,23 @@ export default function AdminCategories() {
 												}}>
 												<Trash2 className='size-4' />
 											</button>
-											<Link to={routes.admin.category.detail(c.id)} className='btn btn-sm btn-info'>
-												<Info />
-											</Link>
+											<details className='dropdown dropdown-bottom dropdown-end'>
+												<summary className='btn btn-sm btn-ghost'>
+													<EllipsisVertical />
+												</summary>
+												<ul className='menu dropdown-content bg-base-100 rounded-box z-1 p-2 shadow-sm'>
+													<li>
+														<Link to={routes.admin.category.categorySpecialties(c.id)} className='btn btn-link'>
+															Specialty
+														</Link>
+													</li>
+													<li>
+														<Link to={routes.admin.category.categorySkills(c.id)} className='btn btn-link'>
+															Skill
+														</Link>
+													</li>
+												</ul>
+											</details>
 										</div>
 									</td>
 								</tr>

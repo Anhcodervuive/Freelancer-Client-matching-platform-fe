@@ -24,7 +24,8 @@ export const routes = {
 	admin: {
 		category: {
 			list: '/admin/categories',
-			detail: (id: string = 'id') => `/admin/categories/${id}`
+			categorySpecialties: (id: string = 'id') => `/admin/categories/${id}/specialties`,
+			categorySkills: (id: string = 'id') => `/admin/categories/${id}/skills`
 		}
 	},
 	error: {

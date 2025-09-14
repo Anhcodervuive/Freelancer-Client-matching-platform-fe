@@ -35,6 +35,8 @@ import EditPaymentMethod from './pages/Me/payment-method/EditPaymentMethod'
 import CategoryList from './pages/Admin/category/List'
 import SpecialtiesGlobal from './pages/Admin/specialty/List'
 import CategorySpecialtiesPage from './pages/Admin/category/CategorySpecialties'
+import SkillsAdminPage from './pages/Admin/skill/List'
+import CategorySkillsPage from './pages/Admin/category/CategorySkillsPage'
 
 const persistor = persistStore(store)
 
@@ -116,14 +118,22 @@ const router = createBrowserRouter([
 						element: <CategoryList />
 					},
 					{
-						path: ':id',
+						path: ':id/specialties',
 						element: <CategorySpecialtiesPage />
+					},
+					{
+						path: ':id/skills',
+						element: <CategorySkillsPage />
 					}
 				]
 			},
 			{
 				path: 'specialties',
 				element: <SpecialtiesGlobal />
+			},
+			{
+				path: 'skills',
+				element: <SkillsAdminPage />
 			}
 		]
 	},
