@@ -42,11 +42,21 @@ export const logoutUserAPI = createAsyncThunk(
 	}
 )
 
+export const verifyUserAPI = createAsyncThunk('user/verifyUserAPI', async (token: string, { rejectWithValue }) => {
+	try {
+		const res = await authorizeAxiosInstance.put(`${authBaseUrl}/verify/${token}`)
+		return res.data
+	} catch (error) {
+		return rejectWithValue(error)
+	}
+})
+
 export const updateProfileAPI = createAsyncThunk(
 	'user/updateProfileAPI',
 	async (data: UpdateProfileDto, { rejectWithValue }) => {
 		try {
 			const res = await authorizeAxiosInstance.put('/me/profile', data)
+			console.log(res.data)
 			return res.data
 		} catch (error) {
 			console.log(error)
@@ -84,6 +94,11 @@ const userSlice = createSlice({
 				const updatedUser = action.payload
 
 				state.currentUser = updatedUser
+			})
+			.addCase(verifyUserAPI.fulfilled, (state, action) => {
+				const user = action.payload
+
+				state.currentUser = user
 			})
 	}
 })

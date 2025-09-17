@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
+import { useDispatch } from 'react-redux'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { resendVerifyEmailAPI, verifyUserAPI } from '~/apis/auth.api'
+import { resendVerifyEmailAPI } from '~/apis/auth.api'
 import { routes } from '~/config/routes'
+import type { AppDispatch } from '~/redux/store'
+import { verifyUserAPI } from '~/redux/user/userSlice'
 // import { MailCheck, MailWarning } from 'lucide-react' // Nếu bạn xài lucide-react
 
 const RESEND_COOLDOWN = 30 // giây
 
 const VerifyPage = () => {
+	const dispatch: AppDispatch = useDispatch()
 	const [searchParams] = useSearchParams()
 	const navigate = useNavigate()
 	const email = searchParams.get('email')
@@ -28,14 +32,14 @@ const VerifyPage = () => {
 	useEffect(() => {
 		if (token) {
 			setIsVerifing(true)
-			verifyUserAPI(token)
+			dispatch(verifyUserAPI(token))
 				.then(() => {
 					toast.success('Xác thực email thành công!')
-					navigate(routes.auth.signin)
+					navigate(routes.comons.onboarding)
 				})
 				.finally(() => setIsVerifing(false))
 		}
-	}, [navigate, token])
+	}, [dispatch, navigate, token])
 
 	const handleResend = async () => {
 		if (!email) return

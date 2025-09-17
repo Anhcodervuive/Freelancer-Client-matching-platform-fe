@@ -35,6 +35,11 @@ export default function UserMenu({ user }: { user: { name?: string; avatar?: str
 						<Link to={routes.me.freelancer.profile}>profile</Link>
 					</li>
 				)}
+				{user.role == Role.ADMIN && (
+					<li>
+						<Link to={routes.admin.category.list}>Admin</Link>
+					</li>
+				)}
 				<li>
 					<Link to={routes.me.setting.contactInfo}>Settings</Link>
 				</li>

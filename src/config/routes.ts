@@ -1,6 +1,7 @@
 export const routes = {
 	comons: {
-		home: '/'
+		home: '/',
+		onboarding: '/onboarding'
 	},
 	auth: {
 		signin: '/signin',
@@ -26,7 +27,12 @@ export const routes = {
 			list: '/admin/categories',
 			categorySpecialties: (id: string = 'id') => `/admin/categories/${id}/specialties`,
 			categorySkills: (id: string = 'id') => `/admin/categories/${id}/skills`
-		}
+		},
+		specialty: {
+			list: '/admin/specialties',
+			specialtySkills: (id: string = 'id') => `/admin/specialties/${id}/skills`
+		},
+		project: '/admin/projects'
 	},
 	error: {
 		notFound: '/404'

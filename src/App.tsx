@@ -37,6 +37,8 @@ import SpecialtiesGlobal from './pages/Admin/specialty/List'
 import CategorySpecialtiesPage from './pages/Admin/category/CategorySpecialties'
 import SkillsAdminPage from './pages/Admin/skill/List'
 import CategorySkillsPage from './pages/Admin/category/CategorySkillsPage'
+import SpecialtySkillsPage from './pages/Admin/specialty/SpecialtySkillPage'
+import OnboardingWizard from './pages/onBoarding/OnboardingWizard'
 
 const persistor = persistStore(store)
 
@@ -68,6 +70,10 @@ const router = createBrowserRouter([
 				path: routes.me.freelancer.profile,
 				loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
 				element: <ProfilePage />
+			},
+			{
+				path: routes.comons.onboarding,
+				element: <OnboardingWizard />
 			},
 			{
 				path: '/me/setting',
@@ -129,7 +135,17 @@ const router = createBrowserRouter([
 			},
 			{
 				path: 'specialties',
-				element: <SpecialtiesGlobal />
+
+				children: [
+					{
+						path: '',
+						element: <SpecialtiesGlobal />
+					},
+					{
+						path: ':id/skills',
+						element: <SpecialtySkillsPage />
+					}
+				]
 			},
 			{
 				path: 'skills',

@@ -4,19 +4,39 @@ import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
 const baseUrl = 'specialty'
 
-export async function getSpecialties(props: {
+export async function getSpecialties(_props: {
 	page: number
 	limit: number
 	search: string
 	categoryId?: string
+}): Promise<ListResponse<Specialty>>
+export async function getSpecialties(_props: {
+	page: number
+	limit: number
+	search: string
+	categoryId?: string[]
+}): Promise<ListResponse<Specialty>>
+
+export async function getSpecialties(props: {
+	page: number
+	limit: number
+	search: string
+	categoryId?: string | string[]
 }): Promise<ListResponse<Specialty>> {
-	const params = {
+	const params: Record<string, string> = {
 		page: props.page.toString(),
 		limit: props.limit.toString(),
-		search: props.search,
-		categoryId: props.categoryId ?? ''
+		search: props.search
 	}
-	const response = await authorizeAxiosInstance.get(`${baseUrl}/?${new URLSearchParams(params)}`)
+	let response
+	if (Array.isArray(props.categoryId)) {
+		params.categoryIds = props.categoryId.join(',')
+		response = await authorizeAxiosInstance.get(`${baseUrl}/categories/?${new URLSearchParams(params)}`)
+	} else {
+		params.categoryId = props.categoryId ?? ''
+		response = await authorizeAxiosInstance.get(`${baseUrl}/?${new URLSearchParams(params)}`)
+	}
+
 	return response.data
 }
 

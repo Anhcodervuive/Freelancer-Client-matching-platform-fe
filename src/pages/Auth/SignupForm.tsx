@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, UserPlus2 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { routes } from '~/config/routes'
-import { Role } from '~/types'
 import {
 	EMAIL_RULE,
 	EMAIL_RULE_MESSAGE,
@@ -19,7 +18,6 @@ type Inputs = {
 	confirmPassword: string
 	firstName: string
 	lastName: string
-	role: Role
 	isAgreeCondition: boolean
 }
 
@@ -101,22 +99,6 @@ const SignupForm = () => {
 							placeholder='Type here'
 						/>
 						{errors.email && <p className='text-xs text-error mt-1'>{errors.email.message}</p>}
-					</div>
-					<div>
-						<label className='label text-base font-medium'>Role</label>
-						<select
-							defaultValue=''
-							{...register('role', {
-								validate: value => !!value || 'Please select your role'
-							})}
-							className={`select select-bordered w-full ${errors.role ? 'select-error' : ''}`}>
-							<option value='' disabled>
-								Choose a role
-							</option>
-							<option value={Role.freelancer}>Freelancer</option>
-							<option value={Role.client}>Client</option>
-						</select>
-						{errors.role && <p className='text-xs text-error mt-1'>{String(errors.role.message)}</p>}
 					</div>
 					<div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
 						<div>

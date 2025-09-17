@@ -61,3 +61,16 @@ export async function updateFreelancerProfileAPI(payload: Partial<Omit<Freelance
 	)
 	return data
 }
+
+export async function setFreelancerCategoryAndSpecialty(payload: { categoryIds: string[]; specialtyIds: string[] }) {
+	const response = await authorizeAxiosInstance.post('/onboarding/cat-spe', {
+		categoryIds: payload.categoryIds,
+		specialtyIds: payload.specialtyIds
+	})
+	return response.data
+}
+
+export async function setFreelancerSkills(payload: { skillIds: string[] }) {
+	const response = await authorizeAxiosInstance.post('/onboarding/skill', payload)
+	return response.data
+}

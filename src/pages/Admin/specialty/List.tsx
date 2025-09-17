@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Pencil, Plus, RefreshCcw, Search, Trash2 } from 'lucide-react'
+import { CheckCircle2, EllipsisVertical, Pencil, Plus, RefreshCcw, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { createSpecialty, deleteSpecialty, getSpecialties, updateSpecialty } from '~/apis/admin/specialty.api'
@@ -9,6 +9,8 @@ import type { Specialty } from '~/types/specialty'
 import { formatDate } from '~/utils/form'
 import SpecialtyFormModal from './FormModal'
 import ConfirmDelete from '~/components/ConfirmDelete'
+import { Link } from 'react-router-dom'
+import { routes } from '~/config/routes'
 // ---------- Page ----------
 export default function SpecialtiesGlobal() {
 	const [page, setPage] = useState(1)
@@ -218,6 +220,18 @@ export default function SpecialtiesGlobal() {
 												}}>
 												<Trash2 className='size-4' />
 											</button>
+											<details className='dropdown dropdown-bottom dropdown-end'>
+												<summary className='btn btn-sm btn-ghost'>
+													<EllipsisVertical />
+												</summary>
+												<ul className='menu dropdown-content bg-base-100 rounded-box z-1 p-2 shadow-sm'>
+													<li>
+														<Link to={routes.admin.specialty.specialtySkills(s.id)} className='btn btn-link'>
+															Skill
+														</Link>
+													</li>
+												</ul>
+											</details>
 										</div>
 									</td>
 								</tr>

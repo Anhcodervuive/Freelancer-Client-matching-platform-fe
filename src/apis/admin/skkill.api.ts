@@ -51,7 +51,14 @@ export async function attachSkillsBulk(
 	return res.data?.data as OwnerSkillItem[]
 }
 
-export async function searchSkills(params: { search?: string; page?: number; limit?: number; onlyActive?: boolean }) {
+export async function searchSkills(params: {
+	search?: string
+	page?: number
+	limit?: number
+	onlyActive?: boolean
+	categoryIds?: string
+	specialtyIds?: string
+}) {
 	const res = await authorizeAxiosInstance.get(`/skill`, { params })
 	return res.data as ListResponse<SkillLite>
 }

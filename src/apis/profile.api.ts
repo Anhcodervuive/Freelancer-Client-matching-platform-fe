@@ -1,3 +1,5 @@
+import type { Role } from '~/types'
+import type { UpdateProfileDto } from '~/types/profile'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
 const profileBaseUrl = '/me'
@@ -18,5 +20,15 @@ export const uploadAvatar = async (
 		},
 		signal: opts?.signal
 	})
+	return res.data
+}
+
+export const updateRole = async (role: Role) => {
+	const resposne = await authorizeAxiosInstance.post('/onboarding/role', { role })
+	return resposne.data
+}
+
+export const updateProfileAPI = async (data: UpdateProfileDto) => {
+	const res = await authorizeAxiosInstance.put('/me/profile', data)
 	return res.data
 }
