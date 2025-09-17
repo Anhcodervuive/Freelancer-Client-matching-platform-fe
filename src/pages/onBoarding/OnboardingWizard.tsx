@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -809,28 +809,35 @@ function EducationStep({
 // --------------------------
 
 function LanguagesStep({ onChange }: { onChange: (_language: z.infer<typeof LanguagesSchema>) => void }) {
-	const user = useSelector(selectCurrentUser)
-	const { listQ } = useProfileLanguages(user?.id)
-	const form = useForm<z.infer<typeof LanguagesSchema>>({
-		resolver: zodResolver(LanguagesSchema),
-		defaultValues: { languages: listQ.data ?? [] }
-	})
+        const user = useSelector(selectCurrentUser)
+        const { listQ } = useProfileLanguages(user?.id)
+        const form = useForm<z.infer<typeof LanguagesSchema>>({
+                resolver: zodResolver(LanguagesSchema),
+                defaultValues: { languages: listQ.data ?? [] }
+        })
 
-	const add = () => {
-		form.setValue('languages', [...form.getValues('languages'), { languageCode: 'vi', proficiency: 'BASIC' as const }])
-		onChange({ languages: [...form.getValues('languages'), { languageCode: 'vi', proficiency: 'BASIC' as const }] })
-	}
+        const languages = form.watch('languages')
 
-	return (
-		<div>
-			<StepHeader title='Looking good. Next, tell us which languages you speak.' />
-			<div className='space-y-3'>
-				{form.watch('languages').map((_row, i) => (
-					<div key={i} className='grid grid-cols-2 gap-3'>
-						<Controller
-							control={form.control}
-							name={`languages.${i}.languageCode` as const}
-							render={({ field }) => (
+        useEffect(() => {
+                if (!languages) return
+                onChange({ languages })
+        }, [languages, onChange])
+
+        const add = () => {
+                form.setValue('languages', [...form.getValues('languages'), { languageCode: 'vi', proficiency: 'BASIC' as const }])
+                onChange({ languages: [...form.getValues('languages'), { languageCode: 'vi', proficiency: 'BASIC' as const }] })
+        }
+
+        return (
+                <div>
+                        <StepHeader title='Looking good. Next, tell us which languages you speak.' />
+                        <div className='space-y-3'>
+                                {languages?.map((_row, i) => (
+                                        <div key={i} className='grid grid-cols-2 gap-3'>
+                                                <Controller
+                                                        control={form.control}
+                                                        name={`languages.${i}.languageCode` as const}
+                                                        render={({ field }) => (
 								<select className='select select-bordered' {...field}>
 									{LANGUAGE_OPTIONS.map(l => (
 										<option key={l.value} value={l.value}>
@@ -840,14 +847,14 @@ function LanguagesStep({ onChange }: { onChange: (_language: z.infer<typeof Lang
 								</select>
 							)}
 						/>
-						<Controller
-							control={form.control}
-							name={`languages.${i}.languageCode` as const}
-							render={({ field }) => (
-								<select className='select select-bordered' {...field}>
-									<option value='BASIC'>Basic</option>
-									<option value='CONVERSATIONAL'>Conversational</option>
-									<option value='FLUENT'>Fluent</option>
+                                                <Controller
+                                                        control={form.control}
+                                                        name={`languages.${i}.proficiency` as const}
+                                                        render={({ field }) => (
+                                                                <select className='select select-bordered' {...field}>
+                                                                        <option value='BASIC'>Basic</option>
+                                                                        <option value='CONVERSATIONAL'>Conversational</option>
+                                                                        <option value='FLUENT'>Fluent</option>
 									<option value='NATIVE'>Native</option>
 								</select>
 							)}
