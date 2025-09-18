@@ -62,21 +62,21 @@ export default function PublicNavbar() {
 							if (e.key === 'Enter') navigate('/search?q=' + (e.target as HTMLInputElement).value)
 						}}
 					/>
-					{user ? (
-						<>
-							<NotificationDropdown />
-							<UserMenu user={{ name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role }} />
-						</>
-					) : (
-						<>
-							<Link to='/signin' className='btn btn-sm'>
-								Sign in
-							</Link>
-							<Link to='/register' className='btn btn-sm btn-primary'>
-								Register
-							</Link>
-						</>
-					)}
+                                        {user ? (
+                                                <>
+                                                        <NotificationDropdown />
+                                                        <UserMenu user={{ name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role }} />
+                                                </>
+                                        ) : (
+                                                <>
+                                                        <Link to={routes.auth.signin} className='btn btn-sm'>
+                                                                Sign in
+                                                        </Link>
+                                                        <Link to={routes.auth.signup} className='btn btn-sm btn-primary'>
+                                                                Register
+                                                        </Link>
+                                                </>
+                                        )}
 				</div>
 
 				{/* Mobile */}
