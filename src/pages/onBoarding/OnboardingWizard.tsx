@@ -34,17 +34,28 @@ type SpecialtyOption = { id: string; name: string; categoryId: string }
 type SkillOption = { id: string; name: string }
 
 const queryKeys = {
-	me: ['me'],
-	categories: (q: string) => ['taxonomy', 'categories', q],
-	specialties: (categoryIds: string[], q: string) => ['taxonomy', 'specialties', [...categoryIds], q],
-	skills: (categoryIds: string[], specialtyIds: string[], q: string) => [
-		'taxonomy',
-		'skills',
-		[...categoryIds],
-		[...specialtyIds],
-		q
-	]
+        me: ['me'],
+        categories: (q: string) => ['taxonomy', 'categories', q],
+        specialties: (categoryIds: string[], q: string) => ['taxonomy', 'specialties', [...categoryIds], q],
+        skills: (categoryIds: string[], specialtyIds: string[], q: string) => [
+                'taxonomy',
+                'skills',
+                [...categoryIds],
+                [...specialtyIds],
+                q
+        ]
 } as const
+
+const STEP_LABELS: Record<WizardStep, string> = {
+        role: 'Chọn vai trò',
+        'cat-spec': 'Lĩnh vực & chuyên môn',
+        skills: 'Kỹ năng',
+        title: 'Tiêu đề nổi bật',
+        education: 'Học vấn',
+        languages: 'Ngôn ngữ',
+        overview: 'Giới thiệu bản thân',
+        location: 'Thông tin liên hệ'
+}
 
 function useListCategories(keyword: string) {
 	return useQuery({
@@ -146,9 +157,8 @@ export default function OnboardingWizard() {
 	const [specialtyIds, setSpecialtyIds] = useState<string[]>([])
 	const [skillIds, setSkillIds] = useState<string[]>([])
 	const [title, setTitle] = useState('')
-	const [overview, setOverview] = useState('')
-	const [languages, setLanguages] = useState<LanguagesFormValues | undefined>()
-
+        const [overview, setOverview] = useState('')
+        const [languages, setLanguages] = useState<LanguagesFormValues | undefined>()
 	const [categoryKeyword, setCategoryKeyword] = useState('')
 	const [specialtyKeyword, setSpecialtyKeyword] = useState('')
 	const [skillKeyword, setSkillKeyword] = useState('')
@@ -177,13 +187,26 @@ export default function OnboardingWizard() {
 		user?.id
 	)
 
-	const { data: categoryResponse } = useListCategories(categoryKeyword)
-	const { data: specialtyResponse } = useListSpecialties(categoryIds, specialtyKeyword)
-	const { data: skillsResponse } = useListSkills(categoryIds, specialtyIds, skillKeyword)
+        const { data: categoryResponse } = useListCategories(categoryKeyword)
+        const { data: specialtyResponse } = useListSpecialties(categoryIds, specialtyKeyword)
+        const { data: skillsResponse } = useListSkills(categoryIds, specialtyIds, skillKeyword)
 
-	const categories = (categoryResponse?.data ?? []) as CategoryOption[]
-	const specialties = (specialtyResponse?.data ?? []) as SpecialtyOption[]
-	const skills = (skillsResponse?.data ?? []).map(item => ({ id: item.id, name: item.name })) as SkillOption[]
+        const categories = useMemo(
+                () => (categoryResponse?.data ?? []) as CategoryOption[],
+                [categoryResponse?.data]
+        )
+        const specialties = useMemo(
+                () => (specialtyResponse?.data ?? []) as SpecialtyOption[],
+                [specialtyResponse?.data]
+        )
+        const skills = useMemo(
+                () =>
+                        ((skillsResponse?.data ?? []).map(item => ({
+                                id: item.id,
+                                name: item.name
+                        })) as SkillOption[]),
+                [skillsResponse?.data]
+        )
 
 	const canGoBack = stepIndex > 0
 
@@ -358,98 +381,184 @@ export default function OnboardingWizard() {
 		removeProfileLanguage
 	])
 
-	return (
-		<div className='mx-auto max-w-4xl space-y-6 p-6'>
-			<div className='flex items-center gap-2 rounded-2xl bg-base-200/60 px-4 py-3 text-sm text-base-content/80'>
-				<ShieldCheck className='size-4 shrink-0 text-primary' />
-				<span>Hoàn thiện hồ sơ để nhận được nhiều cơ hội việc làm phù hợp hơn.</span>
-			</div>
+        const stepContent = useMemo(() => {
+                if (!currentStep) return null
 
-			<WizardProgress currentIndex={stepIndex} total={totalSteps} />
+                if (currentStep === 'role') {
+                        return (
+                                <RoleStep
+                                        value={role}
+                                        onChange={(nextRole: Role) => {
+                                                if (nextRole === Role.client || nextRole === Role.freelancer) {
+                                                        setRole(nextRole)
+                                                }
+                                        }}
+                                />
+                        )
+                }
 
-			<div className='card bg-base-100 shadow-xl'>
-				<div className='card-body'>
-					{currentStep === 'role' ? (
-						<RoleStep
-							value={role}
-							onChange={(nextRole: Role) => {
-								if (nextRole === Role.client || nextRole === Role.freelancer) {
-									setRole(nextRole)
-								}
-							}}
-						/>
-					) : null}
+                if (role !== Role.freelancer) return null
 
-					{role === Role.freelancer && currentStep === 'cat-spec' ? (
-						<CategorySpecialtyStep
-							categories={categories}
-							specialties={specialties}
-							categoryIds={categoryIds}
-							specialtyIds={specialtyIds}
-							onCategoryChange={ids => {
-								setCategoryIds(ids)
-								setSpecialtyIds(previous =>
-									previous.filter(id => specialties.find(item => item.id === id && ids.includes(item.categoryId)))
-								)
-							}}
-							onSpecialtyChange={setSpecialtyIds}
-							searchKeyword={{
-								category: categoryKeyword,
-								onCategoryChange: setCategoryKeyword,
-								specialty: specialtyKeyword,
-								onSpecialtyChange: setSpecialtyKeyword
-							}}
-						/>
-					) : null}
+                if (currentStep === 'cat-spec') {
+                        return (
+                                <CategorySpecialtyStep
+                                        categories={categories}
+                                        specialties={specialties}
+                                        categoryIds={categoryIds}
+                                        specialtyIds={specialtyIds}
+                                        onCategoryChange={ids => {
+                                                setCategoryIds(ids)
+                                                setSpecialtyIds(previous =>
+                                                        previous.filter(id =>
+                                                                specialties.find(item => item.id === id && ids.includes(item.categoryId))
+                                                        )
+                                                )
+                                        }}
+                                        onSpecialtyChange={setSpecialtyIds}
+                                        searchKeyword={{
+                                                category: categoryKeyword,
+                                                onCategoryChange: setCategoryKeyword,
+                                                specialty: specialtyKeyword,
+                                                onSpecialtyChange: setSpecialtyKeyword
+                                        }}
+                                />
+                        )
+                }
 
-					{role === Role.freelancer && currentStep === 'skills' ? (
-						<SkillsStep
-							options={skills}
-							picked={skillIds}
-							onChange={setSkillIds}
-							keyword={skillKeyword}
-							onKeywordChange={setSkillKeyword}
-						/>
-					) : null}
+                if (currentStep === 'skills') {
+                        return (
+                                <SkillsStep
+                                        options={skills}
+                                        picked={skillIds}
+                                        onChange={setSkillIds}
+                                        keyword={skillKeyword}
+                                        onKeywordChange={setSkillKeyword}
+                                />
+                        )
+                }
 
-					{role === Role.freelancer && currentStep === 'title' ? <TitleStep value={title} onChange={setTitle} /> : null}
+                if (currentStep === 'title') {
+                        return <TitleStep value={title} onChange={setTitle} />
+                }
 
-					{role === Role.freelancer && currentStep === 'education' ? (
-						<EducationStep onCreate={createEducationMutation} onDelete={deleteEducationMutation} />
-					) : null}
+                if (currentStep === 'education') {
+                        return <EducationStep onCreate={createEducationMutation} onDelete={deleteEducationMutation} />
+                }
 
-					{role === Role.freelancer && currentStep === 'languages' ? <LanguagesStep onChange={setLanguages} /> : null}
+                if (currentStep === 'languages') {
+                        return <LanguagesStep onChange={setLanguages} />
+                }
 
-					{role === Role.freelancer && currentStep === 'overview' ? (
-						<OverviewStep value={overview} onChange={setOverview} />
-					) : null}
+                if (currentStep === 'overview') {
+                        return <OverviewStep value={overview} onChange={setOverview} />
+                }
 
-					{role === Role.freelancer && currentStep === 'location' ? (
-						<LocationStep
-							onSubmit={async values => {
-								await updateLocation(values)
-							}}
-							registerSubmit={handleLocationRegister}
-						/>
-					) : null}
+                if (currentStep === 'location') {
+                        return (
+                                <LocationStep
+                                        onSubmit={async values => {
+                                                await updateLocation(values)
+                                        }}
+                                        registerSubmit={handleLocationRegister}
+                                />
+                        )
+                }
 
-					{isSubmitting ? (
-						<div className='mt-4 flex items-center gap-2 text-sm text-primary'>
-							<Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
-						</div>
-					) : null}
+                return null
+        }, [
+                currentStep,
+                role,
+                categories,
+                specialties,
+                categoryIds,
+                specialtyIds,
+                categoryKeyword,
+                specialtyKeyword,
+                skills,
+                skillIds,
+                skillKeyword,
+                title,
+                createEducationMutation,
+                deleteEducationMutation,
+                overview,
+                updateLocation,
+                handleLocationRegister
+        ])
 
-					<WizardFooter
-						canPrev={canGoBack && !isSubmitting}
-						canNext={canProceed && !isSubmitting}
-						onPrev={goBack}
-						onNext={handleNext}
-						nextLabel={
-							currentStep === 'skills' ? 'Tiếp tục: Tiêu đề' : currentStep === 'location' ? 'Hoàn tất' : undefined
-						}
-					/>
-				</div>
-			</div>
-		</div>
-	)
+        return (
+                <div className='min-h-screen bg-base-200 py-12'>
+                        <div className='mx-auto flex max-w-6xl flex-col gap-12 px-6'>
+                                <div className='space-y-3 text-center text-base-content lg:text-left'>
+                                        <h1 className='text-4xl font-bold'>Hoàn thiện hồ sơ của bạn</h1>
+                                        <p className='text-base-content/70'>Chỉ còn vài bước đơn giản để hồ sơ trở nên nổi bật trước nhà tuyển dụng.</p>
+                                </div>
+
+                                <div className='grid gap-10 lg:grid-cols-[320px,1fr] lg:items-start'>
+                                        <aside className='space-y-8 rounded-3xl bg-base-100/80 p-8 shadow-lg backdrop-blur'>
+                                                <div className='flex items-start gap-3 rounded-2xl bg-primary/10 p-4 text-left text-sm text-primary'>
+                                                        <ShieldCheck className='mt-0.5 size-5 shrink-0' />
+                                                        <span>Hoàn thiện hồ sơ để nhận được nhiều cơ hội việc làm phù hợp hơn.</span>
+                                                </div>
+
+                                                <WizardProgress currentIndex={stepIndex} total={totalSteps} />
+
+                                                <ul className='space-y-3 text-left text-sm'>
+                                                        {steps.map((step, index) => {
+                                                                const isActive = step === currentStep
+                                                                const isCompleted = index < stepIndex
+                                                                const badgeClass = isActive
+                                                                        ? 'bg-primary text-primary-content'
+                                                                        : isCompleted
+                                                                                ? 'bg-primary/20 text-primary'
+                                                                                : 'bg-base-200 text-base-content/70'
+
+                                                                return (
+                                                                        <li
+                                                                                key={step}
+                                                                                className='flex items-center justify-between gap-3 rounded-2xl border border-base-200/60 bg-base-100/70 px-4 py-3 shadow-sm'
+                                                                        >
+                                                                                <div className='flex items-center gap-3'>
+                                                                                        <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${badgeClass}`}>
+                                                                                                {index + 1}
+                                                                                        </span>
+                                                                                        <span className='font-medium text-base-content'>{STEP_LABELS[step]}</span>
+                                                                                </div>
+                                                                                {isCompleted ? (
+                                                                                        <span className='text-xs font-medium text-primary'>Đã xong</span>
+                                                                                ) : null}
+                                                                        </li>
+                                                                )
+                                                        })}
+                                                </ul>
+                                        </aside>
+
+                                        <section className='flex min-h-[640px] flex-col gap-8 rounded-3xl bg-base-100 p-10 shadow-2xl'>
+                                                <div key={currentStep} className='flex-1 space-y-8'>
+                                                        {stepContent}
+                                                </div>
+
+                                                {isSubmitting ? (
+                                                        <div className='flex items-center gap-2 text-sm text-primary'>
+                                                                <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
+                                                        </div>
+                                                ) : null}
+
+                                                <WizardFooter
+                                                        canPrev={canGoBack && !isSubmitting}
+                                                        canNext={canProceed && !isSubmitting}
+                                                        onPrev={goBack}
+                                                        onNext={handleNext}
+                                                        nextLabel={
+                                                                currentStep === 'skills'
+                                                                        ? 'Tiếp tục: Tiêu đề'
+                                                                        : currentStep === 'location'
+                                                                                ? 'Hoàn tất'
+                                                                                : undefined
+                                                        }
+                                                />
+                                        </section>
+                                </div>
+                        </div>
+                </div>
+        )
 }
