@@ -17,6 +17,31 @@ h6 {
 	font-size: 1rem;
 }
 
+@layer components {
+	.wizard-step-transition[data-step-transition='enter-from'] {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+
+	.wizard-step-transition[data-step-transition='enter-active'] {
+		opacity: 1;
+		transform: translateY(0);
+		transition: opacity 220ms ease, transform 220ms ease;
+	}
+
+	.wizard-step-transition[data-step-transition='entered'] {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wizard-step-transition[data-step-transition='enter-active'] {
+		transition-duration: 1ms;
+		transition-property: none;
+	}
+}
+
 @keyframes wizard-step-enter {
 	from {
 		opacity: 0;
