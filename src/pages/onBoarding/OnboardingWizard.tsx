@@ -34,29 +34,17 @@ type SpecialtyOption = { id: string; name: string; categoryId: string }
 type SkillOption = { id: string; name: string }
 
 const queryKeys = {
-        me: ['me'],
-        categories: (q: string) => ['taxonomy', 'categories', q],
-        specialties: (categoryIds: string[], q: string) => ['taxonomy', 'specialties', [...categoryIds], q],
-        skills: (categoryIds: string[], specialtyIds: string[], q: string) => [
-                'taxonomy',
-                'skills',
-                [...categoryIds],
-                [...specialtyIds],
-                q
-        ]
+	me: ['me'],
+	categories: (q: string) => ['taxonomy', 'categories', q],
+	specialties: (categoryIds: string[], q: string) => ['taxonomy', 'specialties', [...categoryIds], q],
+	skills: (categoryIds: string[], specialtyIds: string[], q: string) => [
+		'taxonomy',
+		'skills',
+		[...categoryIds],
+		[...specialtyIds],
+		q
+	]
 } as const
-
-const STEP_LABELS: Record<WizardStep, string> = {
-        role: 'Chọn vai trò',
-        'cat-spec': 'Lĩnh vực & chuyên môn',
-        skills: 'Kỹ năng',
-        title: 'Tiêu đề nổi bật',
-        education: 'Học vấn',
-        languages: 'Ngôn ngữ',
-        overview: 'Giới thiệu bản thân',
-        location: 'Thông tin liên hệ'
-}
-
 
 function useListCategories(keyword: string) {
 	return useQuery({
@@ -158,21 +146,21 @@ export default function OnboardingWizard() {
 	const [specialtyIds, setSpecialtyIds] = useState<string[]>([])
 	const [skillIds, setSkillIds] = useState<string[]>([])
 	const [title, setTitle] = useState('')
-        const [overview, setOverview] = useState('')
-        const [languages, setLanguages] = useState<LanguagesFormValues | undefined>()
+	const [overview, setOverview] = useState('')
+	const [languages, setLanguages] = useState<LanguagesFormValues | undefined>()
 	const [categoryKeyword, setCategoryKeyword] = useState('')
 	const [specialtyKeyword, setSpecialtyKeyword] = useState('')
 	const [skillKeyword, setSkillKeyword] = useState('')
 
 	const locationSubmitRef = useRef<(() => Promise<void>) | null>(null)
 
-        const steps = useMemo(() => (role === Role.freelancer ? WIZARD_STEPS : (['role'] as WizardStep[])), [role])
-        const currentStep = steps[stepIndex]
-        const totalSteps = steps.length
-        const progressPercentage = useMemo(
-                () => (totalSteps > 1 ? Math.round((stepIndex / (totalSteps - 1)) * 100) : 0),
-                [stepIndex, totalSteps]
-        )
+	const steps = useMemo(() => (role === Role.freelancer ? WIZARD_STEPS : (['role'] as WizardStep[])), [role])
+	const currentStep = steps[stepIndex]
+	const totalSteps = steps.length
+	const progressPercentage = useMemo(
+		() => (totalSteps > 1 ? Math.round((stepIndex / (totalSteps - 1)) * 100) : 0),
+		[stepIndex, totalSteps]
+	)
 
 	const {
 		setRoleMutation,
@@ -192,26 +180,20 @@ export default function OnboardingWizard() {
 		user?.id
 	)
 
-        const { data: categoryResponse } = useListCategories(categoryKeyword)
-        const { data: specialtyResponse } = useListSpecialties(categoryIds, specialtyKeyword)
-        const { data: skillsResponse } = useListSkills(categoryIds, specialtyIds, skillKeyword)
+	const { data: categoryResponse } = useListCategories(categoryKeyword)
+	const { data: specialtyResponse } = useListSpecialties(categoryIds, specialtyKeyword)
+	const { data: skillsResponse } = useListSkills(categoryIds, specialtyIds, skillKeyword)
 
-        const categories = useMemo(
-                () => (categoryResponse?.data ?? []) as CategoryOption[],
-                [categoryResponse?.data]
-        )
-        const specialties = useMemo(
-                () => (specialtyResponse?.data ?? []) as SpecialtyOption[],
-                [specialtyResponse?.data]
-        )
-        const skills = useMemo(
-                () =>
-                        ((skillsResponse?.data ?? []).map(item => ({
-                                id: item.id,
-                                name: item.name
-                        })) as SkillOption[]),
-                [skillsResponse?.data]
-        )
+	const categories = useMemo(() => (categoryResponse?.data ?? []) as CategoryOption[], [categoryResponse?.data])
+	const specialties = useMemo(() => (specialtyResponse?.data ?? []) as SpecialtyOption[], [specialtyResponse?.data])
+	const skills = useMemo(
+		() =>
+			(skillsResponse?.data ?? []).map(item => ({
+				id: item.id,
+				name: item.name
+			})) as SkillOption[],
+		[skillsResponse?.data]
+	)
 
 	const canGoBack = stepIndex > 0
 
@@ -386,171 +368,157 @@ export default function OnboardingWizard() {
 		removeProfileLanguage
 	])
 
-        const stepContent = useMemo(() => {
-                if (!currentStep) return null
+	const stepContent = useMemo(() => {
+		if (!currentStep) return null
 
-                if (currentStep === 'role') {
-                        return (
-                                <RoleStep
-                                        value={role}
-                                        onChange={(nextRole: Role) => {
-                                                if (nextRole === Role.client || nextRole === Role.freelancer) {
-                                                        setRole(nextRole)
-                                                }
-                                        }}
-                                />
-                        )
-                }
+		if (currentStep === 'role') {
+			return (
+				<RoleStep
+					value={role}
+					onChange={(nextRole: Role) => {
+						if (nextRole === Role.client || nextRole === Role.freelancer) {
+							setRole(nextRole)
+						}
+					}}
+				/>
+			)
+		}
 
-                if (role !== Role.freelancer) return null
+		if (role !== Role.freelancer) return null
 
-                if (currentStep === 'cat-spec') {
-                        return (
-                                <CategorySpecialtyStep
-                                        categories={categories}
-                                        specialties={specialties}
-                                        categoryIds={categoryIds}
-                                        specialtyIds={specialtyIds}
-                                        onCategoryChange={ids => {
-                                                setCategoryIds(ids)
-                                                setSpecialtyIds(previous =>
-                                                        previous.filter(id =>
-                                                                specialties.find(item => item.id === id && ids.includes(item.categoryId))
-                                                        )
-                                                )
-                                        }}
-                                        onSpecialtyChange={setSpecialtyIds}
-                                        searchKeyword={{
-                                                category: categoryKeyword,
-                                                onCategoryChange: setCategoryKeyword,
-                                                specialty: specialtyKeyword,
-                                                onSpecialtyChange: setSpecialtyKeyword
-                                        }}
-                                />
-                        )
-                }
+		if (currentStep === 'cat-spec') {
+			return (
+				<CategorySpecialtyStep
+					categories={categories}
+					specialties={specialties}
+					categoryIds={categoryIds}
+					specialtyIds={specialtyIds}
+					onCategoryChange={ids => {
+						setCategoryIds(ids)
+						setSpecialtyIds(previous =>
+							previous.filter(id => specialties.find(item => item.id === id && ids.includes(item.categoryId)))
+						)
+					}}
+					onSpecialtyChange={setSpecialtyIds}
+					searchKeyword={{
+						category: categoryKeyword,
+						onCategoryChange: setCategoryKeyword,
+						specialty: specialtyKeyword,
+						onSpecialtyChange: setSpecialtyKeyword
+					}}
+				/>
+			)
+		}
 
-                if (currentStep === 'skills') {
-                        return (
-                                <SkillsStep
-                                        options={skills}
-                                        picked={skillIds}
-                                        onChange={setSkillIds}
-                                        keyword={skillKeyword}
-                                        onKeywordChange={setSkillKeyword}
-                                />
-                        )
-                }
+		if (currentStep === 'skills') {
+			return (
+				<SkillsStep
+					options={skills}
+					picked={skillIds}
+					onChange={setSkillIds}
+					keyword={skillKeyword}
+					onKeywordChange={setSkillKeyword}
+				/>
+			)
+		}
 
-                if (currentStep === 'title') {
-                        return <TitleStep value={title} onChange={setTitle} />
-                }
+		if (currentStep === 'title') {
+			return <TitleStep value={title} onChange={setTitle} />
+		}
 
-                if (currentStep === 'education') {
-                        return <EducationStep onCreate={createEducationMutation} onDelete={deleteEducationMutation} />
-                }
+		if (currentStep === 'education') {
+			return <EducationStep onCreate={createEducationMutation} onDelete={deleteEducationMutation} />
+		}
 
-                if (currentStep === 'languages') {
-                        return <LanguagesStep onChange={setLanguages} />
-                }
+		if (currentStep === 'languages') {
+			return <LanguagesStep onChange={setLanguages} />
+		}
 
-                if (currentStep === 'overview') {
-                        return <OverviewStep value={overview} onChange={setOverview} />
-                }
+		if (currentStep === 'overview') {
+			return <OverviewStep value={overview} onChange={setOverview} />
+		}
 
-                if (currentStep === 'location') {
-                        return (
-                                <LocationStep
-                                        onSubmit={async values => {
-                                                await updateLocation(values)
-                                        }}
-                                        registerSubmit={handleLocationRegister}
-                                />
-                        )
-                }
+		if (currentStep === 'location') {
+			return (
+				<LocationStep
+					onSubmit={async values => {
+						await updateLocation(values)
+					}}
+					registerSubmit={handleLocationRegister}
+				/>
+			)
+		}
 
-                return null
-        }, [
-                currentStep,
-                role,
-                categories,
-                specialties,
-                categoryIds,
-                specialtyIds,
-                categoryKeyword,
-                specialtyKeyword,
-                skills,
-                skillIds,
-                skillKeyword,
-                title,
-                createEducationMutation,
-                deleteEducationMutation,
-                overview,
-                updateLocation,
-                handleLocationRegister
-        ])
+		return null
+	}, [
+		currentStep,
+		role,
+		categories,
+		specialties,
+		categoryIds,
+		specialtyIds,
+		categoryKeyword,
+		specialtyKeyword,
+		skills,
+		skillIds,
+		skillKeyword,
+		title,
+		createEducationMutation,
+		deleteEducationMutation,
+		overview,
+		updateLocation,
+		handleLocationRegister
+	])
 
-        return (
+	return (
+		<section className='flex w-full min-h-[520px] flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100 text-base-content shadow-lg'>
+			<div className='border-b border-base-200 bg-base-100 px-6 py-8 sm:px-10'>
+				<div className='flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
+					<div className='space-y-3'>
+						<div className='space-y-1'>
+							<h1 className='text-3xl font-semibold leading-tight'>Hoàn thiện hồ sơ của bạn</h1>
+							<p className='text-sm text-base-content/70 sm:text-base'>
+								Chỉ còn vài bước đơn giản để hồ sơ trở nên nổi bật trước nhà tuyển dụng.
+							</p>
+						</div>
+						{currentStep ? (
+							<div className='space-y-1'>
+								<span className='text-xs font-semibold uppercase tracking-wide text-base-content/50'>
+									Bước {stepIndex + 1} / {totalSteps}
+								</span>
+							</div>
+						) : null}
+					</div>
+					<div className='shrink-0 text-sm font-medium text-base-content/70'>
+						<span>{progressPercentage}% hoàn thành</span>
+					</div>
+				</div>
+				<div className='mt-6 h-1 w-full overflow-hidden rounded-full bg-base-200'>
+					<div className='h-full rounded-full bg-primary transition-all' style={{ width: `${progressPercentage}%` }} />
+				</div>
+			</div>
 
-                <section className='flex w-full min-h-[520px] flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100 text-base-content shadow-lg'>
-                        <div className='border-b border-base-200 bg-base-100 px-6 py-8 sm:px-10'>
-                                <div className='flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
-                                        <div className='space-y-3'>
-                                                <div className='space-y-1'>
-                                                        <h1 className='text-3xl font-semibold leading-tight'>Hoàn thiện hồ sơ của bạn</h1>
-                                                        <p className='text-sm text-base-content/70 sm:text-base'>
-                                                                Chỉ còn vài bước đơn giản để hồ sơ trở nên nổi bật trước nhà tuyển dụng.
-                                                        </p>
-                                                </div>
-                                                {currentStep ? (
-                                                        <div className='space-y-1'>
-                                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/50'>
-                                                                        Bước {stepIndex + 1} / {totalSteps}
-                                                                </span>
-                                                                <span className='text-base font-semibold text-base-content'>
-                                                                        {STEP_LABELS[currentStep]}
-                                                                </span>
-                                                        </div>
-                                                ) : null}
-                                        </div>
-                                        <div className='shrink-0 text-sm font-medium text-base-content/70'>
-                                                <span>{progressPercentage}% hoàn thành</span>
-                                        </div>
-                                </div>
-                                <div className='mt-6 h-1 w-full overflow-hidden rounded-full bg-base-200'>
-                                        <div
-                                                className='h-full rounded-full bg-primary transition-all'
-                                                style={{ width: `${progressPercentage}%` }}
-                                        />
-                                </div>
-                        </div>
+			<div className='flex flex-1 flex-col px-6 pb-8 pt-8 sm:px-10'>
+				<div key={currentStep} className='flex-1'>
+					{stepContent}
+				</div>
 
-                        <div className='flex flex-1 flex-col px-6 pb-8 pt-8 sm:px-10'>
-                                <div key={currentStep} className='flex-1'>
-                                        {stepContent}
-                                </div>
+				{isSubmitting ? (
+					<div className='mt-4 flex items-center gap-2 text-sm text-primary'>
+						<Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
+					</div>
+				) : null}
 
-                                {isSubmitting ? (
-                                        <div className='mt-4 flex items-center gap-2 text-sm text-primary'>
-                                                <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
-                                        </div>
-                                ) : null}
-
-                                <WizardFooter
-                                        canPrev={canGoBack && !isSubmitting}
-                                        canNext={canProceed && !isSubmitting}
-                                        onPrev={goBack}
-                                        onNext={handleNext}
-                                        nextLabel={
-                                                currentStep === 'skills'
-                                                        ? 'Tiếp tục: Tiêu đề'
-                                                        : currentStep === 'location'
-                                                                ? 'Hoàn tất'
-                                                                : undefined
-                                        }
-                                />
-                        </div>
-                </section>
-
-        )
+				<WizardFooter
+					canPrev={canGoBack && !isSubmitting}
+					canNext={canProceed && !isSubmitting}
+					onPrev={goBack}
+					onNext={handleNext}
+					nextLabel={
+						currentStep === 'skills' ? 'Tiếp tục: Tiêu đề' : currentStep === 'location' ? 'Hoàn tất' : undefined
+					}
+				/>
+			</div>
+		</section>
+	)
 }
