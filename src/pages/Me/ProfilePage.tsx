@@ -12,7 +12,7 @@ export default function ProfilePage() {
 			{/* HEADER */}
 			<div className='rounded-xl border border-base-200 bg-white/90 p-5 md:p-6 mb-4'>
 				<div className='flex flex-col sm:flex-row gap-4 sm:gap-6 items-start'>
-					<AvatarUploader src={reduxUser?.avatar ?? 'avatar.png'} />
+                                        <AvatarUploader src={reduxUser?.avatar} />
 					{/* name + location */}
 					<div className='flex-1 min-w-0'>
 						<h2 className='text-2xl font-bold leading-tight'>
