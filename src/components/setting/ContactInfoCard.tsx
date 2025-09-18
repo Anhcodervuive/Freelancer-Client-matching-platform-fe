@@ -47,7 +47,7 @@ export function ContactInfoCard() {
 							</button>
 						</div>
 						<div className='grid grid-cols-1 lg:grid-cols-[200px_1fr]'>
-							<AvatarUploader src={data?.avatar ?? '/avatar.png'} />
+                                                        <AvatarUploader src={data?.avatar} />
 							<div className='flex flex-col gap-2'>
 								<div>
 									<p className='font-semibold'>User ID</p>

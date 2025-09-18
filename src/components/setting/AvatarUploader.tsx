@@ -5,6 +5,7 @@ import { uploadAvatar } from '~/apis/profile.api'
 import type { AppDispatch } from '~/redux/store'
 import { useDispatch } from 'react-redux'
 import { updateProfile } from '~/redux/user/userSlice'
+import { DEFAULT_AVATAR } from '~/constants/image'
 
 type Props = {
 	src?: string | null // URL avatar hiện tại
@@ -20,7 +21,13 @@ export default function AvatarUploader({ src, size = 96, rounded = 'full', maxSi
 	const dispatch: AppDispatch = useDispatch()
 	const fileRef = React.useRef<HTMLInputElement>(null)
 
-	React.useEffect(() => setImgSrc(src ?? null), [src])
+        React.useEffect(() => {
+                if (src && src.trim()) {
+                        setImgSrc(src)
+                        return
+                }
+                setImgSrc(null)
+        }, [src])
 
 	const trigger = () => fileRef.current?.click()
 
@@ -61,14 +68,18 @@ export default function AvatarUploader({ src, size = 96, rounded = 'full', maxSi
 
 	return (
 		<div className='relative shrink-0' style={{ width: size, height: size }}>
-			<img
-				src={imgSrc ?? '/avatar.png'}
-				alt='avatar'
-				className={[
-					'w-full h-full object-cover bg-base-200 border border-base-300',
-					rounded === 'full' ? 'rounded-full' : rounded === 'lg' ? 'rounded-lg' : 'rounded-md'
-				].join(' ')}
-			/>
+                        <img
+                                src={imgSrc ?? DEFAULT_AVATAR}
+                                alt='avatar'
+                                className={[
+                                        'w-full h-full object-cover bg-base-200 border border-base-300',
+                                        rounded === 'full' ? 'rounded-full' : rounded === 'lg' ? 'rounded-lg' : 'rounded-md'
+                                ].join(' ')}
+                                onError={event => {
+                                        event.currentTarget.onerror = null
+                                        setImgSrc(DEFAULT_AVATAR)
+                                }}
+                        />
 
 			<button
 				type='button'

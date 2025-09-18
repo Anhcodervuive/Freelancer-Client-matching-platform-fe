@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { getAllCategories } from '~/apis/admin/category.api'
 import { getSpecialties } from '~/apis/admin/specialty.api'
 import { searchSkills } from '~/apis/admin/skkill.api'
@@ -15,7 +15,7 @@ import { updateRole } from '~/apis/profile.api'
 import { routes } from '~/config/routes'
 import { useFreelancerEducation } from '~/hooks/api/useFreelancerEducation'
 import { useProfileLanguages } from '~/hooks/api/useFreelancerLanguages'
-import { selectCurrentUser, updateProfileAPI as updateProfileReduxAPI } from '~/redux/user/userSlice'
+import { selectCurrentUser, siginGoogle, updateProfileAPI as updateProfileReduxAPI } from '~/redux/user/userSlice'
 import type { AppDispatch } from '~/redux/store'
 import { Role } from '~/types'
 import { CategorySpecialtyStep } from './components/CategorySpecialtyStep'
@@ -125,8 +125,19 @@ function useWizardMutations(userId?: string) {
 
 export default function OnboardingWizard() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const dispatch = useDispatch<AppDispatch>()
   const queryClient = useQueryClient()
   const user = useSelector(selectCurrentUser)
+
+  useEffect(() => {
+    if (!location.search) return
+    const params = new URLSearchParams(location.search)
+    const userParams = Object.fromEntries(params.entries())
+    if (userParams.id) {
+      dispatch(siginGoogle(userParams))
+    }
+  }, [dispatch, location.search])
 
   const [stepIndex, setStepIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
