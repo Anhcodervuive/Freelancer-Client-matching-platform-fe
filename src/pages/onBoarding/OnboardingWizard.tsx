@@ -167,7 +167,12 @@ export default function OnboardingWizard() {
     setOverviewMutation,
     updateLocation,
   } = useWizardMutations(user?.id)
-  const { addOne: addProfileLanguage } = useProfileLanguages(user?.id)
+  const {
+    listQ: profileLanguagesQuery,
+    addOne: addProfileLanguage,
+    removeOne: removeProfileLanguage,
+  } = useProfileLanguages(user?.id)
+  const profileLanguages = useMemo(() => profileLanguagesQuery.data ?? [], [profileLanguagesQuery.data])
   const { createMutation: createEducationMutation, deleteMutation: deleteEducationMutation } = useFreelancerEducation(user?.id)
 
   const { data: categoryResponse } = useListCategories(categoryKeyword)
@@ -273,11 +278,25 @@ export default function OnboardingWizard() {
           (language, index, array) =>
             array.findIndex(item => item.languageCode === language.languageCode) === index,
         )
-        await Promise.all(
-          uniqueLanguages.map(language =>
-            addProfileLanguage.mutateAsync({ languageCode: language.languageCode, proficiency: language.proficiency }),
-          ),
-        )
+        const beforeMap = new Map(profileLanguages.map(language => [language.languageCode, language.proficiency]))
+        const afterMap = new Map(uniqueLanguages.map(language => [language.languageCode, language.proficiency]))
+
+        const ops: Promise<unknown>[] = []
+
+        for (const [code, proficiency] of afterMap) {
+          const old = beforeMap.get(code)
+          if (!old || old !== proficiency) {
+            ops.push(addProfileLanguage.mutateAsync({ languageCode: code, proficiency }))
+          }
+        }
+
+        for (const [code] of beforeMap) {
+          if (!afterMap.has(code)) {
+            ops.push(removeProfileLanguage.mutateAsync(code))
+          }
+        }
+
+        await Promise.all(ops)
         goNextStep()
       } finally {
         setIsSubmitting(false)
@@ -335,6 +354,8 @@ export default function OnboardingWizard() {
     locationSubmitRef,
     completeOnboarding,
     goNextStep,
+    profileLanguages,
+    removeProfileLanguage,
   ])
 
   return (
