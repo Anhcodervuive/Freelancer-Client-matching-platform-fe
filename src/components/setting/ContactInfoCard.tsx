@@ -1,5 +1,6 @@
 import { Pencil } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { toast } from 'react-toastify'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch } from '~/redux/store'
 import { selectCurrentUser, updateProfileAPI as updateProfileReduxAPI } from '~/redux/user/userSlice'
@@ -20,19 +21,19 @@ export function ContactInfoCard() {
 
 	const disabled = isUpdate
 
-	const handleSubmit = async (e: FormEvent) => {
-		e.preventDefault()
-		try {
-			setIsUpdate(true)
-			dispatch(updateProfileReduxAPI(form))
-			setEdit(false)
-		} catch (_error) {
-			//
-			console.log(_error)
-		} finally {
-			setIsUpdate(false)
-		}
-	}
+        const handleSubmit = async (e: FormEvent) => {
+                e.preventDefault()
+                try {
+                        setIsUpdate(true)
+                        await dispatch(updateProfileReduxAPI(form)).unwrap()
+                        setEdit(false)
+                } catch (error) {
+                        console.error(error)
+                        toast.error('Failed to update contact information!')
+                } finally {
+                        setIsUpdate(false)
+                }
+        }
 
 	return (
 		<div className='card bg-base-100 border border-base-300'>
