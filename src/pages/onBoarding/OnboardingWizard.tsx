@@ -86,11 +86,11 @@ const LanguagesSchema = z.object({
 		.min(1)
 })
 const LocationSchema = z.object({
-	country: z.string(),
-	city: z.string().min(2),
-	dsitrict: z.string().min(2),
-	address: z.string().min(2),
-	phoneNumber: z.string().min(3)
+        country: z.string(),
+        city: z.string().min(2),
+        district: z.string().min(2),
+        address: z.string().min(2),
+        phoneNumber: z.string().min(3)
 })
 
 // --------------------------
@@ -252,17 +252,17 @@ function useMutations(userId?: string) {
 				userId
 			)
 	})
-	const setLocation = async (v: z.infer<typeof LocationSchema>) => {
-		dispatch(
-			updateProfileReduxAPI({
-				country: v.country,
-				city: v.city,
-				district: v.dsitrict,
-				address: v.address,
-				phoneNumber: v.phoneNumber
-			})
-		)
-	}
+        const setLocation = async (v: z.infer<typeof LocationSchema>) => {
+                dispatch(
+                        updateProfileReduxAPI({
+                                country: v.country,
+                                city: v.city,
+                                district: v.district,
+                                address: v.address,
+                                phoneNumber: v.phoneNumber
+                        })
+                )
+        }
 
 	return {
 		setRole,
@@ -891,45 +891,55 @@ function OverviewStep({ overview, setOverview }: { overview: string; setOverview
 // --------------------------
 // Step: Location & Photo
 // --------------------------
-function LocationStep({ onDone }: { onDone: () => void; mutate: ReturnType<typeof useMutations>['setLocation'] }) {
-	const data = useSelector(selectCurrentUser)
-	const { register, handleSubmit, watch, setValue } = useForm<z.infer<typeof LocationSchema>>({
-		resolver: zodResolver(LocationSchema),
-		defaultValues: {
-			country: data?.country ?? '',
-			city: data?.city ?? '',
-			address: data?.address ?? '',
-			phoneNumber: data?.phoneNumber ?? ''
-		}
-	})
-	const dispatch: AppDispatch = useDispatch()
-	const [countryVal, setCountryVal] = useState<CountryOption | null>(
-		data?.country
-			? countryList()
-					.getData()
-					.find(v => v.label === data.country!)!
-			: null
-	)
-	const onSubmit = handleSubmit(async v => {
-		dispatch(
-			updateProfileReduxAPI({
-				...v,
-				country: countryVal?.label
-			})
-		)
+function LocationStep({
+        onDone,
+        mutate
+}: {
+        onDone: () => void
+        mutate: ReturnType<typeof useMutations>['setLocation']
+}) {
+        const data = useSelector(selectCurrentUser)
+        const { register, handleSubmit, watch, setValue } = useForm<z.infer<typeof LocationSchema>>({
+                resolver: zodResolver(LocationSchema),
+                defaultValues: {
+                        country: data?.country ?? '',
+                        city: data?.city ?? '',
+                        district: data?.district ?? '',
+                        address: data?.address ?? '',
+                        phoneNumber: data?.phoneNumber ?? ''
+                }
+        })
+        const [countryVal, setCountryVal] = useState<CountryOption | null>(
+                data?.country
+                        ? countryList()
+                                .getData()
+                                .find(v => v.label === data.country!)!
+                        : null
+        )
+        const onSubmit = handleSubmit(async v => {
+                await mutate({
+                        ...v,
+                        country: countryVal?.label ?? v.country
+                })
 
-		onDone()
-	})
-	return (
-		<form onSubmit={onSubmit}>
-			<StepHeader title='A few last details, then you can check and publish your profile.' />
-			<div className='grid md:grid-cols-2 gap-4'>
-				<CountrySelect value={countryVal} onChange={value => setCountryVal(value)} />
-				<input className='input input-bordered w-full' placeholder='City' {...register('city')} />
-				<input className='input input-bordered w-full' placeholder='Dsitrict' {...register('dsitrict')} />
-				<input className='input input-bordered w-full' placeholder='Street address' {...register('address')} />
-				<PhoneField value={watch('phoneNumber')} onChange={(v: string) => setValue('phoneNumber', v)} />
-			</div>
+                onDone()
+        })
+        return (
+                <form onSubmit={onSubmit}>
+                        <StepHeader title='A few last details, then you can check and publish your profile.' />
+                        <div className='grid md:grid-cols-2 gap-4'>
+                                <CountrySelect
+                                        value={countryVal}
+                                        onChange={value => {
+                                                setCountryVal(value)
+                                                setValue('country', value?.label ?? '')
+                                        }}
+                                />
+                                <input className='input input-bordered w-full' placeholder='City' {...register('city')} />
+                                <input className='input input-bordered w-full' placeholder='District' {...register('district')} />
+                                <input className='input input-bordered w-full' placeholder='Street address' {...register('address')} />
+                                <PhoneField value={watch('phoneNumber')} onChange={(v: string) => setValue('phoneNumber', v)} />
+                        </div>
 			<div className='mt-6 flex gap-2'>
 				<button className='btn btn-primary' type='submit'>
 					Review your profile
