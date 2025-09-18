@@ -59,3 +59,52 @@ h6 {
                 transform: none !important;
         }
 }
+
+@layer components {
+	.wizard-step-transition[data-step-transition='enter-from'] {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+
+	.wizard-step-transition[data-step-transition='enter-active'] {
+		opacity: 1;
+		transform: translateY(0);
+		transition: opacity 220ms ease, transform 220ms ease;
+	}
+
+	.wizard-step-transition[data-step-transition='entered'] {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wizard-step-transition[data-step-transition='enter-active'] {
+		transition-duration: 1ms;
+		transition-property: none;
+	}
+}
+
+@keyframes wizard-step-enter {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@layer utilities {
+	.animate-wizard-step-enter {
+		animation: wizard-step-enter 220ms ease forwards;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-wizard-step-enter {
+		animation: none;
+	}
+}

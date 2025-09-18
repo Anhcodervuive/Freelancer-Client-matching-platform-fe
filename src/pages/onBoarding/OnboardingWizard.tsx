@@ -158,6 +158,7 @@ export default function OnboardingWizard() {
         const stepHeightRafRef = useRef<number | null>(null)
         const hasMeasuredHeightRef = useRef(false)
 
+
         const clearStepTransitionTimers = useCallback(() => {
                 if (typeof window === 'undefined') return
 
@@ -171,10 +172,12 @@ export default function OnboardingWizard() {
                         stepTransitionTimeoutRef.current = null
                 }
 
+
                 if (stepHeightRafRef.current != null) {
                         window.cancelAnimationFrame(stepHeightRafRef.current)
                         stepHeightRafRef.current = null
                 }
+
         }, [])
 
         const handleStepContentRef = useCallback(
@@ -189,6 +192,7 @@ export default function OnboardingWizard() {
                         if (stepTransitionNodeRef.current && stepTransitionNodeRef.current !== node) {
                                 stepTransitionNodeRef.current.removeAttribute('data-step-transition')
                                 stepTransitionNodeRef.current.style.removeProperty('--wizard-step-duration')
+
                         }
 
                         if (!node) {
@@ -199,6 +203,7 @@ export default function OnboardingWizard() {
                         stepTransitionNodeRef.current = node
 
                         node.style.setProperty('--wizard-step-duration', `${STEP_TRANSITION_DURATION}ms`)
+
 
                         if (typeof window === 'undefined') {
                                 node.dataset.stepTransition = 'entered'
