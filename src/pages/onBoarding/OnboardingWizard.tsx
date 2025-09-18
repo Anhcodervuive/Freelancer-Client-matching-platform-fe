@@ -147,7 +147,41 @@ export default function OnboardingWizard() {
 	const [skillIds, setSkillIds] = useState<string[]>([])
 	const [title, setTitle] = useState('')
 	const [overview, setOverview] = useState('')
-	const [languages, setLanguages] = useState<LanguagesFormValues | undefined>()
+        const [languages, setLanguages] = useState<LanguagesFormValues | undefined>()
+        const [stepContentHeight, setStepContentHeight] = useState<number | null>(null)
+        const stepResizeObserverRef = useRef<ResizeObserver | null>(null)
+
+        const handleStepContentRef = useCallback((node: HTMLDivElement | null) => {
+                if (stepResizeObserverRef.current) {
+                        stepResizeObserverRef.current.disconnect()
+                        stepResizeObserverRef.current = null
+                }
+
+                if (!node) return
+
+                const { height } = node.getBoundingClientRect()
+                setStepContentHeight(height)
+
+                if (typeof ResizeObserver === 'undefined') return
+
+                const observer = new ResizeObserver(entries => {
+                        const entry = entries[0]
+                        if (!entry) return
+                        setStepContentHeight(entry.contentRect.height)
+                })
+
+                observer.observe(node)
+                stepResizeObserverRef.current = observer
+        }, [])
+
+        useEffect(() => {
+                return () => {
+                        if (stepResizeObserverRef.current) {
+                                stepResizeObserverRef.current.disconnect()
+                                stepResizeObserverRef.current = null
+                        }
+                }
+        }, [])
 
 	const [categoryKeyword, setCategoryKeyword] = useState('')
 	const [specialtyKeyword, setSpecialtyKeyword] = useState('')
@@ -358,8 +392,94 @@ export default function OnboardingWizard() {
 		removeProfileLanguage
 	])
 
-	return (
-		<div className='mx-auto max-w-4xl space-y-6 p-6'>
+        const renderStepContent = () => {
+                if (!currentStep) return null
+
+                if (currentStep === 'role') {
+                        return (
+                                <RoleStep
+                                        value={role}
+                                        onChange={(nextRole: Role) => {
+                                                if (nextRole === Role.client || nextRole === Role.freelancer) {
+                                                        setRole(nextRole)
+                                                }
+                                        }}
+                                />
+                        )
+                }
+
+                if (role !== Role.freelancer) return null
+
+                if (currentStep === 'cat-spec') {
+                        return (
+                                <CategorySpecialtyStep
+                                        categories={categories}
+                                        specialties={specialties}
+                                        categoryIds={categoryIds}
+                                        specialtyIds={specialtyIds}
+                                        onCategoryChange={ids => {
+                                                setCategoryIds(ids)
+                                                setSpecialtyIds(previous =>
+                                                        previous.filter(id =>
+                                                                specialties.find(item => item.id === id && ids.includes(item.categoryId))
+                                                        )
+                                                )
+                                        }}
+                                        onSpecialtyChange={setSpecialtyIds}
+                                        searchKeyword={{
+                                                category: categoryKeyword,
+                                                onCategoryChange: setCategoryKeyword,
+                                                specialty: specialtyKeyword,
+                                                onSpecialtyChange: setSpecialtyKeyword
+                                        }}
+                                />
+                        )
+                }
+
+                if (currentStep === 'skills') {
+                        return (
+                                <SkillsStep
+                                        options={skills}
+                                        picked={skillIds}
+                                        onChange={setSkillIds}
+                                        keyword={skillKeyword}
+                                        onKeywordChange={setSkillKeyword}
+                                />
+                        )
+                }
+
+                if (currentStep === 'title') {
+                        return <TitleStep value={title} onChange={setTitle} />
+                }
+
+                if (currentStep === 'education') {
+                        return <EducationStep onCreate={createEducationMutation} onDelete={deleteEducationMutation} />
+                }
+
+                if (currentStep === 'languages') {
+                        return <LanguagesStep onChange={setLanguages} />
+                }
+
+                if (currentStep === 'overview') {
+                        return <OverviewStep value={overview} onChange={setOverview} />
+                }
+
+                if (currentStep === 'location') {
+                        return (
+                                <LocationStep
+                                        onSubmit={async values => {
+                                                await updateLocation(values)
+                                        }}
+                                        registerSubmit={handleLocationRegister}
+                                />
+                        )
+                }
+
+                return null
+        }
+
+        return (
+                <div className='mx-auto max-w-4xl space-y-6 p-6'>
 			<div className='flex items-center gap-2 rounded-2xl bg-base-200/60 px-4 py-3 text-sm text-base-content/80'>
 				<ShieldCheck className='size-4 shrink-0 text-primary' />
 				<span>Hoàn thiện hồ sơ để nhận được nhiều cơ hội việc làm phù hợp hơn.</span>
@@ -367,89 +487,41 @@ export default function OnboardingWizard() {
 
 			<WizardProgress currentIndex={stepIndex} total={totalSteps} />
 
-			<div className='card bg-base-100 shadow-xl'>
-				<div className='card-body'>
-					{currentStep === 'role' ? (
-						<RoleStep
-							value={role}
-							onChange={(nextRole: Role) => {
-								if (nextRole === Role.client || nextRole === Role.freelancer) {
-									setRole(nextRole)
-								}
-							}}
-						/>
-					) : null}
+                        <div className='card bg-base-100 shadow-xl'>
+                                <div className='card-body space-y-6'>
+                                        <div
+                                                className='relative'
+                                                style={{
+                                                        minHeight: stepContentHeight ? `${Math.round(stepContentHeight)}px` : undefined,
+                                                        transition: 'min-height 300ms ease'
+                                                }}
+                                        >
+                                                <div key={currentStep} ref={handleStepContentRef} className='animate-wizard-step-enter'>
+                                                        {renderStepContent()}
+                                                </div>
+                                        </div>
 
-					{role === Role.freelancer && currentStep === 'cat-spec' ? (
-						<CategorySpecialtyStep
-							categories={categories}
-							specialties={specialties}
-							categoryIds={categoryIds}
-							specialtyIds={specialtyIds}
-							onCategoryChange={ids => {
-								setCategoryIds(ids)
-								setSpecialtyIds(previous =>
-									previous.filter(id => specialties.find(item => item.id === id && ids.includes(item.categoryId)))
-								)
-							}}
-							onSpecialtyChange={setSpecialtyIds}
-							searchKeyword={{
-								category: categoryKeyword,
-								onCategoryChange: setCategoryKeyword,
-								specialty: specialtyKeyword,
-								onSpecialtyChange: setSpecialtyKeyword
-							}}
-						/>
-					) : null}
+                                        {isSubmitting ? (
+                                                <div className='mt-4 flex items-center gap-2 text-sm text-primary'>
+                                                        <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
+                                                </div>
+                                        ) : null}
 
-					{role === Role.freelancer && currentStep === 'skills' ? (
-						<SkillsStep
-							options={skills}
-							picked={skillIds}
-							onChange={setSkillIds}
-							keyword={skillKeyword}
-							onKeywordChange={setSkillKeyword}
-						/>
-					) : null}
-
-					{role === Role.freelancer && currentStep === 'title' ? <TitleStep value={title} onChange={setTitle} /> : null}
-
-					{role === Role.freelancer && currentStep === 'education' ? (
-						<EducationStep onCreate={createEducationMutation} onDelete={deleteEducationMutation} />
-					) : null}
-
-					{role === Role.freelancer && currentStep === 'languages' ? <LanguagesStep onChange={setLanguages} /> : null}
-
-					{role === Role.freelancer && currentStep === 'overview' ? (
-						<OverviewStep value={overview} onChange={setOverview} />
-					) : null}
-
-					{role === Role.freelancer && currentStep === 'location' ? (
-						<LocationStep
-							onSubmit={async values => {
-								await updateLocation(values)
-							}}
-							registerSubmit={handleLocationRegister}
-						/>
-					) : null}
-
-					{isSubmitting ? (
-						<div className='mt-4 flex items-center gap-2 text-sm text-primary'>
-							<Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
-						</div>
-					) : null}
-
-					<WizardFooter
-						canPrev={canGoBack && !isSubmitting}
-						canNext={canProceed && !isSubmitting}
-						onPrev={goBack}
-						onNext={handleNext}
-						nextLabel={
-							currentStep === 'skills' ? 'Tiếp tục: Tiêu đề' : currentStep === 'location' ? 'Hoàn tất' : undefined
-						}
-					/>
-				</div>
-			</div>
-		</div>
-	)
+                                        <WizardFooter
+                                                canPrev={canGoBack && !isSubmitting}
+                                                canNext={canProceed && !isSubmitting}
+                                                onPrev={goBack}
+                                                onNext={handleNext}
+                                                nextLabel={
+                                                        currentStep === 'skills'
+                                                                ? 'Tiếp tục: Tiêu đề'
+                                                                : currentStep === 'location'
+                                                                        ? 'Hoàn tất'
+                                                                        : undefined
+                                                }
+                                        />
+                        </div>
+                </div>
+        </div>
+        )
 }
