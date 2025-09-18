@@ -155,6 +155,9 @@ export default function OnboardingWizard() {
         const stepTransitionNodeRef = useRef<HTMLDivElement | null>(null)
         const stepTransitionRafRef = useRef<number | null>(null)
         const stepTransitionTimeoutRef = useRef<number | null>(null)
+        const stepHeightRafRef = useRef<number | null>(null)
+        const hasMeasuredHeightRef = useRef(false)
+
 
         const clearStepTransitionTimers = useCallback(() => {
                 if (typeof window === 'undefined') return
@@ -168,6 +171,13 @@ export default function OnboardingWizard() {
                         window.clearTimeout(stepTransitionTimeoutRef.current)
                         stepTransitionTimeoutRef.current = null
                 }
+
+
+                if (stepHeightRafRef.current != null) {
+                        window.cancelAnimationFrame(stepHeightRafRef.current)
+                        stepHeightRafRef.current = null
+                }
+
         }, [])
 
         const handleStepContentRef = useCallback(
@@ -181,6 +191,8 @@ export default function OnboardingWizard() {
 
                         if (stepTransitionNodeRef.current && stepTransitionNodeRef.current !== node) {
                                 stepTransitionNodeRef.current.removeAttribute('data-step-transition')
+                                stepTransitionNodeRef.current.style.removeProperty('--wizard-step-duration')
+
                         }
 
                         if (!node) {
@@ -189,6 +201,9 @@ export default function OnboardingWizard() {
                         }
 
                         stepTransitionNodeRef.current = node
+
+                        node.style.setProperty('--wizard-step-duration', `${STEP_TRANSITION_DURATION}ms`)
+
 
                         if (typeof window === 'undefined') {
                                 node.dataset.stepTransition = 'entered'
@@ -205,17 +220,43 @@ export default function OnboardingWizard() {
                                 })
                         }
 
-                        const commitHeight = (nextHeight: number) => {
-                                setStepContentHeight(previous => {
-                                        if (nextHeight <= 0 && previous != null) {
-                                                return previous
-                                        }
+                        const commitHeight = (rawHeight: number) => {
+                                if (!Number.isFinite(rawHeight)) return
 
-                                        if (previous != null && Math.abs(previous - nextHeight) < 0.5) {
-                                                return previous
-                                        }
+                                const nextHeight = Math.max(0, rawHeight)
 
-                                        return nextHeight
+                                const applyHeight = () => {
+                                        setStepContentHeight(previous => {
+                                                if (!hasMeasuredHeightRef.current) {
+                                                        hasMeasuredHeightRef.current = true
+                                                        return nextHeight
+                                                }
+
+                                                if (nextHeight <= 0 && previous != null) {
+                                                        return previous
+                                                }
+
+                                                if (previous != null && Math.abs(previous - nextHeight) < 0.5) {
+                                                        return previous
+                                                }
+
+                                                return nextHeight
+                                        })
+                                }
+
+                                if (typeof window === 'undefined') {
+                                        applyHeight()
+                                        return
+                                }
+
+                                if (stepHeightRafRef.current != null) {
+                                        window.cancelAnimationFrame(stepHeightRafRef.current)
+                                        stepHeightRafRef.current = null
+                                }
+
+                                stepHeightRafRef.current = window.requestAnimationFrame(() => {
+                                        stepHeightRafRef.current = null
+                                        applyHeight()
                                 })
                         }
 
@@ -251,6 +292,7 @@ export default function OnboardingWizard() {
 
                         if (stepTransitionNodeRef.current) {
                                 stepTransitionNodeRef.current.removeAttribute('data-step-transition')
+                                stepTransitionNodeRef.current.style.removeProperty('--wizard-step-duration')
                                 stepTransitionNodeRef.current = null
                         }
                 }
@@ -594,11 +636,11 @@ export default function OnboardingWizard() {
                         <div className='card bg-base-100 shadow-xl'>
                                 <div className='card-body gap-6'>
                                         <div
-                                                className='relative w-full transition-[min-height] duration-300 ease-out'
+                                                className='wizard-step-shell relative w-full'
                                                 style={
                                                         stepContentHeight == null
                                                                 ? undefined
-                                                                : { minHeight: `${Math.ceil(stepContentHeight)}px` }
+                                                                : { height: `${Math.max(0, Math.ceil(stepContentHeight))}px` }
                                                 }
                                         >
                                                 <div key={currentStep} ref={handleStepContentRef} className='wizard-step-transition'>

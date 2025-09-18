@@ -14,7 +14,50 @@ h5 {
 	font-size: 1.125rem;
 }
 h6 {
-	font-size: 1rem;
+        font-size: 1rem;
+}
+
+.wizard-step-shell {
+        overflow: hidden;
+        transition: height 280ms cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: height;
+}
+
+.wizard-step-transition {
+        display: block;
+        will-change: opacity, transform;
+}
+
+.wizard-step-transition[data-step-transition='enter-from'] {
+        opacity: 0;
+        transform: translate3d(0, 12px, 0);
+}
+
+.wizard-step-transition[data-step-transition='enter-active'] {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+        transition:
+                opacity var(--wizard-step-duration, 220ms) ease,
+                transform var(--wizard-step-duration, 220ms) ease;
+}
+
+.wizard-step-transition[data-step-transition='entered'] {
+        opacity: 1;
+        transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+        .wizard-step-shell {
+                transition: none !important;
+        }
+
+        .wizard-step-transition,
+        .wizard-step-transition[data-step-transition] {
+                transition: none !important;
+                animation: none !important;
+                opacity: 1 !important;
+                transform: none !important;
+        }
 }
 
 @layer components {
