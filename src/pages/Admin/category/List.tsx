@@ -64,14 +64,14 @@ export default function AdminCategories() {
 			}
 			return { prev }
 		},
-		onError: (_err, _id, ctx) => {
-			// rollback
-			if (ctx?.prev) qc.setQueryData(qKey, ctx.prev)
-			toast.success('Category created')
-		},
-		onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
-		onSuccess: () => toast.error('Category delete successfully!')
-	})
+                onError: (_err, _id, ctx) => {
+                        // rollback
+                        if (ctx?.prev) qc.setQueryData(qKey, ctx.prev)
+                        toast.error('Failed to delete category')
+                },
+                onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+                onSuccess: () => toast.success('Category deleted successfully!')
+        })
 
 	const total = data?.total ?? 0
 	const pages = Math.max(1, Math.ceil(total / limit))
