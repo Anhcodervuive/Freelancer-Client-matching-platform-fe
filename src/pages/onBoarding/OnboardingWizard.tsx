@@ -57,6 +57,7 @@ const STEP_LABELS: Record<WizardStep, string> = {
         location: 'Thông tin liên hệ'
 }
 
+
 function useListCategories(keyword: string) {
 	return useQuery({
 		queryKey: queryKeys.categories(keyword),
@@ -486,6 +487,7 @@ export default function OnboardingWizard() {
         ])
 
         return (
+
                 <div className='min-h-screen bg-base-200 py-12'>
                         <div className='mx-auto flex max-w-6xl flex-col gap-12 px-6'>
                                 <div className='space-y-3 text-center text-base-content lg:text-left'>
@@ -560,5 +562,6 @@ export default function OnboardingWizard() {
                                 </div>
                         </div>
                 </div>
+
         )
 }
