@@ -62,7 +62,7 @@ export function WizardFooter({
   hideNext?: boolean
 }) {
   return (
-    <div className='mt-10 flex items-center justify-between border-t border-base-200 pt-6'>
+    <div className='mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-base-200 pt-6'>
       <button type='button' className='btn btn-ghost gap-2' disabled={!canPrev} onClick={onPrev}>
         <ChevronLeft className='size-4' /> Trở lại
       </button>
