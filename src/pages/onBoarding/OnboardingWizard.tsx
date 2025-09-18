@@ -491,85 +491,66 @@ export default function OnboardingWizard() {
         ])
 
         return (
-                <div className='flex min-h-screen flex-col bg-base-100 text-base-content'>
-                        <header className='border-b border-base-200 bg-base-100/95'>
-                                <div className='mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-6'>
-                                        <div className='flex items-center gap-3'>
-                                                <span className='inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-content'>
-                                                        L
-                                                </span>
-                                                <span className='text-lg font-semibold tracking-tight'>LVTN Freelance</span>
-                                        </div>
-                                        <span className='text-sm text-base-content/70'>
-                                                Bước {stepIndex + 1} / {totalSteps}
-                                        </span>
-                                </div>
-                        </header>
 
-                        <main className='flex flex-1 justify-center px-4 py-10 sm:px-6 lg:py-16'>
-                                <div className='flex w-full max-w-3xl flex-col gap-8'>
-                                        <div className='space-y-2 text-center lg:text-left'>
-                                                <h1 className='text-3xl font-semibold'>Hoàn thiện hồ sơ của bạn</h1>
-                                                <p className='text-base-content/70'>
-                                                        Chỉ còn vài bước đơn giản để hồ sơ trở nên nổi bật trước nhà tuyển dụng.
-                                                </p>
-                                        </div>
-
-                                        <section className='flex min-h-[520px] flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100 shadow-xl'>
-                                                <div className='border-b border-base-200 bg-base-100 px-8 py-6'>
-                                                        <div className='flex flex-col gap-2 text-left text-sm text-base-content/70 sm:flex-row sm:items-center sm:justify-between'>
-                                                                <div className='space-y-1'>
-                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/50'>
-                                                                                Bước {stepIndex + 1} / {totalSteps}
-                                                                        </span>
-                                                                        {currentStep ? (
-                                                                                <span className='text-base font-semibold text-base-content'>
-                                                                                        {STEP_LABELS[currentStep]}
-                                                                                </span>
-                                                                        ) : null}
-                                                                </div>
-                                                                <span className='text-xs font-medium text-base-content/60 sm:text-sm'>
-                                                                        {progressPercentage}% hoàn thành
+                <section className='flex w-full min-h-[520px] flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100 text-base-content shadow-lg'>
+                        <div className='border-b border-base-200 bg-base-100 px-6 py-8 sm:px-10'>
+                                <div className='flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
+                                        <div className='space-y-3'>
+                                                <div className='space-y-1'>
+                                                        <h1 className='text-3xl font-semibold leading-tight'>Hoàn thiện hồ sơ của bạn</h1>
+                                                        <p className='text-sm text-base-content/70 sm:text-base'>
+                                                                Chỉ còn vài bước đơn giản để hồ sơ trở nên nổi bật trước nhà tuyển dụng.
+                                                        </p>
+                                                </div>
+                                                {currentStep ? (
+                                                        <div className='space-y-1'>
+                                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/50'>
+                                                                        Bước {stepIndex + 1} / {totalSteps}
+                                                                </span>
+                                                                <span className='text-base font-semibold text-base-content'>
+                                                                        {STEP_LABELS[currentStep]}
                                                                 </span>
                                                         </div>
-                                                        <div className='mt-4 h-1 w-full overflow-hidden rounded-full bg-base-200'>
-                                                                <div
-                                                                        className='h-full rounded-full bg-primary transition-all'
-                                                                        style={{ width: `${progressPercentage}%` }}
-                                                                />
-                                                        </div>
-                                                </div>
-
-                                                <div className='flex flex-1 flex-col gap-8 px-8 py-8'>
-                                                        <div key={currentStep} className='flex-1'>
-                                                                {stepContent}
-                                                        </div>
-
-                                                        {isSubmitting ? (
-                                                                <div className='flex items-center gap-2 text-sm text-primary'>
-                                                                        <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
-                                                                </div>
-                                                        ) : null}
-                                                </div>
-
-                                                <div className='px-8 pb-8'>
-                                                        <WizardFooter
-                                                                canPrev={canGoBack && !isSubmitting}
-                                                                canNext={canProceed && !isSubmitting}
-                                                                onPrev={goBack}
-                                                                onNext={handleNext}
-                                                                nextLabel={
-                                                                        currentStep === 'skills'
-                                                                                ? 'Tiếp tục: Tiêu đề'
-                                                                                : currentStep === 'location'
-                                                                                        ? 'Hoàn tất'
-                                                                                        : undefined
-                                                                }
-                                                        />
-                                                </div>
-                                        </section>
+                                                ) : null}
+                                        </div>
+                                        <div className='shrink-0 text-sm font-medium text-base-content/70'>
+                                                <span>{progressPercentage}% hoàn thành</span>
+                                        </div>
                                 </div>
-                        </main>
-                </div>
+                                <div className='mt-6 h-1 w-full overflow-hidden rounded-full bg-base-200'>
+                                        <div
+                                                className='h-full rounded-full bg-primary transition-all'
+                                                style={{ width: `${progressPercentage}%` }}
+                                        />
+                                </div>
+                        </div>
+
+                        <div className='flex flex-1 flex-col px-6 pb-8 pt-8 sm:px-10'>
+                                <div key={currentStep} className='flex-1'>
+                                        {stepContent}
+                                </div>
+
+                                {isSubmitting ? (
+                                        <div className='mt-4 flex items-center gap-2 text-sm text-primary'>
+                                                <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
+                                        </div>
+                                ) : null}
+
+                                <WizardFooter
+                                        canPrev={canGoBack && !isSubmitting}
+                                        canNext={canProceed && !isSubmitting}
+                                        onPrev={goBack}
+                                        onNext={handleNext}
+                                        nextLabel={
+                                                currentStep === 'skills'
+                                                        ? 'Tiếp tục: Tiêu đề'
+                                                        : currentStep === 'location'
+                                                                ? 'Hoàn tất'
+                                                                : undefined
+                                        }
+                                />
+                        </div>
+                </section>
+
         )
 }
