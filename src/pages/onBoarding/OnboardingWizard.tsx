@@ -491,6 +491,7 @@ export default function OnboardingWizard() {
         ])
 
         return (
+
                 <section className='flex w-full min-h-[520px] flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100 text-base-content shadow-lg'>
                         <div className='border-b border-base-200 bg-base-100 px-6 py-8 sm:px-10'>
                                 <div className='flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between'>
@@ -550,5 +551,6 @@ export default function OnboardingWizard() {
                                 />
                         </div>
                 </section>
+
         )
 }
