@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, ShieldCheck } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getAllCategories } from '~/apis/admin/category.api'
@@ -26,7 +26,7 @@ import { OverviewStep } from './components/OverviewStep'
 import { RoleStep } from './components/RoleStep'
 import { SkillsStep } from './components/SkillsStep'
 import { TitleStep } from './components/TitleStep'
-import { WizardFooter, WizardProgress } from './components/WizardLayout'
+import { WizardFooter } from './components/WizardLayout'
 import { WIZARD_STEPS, type WizardStep } from './constants'
 
 type CategoryOption = { id: string; name: string }
@@ -166,9 +166,13 @@ export default function OnboardingWizard() {
 
 	const locationSubmitRef = useRef<(() => Promise<void>) | null>(null)
 
-	const steps = useMemo(() => (role === Role.freelancer ? WIZARD_STEPS : (['role'] as WizardStep[])), [role])
-	const currentStep = steps[stepIndex]
-	const totalSteps = steps.length
+        const steps = useMemo(() => (role === Role.freelancer ? WIZARD_STEPS : (['role'] as WizardStep[])), [role])
+        const currentStep = steps[stepIndex]
+        const totalSteps = steps.length
+        const progressPercentage = useMemo(
+                () => (totalSteps > 1 ? Math.round((stepIndex / (totalSteps - 1)) * 100) : 0),
+                [stepIndex, totalSteps]
+        )
 
 	const {
 		setRoleMutation,
@@ -487,81 +491,85 @@ export default function OnboardingWizard() {
         ])
 
         return (
-
-                <div className='min-h-screen bg-base-200 py-12'>
-                        <div className='mx-auto flex max-w-6xl flex-col gap-12 px-6'>
-                                <div className='space-y-3 text-center text-base-content lg:text-left'>
-                                        <h1 className='text-4xl font-bold'>Hoàn thiện hồ sơ của bạn</h1>
-                                        <p className='text-base-content/70'>Chỉ còn vài bước đơn giản để hồ sơ trở nên nổi bật trước nhà tuyển dụng.</p>
+                <div className='flex min-h-screen flex-col bg-base-100 text-base-content'>
+                        <header className='border-b border-base-200 bg-base-100/95'>
+                                <div className='mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-6'>
+                                        <div className='flex items-center gap-3'>
+                                                <span className='inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-content'>
+                                                        L
+                                                </span>
+                                                <span className='text-lg font-semibold tracking-tight'>LVTN Freelance</span>
+                                        </div>
+                                        <span className='text-sm text-base-content/70'>
+                                                Bước {stepIndex + 1} / {totalSteps}
+                                        </span>
                                 </div>
+                        </header>
 
-                                <div className='grid gap-10 lg:grid-cols-[320px,1fr] lg:items-start'>
-                                        <aside className='space-y-8 rounded-3xl bg-base-100/80 p-8 shadow-lg backdrop-blur'>
-                                                <div className='flex items-start gap-3 rounded-2xl bg-primary/10 p-4 text-left text-sm text-primary'>
-                                                        <ShieldCheck className='mt-0.5 size-5 shrink-0' />
-                                                        <span>Hoàn thiện hồ sơ để nhận được nhiều cơ hội việc làm phù hợp hơn.</span>
-                                                </div>
+                        <main className='flex flex-1 justify-center px-4 py-10 sm:px-6 lg:py-16'>
+                                <div className='flex w-full max-w-3xl flex-col gap-8'>
+                                        <div className='space-y-2 text-center lg:text-left'>
+                                                <h1 className='text-3xl font-semibold'>Hoàn thiện hồ sơ của bạn</h1>
+                                                <p className='text-base-content/70'>
+                                                        Chỉ còn vài bước đơn giản để hồ sơ trở nên nổi bật trước nhà tuyển dụng.
+                                                </p>
+                                        </div>
 
-                                                <WizardProgress currentIndex={stepIndex} total={totalSteps} />
-
-                                                <ul className='space-y-3 text-left text-sm'>
-                                                        {steps.map((step, index) => {
-                                                                const isActive = step === currentStep
-                                                                const isCompleted = index < stepIndex
-                                                                const badgeClass = isActive
-                                                                        ? 'bg-primary text-primary-content'
-                                                                        : isCompleted
-                                                                                ? 'bg-primary/20 text-primary'
-                                                                                : 'bg-base-200 text-base-content/70'
-
-                                                                return (
-                                                                        <li
-                                                                                key={step}
-                                                                                className='flex items-center justify-between gap-3 rounded-2xl border border-base-200/60 bg-base-100/70 px-4 py-3 shadow-sm'
-                                                                        >
-                                                                                <div className='flex items-center gap-3'>
-                                                                                        <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${badgeClass}`}>
-                                                                                                {index + 1}
-                                                                                        </span>
-                                                                                        <span className='font-medium text-base-content'>{STEP_LABELS[step]}</span>
-                                                                                </div>
-                                                                                {isCompleted ? (
-                                                                                        <span className='text-xs font-medium text-primary'>Đã xong</span>
-                                                                                ) : null}
-                                                                        </li>
-                                                                )
-                                                        })}
-                                                </ul>
-                                        </aside>
-
-                                        <section className='flex min-h-[640px] flex-col gap-8 rounded-3xl bg-base-100 p-10 shadow-2xl'>
-                                                <div key={currentStep} className='flex-1 space-y-8'>
-                                                        {stepContent}
-                                                </div>
-
-                                                {isSubmitting ? (
-                                                        <div className='flex items-center gap-2 text-sm text-primary'>
-                                                                <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
+                                        <section className='flex min-h-[520px] flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100 shadow-xl'>
+                                                <div className='border-b border-base-200 bg-base-100 px-8 py-6'>
+                                                        <div className='flex flex-col gap-2 text-left text-sm text-base-content/70 sm:flex-row sm:items-center sm:justify-between'>
+                                                                <div className='space-y-1'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/50'>
+                                                                                Bước {stepIndex + 1} / {totalSteps}
+                                                                        </span>
+                                                                        {currentStep ? (
+                                                                                <span className='text-base font-semibold text-base-content'>
+                                                                                        {STEP_LABELS[currentStep]}
+                                                                                </span>
+                                                                        ) : null}
+                                                                </div>
+                                                                <span className='text-xs font-medium text-base-content/60 sm:text-sm'>
+                                                                        {progressPercentage}% hoàn thành
+                                                                </span>
                                                         </div>
-                                                ) : null}
+                                                        <div className='mt-4 h-1 w-full overflow-hidden rounded-full bg-base-200'>
+                                                                <div
+                                                                        className='h-full rounded-full bg-primary transition-all'
+                                                                        style={{ width: `${progressPercentage}%` }}
+                                                                />
+                                                        </div>
+                                                </div>
 
-                                                <WizardFooter
-                                                        canPrev={canGoBack && !isSubmitting}
-                                                        canNext={canProceed && !isSubmitting}
-                                                        onPrev={goBack}
-                                                        onNext={handleNext}
-                                                        nextLabel={
-                                                                currentStep === 'skills'
-                                                                        ? 'Tiếp tục: Tiêu đề'
-                                                                        : currentStep === 'location'
-                                                                                ? 'Hoàn tất'
-                                                                                : undefined
-                                                        }
-                                                />
+                                                <div className='flex flex-1 flex-col gap-8 px-8 py-8'>
+                                                        <div key={currentStep} className='flex-1'>
+                                                                {stepContent}
+                                                        </div>
+
+                                                        {isSubmitting ? (
+                                                                <div className='flex items-center gap-2 text-sm text-primary'>
+                                                                        <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
+                                                                </div>
+                                                        ) : null}
+                                                </div>
+
+                                                <div className='px-8 pb-8'>
+                                                        <WizardFooter
+                                                                canPrev={canGoBack && !isSubmitting}
+                                                                canNext={canProceed && !isSubmitting}
+                                                                onPrev={goBack}
+                                                                onNext={handleNext}
+                                                                nextLabel={
+                                                                        currentStep === 'skills'
+                                                                                ? 'Tiếp tục: Tiêu đề'
+                                                                                : currentStep === 'location'
+                                                                                        ? 'Hoàn tất'
+                                                                                        : undefined
+                                                                }
+                                                        />
+                                                </div>
                                         </section>
                                 </div>
-                        </div>
+                        </main>
                 </div>
-
         )
 }
