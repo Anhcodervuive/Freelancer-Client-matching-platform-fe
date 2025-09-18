@@ -66,8 +66,8 @@ export async function getSpecialtiesByCategory(props: {
 		limit: props.limit.toString(),
 		search: props.search
 	}
-	const response = await authorizeAxiosInstance.get(
-		`category/${props.categoryId}/specialty??${new URLSearchParams(params)}`
-	)
+        const response = await authorizeAxiosInstance.get(
+                `category/${props.categoryId}/specialty?${new URLSearchParams(params)}`
+        )
 	return response.data
 }
