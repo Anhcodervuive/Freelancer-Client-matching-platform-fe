@@ -72,6 +72,10 @@ const router = createBrowserRouter([
 				element: <ProfilePage />
 			},
 			{
+				path: 'freelancer/:id',
+				element: <ProfilePage />
+			},
+			{
 				path: routes.comons.onboarding,
 				element: <OnboardingWizard />
 			},

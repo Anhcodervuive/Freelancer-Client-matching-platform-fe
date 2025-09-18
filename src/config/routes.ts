@@ -1,7 +1,8 @@
 export const routes = {
 	comons: {
 		home: '/',
-		onboarding: '/onboarding'
+		onboarding: '/onboarding',
+		freelancerProfile: (id?: string) => `/freelancer/${id || ''}`
 	},
 	auth: {
 		signin: '/signin',

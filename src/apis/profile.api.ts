@@ -1,5 +1,6 @@
 import type { Role } from '~/types'
 import type { UpdateProfileDto } from '~/types/profile'
+import type { User } from '~/types/user'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
 const profileBaseUrl = '/me'
@@ -31,4 +32,9 @@ export const updateRole = async (role: Role) => {
 export const updateProfileAPI = async (data: UpdateProfileDto) => {
 	const res = await authorizeAxiosInstance.put('/me/profile', data)
 	return res.data
+}
+
+export const getProfileInfo = async (userId: string): Promise<User> => {
+	const response = await authorizeAxiosInstance.get(`${profileBaseUrl}/profile/${userId}`)
+	return response.data
 }
