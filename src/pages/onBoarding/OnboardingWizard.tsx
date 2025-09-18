@@ -46,7 +46,17 @@ const queryKeys = {
         ]
 } as const
 
-const STEP_TRANSITION_DURATION = 220
+const STEP_LABELS: Record<WizardStep, string> = {
+        role: 'Chọn vai trò',
+        'cat-spec': 'Lĩnh vực & chuyên môn',
+        skills: 'Kỹ năng',
+        title: 'Tiêu đề nổi bật',
+        education: 'Học vấn',
+        languages: 'Ngôn ngữ',
+        overview: 'Giới thiệu bản thân',
+        location: 'Thông tin liên hệ'
+}
+
 
 function useListCategories(keyword: string) {
 	return useQuery({
@@ -150,154 +160,6 @@ export default function OnboardingWizard() {
 	const [title, setTitle] = useState('')
         const [overview, setOverview] = useState('')
         const [languages, setLanguages] = useState<LanguagesFormValues | undefined>()
-        const [stepContentHeight, setStepContentHeight] = useState<number | null>(null)
-        const stepResizeObserverRef = useRef<ResizeObserver | null>(null)
-        const stepTransitionNodeRef = useRef<HTMLDivElement | null>(null)
-        const stepTransitionRafRef = useRef<number | null>(null)
-        const stepTransitionTimeoutRef = useRef<number | null>(null)
-        const stepHeightRafRef = useRef<number | null>(null)
-        const hasMeasuredHeightRef = useRef(false)
-
-
-        const clearStepTransitionTimers = useCallback(() => {
-                if (typeof window === 'undefined') return
-
-                if (stepTransitionRafRef.current != null) {
-                        window.cancelAnimationFrame(stepTransitionRafRef.current)
-                        stepTransitionRafRef.current = null
-                }
-
-                if (stepTransitionTimeoutRef.current != null) {
-                        window.clearTimeout(stepTransitionTimeoutRef.current)
-                        stepTransitionTimeoutRef.current = null
-                }
-
-
-                if (stepHeightRafRef.current != null) {
-                        window.cancelAnimationFrame(stepHeightRafRef.current)
-                        stepHeightRafRef.current = null
-                }
-
-        }, [])
-
-        const handleStepContentRef = useCallback(
-                (node: HTMLDivElement | null) => {
-                        if (stepResizeObserverRef.current) {
-                                stepResizeObserverRef.current.disconnect()
-                                stepResizeObserverRef.current = null
-                        }
-
-                        clearStepTransitionTimers()
-
-                        if (stepTransitionNodeRef.current && stepTransitionNodeRef.current !== node) {
-                                stepTransitionNodeRef.current.removeAttribute('data-step-transition')
-                                stepTransitionNodeRef.current.style.removeProperty('--wizard-step-duration')
-
-                        }
-
-                        if (!node) {
-                                stepTransitionNodeRef.current = null
-                                return
-                        }
-
-                        stepTransitionNodeRef.current = node
-
-                        node.style.setProperty('--wizard-step-duration', `${STEP_TRANSITION_DURATION}ms`)
-
-
-                        if (typeof window === 'undefined') {
-                                node.dataset.stepTransition = 'entered'
-                        } else {
-                                node.dataset.stepTransition = 'enter-from'
-                                stepTransitionRafRef.current = window.requestAnimationFrame(() => {
-                                        if (stepTransitionNodeRef.current !== node) return
-                                        node.dataset.stepTransition = 'enter-active'
-                                        stepTransitionTimeoutRef.current = window.setTimeout(() => {
-                                                if (stepTransitionNodeRef.current !== node) return
-                                                node.dataset.stepTransition = 'entered'
-                                                stepTransitionTimeoutRef.current = null
-                                        }, STEP_TRANSITION_DURATION)
-                                })
-                        }
-
-                        const commitHeight = (rawHeight: number) => {
-                                if (!Number.isFinite(rawHeight)) return
-
-                                const nextHeight = Math.max(0, rawHeight)
-
-                                const applyHeight = () => {
-                                        setStepContentHeight(previous => {
-                                                if (!hasMeasuredHeightRef.current) {
-                                                        hasMeasuredHeightRef.current = true
-                                                        return nextHeight
-                                                }
-
-                                                if (nextHeight <= 0 && previous != null) {
-                                                        return previous
-                                                }
-
-                                                if (previous != null && Math.abs(previous - nextHeight) < 0.5) {
-                                                        return previous
-                                                }
-
-                                                return nextHeight
-                                        })
-                                }
-
-                                if (typeof window === 'undefined') {
-                                        applyHeight()
-                                        return
-                                }
-
-                                if (stepHeightRafRef.current != null) {
-                                        window.cancelAnimationFrame(stepHeightRafRef.current)
-                                        stepHeightRafRef.current = null
-                                }
-
-                                stepHeightRafRef.current = window.requestAnimationFrame(() => {
-                                        stepHeightRafRef.current = null
-                                        applyHeight()
-                                })
-                        }
-
-                        const measure = () => {
-                                const { height } = node.getBoundingClientRect()
-                                commitHeight(height)
-                        }
-
-                        measure()
-
-                        if (typeof ResizeObserver === 'undefined') return
-
-                        const observer = new ResizeObserver(entries => {
-                                const entry = entries[0]
-                                if (!entry) return
-                                commitHeight(entry.contentRect.height)
-                        })
-
-                        observer.observe(node)
-                        stepResizeObserverRef.current = observer
-                },
-                [clearStepTransitionTimers]
-        )
-
-        useEffect(() => {
-                return () => {
-                        if (stepResizeObserverRef.current) {
-                                stepResizeObserverRef.current.disconnect()
-                                stepResizeObserverRef.current = null
-                        }
-
-                        clearStepTransitionTimers()
-
-                        if (stepTransitionNodeRef.current) {
-                                stepTransitionNodeRef.current.removeAttribute('data-step-transition')
-                                stepTransitionNodeRef.current.style.removeProperty('--wizard-step-duration')
-                                stepTransitionNodeRef.current = null
-                        }
-                }
-        }, [clearStepTransitionTimers])
-
 	const [categoryKeyword, setCategoryKeyword] = useState('')
 	const [specialtyKeyword, setSpecialtyKeyword] = useState('')
 	const [skillKeyword, setSkillKeyword] = useState('')
@@ -625,50 +487,81 @@ export default function OnboardingWizard() {
         ])
 
         return (
-                <div className='mx-auto max-w-4xl space-y-6 p-6'>
-			<div className='flex items-center gap-2 rounded-2xl bg-base-200/60 px-4 py-3 text-sm text-base-content/80'>
-				<ShieldCheck className='size-4 shrink-0 text-primary' />
-				<span>Hoàn thiện hồ sơ để nhận được nhiều cơ hội việc làm phù hợp hơn.</span>
-			</div>
 
-			<WizardProgress currentIndex={stepIndex} total={totalSteps} />
+                <div className='min-h-screen bg-base-200 py-12'>
+                        <div className='mx-auto flex max-w-6xl flex-col gap-12 px-6'>
+                                <div className='space-y-3 text-center text-base-content lg:text-left'>
+                                        <h1 className='text-4xl font-bold'>Hoàn thiện hồ sơ của bạn</h1>
+                                        <p className='text-base-content/70'>Chỉ còn vài bước đơn giản để hồ sơ trở nên nổi bật trước nhà tuyển dụng.</p>
+                                </div>
 
-                        <div className='card bg-base-100 shadow-xl'>
-                                <div className='card-body gap-6'>
-                                        <div
-                                                className='wizard-step-shell relative w-full'
-                                                style={
-                                                        stepContentHeight == null
-                                                                ? undefined
-                                                                : { height: `${Math.max(0, Math.ceil(stepContentHeight))}px` }
-                                                }
-                                        >
-                                                <div key={currentStep} ref={handleStepContentRef} className='wizard-step-transition'>
+                                <div className='grid gap-10 lg:grid-cols-[320px,1fr] lg:items-start'>
+                                        <aside className='space-y-8 rounded-3xl bg-base-100/80 p-8 shadow-lg backdrop-blur'>
+                                                <div className='flex items-start gap-3 rounded-2xl bg-primary/10 p-4 text-left text-sm text-primary'>
+                                                        <ShieldCheck className='mt-0.5 size-5 shrink-0' />
+                                                        <span>Hoàn thiện hồ sơ để nhận được nhiều cơ hội việc làm phù hợp hơn.</span>
+                                                </div>
+
+                                                <WizardProgress currentIndex={stepIndex} total={totalSteps} />
+
+                                                <ul className='space-y-3 text-left text-sm'>
+                                                        {steps.map((step, index) => {
+                                                                const isActive = step === currentStep
+                                                                const isCompleted = index < stepIndex
+                                                                const badgeClass = isActive
+                                                                        ? 'bg-primary text-primary-content'
+                                                                        : isCompleted
+                                                                                ? 'bg-primary/20 text-primary'
+                                                                                : 'bg-base-200 text-base-content/70'
+
+                                                                return (
+                                                                        <li
+                                                                                key={step}
+                                                                                className='flex items-center justify-between gap-3 rounded-2xl border border-base-200/60 bg-base-100/70 px-4 py-3 shadow-sm'
+                                                                        >
+                                                                                <div className='flex items-center gap-3'>
+                                                                                        <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${badgeClass}`}>
+                                                                                                {index + 1}
+                                                                                        </span>
+                                                                                        <span className='font-medium text-base-content'>{STEP_LABELS[step]}</span>
+                                                                                </div>
+                                                                                {isCompleted ? (
+                                                                                        <span className='text-xs font-medium text-primary'>Đã xong</span>
+                                                                                ) : null}
+                                                                        </li>
+                                                                )
+                                                        })}
+                                                </ul>
+                                        </aside>
+
+                                        <section className='flex min-h-[640px] flex-col gap-8 rounded-3xl bg-base-100 p-10 shadow-2xl'>
+                                                <div key={currentStep} className='flex-1 space-y-8'>
                                                         {stepContent}
                                                 </div>
-                                        </div>
 
-                                        {isSubmitting ? (
-                                                <div className='mt-4 flex items-center gap-2 text-sm text-primary'>
-                                                        <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
-                                                </div>
-                                        ) : null}
+                                                {isSubmitting ? (
+                                                        <div className='flex items-center gap-2 text-sm text-primary'>
+                                                                <Loader2 className='size-4 animate-spin' /> Đang lưu dữ liệu...
+                                                        </div>
+                                                ) : null}
 
-                                        <WizardFooter
-                                                canPrev={canGoBack && !isSubmitting}
-                                                canNext={canProceed && !isSubmitting}
-                                                onPrev={goBack}
-                                                onNext={handleNext}
-                                                nextLabel={
-                                                        currentStep === 'skills'
-                                                                ? 'Tiếp tục: Tiêu đề'
-                                                                : currentStep === 'location'
-                                                                        ? 'Hoàn tất'
-                                                                        : undefined
-                                                }
-                                        />
+                                                <WizardFooter
+                                                        canPrev={canGoBack && !isSubmitting}
+                                                        canNext={canProceed && !isSubmitting}
+                                                        onPrev={goBack}
+                                                        onNext={handleNext}
+                                                        nextLabel={
+                                                                currentStep === 'skills'
+                                                                        ? 'Tiếp tục: Tiêu đề'
+                                                                        : currentStep === 'location'
+                                                                                ? 'Hoàn tất'
+                                                                                : undefined
+                                                        }
+                                                />
+                                        </section>
+                                </div>
                         </div>
                 </div>
-        </div>
+
         )
 }
