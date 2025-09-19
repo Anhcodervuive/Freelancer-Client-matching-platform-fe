@@ -1,18 +1,24 @@
 // components/profile/LanguagesSection.tsx
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useProfileLanguages } from '~/hooks/api/useFreelancerLanguages'
 import LanguageManagerModal from './LanguageManagerModal'
 import { languageNameFromCode } from '~/constants/language'
 import type { LanguageProficiency } from '~/types/profile'
 import { Pencil, Plus } from 'lucide-react'
 
-type Props = { userId?: string }
+type Props = { userId?: string; editable?: boolean }
 
-export default function LanguagesSection({ userId }: Props) {
-	const { listQ, addOne, removeOne } = useProfileLanguages(userId)
-	const [open, setOpen] = useState<null | 'add' | 'edit'>(null)
+export default function LanguagesSection({ userId, editable = true }: Props) {
+        const { listQ, addOne, removeOne } = useProfileLanguages(userId)
+        const [open, setOpen] = useState<null | 'add' | 'edit'>(null)
 
-	const current = useMemo(() => listQ.data ?? [], [listQ.data])
+        const current = useMemo(() => listQ.data ?? [], [listQ.data])
+
+        useEffect(() => {
+                if (!editable) {
+                        setOpen(null)
+                }
+        }, [editable])
 
 	// hàm save chung cho modal (diff + gọi POST/DELETE)
 	async function handleSave(
@@ -51,20 +57,22 @@ export default function LanguagesSection({ userId }: Props) {
 
 	return (
 		<section className='rounded-xl border border-base-200 bg-white/90 p-4'>
-			<div className='flex items-center justify-between'>
-				<h3 className='font-semibold'>Languages</h3>
-				<div className='flex gap-2'>
-					<button className='btn btn-ghost btn-circle btn-sm text-green-700' title='Add' onClick={() => setOpen('add')}>
-						<Plus />
-					</button>
-					<button
-						className='btn btn-ghost btn-circle btn-sm text-green-700'
-						title='Edit'
-						onClick={() => setOpen('edit')}>
-						<Pencil />
-					</button>
-				</div>
-			</div>
+                        <div className='flex items-center justify-between'>
+                                <h3 className='font-semibold'>Languages</h3>
+                                {editable && (
+                                        <div className='flex gap-2'>
+                                                <button className='btn btn-ghost btn-circle btn-sm text-green-700' title='Add' onClick={() => setOpen('add')}>
+                                                        <Plus />
+                                                </button>
+                                                <button
+                                                        className='btn btn-ghost btn-circle btn-sm text-green-700'
+                                                        title='Edit'
+                                                        onClick={() => setOpen('edit')}>
+                                                        <Pencil />
+                                                </button>
+                                        </div>
+                                )}
+                        </div>
 
 			{listQ.isLoading ? (
 				<div className='flex w-52 flex-col gap-4'>
@@ -90,28 +98,34 @@ export default function LanguagesSection({ userId }: Props) {
 						</div>
 					))}
 				</div>
-			) : (
-				<div className='text-sm text-base-content/60 mt-2'>No languages yet.</div>
-			)}
+                        ) : (
+                                <div className='text-sm text-base-content/60 mt-2'>
+                                        {editable ? 'No languages yet.' : 'No language information available.'}
+                                </div>
+                        )}
 
 			{/* Modal Add */}
-			<LanguageManagerModal
-				open={open === 'add'}
-				onClose={() => setOpen(null)}
-				title='Add language'
-				initial={initialForAdd}
-				onSave={handleSave}
-				type='ADD'
-			/>
-			{/* Modal Edit */}
-			<LanguageManagerModal
-				open={open === 'edit'}
-				onClose={() => setOpen(null)}
-				title='Edit languages'
-				initial={initialForEdit}
-				onSave={handleSave}
-				type='EDIT'
-			/>
-		</section>
-	)
+                        {editable && (
+                                <>
+                                        <LanguageManagerModal
+                                                open={open === 'add'}
+                                                onClose={() => setOpen(null)}
+                                                title='Add language'
+                                                initial={initialForAdd}
+                                                onSave={handleSave}
+                                                type='ADD'
+                                        />
+                                        {/* Modal Edit */}
+                                        <LanguageManagerModal
+                                                open={open === 'edit'}
+                                                onClose={() => setOpen(null)}
+                                                title='Edit languages'
+                                                initial={initialForEdit}
+                                                onSave={handleSave}
+                                                type='EDIT'
+                                        />
+                                </>
+                        )}
+                </section>
+        )
 }
