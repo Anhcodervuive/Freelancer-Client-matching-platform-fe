@@ -212,7 +212,7 @@ export default function CategorySpecialtyManagerModal({
 			<div className='absolute inset-0 bg-black/40' onClick={() => (!saving ? onClose() : null)} />
 
 			<div className='absolute inset-0 flex items-center justify-center p-4 md:p-8'>
-				<div className='w-full max-w-4xl rounded-2xl bg-white shadow-xl'>
+				<div className='w-full h-[90vh] overflow-scroll max-w-4xl rounded-2xl bg-white shadow-xl'>
 					<div className='flex items-center justify-between border-b border-base-200 px-6 py-4'>
 						<div>
 							<h3 className='text-lg font-semibold'>Categories</h3>
@@ -276,7 +276,7 @@ export default function CategorySpecialtyManagerModal({
 								Không thể tải danh sách danh mục / chuyên môn. Vui lòng thử lại sau.
 							</div>
 						) : (
-							<div className='max-h-[420px] space-y-3 overflow-y-auto pr-1'>
+							<div className='max-h-[420px] space-y-3 pr-1'>
 								{filteredCategories.map(category => {
 									const items = specialtiesByCategory.get(category.id) ?? []
 									const matchesSearch =
