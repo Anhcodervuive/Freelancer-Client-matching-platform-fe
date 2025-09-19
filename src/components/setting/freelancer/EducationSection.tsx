@@ -1,32 +1,41 @@
 // components/freelancer/EducationSection.tsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { useFreelancerEducation } from '~/hooks/api/useFreelancerEducation'
 import EducationManagerModal from './EducationManagerModal'
 import type { FreelancerEducation } from '~/types/profile'
 
-type Props = { userId?: string }
+type Props = { userId?: string; editable?: boolean }
 
-export function EducationSection({ userId }: Props) {
-	const { listQuery, deleteMutation } = useFreelancerEducation(userId)
-	const [open, setOpen] = useState(false)
-	const [editing, setEditing] = useState<FreelancerEducation | null>(null)
+export function EducationSection({ userId, editable = true }: Props) {
+        const { listQuery, deleteMutation } = useFreelancerEducation(userId)
+        const [open, setOpen] = useState(false)
+        const [editing, setEditing] = useState<FreelancerEducation | null>(null)
 
-	const items = listQuery.data ?? []
+        const items = listQuery.data ?? []
+
+        useEffect(() => {
+                if (!editable) {
+                        setOpen(false)
+                        setEditing(null)
+                }
+        }, [editable])
 
 	return (
 		<div className='bg-white/90 rounded-xl p-4'>
 			<div className='flex items-center justify-between mb-3'>
-				<h3 className='font-bold text-lg'>Education</h3>
-				<button
-					className='btn btn-ghost btn-circle btn-sm text-green-700'
-					onClick={() => {
-						setEditing(null)
-						setOpen(true)
-					}}>
-					<Plus />
-				</button>
-			</div>
+                                <h3 className='font-bold text-lg'>Education</h3>
+                                {editable && (
+                                        <button
+                                                className='btn btn-ghost btn-circle btn-sm text-green-700'
+                                                onClick={() => {
+                                                        setEditing(null)
+                                                        setOpen(true)
+                                                }}>
+                                                <Plus />
+                                        </button>
+                                )}
+                        </div>
 
 			<div className='space-y-3'>
 				{listQuery.isLoading ? (
@@ -54,30 +63,38 @@ export function EducationSection({ userId }: Props) {
 									{it.endYear ?? 'Present'}
 								</div>
 							</div>
-							<div className='flex gap-1'>
-								<button
-									className='btn btn-ghost btn-sm btn-circle'
-									onClick={() => {
-										setEditing(it)
-										setOpen(true)
-									}}
-									title='Edit'>
-									<Pencil size={16} />
-								</button>
-								<button
-									className='btn btn-ghost btn-sm btn-circle text-error'
-									onClick={() => deleteMutation.mutate(it.id ?? index)}
-									title='Delete'>
-									<Trash2 size={16} />
-								</button>
-							</div>
-						</div>
-					))
-				)}
-				{items.length === 0 && <div className='text-sm opacity-70'>No education yet. Add your first entry.</div>}
-			</div>
+                                                        {editable && (
+                                                                <div className='flex gap-1'>
+                                                                        <button
+                                                                                className='btn btn-ghost btn-sm btn-circle'
+                                                                                onClick={() => {
+                                                                                        setEditing(it)
+                                                                                        setOpen(true)
+                                                                                }}
+                                                                                title='Edit'>
+                                                                                <Pencil size={16} />
+                                                                        </button>
+                                                                        <button
+                                                                                className='btn btn-ghost btn-sm btn-circle text-error'
+                                                                                onClick={() => deleteMutation.mutate(it.id ?? index)}
+                                                                                title='Delete'>
+                                                                                <Trash2 size={16} />
+                                                                        </button>
+                                                                </div>
+                                                        )}
+                                                </div>
+                                        ))
+                                )}
+                                {items.length === 0 && (
+                                        <div className='text-sm opacity-70'>
+                                                {editable ? 'No education yet. Add your first entry.' : 'No education information available.'}
+                                        </div>
+                                )}
+                        </div>
 
-			{open && <EducationManagerModal userId={userId} initial={editing} onClose={() => setOpen(false)} />}
-		</div>
-	)
+                        {editable && open && (
+                                <EducationManagerModal userId={userId} initial={editing} onClose={() => setOpen(false)} />
+                        )}
+                </div>
+        )
 }

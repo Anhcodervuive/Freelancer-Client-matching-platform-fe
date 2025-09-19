@@ -6,23 +6,29 @@ import { useFreelancerProfile } from '~/hooks/api/useFreelancerProfile'
 import LinkChip from '~/components/LinkChip'
 import { Pencil } from 'lucide-react'
 
-type Props = { userId?: string }
+type Props = { userId?: string; editable?: boolean }
 
-export default function AboutSection({ userId }: Props) {
-	const { data, isLoading, save, saving } = useFreelancerProfile(userId)
+export default function AboutSection({ userId, editable = true }: Props) {
+        const { data, isLoading, save, saving } = useFreelancerProfile(userId)
 
-	const [open, setOpen] = React.useState(false)
+        const [open, setOpen] = React.useState(false)
 	const [title, setTitle] = React.useState('')
 	const [bioHtml, setBioHtml] = React.useState('<p></p>')
 	const [links, setLinks] = React.useState<string[]>([])
 	const [linkInput, setLinkInput] = React.useState('')
 
-	React.useEffect(() => {
-		if (isLoading || !data) return
-		setTitle(data.title ?? '')
-		setBioHtml(typeof data.bio === 'string' ? data.bio : '<p></p>')
-		setLinks(Array.isArray(data.links) ? data.links : [])
-	}, [isLoading, data])
+        React.useEffect(() => {
+                if (isLoading || !data) return
+                setTitle(data.title ?? '')
+                setBioHtml(typeof data.bio === 'string' ? data.bio : '<p></p>')
+                setLinks(Array.isArray(data.links) ? data.links : [])
+        }, [isLoading, data])
+
+        React.useEffect(() => {
+                if (!editable) {
+                        setOpen(false)
+                }
+        }, [editable])
 
 	const addLink = () => {
 		const raw = linkInput.trim()
@@ -106,12 +112,14 @@ export default function AboutSection({ userId }: Props) {
 	return (
 		<div className='cardborder bg-white/90 rounded-box'>
 			<div className='card-body gap-3'>
-				<div className='flex items-center justify-between'>
-					<h2 className='text-2xl font-bold'>Profile overview</h2>
-					<button className='btn btn-sm btn-circle btn-ghost text-green-700' onClick={() => setOpen(true)}>
-						<Pencil />
-					</button>
-				</div>
+                                <div className='flex items-center justify-between'>
+                                        <h2 className='text-2xl font-bold'>Profile overview</h2>
+                                        {editable && (
+                                                <button className='btn btn-sm btn-circle btn-ghost text-green-700' onClick={() => setOpen(true)}>
+                                                        <Pencil />
+                                                </button>
+                                        )}
+                                </div>
 
 				<p className='font-semibold'>{data?.title || 'Add a short headline about your expertise'}</p>
 
@@ -131,8 +139,8 @@ export default function AboutSection({ userId }: Props) {
 			</div>
 
 			{/* Modal */}
-			{open && (
-				<div className='modal modal-open'>
+                        {editable && open && (
+                                <div className='modal modal-open'>
 					<div className='modal-box w-11/12 max-w-3xl'>
 						<h3 className='font-bold text-lg'>Edit profile overview</h3>
 

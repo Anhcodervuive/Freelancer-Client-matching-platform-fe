@@ -8,14 +8,21 @@ import { updateProfile } from '~/redux/user/userSlice'
 import { DEFAULT_AVATAR } from '~/constants/image'
 
 type Props = {
-	src?: string | null // URL avatar hiện tại
-	size?: number // px
-	rounded?: 'full' | 'lg' | 'md'
-	onUploaded?: (_newUrl: string) => void
-	maxSizeMB?: number // mặc định 5MB
+        src?: string | null // URL avatar hiện tại
+        size?: number // px
+        rounded?: 'full' | 'lg' | 'md'
+        onUploaded?: (_newUrl: string) => void
+        maxSizeMB?: number // mặc định 5MB
+        editable?: boolean
 }
 
-export default function AvatarUploader({ src, size = 96, rounded = 'full', maxSizeMB = 5 }: Props) {
+export default function AvatarUploader({
+        src,
+        size = 96,
+        rounded = 'full',
+        maxSizeMB = 5,
+        editable = true
+}: Props) {
 	const [imgSrc, setImgSrc] = React.useState<string | null>(src ?? null)
 	const [pct, setPct] = React.useState<number | null>(null) // null = không upload
 	const dispatch: AppDispatch = useDispatch()
@@ -29,7 +36,10 @@ export default function AvatarUploader({ src, size = 96, rounded = 'full', maxSi
                 setImgSrc(null)
         }, [src])
 
-	const trigger = () => fileRef.current?.click()
+        const trigger = () => {
+                if (!editable) return
+                fileRef.current?.click()
+        }
 
 	const onPick = async (file?: File) => {
 		if (!file) return
@@ -81,15 +91,16 @@ export default function AvatarUploader({ src, size = 96, rounded = 'full', maxSi
                                 }}
                         />
 
-			<button
-				type='button'
-				onClick={trigger}
-				className='absolute -bottom-1 -right-1 btn btn-ghost btn-circle bg-white/90
-                   border border-primary text-primary'
-				title='Đổi ảnh đại diện'
-				disabled={!!pct}>
-				<Pencil size={16} />
-			</button>
+                        {editable && (
+                                <button
+                                        type='button'
+                                        onClick={trigger}
+                                        className='absolute -bottom-1 -right-1 btn btn-ghost btn-circle bg-white/90 border border-primary text-primary'
+                                        title='Đổi ảnh đại diện'
+                                        disabled={!!pct}>
+                                        <Pencil size={16} />
+                                </button>
+                        )}
 
 			{/* overlay progress (%), thay spinner */}
 			{pct !== null && (
@@ -109,13 +120,15 @@ export default function AvatarUploader({ src, size = 96, rounded = 'full', maxSi
 				</div>
 			)}
 
-			<input
-				ref={fileRef}
-				type='file'
-				accept='image/png,image/jpeg,image/webp,image/avif'
-				className='hidden'
-				onChange={e => onPick(e.target.files?.[0] ?? undefined)}
-			/>
+                        {editable && (
+                                <input
+                                        ref={fileRef}
+                                        type='file'
+                                        accept='image/png,image/jpeg,image/webp,image/avif'
+                                        className='hidden'
+                                        onChange={e => onPick(e.target.files?.[0] ?? undefined)}
+                                />
+                        )}
 		</div>
 	)
 }
