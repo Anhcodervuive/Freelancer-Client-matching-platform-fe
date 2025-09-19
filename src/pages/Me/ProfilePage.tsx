@@ -4,6 +4,7 @@ import { useLocation, useParams } from 'react-router-dom'
 import { getProfileInfo } from '~/apis/profile.api'
 import AvatarUploader from '~/components/setting/AvatarUploader'
 import AboutSection from '~/components/setting/freelancer/AboutSection'
+import CategorySpecialtySection from '~/components/setting/freelancer/CategorySpecialtySection'
 import { EducationSection } from '~/components/setting/freelancer/EducationSection'
 import LanguageSection from '~/components/setting/freelancer/LanguageSection'
 import SkillsSection from '~/components/setting/freelancer/SkillsSection'
@@ -57,7 +58,9 @@ export default function ProfilePage() {
 			{/* MAIN GRID: LEFT = info blocks, RIGHT = overview */}
 			<div className='grid grid-cols-1 md:grid-cols-[1.15fr_2fr] gap-4'>
 				{/* LEFT COLUMN (the small info blocks) */}
-				<div className='space-y-4'>
+                                <div className='space-y-4'>
+                                        <CategorySpecialtySection userId={userId} editable={isEditable} />
+
                                         <EducationSection userId={userId} editable={isEditable} />
 
                                         <SkillsSection userId={userId} editable={isEditable} />

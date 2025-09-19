@@ -1,8 +1,6 @@
-export const WIZARD_LIMITS = {
-  maxCategories: 2,
-  maxSpecialties: 6,
-  maxSkills: 15,
-} as const
+import { FREELANCER_LIMITS } from '~/constants/freelancer'
+
+export const WIZARD_LIMITS = FREELANCER_LIMITS
 
 export const WIZARD_STEPS = [
   'role',
