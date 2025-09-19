@@ -16,6 +16,29 @@ export const getFreelancerSkills = async (userId?: string): Promise<FreelancerSk
         return res.data ?? []
 }
 
+export const addFreelancerSkill = async ({
+        userId,
+        skillId,
+        weight
+}: {
+        userId?: string
+        skillId: string
+        weight?: number
+}) => {
+        const res = await authorizeAxiosInstance.put(`${freelancerProfileBaseUrl}/profile/${userId}/skill`, {
+                skillId,
+                weight
+        })
+        return res.data
+}
+
+export const deleteFreelancerSkill = async (userId?: string, skillId?: string) => {
+        const res = await authorizeAxiosInstance.delete(
+                `${freelancerProfileBaseUrl}/profile/${userId}/skill/${skillId}`
+        )
+        return res.data
+}
+
 // POST /profiles/:userId/languages { languageCode, proficiency }
 export async function addProfileLanguage(params: {
 	userId?: string
