@@ -3,7 +3,7 @@ import type { UpdateProfileDto } from '~/types/profile'
 import type { User } from '~/types/user'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
-const profileBaseUrl = '/me'
+const profileBaseUrl = '/profile'
 
 export const uploadAvatar = async (
 	file: File,
@@ -11,7 +11,7 @@ export const uploadAvatar = async (
 ) => {
 	const fd = new FormData()
 	fd.append('avatar', file)
-	const res = await authorizeAxiosInstance.put(`${profileBaseUrl}/profile/upload-avatar`, fd, {
+	const res = await authorizeAxiosInstance.put(`${profileBaseUrl}/upload-avatar`, fd, {
 		// ❗ KHÔNG đặt 'Content-Type' thủ công; axios tự thêm boundary cho FormData
 		onUploadProgress: e => {
 			if (opts?.onProgress && e.total) {
@@ -30,11 +30,11 @@ export const updateRole = async (role: Role) => {
 }
 
 export const updateProfileAPI = async (data: UpdateProfileDto) => {
-	const res = await authorizeAxiosInstance.put('/me/profile', data)
+	const res = await authorizeAxiosInstance.put(`${profileBaseUrl}`, data)
 	return res.data
 }
 
 export const getProfileInfo = async (userId: string): Promise<User> => {
-	const response = await authorizeAxiosInstance.get(`${profileBaseUrl}/profile/${userId}`)
+	const response = await authorizeAxiosInstance.get(`${profileBaseUrl}/${userId}`)
 	return response.data
 }
