@@ -56,11 +56,9 @@ export default function ProfilePage() {
                         </div>
 
 			{/* MAIN GRID: LEFT = info blocks, RIGHT = overview */}
-			<div className='grid grid-cols-1 md:grid-cols-[1.15fr_2fr] gap-4'>
+                        <div className='grid grid-cols-1 md:grid-cols-[1.15fr_2fr] gap-4'>
 				{/* LEFT COLUMN (the small info blocks) */}
                                 <div className='space-y-4'>
-                                        <CategorySpecialtySection userId={userId} editable={isEditable} />
-
                                         <EducationSection userId={userId} editable={isEditable} />
 
                                         <SkillsSection userId={userId} editable={isEditable} />
@@ -72,9 +70,13 @@ export default function ProfilePage() {
                                 <div className='space-y-4'>
                                         <AboutSection userId={userId} editable={isEditable} />
 
-					{/* Portfolio section: (nếu cần cho y chang ảnh thì thêm ở đây) */}
-					{/* ... */}
-				</div>
+                                        {isEditable && userId && (
+                                                <CategorySpecialtySection userId={userId} editable={isEditable} />
+                                        )}
+
+                                        {/* Portfolio section: (nếu cần cho y chang ảnh thì thêm ở đây) */}
+                                        {/* ... */}
+                                </div>
 			</div>
 		</div>
 	)
