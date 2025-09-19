@@ -1,11 +1,19 @@
 import type { FreelancerProfile, LanguageProficiency, ProfileLanguage } from '~/types/profile'
+import type { FreelancerSkillItem } from '~/types/skill'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
 const freelancerProfileBaseUrl = '/me'
 
 export const getAllProfileLanguage = async (userId?: string): Promise<ProfileLanguage[]> => {
-	const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/profile/${userId}/language`)
-	return res.data ?? []
+        const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/profile/${userId}/language`)
+        return res.data ?? []
+}
+
+export const getFreelancerSkills = async (userId?: string): Promise<FreelancerSkillItem[]> => {
+        const res = await authorizeAxiosInstance.get<FreelancerSkillItem[]>(
+                `${freelancerProfileBaseUrl}/profile/${userId}/skill`
+        )
+        return res.data ?? []
 }
 
 // POST /profiles/:userId/languages { languageCode, proficiency }

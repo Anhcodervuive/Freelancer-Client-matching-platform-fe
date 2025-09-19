@@ -6,6 +6,7 @@ import AvatarUploader from '~/components/setting/AvatarUploader'
 import AboutSection from '~/components/setting/freelancer/AboutSection'
 import { EducationSection } from '~/components/setting/freelancer/EducationSection'
 import LanguageSection from '~/components/setting/freelancer/LanguageSection'
+import SkillsSection from '~/components/setting/freelancer/SkillsSection'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 
 export default function ProfilePage() {
@@ -59,11 +60,7 @@ export default function ProfilePage() {
 				<div className='space-y-4'>
                                         <EducationSection userId={userId} editable={isEditable} />
 
-                                        {/* Skills */}
-                                        <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
-						<h3 className='font-semibold mb-2'>Skills</h3>
-						<div className='flex flex-wrap gap-2'></div>
-					</section>
+                                        <SkillsSection userId={userId} editable={isEditable} />
 
                                         <LanguageSection userId={userId} editable={isEditable} />
                                 </div>
