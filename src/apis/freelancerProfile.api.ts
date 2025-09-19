@@ -1,4 +1,5 @@
 import type { FreelancerProfile, LanguageProficiency, ProfileLanguage } from '~/types/profile'
+import type { FreelancerSkillItem } from '~/types/skill'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
 const freelancerProfileBaseUrl = '/profile'
@@ -6,6 +7,32 @@ const freelancerProfileBaseUrl = '/profile'
 export const getAllProfileLanguage = async (userId?: string): Promise<ProfileLanguage[]> => {
 	const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/language`)
 	return res.data ?? []
+}
+
+export const getFreelancerSkills = async (userId?: string): Promise<FreelancerSkillItem[]> => {
+	const res = await authorizeAxiosInstance.get<FreelancerSkillItem[]>(`${freelancerProfileBaseUrl}/${userId}/skill`)
+	return res.data ?? []
+}
+
+export const addFreelancerSkill = async ({
+	userId,
+	skillId,
+	weight
+}: {
+	userId?: string
+	skillId: string
+	weight?: number
+}) => {
+	const res = await authorizeAxiosInstance.put(`${freelancerProfileBaseUrl}/${userId}/skill`, {
+		skillId,
+		weight
+	})
+	return res.data
+}
+
+export const deleteFreelancerSkill = async (userId?: string, skillId?: string) => {
+	const res = await authorizeAxiosInstance.delete(`${freelancerProfileBaseUrl}/${userId}/skill/${skillId}`)
+	return res.data
 }
 
 // POST /profiles/:userId/languages { languageCode, proficiency }
