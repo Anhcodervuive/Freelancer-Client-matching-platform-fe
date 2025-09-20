@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import PortfolioManagerModal from './PortfolioManagerModal'
 import PortfolioViewerDialog from './PortfolioViewerDialog'
 import { useFreelancerPortfolio } from '~/hooks/api/useFreelancerPortfolio'
@@ -19,14 +19,40 @@ type Props = {
         editable?: boolean
 }
 
-function getCoverMedia(item: FreelancerPortfolioItem | undefined) {
-        if (!item) return undefined
-        return item.coverAsset ?? item.galleryAssets?.[0]
+function getMimeType(media?: FreelancerPortfolioMedia | null) {
+        if (!media) return undefined
+        return media.asset?.mimeType ?? undefined
 }
 
 function getMediaUrl(media?: FreelancerPortfolioMedia | null) {
         if (!media) return undefined
         return media.asset?.url ?? undefined
+}
+
+function isImageMedia(media?: FreelancerPortfolioMedia | null) {
+        if (!media) return false
+        const mime = getMimeType(media)
+        if (mime && mime.startsWith('image')) return true
+        const url = getMediaUrl(media)
+        if (!url) return false
+        return /\.(png|jpe?g|gif|webp|avif)$/i.test(url)
+}
+
+function isVideoMedia(media?: FreelancerPortfolioMedia | null) {
+        if (!media) return false
+        const mime = getMimeType(media)
+        if (mime && mime.startsWith('video')) return true
+        const url = getMediaUrl(media)
+        if (!url) return false
+        return /\.(mp4|webm|ogg)$/i.test(url)
+}
+
+function getCoverMedia(item: FreelancerPortfolioItem | undefined) {
+        if (!item) return undefined
+        if (item.coverAsset && isImageMedia(item.coverAsset)) return item.coverAsset
+        const firstImage = item.galleryAssets?.find(media => isImageMedia(media))
+        if (firstImage) return firstImage
+        return item.coverAsset ?? item.galleryAssets?.[0]
 }
 
 export default function PortfolioSection({ userId, editable = true }: Props) {
@@ -103,6 +129,8 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                 {items.map((item, index) => {
                                                         const media = getCoverMedia(item)
                                                         const url = getMediaUrl(media)
+                                                        const isImage = isImageMedia(media)
+                                                        const isVideo = isVideoMedia(media)
                                                         const color = placeholderColors[index % placeholderColors.length]
                                                         const icon = placeholderIcons[index % placeholderIcons.length]
                                                         return (
@@ -120,12 +148,16 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                         className='group relative flex h-full flex-col overflow-hidden rounded-3xl border border-base-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none'
                                                                 >
                                                                         <div className='relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br text-4xl'>
-                                                                                {url ? (
+                                                                                {url && isImage ? (
                                                                                         <img
                                                                                                 src={url}
                                                                                                 alt={item.title}
                                                                                                 className='h-full w-full object-cover transition duration-300 group-hover:scale-105'
                                                                                         />
+                                                                                ) : url && isVideo ? (
+                                                                                        <div className='flex h-full w-full items-center justify-center bg-black/80 text-white'>
+                                                                                                <Play size={40} />
+                                                                                        </div>
                                                                                 ) : (
                                                                                         <div
                                                                                                 className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${color} text-5xl`}
@@ -133,6 +165,9 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                                         >
                                                                                                 {icon}
                                                                                         </div>
+                                                                                )}
+                                                                                {url && isVideo && (
+                                                                                        <span className='absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase text-base-content shadow-sm'>Video</span>
                                                                                 )}
                                                                                 {canEdit && (
                                                                                         <div className='absolute right-3 top-3 flex gap-1 opacity-0 transition group-hover:opacity-100'>

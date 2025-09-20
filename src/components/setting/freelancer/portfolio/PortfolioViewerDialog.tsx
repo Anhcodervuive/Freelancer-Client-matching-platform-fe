@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, ExternalLink, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, Play, X } from 'lucide-react'
 import type { FreelancerPortfolioItem, FreelancerPortfolioMedia } from '~/types/profile'
 
 type Props = {
@@ -12,6 +12,11 @@ type Props = {
 function getDisplayUrl(asset: FreelancerPortfolioMedia | undefined) {
         if (!asset) return undefined
         return asset.asset?.url ?? undefined
+}
+
+function getMimeType(asset: FreelancerPortfolioMedia | undefined) {
+        if (!asset) return undefined
+        return asset.asset?.mimeType ?? undefined
 }
 
 function formatDate(value?: string | null) {
@@ -28,6 +33,15 @@ function isImageAsset(asset: FreelancerPortfolioMedia | undefined) {
         const url = getDisplayUrl(asset)
         if (!url) return false
         return /\.(png|jpe?g|gif|webp|avif)$/i.test(url)
+}
+
+function isVideoAsset(asset: FreelancerPortfolioMedia | undefined) {
+        if (!asset) return false
+        const mime = getMimeType(asset)
+        if (mime && mime.startsWith('video')) return true
+        const url = getDisplayUrl(asset)
+        if (!url) return false
+        return /\.(mp4|webm|ogg)$/i.test(url)
 }
 
 export default function PortfolioViewerDialog({ item, onClose, editable, onEdit }: Props) {
@@ -57,6 +71,8 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
         const currentAsset = attachments[currentIndex]
         const currentUrl = getDisplayUrl(currentAsset)
         const isImage = isImageAsset(currentAsset)
+        const isVideo = isVideoAsset(currentAsset)
+        const currentMime = getMimeType(currentAsset)
 
         const timeline = useMemo(() => {
                 if (!item.startedAt && !item.completedAt) return null
@@ -90,24 +106,41 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                                         <X />
                                 </button>
                                 <div className='grid gap-0 md:grid-cols-[1.1fr_0.9fr]'>
-                                        <div className='relative min-h-[260px] bg-base-200 md:min-h-[420px]'>
+                                        <div className='relative flex min-h-[260px] items-center justify-center bg-base-200 md:min-h-[420px]'>
                                                 {currentUrl ? (
                                                         isImage ? (
                                                                 <img
+                                                                        key={currentAsset?.id ?? currentAsset?.assetId ?? currentIndex}
                                                                         src={currentUrl}
                                                                         alt={item.title}
-                                                                        className='h-full w-full object-cover'
+                                                                        className='max-h-[70vh] w-full max-w-full object-contain'
                                                                 />
-                                                        ) : (
+                                                        ) : isVideo ? (
                                                                 <video
-                                                                        src={currentUrl}
+                                                                        key={currentAsset?.id ?? currentAsset?.assetId ?? currentIndex}
+                                                                        className='max-h-[70vh] w-full max-w-full rounded-2xl bg-black object-contain'
                                                                         controls
-                                                                        className='h-full w-full object-cover'
-                                                                />
+                                                                        preload='metadata'
+                                                                        playsInline
+                                                                >
+                                                                        <source src={currentUrl} type={currentMime} />
+                                                                        Trình duyệt của bạn không hỗ trợ phát video.
+                                                                </video>
+                                                        ) : (
+                                                                <div className='flex max-h-[70vh] w-full max-w-full items-center justify-center px-8 text-center text-sm text-base-content/70'>
+                                                                        Không thể xem trước tệp này. Hãy tải xuống để xem chi tiết.
+                                                                </div>
                                                         )
                                                 ) : (
                                                         <div className='flex h-full w-full items-center justify-center text-base-content/60'>
                                                                 Không có media hiển thị
+                                                        </div>
+                                                )}
+
+                                                {isVideo && currentUrl && (
+                                                        <div className='absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold uppercase text-white backdrop-blur'>
+                                                                <Play size={16} />
+                                                                Video
                                                         </div>
                                                 )}
 
@@ -136,6 +169,8 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                                                         <div className='absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4'>
                                                                 {attachments.map((media, idx) => {
                                                                         const thumbUrl = getDisplayUrl(media)
+                                                                        const thumbImage = isImageAsset(media)
+                                                                        const thumbVideo = isVideoAsset(media)
                                                                         const active = currentIndex === idx
                                                                         return (
                                                                                 <button
@@ -148,9 +183,20 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                                                                                         }`}
                                                                                         onClick={() => setCurrentIndex(idx)}
                                                                                 >
-                                                                                        {thumbUrl ? (
+                                                                                        {thumbUrl && thumbImage && (
                                                                                                 <img src={thumbUrl} alt='' className='h-full w-full object-cover' />
-                                                                                        ) : (
+                                                                                        )}
+                                                                                        {thumbUrl && thumbVideo && (
+                                                                                                <div className='relative flex h-full w-full items-center justify-center bg-black/80 text-white'>
+                                                                                                        <Play size={20} />
+                                                                                                </div>
+                                                                                        )}
+                                                                                        {thumbUrl && !thumbImage && !thumbVideo && (
+                                                                                                <div className='flex h-full w-full items-center justify-center bg-base-200 text-[10px] font-medium uppercase text-base-content/60'>
+                                                                                                        File
+                                                                                                </div>
+                                                                                        )}
+                                                                                        {!thumbUrl && (
                                                                                                 <div className='flex h-full w-full items-center justify-center bg-base-200 text-xs text-base-content/60'>
                                                                                                         —
                                                                                                 </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Image as ImageIcon, Upload, X } from 'lucide-react'
+import { Image as ImageIcon, Play, Upload, X } from 'lucide-react'
 import type { UpsertFreelancerPortfolioForm } from '~/apis/freelancerProfile.api'
 import { useFreelancerPortfolio } from '~/hooks/api/useFreelancerPortfolio'
 import { useFreelancerSkills } from '~/hooks/api/useFreelancerSkills'
@@ -51,6 +51,24 @@ function toDateInputValue(value?: string | null) {
         return value.slice(0, 10)
 }
 
+function getDisplayUrl(media: MediaItem) {
+        return media.kind === 'existing' ? media.url : media.previewUrl
+}
+
+function isImageMedia(media: MediaItem) {
+        const mime = media.kind === 'existing' ? media.mimeType : media.mimeType
+        if (mime && mime.startsWith('image')) return true
+        const url = getDisplayUrl(media)
+        return /\.(png|jpe?g|webp|gif|avif)$/i.test(url)
+}
+
+function isVideoMedia(media: MediaItem) {
+        const mime = media.kind === 'existing' ? media.mimeType : media.mimeType
+        if (mime && mime.startsWith('video')) return true
+        const url = getDisplayUrl(media)
+        return /\.(mp4|webm|ogg)$/i.test(url)
+}
+
 function getMediaFromPortfolio(item: FreelancerPortfolioItem | null): MediaItem[] {
         if (!item) return []
         const list: MediaItem[] = []
@@ -65,30 +83,28 @@ function getMediaFromPortfolio(item: FreelancerPortfolioItem | null): MediaItem[
                 })
         }
         for (const media of item.galleryAssets ?? []) {
-                        list.push({
-                                kind: 'existing',
-                                id: media.id,
-                                assetId: media.assetId,
-                                url: media.asset?.url ?? '',
-                                mimeType: media.asset?.mimeType ?? undefined,
-                                isCover: false
-                        })
+                list.push({
+                        kind: 'existing',
+                        id: media.id,
+                        assetId: media.assetId,
+                        url: media.asset?.url ?? '',
+                        mimeType: media.asset?.mimeType ?? undefined,
+                        isCover: false
+                })
         }
-        if (list.length > 0 && !list.some(media => media.isCover)) {
-                list[0] = { ...list[0], isCover: true }
+
+        if (list.length === 0) return list
+
+        let coverIndex = list.findIndex(media => media.isCover && isImageMedia(media))
+        if (coverIndex < 0) {
+                coverIndex = list.findIndex(media => isImageMedia(media))
         }
-        return list
-}
 
-function getDisplayUrl(media: MediaItem) {
-        return media.kind === 'existing' ? media.url : media.previewUrl
-}
+        if (coverIndex >= 0) {
+                return list.map((media, index) => ({ ...media, isCover: index === coverIndex }))
+        }
 
-function isImageMedia(media: MediaItem) {
-        const mime = media.kind === 'existing' ? media.mimeType : media.mimeType
-        if (mime && mime.startsWith('image')) return true
-        const url = getDisplayUrl(media)
-        return /\.(png|jpe?g|webp|gif|avif)$/i.test(url)
+        return list.map(media => ({ ...media, isCover: false }))
 }
 
 function normalizeVisibility(value?: PortfolioVisibility): PortfolioVisibility {
@@ -157,9 +173,28 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
 
         const ensureCoverSelection = (items: MediaItem[]) => {
                 if (items.length === 0) return items
-                if (items.some(media => media.isCover)) return items
-                const [first, ...rest] = items
-                return [{ ...first, isCover: true }, ...rest]
+                let hasCover = false
+                const normalized = items.map(media => {
+                        if (media.isCover && isImageMedia(media)) {
+                                hasCover = true
+                                return media
+                        }
+                        if (media.isCover && !isImageMedia(media)) {
+                                return { ...media, isCover: false }
+                        }
+                        return media
+                })
+
+                if (hasCover) return normalized
+
+                const firstImageIndex = normalized.findIndex(media => isImageMedia(media))
+                if (firstImageIndex >= 0) {
+                        return normalized.map((media, index) =>
+                                index === firstImageIndex ? { ...media, isCover: true } : media
+                        )
+                }
+
+                return normalized.map(media => (media.isCover ? { ...media, isCover: false } : media))
         }
 
         const handleRemoveMedia = (media: MediaItem) => {
@@ -174,6 +209,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
         }
 
         const handlePickCover = (media: MediaItem) => {
+                if (!isImageMedia(media)) return
                 setMediaItems(prev =>
                         prev.map(item => (item.id === media.id ? { ...item, isCover: true } : { ...item, isCover: false }))
                 )
@@ -206,7 +242,12 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                 }
         }
 
-        const coverMedia = useMemo(() => mediaItems.find(item => item.isCover) ?? mediaItems[0] ?? null, [mediaItems])
+        const coverMedia = useMemo(() => {
+                const explicit = mediaItems.find(item => item.isCover && isImageMedia(item))
+                if (explicit) return explicit
+                const firstImage = mediaItems.find(item => isImageMedia(item))
+                return firstImage ?? null
+        }, [mediaItems])
         const galleryMedia = useMemo(
                 () => (coverMedia ? mediaItems.filter(item => item.id !== coverMedia.id) : mediaItems),
                 [mediaItems, coverMedia]
@@ -473,21 +514,33 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                 {mediaItems.map(media => {
                                                                         const url = getDisplayUrl(media)
                                                                         const image = isImageMedia(media)
+                                                                        const video = isVideoMedia(media)
                                                                         return (
                                                                                 <div
                                                                                         key={media.id}
                                                                                         className='group relative overflow-hidden rounded-2xl border border-base-200 bg-base-200/40'
                                                                                 >
-                                                                                        {image && url ? (
-                                                                                                <img src={url} alt={title} className='h-36 w-full object-cover' />
-                                                                                        ) : url ? (
-                                                                                                <video src={url} className='h-36 w-full object-cover' controls />
-                                                                                        ) : (
-                                                                                                <div className='flex h-36 flex-col items-center justify-center gap-2 text-base-content/70'>
-                                                                                                        <ImageIcon size={28} />
-                                                                                                        <span className='text-xs font-medium'>Không thể xem trước</span>
-                                                                                                </div>
-                                                                                        )}
+                                                                                        <div className='flex h-36 w-full items-center justify-center bg-base-200'>
+                                                                                                {image && url && (
+                                                                                                        <img src={url} alt={title} className='h-full w-full object-cover' />
+                                                                                                )}
+                                                                                                {video && url && (
+                                                                                                        <video
+                                                                                                                src={url}
+                                                                                                                className='h-full w-full object-cover'
+                                                                                                                controls
+                                                                                                                preload='metadata'
+                                                                                                                playsInline
+                                                                                                        />
+                                                                                                )}
+                                                                                                {!url && (
+                                                                                                        <div className='flex h-full w-full flex-col items-center justify-center gap-2 text-base-content/70'>
+                                                                                                                <ImageIcon size={28} />
+                                                                                                                <span className='text-xs font-medium'>Không thể xem trước</span>
+                                                                                                        </div>
+                                                                                                )}
+                                                                                        </div>
+
                                                                                         <button
                                                                                                 type='button'
                                                                                                 className='btn btn-circle btn-ghost btn-xs absolute right-2 top-2 bg-black/50 text-white backdrop-blur-sm'
@@ -496,9 +549,10 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                                         >
                                                                                                 <X size={14} />
                                                                                         </button>
-                                                                                        {media.isCover ? (
+                                                                                        {image && media.isCover && (
                                                                                                 <span className='absolute left-2 top-2 rounded-full bg-base-100/95 px-3 py-1 text-xs font-semibold uppercase text-primary shadow'>Ảnh bìa</span>
-                                                                                        ) : (
+                                                                                        )}
+                                                                                        {image && !media.isCover && (
                                                                                                 <button
                                                                                                         type='button'
                                                                                                         className='absolute left-2 top-2 rounded-full bg-black/55 px-3 py-1 text-xs font-semibold uppercase text-white transition hover:bg-black/70'
@@ -507,6 +561,11 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                                                 >
                                                                                                         Chọn làm bìa
                                                                                                 </button>
+                                                                                        )}
+                                                                                        {video && (
+                                                                                                <span className='absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold uppercase text-white backdrop-blur-sm'>
+                                                                                                        <Play size={14} /> Video
+                                                                                                </span>
                                                                                         )}
                                                                                 </div>
                                                                         )
