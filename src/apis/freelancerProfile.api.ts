@@ -1,11 +1,11 @@
 import type {
-        FreelancerCategoryResponse,
-        FreelancerPortfolioItem,
-        FreelancerProfile,
-        FreelancerSpecialtyResponse,
-        LanguageProficiency,
-        PortfolioVisibility,
-        ProfileLanguage
+	FreelancerCategoryResponse,
+	FreelancerPortfolioItem,
+	FreelancerProfile,
+	FreelancerSpecialtyResponse,
+	LanguageProficiency,
+	PortfolioVisibility,
+	ProfileLanguage
 } from '~/types/profile'
 import type { FreelancerSkillItem } from '~/types/skill'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
@@ -13,25 +13,25 @@ import authorizeAxiosInstance from '~/utils/authorizeAxios'
 const freelancerProfileBaseUrl = '/profile'
 
 export const getAllProfileLanguage = async (userId?: string): Promise<ProfileLanguage[]> => {
-        const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/language`)
-        return res.data ?? []
+	const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/language`)
+	return res.data ?? []
 }
 
 export const getFreelancerCategories = async (userId?: string): Promise<FreelancerCategoryResponse[]> => {
-        if (!userId) return []
-        const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/category`)
-        return res.data ?? []
+	if (!userId) return []
+	const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/category`)
+	return res.data ?? []
 }
 
 export const getFreelancerSkills = async (userId?: string): Promise<FreelancerSkillItem[]> => {
-        const res = await authorizeAxiosInstance.get<FreelancerSkillItem[]>(`${freelancerProfileBaseUrl}/${userId}/skill`)
-        return res.data ?? []
+	const res = await authorizeAxiosInstance.get<FreelancerSkillItem[]>(`${freelancerProfileBaseUrl}/${userId}/skill`)
+	return res.data ?? []
 }
 
 export const getFreelancerSpecialties = async (userId?: string): Promise<FreelancerSpecialtyResponse[]> => {
-        if (!userId) return []
-        const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/specialty`)
-        return res.data ?? []
+	if (!userId) return []
+	const res = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/specialty`)
+	return res.data ?? []
 }
 
 export const addFreelancerSkill = async ({
@@ -90,128 +90,124 @@ export async function updateEducationAPI(payload: unknown, userId?: string, edut
 	return data
 }
 export async function deleteEducationAPI(userId?: string, edutionId?: string) {
-        const { data } = await authorizeAxiosInstance.delete(`${freelancerProfileBaseUrl}/${userId}/education/${edutionId}`)
-        return data
+	const { data } = await authorizeAxiosInstance.delete(`${freelancerProfileBaseUrl}/${userId}/education/${edutionId}`)
+	return data
 }
 
 export async function getFreelancerPortfolioAPI(
-        userId?: string,
-        params?: { visibility?: PortfolioVisibility }
+	userId?: string,
+	params?: { visibility?: PortfolioVisibility }
 ): Promise<FreelancerPortfolioItem[]> {
-        if (!userId) return []
+	if (!userId) return []
 
-        const searchParams = new URLSearchParams()
-        if (params?.visibility) {
-                searchParams.set('visibility', params.visibility)
-        }
+	const searchParams = new URLSearchParams()
+	if (params?.visibility) {
+		searchParams.set('visibility', params.visibility)
+	}
 
-        const query = searchParams.toString()
-        const endpoint = query
-                ? `${freelancerProfileBaseUrl}/${userId}/portfolio?${query}`
-                : `${freelancerProfileBaseUrl}/${userId}/portfolio`
+	const query = searchParams.toString()
+	const endpoint = query ? `portfolio/${userId}?${query}` : `portfolio/${userId}`
 
-        const { data } = await authorizeAxiosInstance.get<FreelancerPortfolioItem[]>(endpoint)
-        return data ?? []
+	const { data } = await authorizeAxiosInstance.get<FreelancerPortfolioItem[]>(endpoint)
+	return data ?? []
 }
 
 export type UpsertFreelancerPortfolioForm = {
-        title: string
-        role?: string | null
-        description?: string | null
-        projectUrl?: string | null
-        repositoryUrl?: string | null
-        visibility?: PortfolioVisibility
-        startedAt?: string | null
-        completedAt?: string | null
-        publishedAt?: string | null
-        skillIds?: string[]
-        coverAssetId?: string | null
-        galleryAssetIds?: string[]
-        coverFile?: File | null
-        galleryFiles?: File[]
+	title: string
+	role?: string | null
+	description?: string | null
+	projectUrl?: string | null
+	repositoryUrl?: string | null
+	visibility?: PortfolioVisibility
+	startedAt?: string | null
+	completedAt?: string | null
+	publishedAt?: string | null
+	skillIds?: string[]
+	coverAssetId?: string | null
+	galleryAssetIds?: string[]
+	coverFile?: File | null
+	galleryFiles?: File[]
 }
 
 function buildPortfolioFormData(payload: UpsertFreelancerPortfolioForm): FormData {
-        const formData = new FormData()
+	const formData = new FormData()
 
-        formData.append('title', payload.title)
+	formData.append('title', payload.title)
 
-        if (payload.role !== undefined) formData.append('role', payload.role ?? '')
-        if (payload.description !== undefined) formData.append('description', payload.description ?? '')
-        if (payload.projectUrl !== undefined) formData.append('projectUrl', payload.projectUrl ?? '')
-        if (payload.repositoryUrl !== undefined) formData.append('repositoryUrl', payload.repositoryUrl ?? '')
-        if (payload.visibility !== undefined) formData.append('visibility', payload.visibility)
-        if (payload.startedAt !== undefined) formData.append('startedAt', payload.startedAt ?? '')
-        if (payload.completedAt !== undefined) formData.append('completedAt', payload.completedAt ?? '')
-        if (payload.publishedAt !== undefined) formData.append('publishedAt', payload.publishedAt ?? '')
+	if (payload.role !== undefined) formData.append('role', payload.role ?? '')
+	if (payload.description !== undefined) formData.append('description', payload.description ?? '')
+	if (payload.projectUrl !== undefined) formData.append('projectUrl', payload.projectUrl ?? '')
+	if (payload.repositoryUrl !== undefined) formData.append('repositoryUrl', payload.repositoryUrl ?? '')
+	if (payload.visibility !== undefined) formData.append('visibility', payload.visibility)
+	if (payload.startedAt !== undefined) formData.append('startedAt', payload.startedAt ?? '')
+	if (payload.completedAt !== undefined) formData.append('completedAt', payload.completedAt ?? '')
+	if (payload.publishedAt !== undefined) formData.append('publishedAt', payload.publishedAt ?? '')
 
-        if (payload.skillIds !== undefined) {
-                if (payload.skillIds.length === 0) {
-                        formData.append('skillIds', '[]')
-                } else {
-                        payload.skillIds.forEach(id => {
-                                if (id) formData.append('skillIds', id)
-                        })
-                }
-        }
+	if (payload.skillIds !== undefined) {
+		if (payload.skillIds.length === 0) {
+			formData.append('skillIds', '[]')
+		} else {
+			payload.skillIds.forEach(id => {
+				if (id) formData.append('skillIds', id)
+			})
+		}
+	}
 
-        if (payload.coverAssetId !== undefined) {
-                formData.append('coverAssetId', payload.coverAssetId ?? '')
-        }
+	if (payload.coverAssetId !== undefined) {
+		formData.append('coverAssetId', payload.coverAssetId ?? '')
+	}
 
-        if (payload.galleryAssetIds !== undefined) {
-                if (payload.galleryAssetIds.length === 0) {
-                        formData.append('galleryAssetIds', '[]')
-                } else {
-                        payload.galleryAssetIds.forEach(id => {
-                                if (id) formData.append('galleryAssetIds', id)
-                        })
-                }
-        }
+	if (payload.galleryAssetIds !== undefined) {
+		if (payload.galleryAssetIds.length === 0) {
+			formData.append('galleryAssetIds', '[]')
+		} else {
+			payload.galleryAssetIds.forEach(id => {
+				if (id) formData.append('galleryAssetIds', id)
+			})
+		}
+	}
 
-        if (payload.coverFile) {
-                formData.append('cover', payload.coverFile)
-        }
+	if (payload.coverFile) {
+		formData.append('cover', payload.coverFile)
+	}
 
-        if (payload.galleryFiles) {
-                payload.galleryFiles.forEach(file => {
-                        formData.append('gallery', file)
-                })
-        }
+	if (payload.galleryFiles) {
+		payload.galleryFiles.forEach(file => {
+			formData.append('gallery', file)
+		})
+	}
 
-        return formData
+	return formData
 }
 
 export async function createFreelancerPortfolioAPI(payload: UpsertFreelancerPortfolioForm, userId?: string) {
-        const { data } = await authorizeAxiosInstance.post<FreelancerPortfolioItem>(
-                `${freelancerProfileBaseUrl}/${userId}/portfolio`,
-                buildPortfolioFormData(payload)
-        )
-        return data
+	const { data } = await authorizeAxiosInstance.post<FreelancerPortfolioItem>(
+		`portfolio/${userId}`,
+		buildPortfolioFormData(payload)
+	)
+	return data
 }
 
 export async function updateFreelancerPortfolioAPI(
-        payload: UpsertFreelancerPortfolioForm,
-        userId?: string,
-        portfolioId?: string
+	payload: UpsertFreelancerPortfolioForm,
+	userId?: string,
+	portfolioId?: string
 ) {
-        const { data } = await authorizeAxiosInstance.put<FreelancerPortfolioItem>(
-                `${freelancerProfileBaseUrl}/${userId}/portfolio/${portfolioId}`,
-                buildPortfolioFormData(payload)
-        )
-        return data
+	const { data } = await authorizeAxiosInstance.put<FreelancerPortfolioItem>(
+		`portfolio/${userId}/${portfolioId}`,
+		buildPortfolioFormData(payload)
+	)
+	return data
 }
 
 export async function deleteFreelancerPortfolioAPI(userId?: string, portfolioId?: string) {
-        const { data } = await authorizeAxiosInstance.delete(
-                `${freelancerProfileBaseUrl}/${userId}/portfolio/${portfolioId}`
-        )
-        return data
+	const { data } = await authorizeAxiosInstance.delete(`portfolio/${userId}/${portfolioId}`)
+	return data
 }
 
 export async function getFreelancerProfileAPI(userId?: string) {
-        const response = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/freelancer`)
-        return response.data
+	const response = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/freelancer`)
+	return response.data
 }
 
 export async function updateFreelancerProfileAPI(payload: Partial<Omit<FreelancerProfile, 'userId'>>, userId?: string) {
