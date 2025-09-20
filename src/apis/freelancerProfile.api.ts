@@ -1,9 +1,12 @@
 import type {
         FreelancerCategoryResponse,
+        FreelancerPortfolioItem,
+        FreelancerPortfolioMedia,
         FreelancerProfile,
         FreelancerSpecialtyResponse,
         LanguageProficiency,
-        ProfileLanguage
+        ProfileLanguage,
+        UpsertFreelancerPortfolioDto
 } from '~/types/profile'
 import type { FreelancerSkillItem } from '~/types/skill'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
@@ -88,13 +91,76 @@ export async function updateEducationAPI(payload: unknown, userId?: string, edut
 	return data
 }
 export async function deleteEducationAPI(userId?: string, edutionId?: string) {
-	const { data } = await authorizeAxiosInstance.delete(`${freelancerProfileBaseUrl}/${userId}/education/${edutionId}`)
-	return data
+        const { data } = await authorizeAxiosInstance.delete(`${freelancerProfileBaseUrl}/${userId}/education/${edutionId}`)
+        return data
+}
+
+export async function getFreelancerPortfolioAPI(userId?: string): Promise<FreelancerPortfolioItem[]> {
+        if (!userId) return []
+        const { data } = await authorizeAxiosInstance.get<FreelancerPortfolioItem[]>(
+                `${freelancerProfileBaseUrl}/${userId}/portfolio`
+        )
+        return data ?? []
+}
+
+export async function createFreelancerPortfolioAPI(payload: UpsertFreelancerPortfolioDto, userId?: string) {
+        const { data } = await authorizeAxiosInstance.post<FreelancerPortfolioItem>(
+                `${freelancerProfileBaseUrl}/${userId}/portfolio`,
+                payload
+        )
+        return data
+}
+
+export async function updateFreelancerPortfolioAPI(
+        payload: UpsertFreelancerPortfolioDto,
+        userId?: string,
+        portfolioId?: string
+) {
+        const { data } = await authorizeAxiosInstance.put<FreelancerPortfolioItem>(
+                `${freelancerProfileBaseUrl}/${userId}/portfolio/${portfolioId}`,
+                payload
+        )
+        return data
+}
+
+export async function deleteFreelancerPortfolioAPI(userId?: string, portfolioId?: string) {
+        const { data } = await authorizeAxiosInstance.delete(
+                `${freelancerProfileBaseUrl}/${userId}/portfolio/${portfolioId}`
+        )
+        return data
+}
+
+export async function uploadFreelancerPortfolioAssetAPI(params: {
+        userId?: string
+        file: File
+        onProgress?: (_percent: number) => void
+}): Promise<FreelancerPortfolioMedia> {
+        if (!params.userId) {
+                throw new Error('Missing userId')
+        }
+
+        const fd = new FormData()
+        fd.append('file', params.file)
+
+        const { data } = await authorizeAxiosInstance.post<FreelancerPortfolioMedia>(
+                `${freelancerProfileBaseUrl}/${params.userId}/portfolio/upload`,
+                fd,
+                {
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                        onUploadProgress(event) {
+                                if (!params.onProgress) return
+                                if (!event.total) return
+                                const percent = Math.round((event.loaded * 100) / event.total)
+                                params.onProgress(percent)
+                        }
+                }
+        )
+        return data
 }
 
 export async function getFreelancerProfileAPI(userId?: string) {
-	const response = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/freelancer`)
-	return response.data
+        const response = await authorizeAxiosInstance.get(`${freelancerProfileBaseUrl}/${userId}/freelancer`)
+        return response.data
 }
 
 export async function updateFreelancerProfileAPI(payload: Partial<Omit<FreelancerProfile, 'userId'>>, userId?: string) {

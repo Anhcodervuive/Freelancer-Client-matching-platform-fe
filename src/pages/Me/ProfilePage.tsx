@@ -7,6 +7,7 @@ import AboutSection from '~/components/setting/freelancer/AboutSection'
 import CategorySpecialtySection from '~/components/setting/freelancer/CategorySpecialtySection'
 import { EducationSection } from '~/components/setting/freelancer/EducationSection'
 import LanguageSection from '~/components/setting/freelancer/LanguageSection'
+import PortfolioSection from '~/components/setting/freelancer/portfolio/PortfolioSection'
 import SkillsSection from '~/components/setting/freelancer/SkillsSection'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
@@ -73,12 +74,11 @@ export default function ProfilePage() {
 				<div className='space-y-4'>
 					<AboutSection userId={userId} editable={isEditable} />
 
-					{isEditable && userId && <CategorySpecialtySection userId={userId} editable={isEditable} />}
+                                        {isEditable && userId && <CategorySpecialtySection userId={userId} editable={isEditable} />}
 
-					{/* Portfolio section: (nếu cần cho y chang ảnh thì thêm ở đây) */}
-					{/* ... */}
-				</div>
-			</div>
-		</div>
-	)
+                                        <PortfolioSection userId={userId} editable={isEditable} />
+                                </div>
+                        </div>
+                </div>
+        )
 }

@@ -42,6 +42,51 @@ export type FreelancerProfile = {
         links?: string[] | null
 }
 
+export type FreelancerPortfolioSkill = {
+        id?: string
+        name: string
+}
+
+export type FreelancerPortfolioMedia = {
+        id?: string
+        url: string
+        type?: string | null
+        name?: string | null
+        thumbnailUrl?: string | null
+        isCover?: boolean | null
+        order?: number | null
+}
+
+export type FreelancerPortfolioItem = {
+        id?: string
+        freelancerId?: string
+        title: string
+        overview?: string | null
+        role?: string | null
+        projectUrl?: string | null
+        skills?: (FreelancerPortfolioSkill | string)[] | null
+        attachments?: FreelancerPortfolioMedia[] | null
+        createdAt?: string
+        updatedAt?: string
+}
+
+export type UpsertFreelancerPortfolioDto = {
+        title: string
+        overview?: string | null
+        role?: string | null
+        projectUrl?: string | null
+        skills?: string[]
+        attachments?: Array<{
+                id?: string
+                url: string
+                type?: string | null
+                name?: string | null
+                thumbnailUrl?: string | null
+                isCover?: boolean | null
+                order?: number | null
+        }>
+}
+
 export type FreelancerCategoryResponse = {
         id?: string
         categoryId?: string
