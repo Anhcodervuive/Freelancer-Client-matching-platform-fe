@@ -42,49 +42,54 @@ export type FreelancerProfile = {
         links?: string[] | null
 }
 
+export type PortfolioVisibility = 'PUBLIC' | 'PRIVATE' | (string & {})
+
 export type FreelancerPortfolioSkill = {
-        id?: string
+        id: string
         name: string
+        slug?: string | null
+}
+
+export type FreelancerPortfolioAssetMeta = {
+        id: string
+        kind: 'IMAGE' | 'VIDEO' | 'FILE' | (string & {})
+        url?: string | null
+        publicId?: string | null
+        mimeType?: string | null
+        width?: number | null
+        height?: number | null
+        bytes?: number | null
 }
 
 export type FreelancerPortfolioMedia = {
-        id?: string
-        url: string
-        type?: string | null
-        name?: string | null
-        thumbnailUrl?: string | null
-        isCover?: boolean | null
-        order?: number | null
+        id: string
+        assetId: string
+        role: 'COVER' | 'GALLERY' | (string & {})
+        position: number
+        label?: string | null
+        caption?: string | null
+        isPrimary: boolean
+        createdAt: string
+        asset: FreelancerPortfolioAssetMeta
 }
 
 export type FreelancerPortfolioItem = {
-        id?: string
-        freelancerId?: string
+        id: string
+        freelancerId: string
         title: string
-        overview?: string | null
         role?: string | null
+        description?: string | null
         projectUrl?: string | null
-        skills?: (FreelancerPortfolioSkill | string)[] | null
-        attachments?: FreelancerPortfolioMedia[] | null
-        createdAt?: string
-        updatedAt?: string
-}
-
-export type UpsertFreelancerPortfolioDto = {
-        title: string
-        overview?: string | null
-        role?: string | null
-        projectUrl?: string | null
-        skills?: string[]
-        attachments?: Array<{
-                id?: string
-                url: string
-                type?: string | null
-                name?: string | null
-                thumbnailUrl?: string | null
-                isCover?: boolean | null
-                order?: number | null
-        }>
+        repositoryUrl?: string | null
+        visibility: PortfolioVisibility
+        startedAt?: string | null
+        completedAt?: string | null
+        publishedAt?: string | null
+        createdAt: string
+        updatedAt: string
+        skills: FreelancerPortfolioSkill[]
+        coverAsset?: FreelancerPortfolioMedia | null
+        galleryAssets: FreelancerPortfolioMedia[]
 }
 
 export type FreelancerCategoryResponse = {

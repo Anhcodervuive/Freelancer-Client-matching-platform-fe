@@ -3,9 +3,9 @@ import {
         createFreelancerPortfolioAPI,
         deleteFreelancerPortfolioAPI,
         getFreelancerPortfolioAPI,
-        updateFreelancerPortfolioAPI
+        updateFreelancerPortfolioAPI,
+        type UpsertFreelancerPortfolioForm
 } from '~/apis/freelancerProfile.api'
-import type { UpsertFreelancerPortfolioDto } from '~/types/profile'
 
 export function useFreelancerPortfolio(userId?: string) {
         const qc = useQueryClient()
@@ -17,13 +17,13 @@ export function useFreelancerPortfolio(userId?: string) {
         })
 
         const createMutation = useMutation({
-                mutationFn: (payload: UpsertFreelancerPortfolioDto) =>
+                mutationFn: (payload: UpsertFreelancerPortfolioForm) =>
                         createFreelancerPortfolioAPI(payload, userId),
                 onSuccess: () => qc.invalidateQueries({ queryKey: ['freelancerPortfolio', userId] })
         })
 
         const updateMutation = useMutation({
-                mutationFn: (params: { portfolioId: string; payload: UpsertFreelancerPortfolioDto }) =>
+                mutationFn: (params: { portfolioId: string; payload: UpsertFreelancerPortfolioForm }) =>
                         updateFreelancerPortfolioAPI(params.payload, userId, params.portfolioId),
                 onSuccess: () => qc.invalidateQueries({ queryKey: ['freelancerPortfolio', userId] })
         })

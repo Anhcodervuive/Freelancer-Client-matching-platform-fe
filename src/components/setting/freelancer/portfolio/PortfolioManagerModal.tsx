@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Image as ImageIcon, Upload, X } from 'lucide-react'
-import { uploadFreelancerPortfolioAssetAPI } from '~/apis/freelancerProfile.api'
+import type { UpsertFreelancerPortfolioForm } from '~/apis/freelancerProfile.api'
 import { useFreelancerPortfolio } from '~/hooks/api/useFreelancerPortfolio'
-import type { FreelancerPortfolioItem, FreelancerPortfolioMedia } from '~/types/profile'
+import { useFreelancerSkills } from '~/hooks/api/useFreelancerSkills'
+import type {
+        FreelancerPortfolioItem,
+        FreelancerPortfolioSkill,
+        PortfolioVisibility
+} from '~/types/profile'
 
 type Props = {
         initial: FreelancerPortfolioItem | null
@@ -12,59 +17,110 @@ type Props = {
 
 const MAX_MEDIA_ITEMS = 12
 
-function assetKey(asset: FreelancerPortfolioMedia) {
-        return asset.id ?? asset.url ?? ''
+type ExistingMediaItem = {
+        kind: 'existing'
+        id: string
+        assetId: string
+        url: string
+        mimeType?: string | null
+        isCover: boolean
 }
 
-function getDisplayUrl(asset: FreelancerPortfolioMedia) {
-        return asset.url ?? asset.thumbnailUrl ?? ''
+type NewMediaItem = {
+        kind: 'new'
+        id: string
+        file: File
+        previewUrl: string
+        mimeType: string
+        isCover: boolean
 }
 
-function isImageAsset(asset: FreelancerPortfolioMedia) {
-        if (asset.type && asset.type.startsWith('image')) return true
-        const url = getDisplayUrl(asset)
+type MediaItem = ExistingMediaItem | NewMediaItem
+
+type SelectedSkill = Pick<FreelancerPortfolioSkill, 'id' | 'name'>
+
+function createId() {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+                return crypto.randomUUID()
+        }
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function toDateInputValue(value?: string | null) {
+        if (!value) return ''
+        return value.slice(0, 10)
+}
+
+function getMediaFromPortfolio(item: FreelancerPortfolioItem | null): MediaItem[] {
+        if (!item) return []
+        const list: MediaItem[] = []
+        if (item.coverAsset) {
+                list.push({
+                        kind: 'existing',
+                        id: item.coverAsset.id,
+                        assetId: item.coverAsset.assetId,
+                        url: item.coverAsset.asset?.url ?? '',
+                        mimeType: item.coverAsset.asset?.mimeType ?? undefined,
+                        isCover: true
+                })
+        }
+        for (const media of item.galleryAssets ?? []) {
+                        list.push({
+                                kind: 'existing',
+                                id: media.id,
+                                assetId: media.assetId,
+                                url: media.asset?.url ?? '',
+                                mimeType: media.asset?.mimeType ?? undefined,
+                                isCover: false
+                        })
+        }
+        if (list.length > 0 && !list.some(media => media.isCover)) {
+                list[0] = { ...list[0], isCover: true }
+        }
+        return list
+}
+
+function getDisplayUrl(media: MediaItem) {
+        return media.kind === 'existing' ? media.url : media.previewUrl
+}
+
+function isImageMedia(media: MediaItem) {
+        const mime = media.kind === 'existing' ? media.mimeType : media.mimeType
+        if (mime && mime.startsWith('image')) return true
+        const url = getDisplayUrl(media)
         return /\.(png|jpe?g|webp|gif|avif)$/i.test(url)
 }
 
-function extractSkillNames(item: FreelancerPortfolioItem | null | undefined) {
-        if (!item?.skills) return []
-        const names: string[] = []
-        for (const skill of item.skills) {
-                if (!skill) continue
-                if (typeof skill === 'string') {
-                        const value = skill.trim()
-                        if (value && !names.includes(value)) names.push(value)
-                } else if (skill.name) {
-                        const value = skill.name.trim()
-                        if (value && !names.includes(value)) names.push(value)
-                }
-        }
-        return names
+function normalizeVisibility(value?: PortfolioVisibility): PortfolioVisibility {
+        if (!value) return 'PUBLIC'
+        return value
 }
 
 export default function PortfolioManagerModal({ initial, onClose, userId }: Props) {
         const { createMutation, updateMutation } = useFreelancerPortfolio(userId)
+        const { listQuery: skillQuery } = useFreelancerSkills(userId)
         const editing = Boolean(initial?.id)
 
         const [title, setTitle] = useState(initial?.title ?? '')
-        const [overview, setOverview] = useState(initial?.overview ?? '')
         const [role, setRole] = useState(initial?.role ?? '')
+        const [description, setDescription] = useState(initial?.description ?? '')
         const [projectUrl, setProjectUrl] = useState(initial?.projectUrl ?? '')
-        const [skills, setSkills] = useState<string[]>(() => extractSkillNames(initial))
-        const [skillInput, setSkillInput] = useState('')
-        const [assets, setAssets] = useState<FreelancerPortfolioMedia[]>(() => initial?.attachments ?? [])
-        const [coverKey, setCoverKey] = useState<string | null>(() => {
-                const cover = initial?.attachments?.find(media => media?.isCover)
-                const fallback = cover ?? initial?.attachments?.[0]
-                return fallback ? assetKey(fallback) : null
-        })
-        const [uploadingProgress, setUploadingProgress] = useState<Record<string, number>>({})
-        const fileInputRef = useRef<HTMLInputElement>(null)
+        const [repositoryUrl, setRepositoryUrl] = useState(initial?.repositoryUrl ?? '')
+        const [visibility, setVisibility] = useState<PortfolioVisibility>(normalizeVisibility(initial?.visibility))
+        const [startedAt, setStartedAt] = useState(toDateInputValue(initial?.startedAt))
+        const [completedAt, setCompletedAt] = useState(toDateInputValue(initial?.completedAt))
+        const [selectedSkills, setSelectedSkills] = useState<SelectedSkill[]>(() =>
+                (initial?.skills ?? []).map(skill => ({ id: skill.id, name: skill.name }))
+        )
+        const [skillSelector, setSkillSelector] = useState('')
+        const [mediaItems, setMediaItems] = useState<MediaItem[]>(() => getMediaFromPortfolio(initial))
 
-        const isUploading = useMemo(() => Object.keys(uploadingProgress).length > 0, [uploadingProgress])
+        const fileInputRef = useRef<HTMLInputElement>(null)
+        const previewUrlsRef = useRef<Set<string>>(new Set())
+
         const isSaving = createMutation.isPending || updateMutation.isPending
-        const canSave = title.trim().length > 0 && !isUploading
-        const disableUpload = !userId || isUploading || assets.length >= MAX_MEDIA_ITEMS
+        const canSave = title.trim().length > 0 && !isSaving
+        const disableUpload = mediaItems.length >= MAX_MEDIA_ITEMS
 
         useEffect(() => {
                 const handler = (event: KeyboardEvent) => {
@@ -74,118 +130,153 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                 return () => window.removeEventListener('keydown', handler)
         }, [onClose])
 
-        const handleAddSkill = (value: string) => {
-                const trimmed = value.trim()
-                if (!trimmed) return
-                setSkills(prev => {
-                        if (prev.some(item => item.toLowerCase() === trimmed.toLowerCase())) return prev
-                        return [...prev, trimmed]
-                })
-        }
-
-        const handleSkillKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-                if (['Enter', 'Tab', ','].includes(event.key)) {
-                        event.preventDefault()
-                        handleAddSkill(skillInput)
-                        setSkillInput('')
+        useEffect(() => {
+                const urls = previewUrlsRef.current
+                return () => {
+                        urls.forEach(url => URL.revokeObjectURL(url))
+                        urls.clear()
                 }
-        }
+        }, [])
 
-        const handleSkillBlur = () => {
-                if (skillInput.trim()) {
-                        handleAddSkill(skillInput)
-                        setSkillInput('')
-                }
-        }
+        const availableSkills = useMemo(() => skillQuery.data ?? [], [skillQuery.data])
 
-        const handleRemoveSkill = (skill: string) => {
-                setSkills(prev => prev.filter(item => item !== skill))
-        }
-
-        const handleRemoveAsset = (media: FreelancerPortfolioMedia) => {
-                const key = assetKey(media)
-                setAssets(prev => {
-                        const filtered = prev.filter(item => assetKey(item) !== key)
-                        setCoverKey(current => {
-                                if (!current || current !== key) return current
-                                const next = filtered[0]
-                                return next ? assetKey(next) : null
-                        })
-                        return filtered
+        const handleAddSkill = () => {
+                if (!skillSelector) return
+                const skill = availableSkills.find(item => item.id === skillSelector)
+                if (!skill) return
+                setSelectedSkills(prev => {
+                        if (prev.some(existing => existing.id === skill.id)) return prev
+                        return [...prev, { id: skill.id, name: skill.name }]
                 })
+                setSkillSelector('')
         }
 
-        const handlePickCover = (media: FreelancerPortfolioMedia) => {
-                const key = assetKey(media)
-                if (!key) return
-                setCoverKey(key)
+        const handleRemoveSkill = (skillId: string) => {
+                setSelectedSkills(prev => prev.filter(skill => skill.id !== skillId))
         }
 
-        const handleFilesSelected = async (files: FileList | null) => {
-                if (!files || !userId) return
-                const fileArray = Array.from(files)
+        const ensureCoverSelection = (items: MediaItem[]) => {
+                if (items.length === 0) return items
+                if (items.some(media => media.isCover)) return items
+                const [first, ...rest] = items
+                return [{ ...first, isCover: true }, ...rest]
+        }
 
-                for (const file of fileArray) {
-                        const uploadKey = `${file.name}-${file.size}-${file.lastModified}-${Date.now()}`
-                        setUploadingProgress(prev => ({ ...prev, [uploadKey]: 0 }))
-                        try {
-                                const uploaded = await uploadFreelancerPortfolioAssetAPI({
-                                        userId,
-                                        file,
-                                        onProgress(percent) {
-                                                setUploadingProgress(prev => ({ ...prev, [uploadKey]: percent }))
-                                        }
-                                })
-                                setAssets(prev => [...prev, uploaded])
-                                setCoverKey(current => current ?? assetKey(uploaded))
-                        } catch (error) {
-                                console.error(error)
-                        } finally {
-                                setUploadingProgress(prev => {
-                                        const clone = { ...prev }
-                                        delete clone[uploadKey]
-                                        return clone
-                                })
+        const handleRemoveMedia = (media: MediaItem) => {
+                setMediaItems(prev => {
+                        const filtered = prev.filter(item => item.id !== media.id)
+                        if (media.kind === 'new') {
+                                previewUrlsRef.current.delete(media.previewUrl)
+                                URL.revokeObjectURL(media.previewUrl)
                         }
-                }
+                        return ensureCoverSelection(filtered)
+                })
+        }
 
+        const handlePickCover = (media: MediaItem) => {
+                setMediaItems(prev =>
+                        prev.map(item => (item.id === media.id ? { ...item, isCover: true } : { ...item, isCover: false }))
+                )
+        }
+
+        const handleFilesSelected = (files: FileList | null) => {
+                if (!files?.length) return
+                const nextItems: MediaItem[] = []
+                Array.from(files).forEach(file => {
+                        const previewUrl = URL.createObjectURL(file)
+                        previewUrlsRef.current.add(previewUrl)
+                        nextItems.push({
+                                kind: 'new',
+                                id: createId(),
+                                file,
+                                previewUrl,
+                                mimeType: file.type,
+                                isCover: false
+                        })
+                })
+                setMediaItems(prev => {
+                        const remaining = MAX_MEDIA_ITEMS - prev.length
+                        if (remaining <= 0) return prev
+                        const additions = nextItems.slice(0, remaining)
+                        if (additions.length === 0) return prev
+                        return ensureCoverSelection([...prev, ...additions])
+                })
                 if (fileInputRef.current) {
                         fileInputRef.current.value = ''
                 }
         }
 
-        const effectiveCoverKey = useMemo(() => {
-                if (!assets.length) return null
-                if (coverKey && assets.some(asset => assetKey(asset) === coverKey)) {
-                        return coverKey
+        const coverMedia = useMemo(() => mediaItems.find(item => item.isCover) ?? mediaItems[0] ?? null, [mediaItems])
+        const galleryMedia = useMemo(
+                () => (coverMedia ? mediaItems.filter(item => item.id !== coverMedia.id) : mediaItems),
+                [mediaItems, coverMedia]
+        )
+
+        const selectedSkillIds = useMemo(() => selectedSkills.map(skill => skill.id), [selectedSkills])
+
+        const buildPayload = (): UpsertFreelancerPortfolioForm => {
+                const trimmedTitle = title.trim()
+                const payload: UpsertFreelancerPortfolioForm = {
+                        title: trimmedTitle,
+                        role: role.trim() || null,
+                        description: description.trim() || null,
+                        projectUrl: projectUrl.trim() || null,
+                        repositoryUrl: repositoryUrl.trim() || null,
+                        visibility,
+                        skillIds: selectedSkillIds
                 }
-                const first = assets[0]
-                return first ? assetKey(first) : null
-        }, [assets, coverKey])
+
+                const startedValue = startedAt.trim()
+                if (startedValue) {
+                        payload.startedAt = startedValue
+                } else if (editing && initial?.startedAt) {
+                        payload.startedAt = 'null'
+                }
+
+                const completedValue = completedAt.trim()
+                if (completedValue) {
+                        payload.completedAt = completedValue
+                } else if (editing && initial?.completedAt) {
+                        payload.completedAt = 'null'
+                }
+
+                if (coverMedia) {
+                        if (coverMedia.kind === 'existing') {
+                                payload.coverAssetId = coverMedia.assetId
+                        } else {
+                                payload.coverFile = coverMedia.file
+                                if (editing && initial?.coverAsset) {
+                                        payload.coverAssetId = null
+                                }
+                        }
+                } else if (editing) {
+                        payload.coverAssetId = null
+                }
+
+                const existingGalleryIds = galleryMedia
+                        .filter((media): media is ExistingMediaItem => media.kind === 'existing')
+                        .map(media => media.assetId)
+                const newGalleryFiles = galleryMedia
+                        .filter((media): media is NewMediaItem => media.kind === 'new')
+                        .map(media => media.file)
+
+                if (editing || existingGalleryIds.length > 0) {
+                        payload.galleryAssetIds = existingGalleryIds
+                } else if (existingGalleryIds.length === 0 && !editing) {
+                        payload.galleryAssetIds = undefined
+                }
+
+                if (newGalleryFiles.length > 0) {
+                        payload.galleryFiles = newGalleryFiles
+                }
+
+                return payload
+        }
 
         const handleSubmit = () => {
                 if (!canSave) return
 
-                const attachments = assets
-                        .filter(asset => getDisplayUrl(asset))
-                        .map((asset, index) => ({
-                                id: asset.id,
-                                url: asset.url ?? asset.thumbnailUrl ?? '',
-                                type: asset.type ?? null,
-                                name: asset.name ?? null,
-                                thumbnailUrl: asset.thumbnailUrl ?? null,
-                                isCover: effectiveCoverKey ? assetKey(asset) === effectiveCoverKey : index === 0,
-                                order: index
-                        }))
-
-                const payload = {
-                        title: title.trim(),
-                        overview: overview.trim() ? overview.trim() : null,
-                        role: role.trim() ? role.trim() : null,
-                        projectUrl: projectUrl.trim() ? projectUrl.trim() : null,
-                        skills,
-                        attachments
-                }
+                const payload = buildPayload()
 
                 if (editing && initial?.id) {
                         updateMutation.mutate(
@@ -209,12 +300,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                 </h3>
                                                 <p className='text-sm text-base-content/70'>Giới thiệu dự án tiêu biểu để gây ấn tượng với khách hàng.</p>
                                         </div>
-                                        <button
-                                                type='button'
-                                                className='btn btn-ghost btn-circle'
-                                                onClick={onClose}
-                                                title='Đóng'
-                                        >
+                                        <button type='button' className='btn btn-ghost btn-circle' onClick={onClose} title='Đóng'>
                                                 <X />
                                         </button>
                                 </div>
@@ -252,51 +338,126 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                         <textarea
                                                                 className='textarea textarea-bordered min-h-[140px] w-full'
                                                                 placeholder='Chia sẻ tóm tắt mục tiêu, giải pháp và kết quả đạt được.'
-                                                                value={overview}
-                                                                onChange={event => setOverview(event.target.value)}
+                                                                value={description}
+                                                                onChange={event => setDescription(event.target.value)}
                                                         />
                                                 </div>
 
-                                                <div>
-                                                        <label className='label'>
-                                                                <span className='label-text font-semibold'>Đường dẫn dự án (tuỳ chọn)</span>
-                                                        </label>
-                                                        <input
-                                                                className='input input-bordered w-full'
-                                                                placeholder='https://'
-                                                                value={projectUrl}
-                                                                onChange={event => setProjectUrl(event.target.value)}
-                                                        />
-                                                </div>
-
-                                                <div>
-                                                        <label className='label'>
-                                                                <span className='label-text font-semibold'>Kỹ năng sử dụng (tuỳ chọn)</span>
-                                                        </label>
-                                                        <div className='flex flex-wrap gap-2 rounded-2xl border border-base-300 bg-base-100 p-3'>
-                                                                {skills.map(skill => (
-                                                                        <span key={skill} className='inline-flex items-center gap-2 rounded-full bg-base-200 px-3 py-1 text-sm font-medium'>
-                                                                                {skill}
-                                                                                <button
-                                                                                        type='button'
-                                                                                        className='btn btn-ghost btn-circle btn-xs text-base-content/60'
-                                                                                        onClick={() => handleRemoveSkill(skill)}
-                                                                                        title='Xoá'
-                                                                                >
-                                                                                        <X size={14} />
-                                                                                </button>
-                                                                        </span>
-                                                                ))}
+                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                        <div>
+                                                                <label className='label'>
+                                                                        <span className='label-text font-semibold'>Đường dẫn dự án (tuỳ chọn)</span>
+                                                                </label>
                                                                 <input
-                                                                        className='min-w-[120px] flex-1 border-none bg-transparent text-sm outline-none focus:outline-none'
-                                                                        placeholder='Nhập kỹ năng và nhấn Enter'
-                                                                        value={skillInput}
-                                                                        onChange={event => setSkillInput(event.target.value)}
-                                                                        onKeyDown={handleSkillKeyDown}
-                                                                        onBlur={handleSkillBlur}
+                                                                        className='input input-bordered w-full'
+                                                                        placeholder='https://'
+                                                                        value={projectUrl}
+                                                                        onChange={event => setProjectUrl(event.target.value)}
                                                                 />
                                                         </div>
-                                                        <p className='mt-2 text-xs text-base-content/60'>Nhấn Enter để thêm kỹ năng. Ví dụ: React, Figma, Node.js.</p>
+                                                        <div>
+                                                                <label className='label'>
+                                                                        <span className='label-text font-semibold'>Đường dẫn mã nguồn (tuỳ chọn)</span>
+                                                                </label>
+                                                                <input
+                                                                        className='input input-bordered w-full'
+                                                                        placeholder='https://'
+                                                                        value={repositoryUrl}
+                                                                        onChange={event => setRepositoryUrl(event.target.value)}
+                                                                />
+                                                        </div>
+                                                </div>
+
+                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                        <div>
+                                                                <label className='label'>
+                                                                        <span className='label-text font-semibold'>Thời gian bắt đầu</span>
+                                                                </label>
+                                                                <input
+                                                                        type='date'
+                                                                        className='input input-bordered w-full'
+                                                                        value={startedAt}
+                                                                        onChange={event => setStartedAt(event.target.value)}
+                                                                />
+                                                        </div>
+                                                        <div>
+                                                                <label className='label'>
+                                                                        <span className='label-text font-semibold'>Thời gian hoàn thành</span>
+                                                                </label>
+                                                                <input
+                                                                        type='date'
+                                                                        className='input input-bordered w-full'
+                                                                        value={completedAt}
+                                                                        onChange={event => setCompletedAt(event.target.value)}
+                                                                />
+                                                        </div>
+                                                </div>
+
+                                                <div>
+                                                        <label className='label'>
+                                                                <span className='label-text font-semibold'>Trạng thái hiển thị</span>
+                                                        </label>
+                                                        <select
+                                                                className='select select-bordered w-full'
+                                                                value={visibility}
+                                                                onChange={event => setVisibility(event.target.value as PortfolioVisibility)}
+                                                        >
+                                                                <option value='PUBLIC'>Công khai</option>
+                                                                <option value='PRIVATE'>Riêng tư</option>
+                                                        </select>
+                                                </div>
+
+                                                <div>
+                                                        <label className='label'>
+                                                                <span className='label-text font-semibold'>Kỹ năng sử dụng</span>
+                                                        </label>
+                                                        <div className='rounded-2xl border border-base-300 bg-base-100 p-3'>
+                                                                <div className='flex flex-wrap gap-2'>
+                                                                        {selectedSkills.map(skill => (
+                                                                                <span
+                                                                                        key={skill.id}
+                                                                                        className='inline-flex items-center gap-2 rounded-full bg-base-200 px-3 py-1 text-sm font-medium'
+                                                                                >
+                                                                                        {skill.name}
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-ghost btn-circle btn-xs text-base-content/60'
+                                                                                                onClick={() => handleRemoveSkill(skill.id)}
+                                                                                                title='Xoá'
+                                                                                        >
+                                                                                                <X size={14} />
+                                                                                        </button>
+                                                                                </span>
+                                                                        ))}
+                                                                </div>
+                                                                <div className='mt-3 flex flex-col gap-2 sm:flex-row sm:items-center'>
+                                                                        <select
+                                                                                className='select select-bordered flex-1'
+                                                                                value={skillSelector}
+                                                                                onChange={event => setSkillSelector(event.target.value)}
+                                                                        >
+                                                                                <option value=''>Chọn kỹ năng</option>
+                                                                                {availableSkills.map(skill => (
+                                                                                        <option key={skill.id} value={skill.id}>
+                                                                                                {skill.name}
+                                                                                        </option>
+                                                                                ))}
+                                                                        </select>
+                                                                        <button
+                                                                                type='button'
+                                                                                className='btn btn-outline btn-sm'
+                                                                                onClick={handleAddSkill}
+                                                                                disabled={!skillSelector}
+                                                                        >
+                                                                                Thêm kỹ năng
+                                                                        </button>
+                                                                </div>
+                                                                {availableSkills.length === 0 && (
+                                                                        <p className='mt-2 text-xs text-base-content/60'>
+                                                                                Bạn chưa có kỹ năng nào trong hồ sơ. Hãy thêm kỹ năng ở mục "Skills" trước khi gắn vào portfolio.
+                                                                        </p>
+                                                                )}
+                                                        </div>
                                                 </div>
                                         </div>
 
@@ -305,21 +466,22 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                         <div className='mb-3 flex items-center justify-between'>
                                                                 <span className='text-sm font-semibold text-base-content'>Hình ảnh & video</span>
                                                                 <span className='text-xs text-base-content/60'>
-                                                                        {assets.length}/{MAX_MEDIA_ITEMS}
+                                                                        {mediaItems.length}/{MAX_MEDIA_ITEMS}
                                                                 </span>
                                                         </div>
                                                         <div className='grid grid-cols-2 gap-3'>
-                                                                {assets.map(media => {
-                                                                        const key = assetKey(media)
-                                                                        const displayUrl = getDisplayUrl(media)
-                                                                        const isImage = isImageAsset(media)
+                                                                {mediaItems.map(media => {
+                                                                        const url = getDisplayUrl(media)
+                                                                        const image = isImageMedia(media)
                                                                         return (
                                                                                 <div
-                                                                                        key={key}
+                                                                                        key={media.id}
                                                                                         className='group relative overflow-hidden rounded-2xl border border-base-200 bg-base-200/40'
                                                                                 >
-                                                                                        {isImage ? (
-                                                                                                <img src={displayUrl} alt={media.name ?? title} className='h-36 w-full object-cover' />
+                                                                                        {image && url ? (
+                                                                                                <img src={url} alt={title} className='h-36 w-full object-cover' />
+                                                                                        ) : url ? (
+                                                                                                <video src={url} className='h-36 w-full object-cover' controls />
                                                                                         ) : (
                                                                                                 <div className='flex h-36 flex-col items-center justify-center gap-2 text-base-content/70'>
                                                                                                         <ImageIcon size={28} />
@@ -329,12 +491,12 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                                         <button
                                                                                                 type='button'
                                                                                                 className='btn btn-circle btn-ghost btn-xs absolute right-2 top-2 bg-black/50 text-white backdrop-blur-sm'
-                                                                                                onClick={() => handleRemoveAsset(media)}
+                                                                                                onClick={() => handleRemoveMedia(media)}
                                                                                                 title='Xoá'
                                                                                         >
                                                                                                 <X size={14} />
                                                                                         </button>
-                                                                                        {effectiveCoverKey === key ? (
+                                                                                        {media.isCover ? (
                                                                                                 <span className='absolute left-2 top-2 rounded-full bg-base-100/95 px-3 py-1 text-xs font-semibold uppercase text-primary shadow'>Ảnh bìa</span>
                                                                                         ) : (
                                                                                                 <button
@@ -349,17 +511,6 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                                 </div>
                                                                         )
                                                                 })}
-
-                                                                {Object.entries(uploadingProgress).map(([key, percent]) => (
-                                                                        <div
-                                                                                key={key}
-                                                                                className='flex h-36 flex-col items-center justify-center rounded-2xl border border-dashed border-base-300 bg-base-200/40 text-sm text-base-content/70'
-                                                                        >
-                                                                                <Upload className='mb-2 opacity-60' />
-                                                                                <span>Đang tải lên…</span>
-                                                                                <progress className='progress progress-primary mt-2 w-4/5' max={100} value={percent}></progress>
-                                                                        </div>
-                                                                ))}
                                                         </div>
                                                         <div className='mt-4 flex flex-wrap items-center gap-3'>
                                                                 <button
@@ -371,7 +522,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                         <Upload size={16} />
                                                                         Tải nội dung
                                                                 </button>
-                                                                <span className='text-xs text-base-content/60'>Hỗ trợ JPG, PNG, WEBP, GIF, MP4, tối đa 12 tệp.</span>
+                                                                <span className='text-xs text-base-content/60'>Hỗ trợ JPG, PNG, WEBP, GIF, MP4. Tối đa 12 tệp.</span>
                                                         </div>
                                                         <input
                                                                 ref={fileInputRef}
@@ -389,12 +540,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                         <button type='button' className='btn btn-ghost' onClick={onClose} disabled={isSaving}>
                                                 Hủy
                                         </button>
-                                        <button
-                                                type='button'
-                                                className='btn btn-primary'
-                                                onClick={handleSubmit}
-                                                disabled={!canSave || isSaving}
-                                        >
+                                        <button type='button' className='btn btn-primary' onClick={handleSubmit} disabled={!canSave}>
                                                 {isSaving ? 'Đang lưu...' : editing ? 'Lưu thay đổi' : 'Tạo portfolio'}
                                         </button>
                                 </div>

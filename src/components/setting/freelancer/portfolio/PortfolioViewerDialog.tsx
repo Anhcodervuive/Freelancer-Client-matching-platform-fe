@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, ExternalLink, X } from 'lucide-react'
 import type { FreelancerPortfolioItem, FreelancerPortfolioMedia } from '~/types/profile'
 
@@ -11,19 +11,32 @@ type Props = {
 
 function getDisplayUrl(asset: FreelancerPortfolioMedia | undefined) {
         if (!asset) return undefined
-        return asset.url ?? asset.thumbnailUrl ?? undefined
+        return asset.asset?.url ?? undefined
+}
+
+function formatDate(value?: string | null) {
+        if (!value) return undefined
+        const date = new Date(value)
+        if (Number.isNaN(date.getTime())) return undefined
+        return date.toLocaleDateString()
 }
 
 function isImageAsset(asset: FreelancerPortfolioMedia | undefined) {
         if (!asset) return false
-        if (asset.type && asset.type.startsWith('image')) return true
+        const mime = asset.asset?.mimeType
+        if (mime && mime.startsWith('image')) return true
         const url = getDisplayUrl(asset)
         if (!url) return false
         return /\.(png|jpe?g|gif|webp|avif)$/i.test(url)
 }
 
 export default function PortfolioViewerDialog({ item, onClose, editable, onEdit }: Props) {
-        const attachments = item.attachments ?? []
+        const attachments = useMemo(() => {
+                const list: FreelancerPortfolioMedia[] = []
+                if (item.coverAsset) list.push(item.coverAsset)
+                if (item.galleryAssets?.length) list.push(...item.galleryAssets)
+                return list
+        }, [item])
         const [currentIndex, setCurrentIndex] = useState(0)
 
         useEffect(() => {
@@ -44,6 +57,16 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
         const currentAsset = attachments[currentIndex]
         const currentUrl = getDisplayUrl(currentAsset)
         const isImage = isImageAsset(currentAsset)
+
+        const timeline = useMemo(() => {
+                if (!item.startedAt && !item.completedAt) return null
+                const start = formatDate(item.startedAt)
+                const end = formatDate(item.completedAt)
+                if (start && end) return `${start} - ${end}`
+                if (start) return `Bắt đầu từ ${start}`
+                if (end) return `Hoàn thành ${end}`
+                return null
+        }, [item.completedAt, item.startedAt])
 
         const goNext = () => {
                 if (!attachments.length) return
@@ -116,7 +139,7 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                                                                         const active = currentIndex === idx
                                                                         return (
                                                                                 <button
-                                                                                        key={media.id ?? media.url ?? idx}
+                                                                                        key={media.id ?? `${media.assetId}-${idx}`}
                                                                                         type='button'
                                                                                         className={`h-14 w-20 overflow-hidden rounded-xl border-2 transition ${
                                                                                                 active
@@ -149,9 +172,9 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                                                                         </div>
                                                                 )}
                                                         </div>
-                                                        {item.overview && (
+                                                        {item.description && (
                                                                 <p className='whitespace-pre-line text-sm leading-relaxed text-base-content/80'>
-                                                                        {item.overview}
+                                                                        {item.description}
                                                                 </p>
                                                         )}
                                                         {item.skills && item.skills.length > 0 && (
@@ -173,17 +196,38 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                                                                         </div>
                                                                 </div>
                                                         )}
-                                                        {item.projectUrl && (
-                                                                <a
-                                                                        href={item.projectUrl}
-                                                                        target='_blank'
-                                                                        rel='noreferrer'
-                                                                        className='btn btn-outline btn-sm w-fit gap-2'
-                                                                >
-                                                                        <ExternalLink size={16} />
-                                                                        Xem dự án
-                                                                </a>
+                                                        <div className='flex flex-wrap gap-3'>
+                                                                {item.projectUrl && (
+                                                                        <a
+                                                                                href={item.projectUrl}
+                                                                                target='_blank'
+                                                                                rel='noreferrer'
+                                                                                className='btn btn-outline btn-sm gap-2'
+                                                                        >
+                                                                                <ExternalLink size={16} />
+                                                                                Xem dự án
+                                                                        </a>
+                                                                )}
+                                                                {item.repositoryUrl && (
+                                                                        <a
+                                                                                href={item.repositoryUrl}
+                                                                                target='_blank'
+                                                                                rel='noreferrer'
+                                                                                className='btn btn-outline btn-sm gap-2'
+                                                                        >
+                                                                                <ExternalLink size={16} />
+                                                                                Xem mã nguồn
+                                                                        </a>
+                                                                )}
+                                                        </div>
+                                                        {timeline && (
+                                                                <div className='text-xs text-base-content/60'>
+                                                                        {timeline}
+                                                                </div>
                                                         )}
+                                                        <div className='text-xs uppercase tracking-[0.16em] text-base-content/50'>
+                                                                Trạng thái: {item.visibility === 'PUBLIC' ? 'Công khai' : 'Riêng tư'}
+                                                        </div>
                                                 </div>
 
                                                 {editable && onEdit && (

@@ -1,12 +1,11 @@
 import type {
         FreelancerCategoryResponse,
         FreelancerPortfolioItem,
-        FreelancerPortfolioMedia,
         FreelancerProfile,
         FreelancerSpecialtyResponse,
         LanguageProficiency,
-        ProfileLanguage,
-        UpsertFreelancerPortfolioDto
+        PortfolioVisibility,
+        ProfileLanguage
 } from '~/types/profile'
 import type { FreelancerSkillItem } from '~/types/skill'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
@@ -103,22 +102,90 @@ export async function getFreelancerPortfolioAPI(userId?: string): Promise<Freela
         return data ?? []
 }
 
-export async function createFreelancerPortfolioAPI(payload: UpsertFreelancerPortfolioDto, userId?: string) {
+export type UpsertFreelancerPortfolioForm = {
+        title: string
+        role?: string | null
+        description?: string | null
+        projectUrl?: string | null
+        repositoryUrl?: string | null
+        visibility?: PortfolioVisibility
+        startedAt?: string | null
+        completedAt?: string | null
+        publishedAt?: string | null
+        skillIds?: string[]
+        coverAssetId?: string | null
+        galleryAssetIds?: string[]
+        coverFile?: File | null
+        galleryFiles?: File[]
+}
+
+function buildPortfolioFormData(payload: UpsertFreelancerPortfolioForm): FormData {
+        const formData = new FormData()
+
+        formData.append('title', payload.title)
+
+        if (payload.role !== undefined) formData.append('role', payload.role ?? '')
+        if (payload.description !== undefined) formData.append('description', payload.description ?? '')
+        if (payload.projectUrl !== undefined) formData.append('projectUrl', payload.projectUrl ?? '')
+        if (payload.repositoryUrl !== undefined) formData.append('repositoryUrl', payload.repositoryUrl ?? '')
+        if (payload.visibility !== undefined) formData.append('visibility', payload.visibility)
+        if (payload.startedAt !== undefined) formData.append('startedAt', payload.startedAt ?? '')
+        if (payload.completedAt !== undefined) formData.append('completedAt', payload.completedAt ?? '')
+        if (payload.publishedAt !== undefined) formData.append('publishedAt', payload.publishedAt ?? '')
+
+        if (payload.skillIds !== undefined) {
+                if (payload.skillIds.length === 0) {
+                        formData.append('skillIds', '[]')
+                } else {
+                        payload.skillIds.forEach(id => {
+                                if (id) formData.append('skillIds', id)
+                        })
+                }
+        }
+
+        if (payload.coverAssetId !== undefined) {
+                formData.append('coverAssetId', payload.coverAssetId ?? '')
+        }
+
+        if (payload.galleryAssetIds !== undefined) {
+                if (payload.galleryAssetIds.length === 0) {
+                        formData.append('galleryAssetIds', '[]')
+                } else {
+                        payload.galleryAssetIds.forEach(id => {
+                                if (id) formData.append('galleryAssetIds', id)
+                        })
+                }
+        }
+
+        if (payload.coverFile) {
+                formData.append('cover', payload.coverFile)
+        }
+
+        if (payload.galleryFiles) {
+                payload.galleryFiles.forEach(file => {
+                        formData.append('gallery', file)
+                })
+        }
+
+        return formData
+}
+
+export async function createFreelancerPortfolioAPI(payload: UpsertFreelancerPortfolioForm, userId?: string) {
         const { data } = await authorizeAxiosInstance.post<FreelancerPortfolioItem>(
                 `${freelancerProfileBaseUrl}/${userId}/portfolio`,
-                payload
+                buildPortfolioFormData(payload)
         )
         return data
 }
 
 export async function updateFreelancerPortfolioAPI(
-        payload: UpsertFreelancerPortfolioDto,
+        payload: UpsertFreelancerPortfolioForm,
         userId?: string,
         portfolioId?: string
 ) {
         const { data } = await authorizeAxiosInstance.put<FreelancerPortfolioItem>(
                 `${freelancerProfileBaseUrl}/${userId}/portfolio/${portfolioId}`,
-                payload
+                buildPortfolioFormData(payload)
         )
         return data
 }
@@ -126,34 +193,6 @@ export async function updateFreelancerPortfolioAPI(
 export async function deleteFreelancerPortfolioAPI(userId?: string, portfolioId?: string) {
         const { data } = await authorizeAxiosInstance.delete(
                 `${freelancerProfileBaseUrl}/${userId}/portfolio/${portfolioId}`
-        )
-        return data
-}
-
-export async function uploadFreelancerPortfolioAssetAPI(params: {
-        userId?: string
-        file: File
-        onProgress?: (_percent: number) => void
-}): Promise<FreelancerPortfolioMedia> {
-        if (!params.userId) {
-                throw new Error('Missing userId')
-        }
-
-        const fd = new FormData()
-        fd.append('file', params.file)
-
-        const { data } = await authorizeAxiosInstance.post<FreelancerPortfolioMedia>(
-                `${freelancerProfileBaseUrl}/${params.userId}/portfolio/upload`,
-                fd,
-                {
-                        headers: { 'Content-Type': 'multipart/form-data' },
-                        onUploadProgress(event) {
-                                if (!params.onProgress) return
-                                if (!event.total) return
-                                const percent = Math.round((event.loaded * 100) / event.total)
-                                params.onProgress(percent)
-                        }
-                }
         )
         return data
 }

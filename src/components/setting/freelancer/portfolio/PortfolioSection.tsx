@@ -3,7 +3,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import PortfolioManagerModal from './PortfolioManagerModal'
 import PortfolioViewerDialog from './PortfolioViewerDialog'
 import { useFreelancerPortfolio } from '~/hooks/api/useFreelancerPortfolio'
-import type { FreelancerPortfolioItem } from '~/types/profile'
+import type { FreelancerPortfolioItem, FreelancerPortfolioMedia } from '~/types/profile'
 
 const placeholderColors = [
         'from-emerald-400/60 to-emerald-500/60',
@@ -20,14 +20,13 @@ type Props = {
 }
 
 function getCoverMedia(item: FreelancerPortfolioItem | undefined) {
-        if (!item?.attachments?.length) return undefined
-        const cover = item.attachments.find(media => media?.isCover)
-        return cover ?? item.attachments[0]
+        if (!item) return undefined
+        return item.coverAsset ?? item.galleryAssets?.[0]
 }
 
-function getMediaUrl(media?: { url?: string | null; thumbnailUrl?: string | null }) {
+function getMediaUrl(media?: FreelancerPortfolioMedia | null) {
         if (!media) return undefined
-        return media.url ?? media.thumbnailUrl ?? undefined
+        return media.asset?.url ?? undefined
 }
 
 export default function PortfolioSection({ userId, editable = true }: Props) {
@@ -165,16 +164,16 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                                                         {item.role}
                                                                                                 </div>
                                                                                         )}
-                                                                                        {item.overview && (
+                                                                                        {item.description && (
                                                                                                 <p className='mt-2 text-sm text-base-content/70 line-clamp-3'>
-                                                                                                        {item.overview}
+                                                                                                        {item.description}
                                                                                                 </p>
                                                                                         )}
                                                                                 </div>
                                                                                 {item.skills && item.skills.length > 0 && (
                                                                                         <div className='mt-4 flex flex-wrap gap-2'>
                                                                                                 {item.skills.map(skill => {
-                                                                                                        const name = typeof skill === 'string' ? skill : skill?.name
+                                                                                                        const name = skill?.name
                                                                                                         if (!name) return null
                                                                                                         return (
                                                                                                                 <span
