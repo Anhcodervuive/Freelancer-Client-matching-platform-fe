@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
-import { Pencil, Play, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import PortfolioManagerModal from './PortfolioManagerModal'
 import PortfolioViewerDialog from './PortfolioViewerDialog'
 import { useFreelancerPortfolio } from '~/hooks/api/useFreelancerPortfolio'
-import type { FreelancerPortfolioItem, FreelancerPortfolioMedia } from '~/types/profile'
+import type {
+        FreelancerPortfolioItem,
+        FreelancerPortfolioMedia,
+        PortfolioVisibility
+} from '~/types/profile'
 
 const placeholderColors = [
         'from-emerald-400/60 to-emerald-500/60',
@@ -18,6 +22,8 @@ type Props = {
         userId?: string
         editable?: boolean
 }
+
+type VisibilityFilter = 'ALL' | PortfolioVisibility
 
 function getMimeType(media?: FreelancerPortfolioMedia | null) {
         if (!media) return undefined
@@ -56,13 +62,42 @@ function getCoverMedia(item: FreelancerPortfolioItem | undefined) {
 }
 
 export default function PortfolioSection({ userId, editable = true }: Props) {
-        const { listQuery, deleteMutation } = useFreelancerPortfolio(userId)
+        const canEdit = editable && Boolean(userId)
+        const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>(() =>
+                canEdit ? 'ALL' : 'PUBLIC'
+        )
+
+        useEffect(() => {
+                if (canEdit) {
+                        setVisibilityFilter(prev => (prev === 'PUBLIC' ? 'ALL' : prev))
+                } else {
+                        setVisibilityFilter('PUBLIC')
+                }
+        }, [canEdit])
+
+        const visibilityParam: PortfolioVisibility | undefined = canEdit
+                ? visibilityFilter === 'ALL'
+                        ? undefined
+                        : visibilityFilter
+                : 'PUBLIC'
+
+        const { listQuery, deleteMutation } = useFreelancerPortfolio(userId, {
+                visibility: visibilityParam
+        })
         const [open, setOpen] = useState(false)
         const [editing, setEditing] = useState<FreelancerPortfolioItem | null>(null)
         const [viewer, setViewer] = useState<FreelancerPortfolioItem | null>(null)
 
         const items = useMemo(() => listQuery.data ?? [], [listQuery.data])
-        const canEdit = editable && Boolean(userId)
+        const filterOptions = useMemo(() => {
+                if (!canEdit) return []
+                return [
+                        { value: 'ALL' as VisibilityFilter, label: 'Tất cả' },
+                        { value: 'PUBLIC' as VisibilityFilter, label: 'Công khai' },
+                        { value: 'PRIVATE' as VisibilityFilter, label: 'Riêng tư' }
+                ]
+        }, [canEdit])
+        const showFilterControls = filterOptions.length > 0
 
         useEffect(() => {
                 if (!editable) {
@@ -84,26 +119,67 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                 setOpen(true)
         }
 
+        const emptyMessage = useMemo(() => {
+                if (!canEdit) return 'Freelancer chưa đăng tải portfolio nào.'
+                if (visibilityParam === 'PRIVATE') {
+                        return 'Bạn chưa có dự án riêng tư nào. Hãy đánh dấu một dự án là riêng tư để chỉ mình bạn thấy.'
+                }
+                if (visibilityParam === 'PUBLIC') {
+                        return 'Bạn chưa có portfolio công khai nào. Hãy chia sẻ những dự án tốt nhất của mình!'
+                }
+                return 'Bạn chưa có portfolio nào. Hãy chia sẻ dự án đầu tiên của mình!'
+        }, [canEdit, visibilityParam])
+
         return (
                 <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
-                        <div className='flex items-center justify-between gap-3'>
+                        <div className='flex flex-wrap items-center justify-between gap-3'>
                                 <div>
                                         <h3 className='text-lg font-semibold text-base-content'>Portfolio</h3>
                                         <p className='text-sm text-base-content/70'>Những dự án nổi bật mà bạn đã hoàn thành.</p>
                                 </div>
-                                {canEdit && (
-                                        <button
-                                                type='button'
-                                                className='btn btn-sm btn-primary gap-2'
-                                                onClick={() => {
-                                                        setEditing(null)
-                                                        setOpen(true)
-                                                }}
-                                        >
-                                                <Plus size={16} />
-                                                Thêm mới
-                                        </button>
-                                )}
+                                <div className='flex flex-wrap items-center gap-2 sm:gap-3'>
+                                        {showFilterControls && (
+                                                <div className='flex items-center gap-2'>
+                                                        <span className='text-xs font-semibold uppercase tracking-[0.16em] text-base-content/60'>
+                                                                Hiển thị
+                                                        </span>
+                                                        <div className='join'>
+                                                                {filterOptions.map(option => (
+                                                                        <button
+                                                                                key={option.value}
+                                                                                type='button'
+                                                                                className={`btn btn-xs join-item ${
+                                                                                        option.value === visibilityFilter
+                                                                                                ? 'btn-primary'
+                                                                                                : 'btn-ghost'
+                                                                                }`}
+                                                                                onClick={() => {
+                                                                                        if (option.value !== visibilityFilter) {
+                                                                                                setVisibilityFilter(option.value)
+                                                                                        }
+                                                                                }}
+                                                                        >
+                                                                                {option.label}
+                                                                        </button>
+                                                                ))}
+                                                        </div>
+                                                </div>
+                                        )}
+
+                                        {canEdit && (
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-sm btn-primary gap-2'
+                                                        onClick={() => {
+                                                                setEditing(null)
+                                                                setOpen(true)
+                                                        }}
+                                                >
+                                                        <Plus size={16} />
+                                                        Thêm mới
+                                                </button>
+                                        )}
+                                </div>
                         </div>
 
                         <div className='mt-5'>
@@ -155,9 +231,18 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                                                 className='h-full w-full object-cover transition duration-300 group-hover:scale-105'
                                                                                         />
                                                                                 ) : url && isVideo ? (
-                                                                                        <div className='flex h-full w-full items-center justify-center bg-black/80 text-white'>
-                                                                                                <Play size={40} />
-                                                                                        </div>
+                                                                                        <video
+                                                                                                src={url}
+                                                                                                className='h-full w-full object-cover'
+                                                                                                preload='metadata'
+                                                                                                muted
+                                                                                                playsInline
+                                                                                                controls={false}
+                                                                                                loop
+                                                                                                aria-hidden
+                                                                                                disablePictureInPicture
+                                                                                                controlsList='nodownload noplaybackrate nofullscreen'
+                                                                                        />
                                                                                 ) : (
                                                                                         <div
                                                                                                 className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${color} text-5xl`}
@@ -228,9 +313,7 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                         </div>
                                 ) : (
                                         <div className='rounded-2xl border border-dashed border-base-300 bg-base-200/40 p-8 text-center text-sm text-base-content/70'>
-                                                {canEdit
-                                                        ? 'Bạn chưa có portfolio nào. Hãy chia sẻ dự án đầu tiên của mình!'
-                                                        : 'Freelancer chưa đăng tải portfolio nào.'}
+                                                {emptyMessage}
                                         </div>
                                 )}
                         </div>

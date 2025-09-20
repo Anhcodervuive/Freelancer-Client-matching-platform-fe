@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ExternalLink, Play, X } from 'lucide-react'
 import type { FreelancerPortfolioItem, FreelancerPortfolioMedia } from '~/types/profile'
 
@@ -47,32 +47,75 @@ function isVideoAsset(asset: FreelancerPortfolioMedia | undefined) {
 export default function PortfolioViewerDialog({ item, onClose, editable, onEdit }: Props) {
         const attachments = useMemo(() => {
                 const list: FreelancerPortfolioMedia[] = []
-                if (item.coverAsset) list.push(item.coverAsset)
-                if (item.galleryAssets?.length) list.push(...item.galleryAssets)
+                const seen = new Set<string>()
+
+                const pushUnique = (media?: FreelancerPortfolioMedia | null) => {
+                        if (!media) return
+                        const key = media.id ?? media.assetId ?? media.asset?.id ?? media.asset?.url
+                        if (key && seen.has(key)) return
+                        if (key) seen.add(key)
+                        list.push(media)
+                }
+
+                pushUnique(item.coverAsset)
+                if (item.galleryAssets?.length) {
+                        for (const media of item.galleryAssets) {
+                                pushUnique(media)
+                        }
+                }
+
                 return list
         }, [item])
+
         const [currentIndex, setCurrentIndex] = useState(0)
+        const sliderRef = useRef<HTMLDivElement | null>(null)
 
         useEffect(() => {
                 setCurrentIndex(0)
-        }, [item?.id])
+        }, [item?.id, attachments.length])
 
         useEffect(() => {
                 const handler = (event: KeyboardEvent) => {
                         if (event.key === 'Escape') onClose()
-                        if (event.key === 'ArrowRight') setCurrentIndex(prev => (prev + 1) % Math.max(attachments.length, 1))
-                        if (event.key === 'ArrowLeft')
-                                setCurrentIndex(prev => (prev - 1 + Math.max(attachments.length, 1)) % Math.max(attachments.length, 1))
+                        if (event.key === 'ArrowRight') {
+                                setCurrentIndex(prev => (attachments.length ? (prev + 1) % attachments.length : 0))
+                        }
+                        if (event.key === 'ArrowLeft') {
+                                setCurrentIndex(prev => (attachments.length ? (prev - 1 + attachments.length) % attachments.length : 0))
+                        }
                 }
                 window.addEventListener('keydown', handler)
                 return () => window.removeEventListener('keydown', handler)
         }, [attachments.length, onClose])
 
-        const currentAsset = attachments[currentIndex]
-        const currentUrl = getDisplayUrl(currentAsset)
-        const isImage = isImageAsset(currentAsset)
-        const isVideo = isVideoAsset(currentAsset)
-        const currentMime = getMimeType(currentAsset)
+        useEffect(() => {
+                if (!sliderRef.current) return
+                const videos = sliderRef.current.querySelectorAll<HTMLVideoElement>('video')
+                videos.forEach((video, index) => {
+                        if (index !== currentIndex && !video.paused) {
+                                video.pause()
+                        }
+                })
+        }, [currentIndex])
+
+
+        const slideStyle = useMemo(() => {
+                const percentage = attachments.length > 0 ? currentIndex * 100 : 0
+                return {
+                        transform: `translateX(-${percentage}%)`,
+                        transition: attachments.length > 1 ? 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none'
+                }
+        }, [attachments.length, currentIndex])
+
+        const goNext = useCallback(() => {
+                if (!attachments.length) return
+                setCurrentIndex(prev => (prev + 1) % attachments.length)
+        }, [attachments.length])
+
+        const goPrev = useCallback(() => {
+                if (!attachments.length) return
+                setCurrentIndex(prev => (prev - 1 + attachments.length) % attachments.length)
+        }, [attachments.length])
 
         const timeline = useMemo(() => {
                 if (!item.startedAt && !item.completedAt) return null
@@ -83,16 +126,6 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                 if (end) return `Hoàn thành ${end}`
                 return null
         }, [item.completedAt, item.startedAt])
-
-        const goNext = () => {
-                if (!attachments.length) return
-                setCurrentIndex(prev => (prev + 1) % attachments.length)
-        }
-
-        const goPrev = () => {
-                if (!attachments.length) return
-                setCurrentIndex(prev => (prev - 1 + attachments.length) % attachments.length)
-        }
 
         return (
                 <div className='fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/80 px-4 py-10 backdrop-blur-sm'>
@@ -107,76 +140,106 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                                 </button>
                                 <div className='grid gap-0 md:grid-cols-[1.1fr_0.9fr]'>
                                         <div className='relative flex min-h-[260px] items-center justify-center bg-base-200 md:min-h-[420px]'>
-                                                {currentUrl ? (
-                                                        isImage ? (
-                                                                <img
-                                                                        key={currentAsset?.id ?? currentAsset?.assetId ?? currentIndex}
-                                                                        src={currentUrl}
-                                                                        alt={item.title}
-                                                                        className='max-h-[70vh] w-full max-w-full object-contain'
-                                                                />
-                                                        ) : isVideo ? (
-                                                                <video
-                                                                        key={currentAsset?.id ?? currentAsset?.assetId ?? currentIndex}
-                                                                        className='max-h-[70vh] w-full max-w-full rounded-2xl bg-black object-contain'
-                                                                        controls
-                                                                        preload='metadata'
-                                                                        playsInline
-                                                                >
-                                                                        <source src={currentUrl} type={currentMime} />
-                                                                        Trình duyệt của bạn không hỗ trợ phát video.
-                                                                </video>
-                                                        ) : (
-                                                                <div className='flex max-h-[70vh] w-full max-w-full items-center justify-center px-8 text-center text-sm text-base-content/70'>
-                                                                        Không thể xem trước tệp này. Hãy tải xuống để xem chi tiết.
+                                                {attachments.length > 0 ? (
+                                                        <div className='relative w-full'>
+                                                                <div className='overflow-hidden rounded-3xl bg-base-200/80 shadow-inner'>
+                                                                        <div ref={sliderRef} className='flex' style={slideStyle}>
+                                                                                {attachments.map((media, idx) => {
+                                                                                        const url = getDisplayUrl(media)
+                                                                                        const image = isImageAsset(media)
+                                                                                        const video = isVideoAsset(media)
+                                                                                        const mime = getMimeType(media)
+                                                                                        const key = media.id ?? media.assetId ?? media.asset?.id ?? `media-${idx}`
+
+                                                                                        return (
+                                                                                                <div
+                                                                                                        key={key}
+                                                                                                        className='flex w-full flex-[0_0_100%] px-4 py-6 md:px-6'
+                                                                                                >
+                                                                                                        <div className='relative flex aspect-[16/10] w-full max-h-[70vh] items-center justify-center overflow-hidden rounded-2xl bg-base-300/60'>
+                                                                                                                {url ? (
+                                                                                                                        image ? (
+                                                                                                                                <img
+                                                                                                                                        src={url}
+                                                                                                                                        alt={item.title}
+                                                                                                                                        className='h-full w-full object-contain'
+                                                                                                                                        loading='lazy'
+                                                                                                                                />
+                                                                                                                        ) : video ? (
+                                                                                                                                <video
+                                                                                                                                        className='h-full w-full object-contain'
+                                                                                                                                        controls
+                                                                                                                                        preload='metadata'
+                                                                                                                                        playsInline
+                                                                                                                                >
+                                                                                                                                        <source src={url} type={mime ?? undefined} />
+                                                                                                                                        Trình duyệt của bạn không hỗ trợ phát video.
+                                                                                                                                </video>
+                                                                                                                        ) : (
+                                                                                                                                <div className='flex h-full w-full items-center justify-center px-8 text-center text-sm text-base-content/70'>
+                                                                                                                                        Không thể xem trước tệp này. Hãy tải xuống để xem chi tiết.
+                                                                                                                                </div>
+                                                                                                                        )
+                                                                                                                ) : (
+                                                                                                                        <div className='flex h-full w-full items-center justify-center text-base-content/60'>
+                                                                                                                                Không có media hiển thị
+                                                                                                                        </div>
+                                                                                                                )}
+
+                                                                                                                {video && url && (
+                                                                                                                        <div className='pointer-events-none absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold uppercase text-white backdrop-blur'>
+                                                                                                                                <Play size={16} />
+                                                                                                                                Video
+                                                                                                                        </div>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                        )
+                                                                                })}
+                                                                        </div>
                                                                 </div>
-                                                        )
+
+                                                                {attachments.length > 1 && (
+                                                                        <div className='pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2 md:px-4'>
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-circle btn-ghost pointer-events-auto bg-black/40 text-white backdrop-blur-sm transition hover:bg-black/60'
+                                                                                        onClick={goPrev}
+                                                                                        title='Trước'
+                                                                                >
+                                                                                        <ChevronLeft />
+                                                                                </button>
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-circle btn-ghost pointer-events-auto bg-black/40 text-white backdrop-blur-sm transition hover:bg-black/60'
+                                                                                        onClick={goNext}
+                                                                                        title='Tiếp'
+                                                                                >
+                                                                                        <ChevronRight />
+                                                                                </button>
+                                                                        </div>
+                                                                )}
+                                                        </div>
                                                 ) : (
                                                         <div className='flex h-full w-full items-center justify-center text-base-content/60'>
                                                                 Không có media hiển thị
                                                         </div>
                                                 )}
 
-                                                {isVideo && currentUrl && (
-                                                        <div className='absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold uppercase text-white backdrop-blur'>
-                                                                <Play size={16} />
-                                                                Video
-                                                        </div>
-                                                )}
-
                                                 {attachments.length > 1 && (
-                                                        <>
-                                                                <button
-                                                                        type='button'
-                                                                        className='btn btn-circle btn-ghost absolute left-4 top-1/2 z-10 -translate-y-1/2 bg-black/40 text-white backdrop-blur-sm hover:bg-black/60'
-                                                                        onClick={goPrev}
-                                                                        title='Trước'
-                                                                >
-                                                                        <ChevronLeft />
-                                                                </button>
-                                                                <button
-                                                                        type='button'
-                                                                        className='btn btn-circle btn-ghost absolute right-4 top-1/2 z-10 -translate-y-1/2 bg-black/40 text-white backdrop-blur-sm hover:bg-black/60'
-                                                                        onClick={goNext}
-                                                                        title='Tiếp'
-                                                                >
-                                                                        <ChevronRight />
-                                                                </button>
-                                                        </>
-                                                )}
-
-                                                {attachments.length > 1 && (
-                                                        <div className='absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4'>
+                                                        <div className='pointer-events-none absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4'>
                                                                 {attachments.map((media, idx) => {
                                                                         const thumbUrl = getDisplayUrl(media)
                                                                         const thumbImage = isImageAsset(media)
                                                                         const thumbVideo = isVideoAsset(media)
                                                                         const active = currentIndex === idx
+                                                                        const key = media.id ?? media.assetId ?? media.asset?.id ?? `thumb-${idx}`
+
                                                                         return (
                                                                                 <button
-                                                                                        key={media.id ?? `${media.assetId}-${idx}`}
+                                                                                        key={key}
                                                                                         type='button'
-                                                                                        className={`h-14 w-20 overflow-hidden rounded-xl border-2 transition ${
+                                                                                        className={`pointer-events-auto h-14 w-20 overflow-hidden rounded-xl border-2 transition ${
                                                                                                 active
                                                                                                         ? 'border-primary shadow-lg'
                                                                                                         : 'border-transparent opacity-70 hover:opacity-100'
@@ -184,7 +247,7 @@ export default function PortfolioViewerDialog({ item, onClose, editable, onEdit 
                                                                                         onClick={() => setCurrentIndex(idx)}
                                                                                 >
                                                                                         {thumbUrl && thumbImage && (
-                                                                                                <img src={thumbUrl} alt='' className='h-full w-full object-cover' />
+                                                                                                <img src={thumbUrl} alt='' className='h-full w-full object-cover' loading='lazy' />
                                                                                         )}
                                                                                         {thumbUrl && thumbVideo && (
                                                                                                 <div className='relative flex h-full w-full items-center justify-center bg-black/80 text-white'>

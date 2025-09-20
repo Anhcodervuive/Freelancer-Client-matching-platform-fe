@@ -94,11 +94,23 @@ export async function deleteEducationAPI(userId?: string, edutionId?: string) {
         return data
 }
 
-export async function getFreelancerPortfolioAPI(userId?: string): Promise<FreelancerPortfolioItem[]> {
+export async function getFreelancerPortfolioAPI(
+        userId?: string,
+        params?: { visibility?: PortfolioVisibility }
+): Promise<FreelancerPortfolioItem[]> {
         if (!userId) return []
-        const { data } = await authorizeAxiosInstance.get<FreelancerPortfolioItem[]>(
-                `${freelancerProfileBaseUrl}/${userId}/portfolio`
-        )
+
+        const searchParams = new URLSearchParams()
+        if (params?.visibility) {
+                searchParams.set('visibility', params.visibility)
+        }
+
+        const query = searchParams.toString()
+        const endpoint = query
+                ? `${freelancerProfileBaseUrl}/${userId}/portfolio?${query}`
+                : `${freelancerProfileBaseUrl}/${userId}/portfolio`
+
+        const { data } = await authorizeAxiosInstance.get<FreelancerPortfolioItem[]>(endpoint)
         return data ?? []
 }
 
