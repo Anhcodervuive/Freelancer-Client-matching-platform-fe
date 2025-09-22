@@ -32,10 +32,10 @@ const toneBorderClass: Record<Tone, string> = {
 }
 
 const toneIcon: Record<Tone, JSX.Element> = {
-        success: <CheckCircle2 className='h-5 w-5' />,
-        warning: <AlertTriangle className='h-5 w-5' />,
-        info: <Info className='h-5 w-5' />,
-        danger: <OctagonAlert className='h-5 w-5' />
+        success: <CheckCircle2 className='h-4 w-4' />,
+        warning: <AlertTriangle className='h-4 w-4' />,
+        info: <Info className='h-4 w-4' />,
+        danger: <OctagonAlert className='h-4 w-4' />
 }
 
 function extractAccount(payload?: StripeConnectAccountResponse | null): StripeConnectAccount | null {
@@ -149,15 +149,15 @@ const statusCard = ({
 }) => {
         return (
                 <div
-                        className={`flex items-start gap-4 rounded-2xl border bg-white/90 p-4 shadow-sm ${toneBorderClass[tone]}`}
+                        className={`flex items-start gap-3 rounded-xl border bg-white/90 p-3 shadow-sm ${toneBorderClass[tone]}`}
                 >
-                        <span className={`flex h-10 w-10 items-center justify-center rounded-full ${toneIconClass[tone]}`}>
+                        <span className={`flex h-8 w-8 items-center justify-center rounded-full ${toneIconClass[tone]}`}>
                                 {toneIcon[tone]}
                         </span>
-                        <div className='space-y-2'>
+                        <div className='space-y-1.5'>
                                 <div>
-                                        <p className='font-semibold text-slate-900'>{title}</p>
-                                        <p className='text-sm text-slate-500'>{description}</p>
+                                        <p className='text-sm font-semibold text-slate-900'>{title}</p>
+                                        <p className='text-xs text-slate-500'>{description}</p>
                                 </div>
                                 {children}
                         </div>
@@ -168,7 +168,7 @@ const statusCard = ({
 const requirementList = (requirements: string[]) => {
         if (!requirements.length) return null
         return (
-                <ul className='list-disc pl-5 text-sm text-slate-600'>
+                <ul className='list-disc pl-4 text-xs text-slate-600'>
                         {requirements.map(item => (
                                 <li key={item}>{item.replace(/_/g, ' ')}</li>
                         ))}
@@ -243,16 +243,20 @@ const summarySections = (
 }
 
 const renderSummary = (sections: ReturnType<typeof summarySections>) => {
-        return sections.map(section => (
-                <div key={section.key}>
-                        {statusCard({
-                                tone: section.tone,
-                                title: section.title,
-                                description: section.description,
-                                children: section.extra
-                        })}
+        return (
+                <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-3'>
+                        {sections.map(section => (
+                                <div key={section.key}>
+                                        {statusCard({
+                                                tone: section.tone,
+                                                title: section.title,
+                                                description: section.description,
+                                                children: section.extra
+                                        })}
+                                </div>
+                        ))}
                 </div>
-        ))
+        )
 }
 
 const GetPaidPage = () => {
@@ -360,23 +364,23 @@ const GetPaidPage = () => {
         }
 
         return (
-                <div className='space-y-6'>
+                <div className='space-y-5'>
                         <div>
-                                <div className='inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary'>
+                                <div className='inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary'>
                                         <Sparkles className='h-4 w-4' />
                                         Stripe Connect
                                 </div>
-                                <h1 className='mt-4 text-3xl font-semibold text-slate-900'>Get paid</h1>
-                                <p className='mt-2 max-w-2xl text-sm text-slate-500'>
+                                <h1 className='mt-3 text-2xl font-semibold text-slate-900'>Get paid</h1>
+                                <p className='mt-1.5 max-w-2xl text-sm text-slate-500'>
                                         Kết nối tài khoản Stripe Connect để nhận thanh toán cho các dự án trên nền tảng. Stripe sẽ
                                         yêu cầu bạn cung cấp thông tin định danh để bảo vệ cả freelancer và khách hàng.
                                 </p>
                         </div>
 
-                        <div className='grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
-                                <section className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]'>
-                                        <header className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-                                                <div className='space-y-2'>
+                        <div className='grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
+                                <section className='rounded-2xl border border-white/70 bg-white/85 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)]'>
+                                        <header className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+                                                <div className='space-y-1.5'>
                                                         <p className='text-sm font-semibold uppercase tracking-[0.2em] text-slate-400'>Tổng quan</p>
                                                         {statusCard({
                                                                 tone: overview.tone,
@@ -384,10 +388,10 @@ const GetPaidPage = () => {
                                                                 description: overview.description
                                                         })}
                                                 </div>
-                                                <div className='flex flex-wrap items-center gap-3'>
+                                                <div className='flex flex-wrap items-center gap-2.5'>
                                                         <button
                                                                 type='button'
-                                                                className='inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-primary/40 hover:text-primary'
+                                                                className='inline-flex items-center gap-2 rounded-full border border-slate-200 px-3.5 py-2 text-xs font-medium text-slate-600 transition hover:border-primary/40 hover:text-primary'
                                                                 onClick={() => refetch()}
                                                                 disabled={loading}
                                                         >
@@ -396,7 +400,7 @@ const GetPaidPage = () => {
                                                         </button>
                                                         <button
                                                                 type='button'
-                                                                className='inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-secondary px-4 py-2 text-sm font-medium text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70'
+                                                                className='inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-secondary px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70'
                                                                 onClick={handleOpenStripe}
                                                                 disabled={
                                                                         createAccountMutation.isPending ||
@@ -409,9 +413,9 @@ const GetPaidPage = () => {
                                                 </div>
                                         </header>
 
-                                        <div className='mt-6 space-y-4'>
-                                                <div className='rounded-2xl border border-dashed border-slate-200/80 bg-slate-50/80 p-4'>
-                                                        <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+                                        <div className='mt-5 space-y-3.5'>
+                                                <div className='rounded-2xl border border-dashed border-slate-200/80 bg-slate-50/80 p-3.5'>
+                                                        <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
                                                                 <div className='space-y-1'>
                                                                         <p className='text-sm font-semibold text-slate-900'>Quốc gia Stripe Connect</p>
                                                                         <p className='text-xs text-slate-500'>
@@ -422,7 +426,7 @@ const GetPaidPage = () => {
                                                                                         : 'Stripe sử dụng quốc gia này để xác minh danh tính và thiết lập tài khoản payouts cho bạn.'}
                                                                         </p>
                                                                 </div>
-                                                                <div className='w-full md:w-72'>
+                                                                <div className='w-full md:w-64'>
                                                                         <CountrySelect
                                                                                 value={countryOption}
                                                                                 onChange={option => setCountryOption(option)}
@@ -430,7 +434,7 @@ const GetPaidPage = () => {
                                                                         />
                                                                 </div>
                                                         </div>
-                                                        <div className='mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-600'>
+                                                        <div className='mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/80 p-2.5 text-xs text-amber-600'>
                                                                 <AlertTriangle className='mt-0.5 h-4 w-4 flex-shrink-0' />
                                                                 <span>
                                                                         {countryLocked
@@ -441,7 +445,7 @@ const GetPaidPage = () => {
                                                 </div>
 
                                                 {loading ? (
-                                                        <div className='flex h-40 items-center justify-center gap-3 text-sm text-slate-500'>
+                                                        <div className='flex h-32 items-center justify-center gap-3 text-xs text-slate-500'>
                                                                 <span className='loading loading-spinner loading-md' /> Đang tải trạng thái Stripe…
                                                         </div>
                                                 ) : (
@@ -450,25 +454,25 @@ const GetPaidPage = () => {
                                         </div>
                                 </section>
 
-                                <aside className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]'>
-                                        <h3 className='text-base font-semibold text-slate-900'>Stripe cần những gì?</h3>
-                                        <p className='mt-2 text-sm text-slate-500'>Stripe tuân thủ các quy định về KYC (Know Your Customer). Họ có thể yêu cầu:</p>
-                                        <ul className='mt-4 space-y-3 text-sm text-slate-600'>
+                                <aside className='rounded-2xl border border-white/70 bg-white/85 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)]'>
+                                        <h3 className='text-sm font-semibold text-slate-900'>Stripe cần những gì?</h3>
+                                        <p className='mt-1.5 text-xs text-slate-500'>Stripe tuân thủ các quy định về KYC (Know Your Customer). Họ có thể yêu cầu:</p>
+                                        <ul className='mt-3 space-y-2.5 text-xs text-slate-600'>
                                                 <li className='flex items-start gap-2'>
-                                                        <CheckCircle2 className='mt-0.5 h-4 w-4 text-emerald-500' />
+                                                        <CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
                                                         Thông tin cá nhân: họ tên, ngày sinh, địa chỉ cư trú và giấy tờ tùy thân.
                                                 </li>
                                                 <li className='flex items-start gap-2'>
-                                                        <CheckCircle2 className='mt-0.5 h-4 w-4 text-emerald-500' />
+                                                        <CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
                                                         Chi tiết ngân hàng để Stripe chuyển khoản.
                                                 </li>
                                                 <li className='flex items-start gap-2'>
-                                                        <CheckCircle2 className='mt-0.5 h-4 w-4 text-emerald-500' />
+                                                        <CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
                                                         Tùy từng quốc gia, bạn có thể phải cung cấp thêm tài liệu bổ sung.
                                                 </li>
                                         </ul>
 
-                                        <div className='mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-primary'>
+                                        <div className='mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-3 text-xs text-primary'>
                                                 Khi hoàn tất, bạn có thể quay lại trang này để làm mới trạng thái. Nếu cần hỗ trợ, vui lòng liên hệ đội ngũ của chúng tôi.
                                         </div>
                                 </aside>
