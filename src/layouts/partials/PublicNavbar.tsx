@@ -23,7 +23,9 @@ export default function PublicNavbar() {
 
                                 <nav className='ml-4 hidden items-center gap-1 text-sm font-medium text-slate-600 md:flex'>
                                         <div className='dropdown dropdown-hover'>
-                                                <button className='btn btn-ghost btn-sm rounded-full px-4 text-slate-600 hover:bg-primary/10 hover:text-primary'>Main</button>
+                                                <button className='inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-white'>
+                                                        Main
+                                                </button>
                                                 <ul className='menu dropdown-content z-30 w-64 rounded-2xl border border-white/60 bg-white/95 p-2 shadow-xl shadow-primary/5'>
                                                         <li>
                                                                 <NavLink to='/' className='rounded-lg px-3 py-2 hover:bg-primary/10 hover:text-primary'>
@@ -39,7 +41,9 @@ export default function PublicNavbar() {
                                         </div>
 
                                         <div className='dropdown dropdown-hover'>
-                                                <button className='btn btn-ghost btn-sm rounded-full px-4 text-slate-600 hover:bg-primary/10 hover:text-primary'>Explore</button>
+                                                <button className='inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-white'>
+                                                        Explore
+                                                </button>
                                                 <ul className='menu dropdown-content z-30 w-64 rounded-2xl border border-white/60 bg-white/95 p-2 shadow-xl shadow-primary/5'>
                                                         <li>
                                                                 <NavLink to='/search' className='rounded-lg px-3 py-2 hover:bg-primary/10 hover:text-primary'>
@@ -50,7 +54,9 @@ export default function PublicNavbar() {
                                         </div>
 
                                         <div className='dropdown dropdown-hover'>
-                                                <button className='btn btn-ghost btn-sm rounded-full px-4 text-slate-600 hover:bg-primary/10 hover:text-primary'>Find by category</button>
+                                                <button className='inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-white'>
+                                                        Find by category
+                                                </button>
                                                 <ul className='menu dropdown-content z-30 w-64 rounded-2xl border border-white/60 bg-white/95 p-2 shadow-xl shadow-primary/5'>
                                                         <li>
                                                                 <button className='rounded-lg px-3 py-2 text-left hover:bg-primary/10 hover:text-primary' onClick={() => navigate('/search?cat=design')}>
@@ -66,10 +72,10 @@ export default function PublicNavbar() {
                                         </div>
                                 </nav>
 
-                                <div className='ml-auto hidden items-center gap-2.5 md:flex'>
+                                <div className='ml-auto hidden items-center gap-2 md:flex'>
                                         <input
                                                 placeholder='Search the marketplace'
-                                                className='input input-sm input-bordered w-52 rounded-full border-white/60 bg-white/85 text-sm text-slate-600 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 md:input-md md:w-60'
+                                                className='w-48 rounded-xl border border-white/60 bg-white/85 px-3 py-2 text-sm text-slate-600 shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 md:w-60'
                                                 onKeyDown={e => {
                                                         if (e.key === 'Enter') navigate('/search?q=' + (e.target as HTMLInputElement).value)
                                                 }}
@@ -81,10 +87,16 @@ export default function PublicNavbar() {
                                                 </div>
                                         ) : (
                                                 <div className='flex items-center gap-1.5'>
-                                                        <Link to={routes.auth.signin} className='btn btn-ghost btn-sm rounded-full px-4 text-slate-700 hover:bg-primary/10 hover:text-primary'>
+                                                        <Link
+                                                                to={routes.auth.signin}
+                                                                className='inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-white'
+                                                        >
                                                                 Sign in
                                                         </Link>
-                                                        <Link to={routes.auth.signup} className='btn btn-sm rounded-full bg-gradient-to-r from-primary to-secondary px-5 text-white shadow-lg shadow-primary/30 transition hover:shadow-primary/40'>
+                                                        <Link
+                                                                to={routes.auth.signup}
+                                                                className='inline-flex items-center rounded-xl bg-gradient-to-r from-primary to-secondary px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-primary/30 transition hover:shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-white'
+                                                        >
                                                                 Register
                                                         </Link>
                                                 </div>
@@ -92,7 +104,7 @@ export default function PublicNavbar() {
                                 </div>
 
                                 <button
-                                        className='ml-auto inline-flex items-center justify-center rounded-full border border-white/70 bg-white/80 p-2 text-slate-600 shadow-sm transition hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:hidden'
+                                        className='ml-auto inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/70 bg-white/80 p-2 text-slate-600 shadow-sm transition hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:hidden'
                                         onClick={() => setOpen(v => !v)}
                                         aria-label='Toggle navigation'
                                 >
@@ -118,7 +130,7 @@ export default function PublicNavbar() {
                                         <div className='mt-4 flex flex-col gap-2'>
                                                 <input
                                                         placeholder='Search the marketplace'
-                                                        className='input input-sm input-bordered w-full rounded-full border-white/70 bg-white/90 text-sm text-slate-600 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25'
+                                                        className='w-full rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-sm text-slate-600 shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
                                                         onKeyDown={e => {
                                                                 if (e.key === 'Enter') {
                                                                         navigate('/search?q=' + (e.target as HTMLInputElement).value)
@@ -133,10 +145,18 @@ export default function PublicNavbar() {
                                                         </div>
                                                 ) : (
                                                         <div className='flex gap-2'>
-                                                                <Link to={routes.auth.signin} className='btn btn-sm flex-1 rounded-full border border-primary/40 bg-primary/5 text-primary hover:bg-primary/10' onClick={() => setOpen(false)}>
+                                                                <Link
+                                                                        to={routes.auth.signin}
+                                                                        className='flex-1 rounded-xl border border-primary/40 px-3 py-2 text-center text-sm font-medium text-primary transition hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                                                        onClick={() => setOpen(false)}
+                                                                >
                                                                         Sign in
                                                                 </Link>
-                                                                <Link to={routes.auth.signup} className='btn btn-sm flex-1 rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/30 hover:shadow-primary/40' onClick={() => setOpen(false)}>
+                                                                <Link
+                                                                        to={routes.auth.signup}
+                                                                        className='flex-1 rounded-xl bg-gradient-to-r from-primary to-secondary px-3 py-2 text-center text-sm font-semibold text-white shadow-md shadow-primary/30 transition hover:shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30'
+                                                                        onClick={() => setOpen(false)}
+                                                                >
                                                                         Sign up
                                                                 </Link>
                                                         </div>

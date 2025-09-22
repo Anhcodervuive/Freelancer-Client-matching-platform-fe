@@ -16,8 +16,11 @@ export default function UserMenu({ user }: { user: { name?: string; avatar?: str
         }
         return (
                 <div className='dropdown dropdown-end'>
-                        <label tabIndex={0} className='btn btn-ghost btn-circle avatar'>
-                                <div className='w-8 h-8 rounded-full overflow-hidden border border-base-300 bg-base-200'>
+                        <label
+                                tabIndex={0}
+                                className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/70 bg-white/80 text-slate-600 transition hover:border-primary/40 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-white'
+                        >
+                                <div className='h-8 w-8 overflow-hidden rounded-xl border border-base-300 bg-base-200'>
                                         <img
                                                 src={avatarSrc}
                                                 alt={user.name ?? 'User avatar'}
