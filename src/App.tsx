@@ -28,6 +28,7 @@ import ProfilePage from './pages/Me/ProfilePage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import SettingLayout from './layouts/SettingLayout'
 import ContactInfo from './pages/Me/ContactInfo'
+import GetPaidPage from './pages/Me/get-paid/GetPaidPage'
 import PaymentMethodPage from './pages/Me/payment-method/PaymentMethodPage'
 import AddBillingMethodPage from './pages/Me/payment-method/AddPaymentMethodPage'
 import PaymentMethodWrapper from './pages/Me/payment-method/PaymentMethodWrapper'
@@ -79,17 +80,21 @@ const router = createBrowserRouter([
 				path: routes.comons.onboarding,
 				element: <OnboardingWizard />
 			},
-			{
-				path: '/me/setting',
-				loader: checkAuthenticatedUser,
-				element: <SettingLayout />,
-				children: [
-					{
-						path: 'contact-info',
-						element: <ContactInfo />
-					}
-				]
-			},
+                        {
+                                path: '/me/setting',
+                                loader: checkAuthenticatedUser,
+                                element: <SettingLayout />,
+                                children: [
+                                        {
+                                                path: 'contact-info',
+                                                element: <ContactInfo />
+                                        },
+                                        {
+                                                path: 'get-paid',
+                                                element: <GetPaidPage />
+                                        }
+                                ]
+                        },
 			{
 				path: '/me/setting/payment-method',
 				element: <PaymentMethodWrapper />,

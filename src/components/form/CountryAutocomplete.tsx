@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo } from 'react'
 import Select, { components, type StylesConfig } from 'react-select'
-import countryList from 'react-select-country-list'
 import ReactCountryFlag from 'react-country-flag'
 
-export type CountryOption = { value: string; label: string }
+import {
+        type CountryOption,
+        stripeSupportedCountryOptions
+} from '~/constants/stripeCountries'
+
+export type { CountryOption } from '~/constants/stripeCountries'
 export type CountrySelectProps = {
 	value?: CountryOption | null
 	onChange?: (_opt: CountryOption | null) => void
@@ -78,22 +81,21 @@ const styles: StylesConfig<CountryOption, false> = {
 }
 
 export default function CountrySelect({
-	value,
-	onChange,
-	placeholder = 'Chọn quốc gia…',
-	className = '',
-	name,
-	isDisabled
+        value,
+        onChange,
+        placeholder = 'Chọn quốc gia…',
+        className = '',
+        name,
+        isDisabled
 }: CountrySelectProps) {
-	const options = useMemo(() => countryList().getData(), [])
-	return (
-		<div className={`form-control w-full ${className}`}>
-			{name && <input type='hidden' name={name} value={value?.value ?? ''} readOnly />}
-			<Select
-				instanceId='country-select'
-				isDisabled={isDisabled}
-				options={options}
-				value={value ?? null}
+        return (
+                <div className={`form-control w-full ${className}`}>
+                        {name && <input type='hidden' name={name} value={value?.value ?? ''} readOnly />}
+                        <Select
+                                instanceId='country-select'
+                                isDisabled={isDisabled}
+                                options={stripeSupportedCountryOptions}
+                                value={value ?? null}
 				onChange={opt => onChange?.(opt as CountryOption)}
 				placeholder={placeholder}
 				styles={styles}
