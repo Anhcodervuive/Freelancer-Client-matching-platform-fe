@@ -109,36 +109,37 @@ export default function AboutSection({ userId, editable = true }: Props) {
 		[data?.bio]
 	)
 
-	return (
-		<div className='cardborder bg-white/90 rounded-box'>
-			<div className='card-body gap-3'>
-                                <div className='flex items-center justify-between'>
-                                        <h2 className='text-2xl font-bold'>Profile overview</h2>
-                                        {editable && (
-                                                <button className='btn btn-sm btn-circle btn-ghost text-green-700' onClick={() => setOpen(true)}>
-                                                        <Pencil />
-                                                </button>
-                                        )}
+        return (
+                <div className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]'>
+                        <div className='flex items-start justify-between gap-4'>
+                                <div>
+                                        <h2 className='text-2xl font-bold text-slate-900'>Profile overview</h2>
+                                        <p className='mt-2 text-sm text-slate-500'>Craft a captivating introduction that highlights your value and experience.</p>
                                 </div>
+                                {editable && (
+                                        <button className='btn btn-sm btn-circle btn-ghost text-primary hover:bg-primary/10' onClick={() => setOpen(true)}>
+                                                <Pencil />
+                                        </button>
+                                )}
+                        </div>
 
-				<p className='font-semibold'>{data?.title || 'Add a short headline about your expertise'}</p>
+                        <p className='mt-6 text-lg font-semibold text-slate-900'>{data?.title || 'Add a short headline about your expertise'}</p>
 
-				<div className='prose dark:prose-invert max-w-none'>
-					{safeBio ? (
-						<div dangerouslySetInnerHTML={{ __html: safeBio }} />
-					) : (
-						<p className='text-base-content/60'>Describe your strengths, skills, projects, and what you deliver.</p>
-					)}
-				</div>
+                        <div className='prose max-w-none text-slate-600'>
+                                {safeBio ? (
+                                        <div dangerouslySetInnerHTML={{ __html: safeBio }} />
+                                ) : (
+                                        <p>Describe your strengths, skills, projects, and what you deliver.</p>
+                                )}
+                        </div>
 
-				<div className='mt-2 flex flex-wrap gap-2'>
-					{(data?.links ?? []).map((u: string) => (
-						<LinkChip key={u} url={u} />
-					))}
-				</div>
-			</div>
+                        <div className='mt-4 flex flex-wrap gap-2'>
+                                {(data?.links ?? []).map((u: string) => (
+                                        <LinkChip key={u} url={u} />
+                                ))}
+                        </div>
 
-			{/* Modal */}
+                        {/* Modal */}
                         {editable && open && (
                                 <div className='modal modal-open'>
 					<div className='modal-box w-11/12 max-w-3xl'>

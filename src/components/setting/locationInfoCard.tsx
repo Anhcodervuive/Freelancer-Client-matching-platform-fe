@@ -48,94 +48,89 @@ export function LocationCard() {
                 }
         }
 
-	return (
-		<div className='card bg-base-100 border border-base-300'>
-			<div className='card-body gap-6'>
-				{!edit && (
-					<div className='grid gap-6'>
-						<div className='flex items-center justify-between'>
-							<h3 className='text-xl'>Location</h3>
-							<button className='btn btn-ghost btn-sm btn-circle text-green-700' onClick={() => setEdit(true)}>
-								<Pencil />
-							</button>
-						</div>
-						<div className='flex flex-col gap-2'>
-							<div>
-								<p className='font-semibold'>Country</p>
-								<p>{data?.country ?? 'Not existed'}</p>
-							</div>
-							<div>
-								<p className='font-semibold'>City</p>
-								<p>{data?.city ?? 'Not existed'}</p>
-							</div>
-							<div>
-								<p className='font-semibold'>District</p>
-								<p>{data?.district ?? 'Not existed'}</p>
-							</div>
-							<div>
-								<p className='font-semibold'>Address</p>
-								<p>{data?.address ?? 'Not existed'}</p>
-							</div>
-						</div>
-					</div>
-				)}
+        return (
+                <div className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_22px_75px_rgba(15,23,42,0.1)]'>
+                        {!edit && (
+                                <div className='grid gap-6'>
+                                        <div className='flex items-center justify-between'>
+                                                <div>
+                                                        <h3 className='text-xl font-semibold text-slate-900'>Location</h3>
+                                                        <p className='text-sm text-slate-500'>Địa chỉ giúp khách hàng biết bạn đang làm việc từ đâu.</p>
+                                                </div>
+                                                <button className='btn btn-ghost btn-sm btn-circle text-primary hover:bg-primary/10' onClick={() => setEdit(true)}>
+                                                        <Pencil />
+                                                </button>
+                                        </div>
+                                        <div className='grid gap-4 sm:grid-cols-2'>
+                                                <div className='rounded-2xl border border-white/60 bg-white/75 p-4 shadow-inner shadow-white/30'>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.28em] text-slate-400'>Country</p>
+                                                        <p className='mt-2 text-sm font-medium text-slate-900'>{data?.country ?? 'Not provided'}</p>
+                                                </div>
+                                                <div className='rounded-2xl border border-white/60 bg-white/75 p-4 shadow-inner shadow-white/30'>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.28em] text-slate-400'>City</p>
+                                                        <p className='mt-2 text-sm font-medium text-slate-900'>{data?.city ?? 'Not provided'}</p>
+                                                </div>
+                                                <div className='rounded-2xl border border-white/60 bg-white/75 p-4 shadow-inner shadow-white/30'>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.28em] text-slate-400'>District</p>
+                                                        <p className='mt-2 text-sm font-medium text-slate-900'>{data?.district ?? 'Not provided'}</p>
+                                                </div>
+                                                <div className='rounded-2xl border border-white/60 bg-white/75 p-4 shadow-inner shadow-white/30'>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.28em] text-slate-400'>Address</p>
+                                                        <p className='mt-2 text-sm font-medium text-slate-900'>{data?.address ?? 'Not provided'}</p>
+                                                </div>
+                                        </div>
+                                </div>
+                        )}
 
-				{/* ACCOUNT (edit) */}
-				{edit && (
-					<form className='grid gap-4' onSubmit={handleSubmit}>
-						<h3 className='text-xl'>Account</h3>
-						<div className='grid sm:grid-cols-2 gap-4'>
-							<div className=''>
-								<label className='label'>
-									<span className='label-text'>Country</span>
-								</label>
-								<CountryAutocomplete value={countryVal} onChange={value => setCountryVal(value)} />
-							</div>
-							<div className=''>
-								<label className='label'>
-									<span className='label-text'>City</span>
-								</label>
-								<input
-									className='input input-bordered w-full'
-									value={form.city || ''}
-									onChange={e => setForm(s => ({ ...s, city: e.target.value }))}
-									required
-								/>
-							</div>
-							<div className=''>
-								<label className='label'>
-									<span className='label-text'>District</span>
-								</label>
-								<input
-									className='input input-bordered w-full'
-									value={form.district || ''}
-									onChange={e => setForm(s => ({ ...s, district: e.target.value }))}
-									required
-								/>
-							</div>
-							<div className=''>
-								<label className='label'>
-									<span className='label-text'>Address</span>
-								</label>
-								<input
-									className='input input-bordered w-full'
-									value={form.address || ''}
-									onChange={e => setForm(s => ({ ...s, address: e.target.value }))}
-									required
-								/>
-							</div>
-						</div>
-						<div className='flex gap-3 pt-2'>
-							<button className={`btn btn-primary ${disabled ? 'btn-disabled' : ''}`} type='submit'>
-								{isUpdate ? 'Saving…' : 'Update'}
-							</button>
-							<button type='button' className='btn' onClick={() => setEdit(false)}>
-								Cancel
-							</button>
-						</div>
-					</form>
-				)}
-			</div>
-		</div>
-	)
+                        {edit && (
+                                <form className='mt-2 grid gap-4' onSubmit={handleSubmit}>
+                                        <div className='flex items-center justify-between'>
+                                                <h3 className='text-xl font-semibold text-slate-900'>Update location</h3>
+                                                <span className='text-xs uppercase tracking-[0.3em] text-slate-400'>Keep it accurate</span>
+                                        </div>
+                                        <div className='grid gap-4 sm:grid-cols-2'>
+                                                <div>
+                                                        <label className='label text-sm font-medium text-slate-600'>Country</label>
+                                                        <CountryAutocomplete value={countryVal} onChange={value => setCountryVal(value)} />
+                                                </div>
+                                                <div>
+                                                        <label className='label text-sm font-medium text-slate-600'>City</label>
+                                                        <input
+                                                                className='input input-bordered w-full rounded-xl border-white/60 bg-white/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                                                value={form.city || ''}
+                                                                onChange={e => setForm(s => ({ ...s, city: e.target.value }))}
+                                                                required
+                                                        />
+                                                </div>
+                                                <div>
+                                                        <label className='label text-sm font-medium text-slate-600'>District</label>
+                                                        <input
+                                                                className='input input-bordered w-full rounded-xl border-white/60 bg-white/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                                                value={form.district || ''}
+                                                                onChange={e => setForm(s => ({ ...s, district: e.target.value }))}
+                                                                required
+                                                        />
+                                                </div>
+                                                <div>
+                                                        <label className='label text-sm font-medium text-slate-600'>Address</label>
+                                                        <input
+                                                                className='input input-bordered w-full rounded-xl border-white/60 bg-white/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                                                value={form.address || ''}
+                                                                onChange={e => setForm(s => ({ ...s, address: e.target.value }))}
+                                                                required
+                                                        />
+                                                </div>
+                                        </div>
+                                        <div className='flex flex-wrap gap-3 pt-2'>
+                                                <button className={`btn rounded-full bg-gradient-to-r from-primary to-secondary px-6 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 ${disabled ? 'btn-disabled' : ''}`} type='submit'>
+                                                        {isUpdate ? 'Saving…' : 'Update'}
+                                                </button>
+                                                <button type='button' className='btn rounded-full border border-white/60 bg-white/70 px-6 text-slate-700 hover:border-primary/40 hover:bg-primary/10' onClick={() => setEdit(false)}>
+                                                        Cancel
+                                                </button>
+                                        </div>
+                                </form>
+                        )}
+                </div>
+        )
 }

@@ -55,18 +55,18 @@ export default function LanguagesSection({ userId, editable = true }: Props) {
 		[current]
 	)
 
-	return (
-		<section className='rounded-xl border border-base-200 bg-white/90 p-4'>
+        return (
+                <section className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]'>
                         <div className='flex items-center justify-between'>
-                                <h3 className='font-semibold'>Languages</h3>
+                                <h3 className='text-lg font-semibold text-slate-900'>Languages</h3>
                                 {editable && (
                                         <div className='flex gap-2'>
-                                                <button className='btn btn-ghost btn-circle btn-sm text-green-700' title='Add' onClick={() => setOpen('add')}>
+                                                <button className='btn btn-ghost btn-circle btn-sm text-primary hover:bg-primary/10' title='Add language' onClick={() => setOpen('add')}>
                                                         <Plus />
                                                 </button>
                                                 <button
-                                                        className='btn btn-ghost btn-circle btn-sm text-green-700'
-                                                        title='Edit'
+                                                        className='btn btn-ghost btn-circle btn-sm text-primary hover:bg-primary/10'
+                                                        title='Edit languages'
                                                         onClick={() => setOpen('edit')}>
                                                         <Pencil />
                                                 </button>
@@ -74,32 +74,32 @@ export default function LanguagesSection({ userId, editable = true }: Props) {
                                 )}
                         </div>
 
-			{listQ.isLoading ? (
-				<div className='flex w-52 flex-col gap-4'>
-					<div className='skeleton h-4 w-full'></div>
-					<div className='skeleton h-4 w-full'></div>
-				</div>
-			) : listQ.isError ? (
-				<div className='text-sm text-red-600 mt-2'>Failed to load languages</div>
-			) : current.length ? (
-				<div className='mt-2 space-y-1'>
-					{current.map(l => (
-						<div key={l.languageCode} className=''>
-							<span className='font-medium mr-2'>{languageNameFromCode(l.languageCode)}:</span>{' '}
-							<span className='text-base-content/60'>
-								{l.proficiency === 'NATIVE'
-									? 'Native or Bilingual'
-									: l.proficiency === 'FLUENT'
-									? 'Fluent'
-									: l.proficiency === 'CONVERSATIONAL'
-									? 'Conversational'
-									: 'Basic'}
-							</span>
-						</div>
-					))}
-				</div>
+                        {listQ.isLoading ? (
+                                <div className='flex w-52 flex-col gap-4'>
+                                        <div className='skeleton h-4 w-full'></div>
+                                        <div className='skeleton h-4 w-full'></div>
+                                </div>
+                        ) : listQ.isError ? (
+                                <div className='mt-2 text-sm text-error'>Failed to load languages.</div>
+                        ) : current.length ? (
+                                <div className='mt-2 space-y-2'>
+                                        {current.map(l => (
+                                                <div key={l.languageCode} className='flex flex-col rounded-2xl border border-white/70 bg-white/75 px-4 py-2 shadow-inner shadow-white/20 sm:flex-row sm:items-center sm:justify-between'>
+                                                        <span className='font-medium text-slate-900'>{languageNameFromCode(l.languageCode)}</span>
+                                                        <span className='text-sm text-slate-500'>
+                                                                {l.proficiency === 'NATIVE'
+                                                                        ? 'Native or Bilingual'
+                                                                        : l.proficiency === 'FLUENT'
+                                                                        ? 'Fluent'
+                                                                        : l.proficiency === 'CONVERSATIONAL'
+                                                                        ? 'Conversational'
+                                                                        : 'Basic'}
+                                                        </span>
+                                                </div>
+                                        ))}
+                                </div>
                         ) : (
-                                <div className='text-sm text-base-content/60 mt-2'>
+                                <div className='mt-2 text-sm text-slate-500'>
                                         {editable ? 'No languages yet.' : 'No language information available.'}
                                 </div>
                         )}

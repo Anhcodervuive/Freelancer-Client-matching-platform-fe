@@ -60,12 +60,12 @@ export default function CategorySpecialtySection({ userId, editable = true }: Pr
         const canEdit = editable && Boolean(userId)
 
         return (
-                <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
+                <section className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]'>
                         <div className='flex items-center justify-between'>
-                                <h3 className='font-semibold'>Categories</h3>
+                                <h3 className='text-lg font-semibold text-slate-900'>Categories</h3>
                                 {canEdit && (
                                         <button
-                                                className='btn btn-ghost btn-circle btn-sm text-green-700'
+                                                className='btn btn-ghost btn-circle btn-sm text-primary hover:bg-primary/10'
                                                 onClick={() => setOpen(true)}
                                                 disabled={isLoading || mutation.isPending}
                                                 title='Manage categories'
@@ -89,26 +89,26 @@ export default function CategorySpecialtySection({ userId, editable = true }: Pr
                                         <div className='text-sm text-error'>Không thể tải dữ liệu danh mục và chuyên môn.</div>
                                 ) : hasSelections ? (
                                         grouped.map(group => (
-                                                <div key={group.category.id} className='space-y-2'>
-                                                        <div className='font-semibold text-base-content'>{group.category.name}</div>
+                                                <div key={group.category.id} className='space-y-2 rounded-3xl border border-white/70 bg-white/75 p-4 shadow-inner shadow-white/20'>
+                                                        <div className='font-semibold text-slate-900'>{group.category.name}</div>
                                                         {group.specialties.length > 0 ? (
                                                                 <div className='flex flex-wrap gap-2'>
                                                                         {group.specialties.map(item => (
                                                                                 <span
                                                                                         key={item.id}
-                                                                                        className='badge badge-outline rounded-full px-3 py-2 text-sm font-medium'
+                                                                                        className='inline-flex items-center rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-sm font-medium text-secondary shadow-sm'
                                                                                 >
                                                                                         {item.name}
                                                                                 </span>
                                                                         ))}
                                                                 </div>
                                                         ) : (
-                                                                <div className='text-sm text-base-content/60'>Chưa chọn chuyên môn cho danh mục này.</div>
+                                                                <div className='text-sm text-slate-500'>Chưa chọn chuyên môn cho danh mục này.</div>
                                                         )}
                                                 </div>
                                         ))
                                 ) : (
-                                        <div className='text-sm text-base-content/60'>
+                                        <div className='text-sm text-slate-500'>
                                                 {canEdit
                                                         ? 'Bạn chưa chọn danh mục nào. Nhấn vào biểu tượng chỉnh sửa để bắt đầu.'
                                                         : 'Freelancer chưa cập nhật danh mục làm việc.'}

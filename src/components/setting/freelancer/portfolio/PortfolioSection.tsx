@@ -131,27 +131,27 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
         }, [canEdit, visibilityParam])
 
         return (
-                <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
+                <section className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_22px_75px_rgba(15,23,42,0.1)]'>
                         <div className='flex flex-wrap items-center justify-between gap-3'>
                                 <div>
-                                        <h3 className='text-lg font-semibold text-base-content'>Portfolio</h3>
-                                        <p className='text-sm text-base-content/70'>Những dự án nổi bật mà bạn đã hoàn thành.</p>
+                                        <h3 className='text-lg font-semibold text-slate-900'>Portfolio</h3>
+                                        <p className='text-sm text-slate-500'>Những dự án nổi bật mà bạn đã hoàn thành.</p>
                                 </div>
                                 <div className='flex flex-wrap items-center gap-2 sm:gap-3'>
                                         {showFilterControls && (
                                                 <div className='flex items-center gap-2'>
-                                                        <span className='text-xs font-semibold uppercase tracking-[0.16em] text-base-content/60'>
+                                                        <span className='text-xs font-semibold uppercase tracking-[0.16em] text-slate-400'>
                                                                 Hiển thị
                                                         </span>
-                                                        <div className='join'>
+                                                        <div className='flex rounded-full border border-primary/20 bg-white/80 p-1 shadow-inner shadow-white/30'>
                                                                 {filterOptions.map(option => (
                                                                         <button
                                                                                 key={option.value}
                                                                                 type='button'
-                                                                                className={`btn btn-xs join-item ${
+                                                                                className={`btn btn-xs rounded-full px-3 ${
                                                                                         option.value === visibilityFilter
                                                                                                 ? 'btn-primary'
-                                                                                                : 'btn-ghost'
+                                                                                                : 'btn-ghost text-slate-600 hover:text-primary'
                                                                                 }`}
                                                                                 onClick={() => {
                                                                                         if (option.value !== visibilityFilter) {
@@ -169,7 +169,7 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                         {canEdit && (
                                                 <button
                                                         type='button'
-                                                        className='btn btn-sm btn-primary gap-2'
+                                                        className='btn btn-sm gap-2 rounded-full bg-gradient-to-r from-primary to-secondary px-5 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40'
                                                         onClick={() => {
                                                                 setEditing(null)
                                                                 setOpen(true)
@@ -186,11 +186,11 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                 {listQuery.isLoading ? (
                                         <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3'>
                                                 {Array.from({ length: 3 }).map((_, idx) => (
-                                                        <div key={idx} className='h-64 rounded-2xl border border-base-200 bg-base-200/60'></div>
+                                                        <div key={idx} className='h-64 rounded-3xl border border-white/60 bg-white/60 shadow-inner shadow-white/20'></div>
                                                 ))}
                                         </div>
                                 ) : listQuery.isError ? (
-                                        <div className='rounded-xl border border-error/30 bg-error/5 p-4 text-sm text-error'>
+                                        <div className='rounded-3xl border border-error/30 bg-error/10 p-4 text-sm text-error'>
                                                 Không thể tải dữ liệu portfolio.
                                                 <button
                                                         type='button'
@@ -221,7 +221,7 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                                         setViewer(item)
                                                                                 }
                                                                         }}
-                                                                        className='group relative flex h-full flex-col overflow-hidden rounded-3xl border border-base-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus:outline-none'
+                                                                        className='group relative flex h-full flex-col overflow-hidden rounded-3xl border border-white/70 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(15,23,42,0.12)] focus:outline-none'
                                                                 >
                                                                         <div className='relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br text-4xl'>
                                                                                 {url && isImage ? (
@@ -252,13 +252,13 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                                         </div>
                                                                                 )}
                                                                                 {url && isVideo && (
-                                                                                        <span className='absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase text-base-content shadow-sm'>Video</span>
+                                                                                        <span className='absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase text-slate-800 shadow-sm'>Video</span>
                                                                                 )}
                                                                                 {canEdit && (
                                                                                         <div className='absolute right-3 top-3 flex gap-1 opacity-0 transition group-hover:opacity-100'>
                                                                                                 <button
                                                                                                         type='button'
-                                                                                                        className='btn btn-circle btn-ghost btn-xs'
+                                                                                                        className='btn btn-circle btn-ghost btn-xs text-slate-600 hover:bg-primary/10 hover:text-primary'
                                                                                                         title='Chỉnh sửa'
                                                                                                         onClick={event => onEdit(event, item)}
                                                                                                 >
@@ -266,7 +266,7 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                                                 </button>
                                                                                                 <button
                                                                                                         type='button'
-                                                                                                        className='btn btn-circle btn-ghost btn-xs text-error'
+                                                                                                        className='btn btn-circle btn-ghost btn-xs text-error hover:bg-error/10'
                                                                                                         title='Xoá portfolio'
                                                                                                         disabled={deleteMutation.isPending}
                                                                                                         onClick={event => onDelete(event, item)}
@@ -276,16 +276,16 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                                         </div>
                                                                                 )}
                                                                         </div>
-                                                                        <div className='flex flex-1 flex-col justify-between p-4'>
+                                                                        <div className='flex flex-1 flex-col justify-between p-5'>
                                                                                 <div>
-                                                                                        <h4 className='text-base font-semibold text-base-content line-clamp-2'>{item.title}</h4>
+                                                                                        <h4 className='text-base font-semibold text-slate-900 line-clamp-2'>{item.title}</h4>
                                                                                         {item.role && (
-                                                                                                <div className='mt-1 text-xs uppercase tracking-wide text-base-content/60'>
+                                                                                                <div className='mt-1 text-xs uppercase tracking-[0.2em] text-slate-400'>
                                                                                                         {item.role}
                                                                                                 </div>
                                                                                         )}
                                                                                         {item.description && (
-                                                                                                <p className='mt-2 text-sm text-base-content/70 line-clamp-3'>
+                                                                                                <p className='mt-2 text-sm text-slate-500 line-clamp-3'>
                                                                                                         {item.description}
                                                                                                 </p>
                                                                                         )}
@@ -298,7 +298,7 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                                                                         return (
                                                                                                                 <span
                                                                                                                         key={name}
-                                                                                                                        className='badge badge-outline rounded-full px-3 py-2 text-xs font-medium'
+                                                                                                                        className='inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary'
                                                                                                                 >
                                                                                                                         {name}
                                                                                                                 </span>
@@ -312,7 +312,7 @@ export default function PortfolioSection({ userId, editable = true }: Props) {
                                                 })}
                                         </div>
                                 ) : (
-                                        <div className='rounded-2xl border border-dashed border-base-300 bg-base-200/40 p-8 text-center text-sm text-base-content/70'>
+                                        <div className='rounded-3xl border border-dashed border-white/70 bg-white/60 p-8 text-center text-sm text-slate-500'>
                                                 {emptyMessage}
                                         </div>
                                 )}

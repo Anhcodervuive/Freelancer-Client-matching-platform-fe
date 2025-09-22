@@ -182,8 +182,8 @@ const router = createBrowserRouter([
 ])
 
 function App() {
-	return (
-		<div className='font-display'>
+        return (
+                <div className='min-h-dvh text-base-content/90'>
 			<QueryClientProvider client={qc}>
 				<Provider store={store}>
 					<PersistGate persistor={persistor}>

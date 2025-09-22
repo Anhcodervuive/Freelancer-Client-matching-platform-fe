@@ -48,32 +48,32 @@ const SingleValue = (props: any) => {
 
 // --- React-Select styles (subtle, modern) -----------------------------------
 const styles: StylesConfig<CountryOption, false> = {
-	control: (base, state) => ({
-		...base,
-		minHeight: 44,
-		borderRadius: 12,
-		borderColor: state.isFocused ? 'oklch(82% 0.189 84.429)' : 'oklch(92% 0.004 286.32)',
-		boxShadow: state.isFocused ? '0 0 0 2px oklch(82% 0.189 84.429 / 0.25)' : 'none',
-		paddingLeft: 6,
-		backgroundColor: 'oklch(98% 0 0)',
-		':hover': { borderColor: 'oklch(82% 0.189 84.429)' }
-	}),
-	valueContainer: base => ({ ...base, padding: '0 12px' }),
-	input: base => ({ ...base, margin: 0 }),
-	placeholder: base => ({ ...base, color: 'oklch(21% 0.006 285.885 / 0.6)' }),
-	option: (base, state) => ({
-		...base,
-		paddingTop: 8,
-		paddingBottom: 8,
-		backgroundColor: state.isFocused ? 'oklch(96% 0.001 286.375)' : 'transparent',
-		color: 'oklch(21% 0.006 285.885)'
-	}),
-	menu: base => ({
-		...base,
-		borderRadius: 12,
-		overflow: 'hidden',
-		boxShadow: '0 8px 28px rgba(0,0,0,.08)'
-	})
+        control: (base, state) => ({
+                ...base,
+                minHeight: 44,
+                borderRadius: 12,
+                borderColor: state.isFocused ? 'oklch(79% 0.15 155.08)' : 'oklch(90% 0.03 220.21)',
+                boxShadow: state.isFocused ? '0 0 0 2px oklch(79% 0.15 155.08 / 0.22)' : 'none',
+                paddingLeft: 6,
+                backgroundColor: 'oklch(97% 0.01 220.21)',
+                ':hover': { borderColor: 'oklch(79% 0.15 155.08)' }
+        }),
+        valueContainer: base => ({ ...base, padding: '0 12px' }),
+        input: base => ({ ...base, margin: 0 }),
+        placeholder: base => ({ ...base, color: 'oklch(23% 0.02 235.78 / 0.55)' }),
+        option: (base, state) => ({
+                ...base,
+                paddingTop: 8,
+                paddingBottom: 8,
+                backgroundColor: state.isFocused ? 'oklch(94% 0.02 220.21)' : 'transparent',
+                color: 'oklch(23% 0.02 235.78)'
+        }),
+        menu: base => ({
+                ...base,
+                borderRadius: 12,
+                overflow: 'hidden',
+                boxShadow: '0 12px 32px rgba(15,23,42,0.12)'
+        })
 }
 
 export default function CountrySelect({

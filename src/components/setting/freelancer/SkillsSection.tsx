@@ -44,19 +44,19 @@ export default function SkillsSection({ userId, editable = true }: Props) {
         }
 
         return (
-                <section className='rounded-xl border border-base-200 bg-white/90 p-4'>
+                <section className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]'>
                         <div className='flex items-center justify-between'>
-                                <h3 className='font-semibold'>Skills</h3>
+                                <h3 className='text-lg font-semibold text-slate-900'>Skills</h3>
                                 {editable && (
                                         <div className='flex gap-2'>
                                                 <button
-                                                        className='btn btn-ghost btn-circle btn-sm text-green-700'
+                                                        className='btn btn-ghost btn-circle btn-sm text-primary hover:bg-primary/10'
                                                         title='Add skill'
                                                         onClick={() => setMode('add')}>
                                                         <Plus />
                                                 </button>
                                                 <button
-                                                        className='btn btn-ghost btn-circle btn-sm text-green-700'
+                                                        className='btn btn-ghost btn-circle btn-sm text-primary hover:bg-primary/10'
                                                         title='Manage skills'
                                                         onClick={() => setMode('manage')}>
                                                         <Pencil />
@@ -72,19 +72,20 @@ export default function SkillsSection({ userId, editable = true }: Props) {
                                         <div className='skeleton h-6 w-20 rounded-full'></div>
                                 </div>
                         ) : listQuery.isError ? (
-                                <div className='mt-2 text-sm text-red-600'>Failed to load skills.</div>
+                                <div className='mt-2 text-sm text-error'>Failed to load skills.</div>
                         ) : skills.length > 0 ? (
                                 <div className='mt-3 flex flex-wrap gap-2'>
                                         {skills.map(skill => (
                                                 <span
                                                         key={skill.id}
-                                                        className='badge badge-outline rounded-full px-3 py-2 text-sm font-medium'>
+                                                        className='inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary shadow-sm'
+                                                >
                                                         {skill.name}
                                                 </span>
                                         ))}
                                 </div>
                         ) : (
-                                <div className='mt-2 text-sm text-base-content/60'>
+                                <div className='mt-2 text-sm text-slate-500'>
                                         {editable ? 'Bạn chưa thêm kỹ năng nào.' : 'No skill information available.'}
                                 </div>
                         )}
