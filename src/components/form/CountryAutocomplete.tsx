@@ -50,21 +50,22 @@ const SingleValue = (props: any) => {
 const styles: StylesConfig<CountryOption, false> = {
         control: (base, state) => ({
                 ...base,
-                minHeight: 44,
+                minHeight: 40,
                 borderRadius: 12,
                 borderColor: state.isFocused ? 'oklch(79% 0.15 155.08)' : 'oklch(90% 0.03 220.21)',
                 boxShadow: state.isFocused ? '0 0 0 2px oklch(79% 0.15 155.08 / 0.22)' : 'none',
-                paddingLeft: 6,
+                paddingLeft: 4,
                 backgroundColor: 'oklch(97% 0.01 220.21)',
+                fontSize: '0.95rem',
                 ':hover': { borderColor: 'oklch(79% 0.15 155.08)' }
         }),
-        valueContainer: base => ({ ...base, padding: '0 12px' }),
+        valueContainer: base => ({ ...base, padding: '0 10px' }),
         input: base => ({ ...base, margin: 0 }),
         placeholder: base => ({ ...base, color: 'oklch(23% 0.02 235.78 / 0.55)' }),
         option: (base, state) => ({
                 ...base,
-                paddingTop: 8,
-                paddingBottom: 8,
+                paddingTop: 7,
+                paddingBottom: 7,
                 backgroundColor: state.isFocused ? 'oklch(94% 0.02 220.21)' : 'transparent',
                 color: 'oklch(23% 0.02 235.78)'
         }),

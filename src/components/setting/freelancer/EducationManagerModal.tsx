@@ -51,90 +51,90 @@ export default function EducationManagerModal({ initial, onClose, userId }: Prop
 		return () => window.removeEventListener('keydown', fn)
 	}, [onClose])
 
-	return (
-		<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
-			<div className='bg-base-100 w-full max-w-xl rounded-2xl p-6'>
-				<div className='text-xl font-bold mb-4'>{editing ? 'Edit education' : 'Add education'}</div>
+        return (
+                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
+                        <div className='bg-base-100 w-full max-w-xl rounded-2xl p-6'>
+                                <div className='text-xl font-bold mb-4'>{editing ? 'Edit education' : 'Add education'}</div>
 
-				<div className='space-y-4'>
-					<div>
-						<label className='label'>
-							<span className='label-text'>School</span>
-						</label>
-						<input
-							className='input input-bordered w-full'
-							placeholder='Ex: Northwestern University'
-							value={schoolName}
-							onChange={e => setSchoolName(e.target.value)}
-						/>
-					</div>
+                                <div className='space-y-4'>
+                                        <div>
+                                                <label className='label'>
+                                                        <span className='label-text'>School</span>
+                                                </label>
+                                                <input
+                                                        className='input input-bordered input-sm md:input-md w-full'
+                                                        placeholder='Ex: Northwestern University'
+                                                        value={schoolName}
+                                                        onChange={e => setSchoolName(e.target.value)}
+                                                />
+                                        </div>
 
-					<div>
-						<label className='label'>
-							<span className='label-text'>Dates attended (optional)</span>
-						</label>
-						<div className='grid grid-cols-2 gap-3'>
-							<select
-								className='select select-bordered'
-								value={startYear === '' ? '' : String(startYear)}
-								onChange={e => setStartYear(e.target.value ? Number(e.target.value) : '')}>
-								<option value=''>From</option>
-								{years.map(y => (
-									<option key={y} value={y}>
-										{y}
-									</option>
-								))}
-							</select>
+                                        <div>
+                                                <label className='label'>
+                                                        <span className='label-text'>Dates attended (optional)</span>
+                                                </label>
+                                                <div className='grid grid-cols-2 gap-3'>
+                                                        <select
+                                                                className='select select-bordered select-sm md:select-md'
+                                                                value={startYear === '' ? '' : String(startYear)}
+                                                                onChange={e => setStartYear(e.target.value ? Number(e.target.value) : '')}>
+                                                                <option value=''>From</option>
+                                                                {years.map(y => (
+                                                                        <option key={y} value={y}>
+                                                                                {y}
+                                                                        </option>
+                                                                ))}
+                                                        </select>
 
-							<select
-								className='select select-bordered'
-								value={endYear === '' ? '' : String(endYear)}
-								onChange={e => setEndYear(e.target.value ? Number(e.target.value) : '')}>
-								<option value=''>To (or expected)</option>
-								{years.map(y => (
-									<option key={y} value={y}>
-										{y}
-									</option>
-								))}
-							</select>
-						</div>
-					</div>
+                                                        <select
+                                                                className='select select-bordered select-sm md:select-md'
+                                                                value={endYear === '' ? '' : String(endYear)}
+                                                                onChange={e => setEndYear(e.target.value ? Number(e.target.value) : '')}>
+                                                                <option value=''>To (or expected)</option>
+                                                                {years.map(y => (
+                                                                        <option key={y} value={y}>
+                                                                                {y}
+                                                                        </option>
+                                                                ))}
+                                                        </select>
+                                                </div>
+                                        </div>
 
-					<div className='grid grid-cols-2 gap-3'>
-						<div>
-							<label className='label'>
-								<span className='label-text'>Degree (optional)</span>
-							</label>
-							<input
-								className='input input-bordered w-full'
-								placeholder="Ex: Bachelor's degree"
-								value={degreeTitle ?? ''}
-								onChange={e => setDegreeTitle(e.target.value)}
-							/>
-						</div>
-						<div>
-							<label className='label'>
-								<span className='label-text'>Area of study (optional)</span>
-							</label>
-							<input
-								className='input input-bordered w-full'
-								placeholder='Ex: Computer Science'
-								value={fieldOfStudy ?? ''}
-								onChange={e => setFieldOfStudy(e.target.value)}
-							/>
-						</div>
-					</div>
-				</div>
+                                        <div className='grid grid-cols-2 gap-3'>
+                                                <div>
+                                                        <label className='label'>
+                                                                <span className='label-text'>Degree (optional)</span>
+                                                        </label>
+                                                        <input
+                                                                className='input input-bordered input-sm md:input-md w-full'
+                                                                placeholder="Ex: Bachelor's degree"
+                                                                value={degreeTitle ?? ''}
+                                                                onChange={e => setDegreeTitle(e.target.value)}
+                                                        />
+                                                </div>
+                                                <div>
+                                                        <label className='label'>
+                                                                <span className='label-text'>Area of study (optional)</span>
+                                                        </label>
+                                                        <input
+                                                                className='input input-bordered input-sm md:input-md w-full'
+                                                                placeholder='Ex: Computer Science'
+                                                                value={fieldOfStudy ?? ''}
+                                                                onChange={e => setFieldOfStudy(e.target.value)}
+                                                        />
+                                                </div>
+                                        </div>
+                                </div>
 
-				<div className='mt-6 flex justify-end gap-2'>
-					<button className='btn btn-ghost' onClick={onClose}>
-						Cancel
-					</button>
-					<button className='btn btn-primary' onClick={onSave} disabled={!canSave}>
-						Save
-					</button>
-				</div>
-			</div>
-		</div>
-	)
+                                <div className='mt-6 flex justify-end gap-2'>
+                                        <button className='btn btn-ghost btn-sm md:btn-md' onClick={onClose}>
+                                                Cancel
+                                        </button>
+                                        <button className='btn btn-primary btn-sm md:btn-md' onClick={onSave} disabled={!canSave}>
+                                                Save
+                                        </button>
+                                </div>
+                        </div>
+                </div>
+        )
 }

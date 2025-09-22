@@ -96,7 +96,7 @@ export function LocationCard() {
                                                 <div>
                                                         <label className='label text-sm font-medium text-slate-600'>City</label>
                                                         <input
-                                                                className='input input-bordered w-full rounded-xl border-white/60 bg-white/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                                                className='input input-bordered input-sm md:input-md w-full rounded-xl border-white/60 bg-white/70 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
                                                                 value={form.city || ''}
                                                                 onChange={e => setForm(s => ({ ...s, city: e.target.value }))}
                                                                 required
@@ -105,7 +105,7 @@ export function LocationCard() {
                                                 <div>
                                                         <label className='label text-sm font-medium text-slate-600'>District</label>
                                                         <input
-                                                                className='input input-bordered w-full rounded-xl border-white/60 bg-white/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                                                className='input input-bordered input-sm md:input-md w-full rounded-xl border-white/60 bg-white/70 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
                                                                 value={form.district || ''}
                                                                 onChange={e => setForm(s => ({ ...s, district: e.target.value }))}
                                                                 required
@@ -114,21 +114,21 @@ export function LocationCard() {
                                                 <div>
                                                         <label className='label text-sm font-medium text-slate-600'>Address</label>
                                                         <input
-                                                                className='input input-bordered w-full rounded-xl border-white/60 bg-white/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                                                className='input input-bordered input-sm md:input-md w-full rounded-xl border-white/60 bg-white/70 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
                                                                 value={form.address || ''}
                                                                 onChange={e => setForm(s => ({ ...s, address: e.target.value }))}
                                                                 required
                                                         />
                                                 </div>
                                         </div>
-                                        <div className='flex flex-wrap gap-3 pt-2'>
-                                                <button className={`btn rounded-full bg-gradient-to-r from-primary to-secondary px-6 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 ${disabled ? 'btn-disabled' : ''}`} type='submit'>
-                                                        {isUpdate ? 'Saving…' : 'Update'}
-                                                </button>
-                                                <button type='button' className='btn rounded-full border border-white/60 bg-white/70 px-6 text-slate-700 hover:border-primary/40 hover:bg-primary/10' onClick={() => setEdit(false)}>
-                                                        Cancel
-                                                </button>
-                                        </div>
+                                                <div className='flex flex-wrap gap-3 pt-2'>
+                                                        <button className={`btn btn-sm md:btn-md rounded-full bg-gradient-to-r from-primary to-secondary px-5 md:px-6 text-sm font-medium text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 ${disabled ? 'btn-disabled' : ''}`} type='submit'>
+                                                                {isUpdate ? 'Saving…' : 'Update'}
+                                                        </button>
+                                                        <button type='button' className='btn btn-sm md:btn-md rounded-full border border-white/60 bg-white/70 px-5 md:px-6 text-sm font-medium text-slate-700 transition hover:border-primary/40 hover:bg-primary/10' onClick={() => setEdit(false)}>
+                                                                Cancel
+                                                        </button>
+                                                </div>
                                 </form>
                         )}
                 </div>

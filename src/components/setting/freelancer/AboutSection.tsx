@@ -150,13 +150,13 @@ export default function AboutSection({ userId, editable = true }: Props) {
 								<span className='label-text'>Headline (title)</span>
 								<span className='label-text-alt'>{title.length}/255</span>
 							</label>
-							<input
-								className='input input-bordered'
-								value={title}
-								maxLength={255}
-								onChange={e => setTitle(e.target.value)}
-								placeholder='Front-end Developer | React, TypeScript'
-							/>
+                                                        <input
+                                                                className='input input-bordered input-sm md:input-md'
+                                                                value={title}
+                                                                maxLength={255}
+                                                                onChange={e => setTitle(e.target.value)}
+                                                                placeholder='Front-end Developer | React, TypeScript'
+                                                        />
 						</div>
 
 						<div className='mt-3'>
@@ -170,17 +170,17 @@ export default function AboutSection({ userId, editable = true }: Props) {
 							<label className='label'>
 								<span className='label-text'>Links (GitHub, Portfolio, Blog...)</span>
 							</label>
-							<div className='join w-full'>
-								<input
-									className='input input-bordered join-item w-full'
-									value={linkInput}
-									onChange={e => setLinkInput(e.target.value)}
-									placeholder='https://github.com/yourname'
-								/>
-								<button className='btn join-item' onClick={addLink}>
-									Add
-								</button>
-							</div>
+                                                        <div className='join w-full'>
+                                                                <input
+                                                                        className='input input-bordered input-sm md:input-md join-item w-full'
+                                                                        value={linkInput}
+                                                                        onChange={e => setLinkInput(e.target.value)}
+                                                                        placeholder='https://github.com/yourname'
+                                                                />
+                                                                <button className='btn btn-sm md:btn-md join-item' onClick={addLink}>
+                                                                        Add
+                                                                </button>
+                                                        </div>
 							<div className='mt-2 flex flex-wrap gap-2'>
 								{links.map(u => (
 									<LinkChip key={u} url={u} onRemove={() => removeLink(u)} />
@@ -188,13 +188,13 @@ export default function AboutSection({ userId, editable = true }: Props) {
 							</div>
 						</div>
 
-						<div className='modal-action'>
-							<button className='btn' onClick={() => setOpen(false)}>
-								Cancel
-							</button>
-							<button className={`btn btn-primary ${saving ? 'btn-disabled' : ''}`} onClick={onSubmit}>
-								{saving ? 'Saving...' : 'Save'}
-							</button>
+                                                <div className='modal-action'>
+                                                        <button className='btn btn-sm md:btn-md' onClick={() => setOpen(false)}>
+                                                                Cancel
+                                                        </button>
+                                                        <button className={`btn btn-primary btn-sm md:btn-md ${saving ? 'btn-disabled' : ''}`} onClick={onSubmit}>
+                                                                {saving ? 'Saving...' : 'Save'}
+                                                        </button>
 						</div>
 					</div>
 					<div className='modal-backdrop' onClick={() => setOpen(false)} />

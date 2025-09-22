@@ -353,7 +353,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                 <span className='label-text font-semibold'>Tiêu đề</span>
                                                         </label>
                                                         <input
-                                                                className='input input-bordered w-full'
+                                                                className='input input-bordered input-sm md:input-md w-full'
                                                                 placeholder='Ví dụ: Giao diện web thương mại điện tử'
                                                                 value={title}
                                                                 onChange={event => setTitle(event.target.value)}
@@ -365,7 +365,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                 <span className='label-text font-semibold'>Vai trò trong dự án (tuỳ chọn)</span>
                                                         </label>
                                                         <input
-                                                                className='input input-bordered w-full'
+                                                                className='input input-bordered input-sm md:input-md w-full'
                                                                 placeholder='Ví dụ: UI/UX Designer'
                                                                 value={role}
                                                                 onChange={event => setRole(event.target.value)}
@@ -377,7 +377,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                 <span className='label-text font-semibold'>Mô tả dự án (tuỳ chọn)</span>
                                                         </label>
                                                         <textarea
-                                                                className='textarea textarea-bordered min-h-[140px] w-full'
+                                                                className='textarea textarea-bordered textarea-sm md:textarea-md min-h-[140px] w-full'
                                                                 placeholder='Chia sẻ tóm tắt mục tiêu, giải pháp và kết quả đạt được.'
                                                                 value={description}
                                                                 onChange={event => setDescription(event.target.value)}
@@ -390,7 +390,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                         <span className='label-text font-semibold'>Đường dẫn dự án (tuỳ chọn)</span>
                                                                 </label>
                                                                 <input
-                                                                        className='input input-bordered w-full'
+                                                                        className='input input-bordered input-sm md:input-md w-full'
                                                                         placeholder='https://'
                                                                         value={projectUrl}
                                                                         onChange={event => setProjectUrl(event.target.value)}
@@ -401,7 +401,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                         <span className='label-text font-semibold'>Đường dẫn mã nguồn (tuỳ chọn)</span>
                                                                 </label>
                                                                 <input
-                                                                        className='input input-bordered w-full'
+                                                                        className='input input-bordered input-sm md:input-md w-full'
                                                                         placeholder='https://'
                                                                         value={repositoryUrl}
                                                                         onChange={event => setRepositoryUrl(event.target.value)}
@@ -416,7 +416,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                 </label>
                                                                 <input
                                                                         type='date'
-                                                                        className='input input-bordered w-full'
+                                                                        className='input input-bordered input-sm md:input-md w-full'
                                                                         value={startedAt}
                                                                         onChange={event => setStartedAt(event.target.value)}
                                                                 />
@@ -427,7 +427,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                 </label>
                                                                 <input
                                                                         type='date'
-                                                                        className='input input-bordered w-full'
+                                                                        className='input input-bordered input-sm md:input-md w-full'
                                                                         value={completedAt}
                                                                         onChange={event => setCompletedAt(event.target.value)}
                                                                 />
@@ -439,7 +439,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                 <span className='label-text font-semibold'>Trạng thái hiển thị</span>
                                                         </label>
                                                         <select
-                                                                className='select select-bordered w-full'
+                                                                className='select select-bordered select-sm md:select-md w-full'
                                                                 value={visibility}
                                                                 onChange={event => setVisibility(event.target.value as PortfolioVisibility)}
                                                         >
@@ -473,7 +473,7 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                                                 </div>
                                                                 <div className='mt-3 flex flex-col gap-2 sm:flex-row sm:items-center'>
                                                                         <select
-                                                                                className='select select-bordered flex-1'
+                                                                                className='select select-bordered select-sm md:select-md flex-1'
                                                                                 value={skillSelector}
                                                                                 onChange={event => setSkillSelector(event.target.value)}
                                                                         >
@@ -596,10 +596,10 @@ export default function PortfolioManagerModal({ initial, onClose, userId }: Prop
                                 </div>
 
                                 <div className='flex items-center justify-end gap-3 border-t border-base-200 bg-base-100 px-6 py-4'>
-                                        <button type='button' className='btn btn-ghost' onClick={onClose} disabled={isSaving}>
+                                        <button type='button' className='btn btn-ghost btn-sm md:btn-md' onClick={onClose} disabled={isSaving}>
                                                 Hủy
                                         </button>
-                                        <button type='button' className='btn btn-primary' onClick={handleSubmit} disabled={!canSave}>
+                                        <button type='button' className='btn btn-primary btn-sm md:btn-md' onClick={handleSubmit} disabled={!canSave}>
                                                 {isSaving ? 'Đang lưu...' : editing ? 'Lưu thay đổi' : 'Tạo portfolio'}
                                         </button>
                                 </div>

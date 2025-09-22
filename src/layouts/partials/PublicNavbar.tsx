@@ -12,10 +12,10 @@ export default function PublicNavbar() {
         const navigate = useNavigate()
 
         return (
-                <header className='sticky top-0 z-40 border-b border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_10px_35px_rgba(15,23,42,0.08)]'>
-                        <div className='mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 md:px-6 md:py-4'>
-                                <Link to='/' className='group flex items-center gap-3 text-slate-900'>
-                                        <span className='inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary via-secondary to-primary text-white shadow-lg shadow-primary/30 ring-2 ring-white/70 transition-transform duration-200 group-hover:scale-105'>
+                <header className='sticky top-0 z-40 border-b border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_8px_28px_rgba(15,23,42,0.08)]'>
+                        <div className='mx-auto flex w-full max-w-6xl items-center gap-2.5 px-4 py-2.5 md:px-6 md:py-3'>
+                                <Link to='/' className='group flex items-center gap-2.5 text-slate-900'>
+                                        <span className='inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary via-secondary to-primary text-white shadow-lg shadow-primary/25 ring-1 ring-white/70 transition-transform duration-200 group-hover:scale-105'>
                                                 <span className='text-base font-semibold leading-none'>W</span>
                                         </span>
                                         <span className='hidden text-lg font-semibold leading-tight tracking-tight sm:inline-block'>Workreap-ish</span>
@@ -66,10 +66,10 @@ export default function PublicNavbar() {
                                         </div>
                                 </nav>
 
-                                <div className='ml-auto hidden items-center gap-3 md:flex'>
+                                <div className='ml-auto hidden items-center gap-2.5 md:flex'>
                                         <input
                                                 placeholder='Search the marketplace'
-                                                className='input input-sm input-bordered w-52 rounded-full border-white/60 bg-white/80 text-sm text-slate-600 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 md:input-md md:w-64'
+                                                className='input input-sm input-bordered w-52 rounded-full border-white/60 bg-white/85 text-sm text-slate-600 shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 md:input-md md:w-60'
                                                 onKeyDown={e => {
                                                         if (e.key === 'Enter') navigate('/search?q=' + (e.target as HTMLInputElement).value)
                                                 }}
@@ -80,7 +80,7 @@ export default function PublicNavbar() {
                                                         <UserMenu user={{ name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role }} />
                                                 </div>
                                         ) : (
-                                                <div className='flex items-center gap-2'>
+                                                <div className='flex items-center gap-1.5'>
                                                         <Link to={routes.auth.signin} className='btn btn-ghost btn-sm rounded-full px-4 text-slate-700 hover:bg-primary/10 hover:text-primary'>
                                                                 Sign in
                                                         </Link>
