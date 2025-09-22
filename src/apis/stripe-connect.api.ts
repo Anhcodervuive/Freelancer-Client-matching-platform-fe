@@ -1,22 +1,24 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
 export interface StripeConnectAccount {
-	id?: string
-	accountId?: string
-	stripeAccountId?: string
-	detailsSubmitted?: boolean
-	details_submitted?: boolean
-	payoutsEnabled?: boolean
-	payouts_enabled?: boolean
-	chargesEnabled?: boolean
-	charges_enabled?: boolean
-	requirementsDue?: string[]
-	requirements?: {
-		currently_due?: string[]
-		eventually_due?: string[]
-		past_due?: string[]
-	}
-	[key: string]: unknown
+        id?: string
+        accountId?: string
+        stripeAccountId?: string
+        detailsSubmitted?: boolean
+        details_submitted?: boolean
+        payoutsEnabled?: boolean
+        payouts_enabled?: boolean
+        chargesEnabled?: boolean
+        charges_enabled?: boolean
+        requirementsDue?: string[]
+        requirements?: {
+                currently_due?: string[]
+                eventually_due?: string[]
+                past_due?: string[]
+        }
+        externalAccountSummary?: unknown
+        external_account_summary?: unknown
+        [key: string]: unknown
 }
 
 export type StripeConnectAccountResponse = StripeConnectAccount & {

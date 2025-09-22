@@ -38,11 +38,80 @@ info: 'text-sky-700',
 danger: 'text-rose-700'
 }
 
-const toneIcon: Record<Tone, JSX.Element> = {
+const toneIcon: Record<Tone, ReactNode> = {
         success: <CheckCircle2 className='h-4 w-4' />,
         warning: <AlertTriangle className='h-4 w-4' />,
         info: <Info className='h-4 w-4' />,
         danger: <OctagonAlert className='h-4 w-4' />
+}
+
+type ExternalAccountSummary = {
+        bankName?: string
+        last4?: string
+        currency?: string
+        accountHolderName?: string
+        routingNumber?: string
+}
+
+const parseExternalAccountSummary = (value?: unknown): ExternalAccountSummary | null => {
+        if (!value) return null
+
+        if (typeof value === 'string') {
+                try {
+                        const parsed = JSON.parse(value)
+                        return parseExternalAccountSummary(parsed)
+                } catch {
+                        return null
+                }
+        }
+
+        if (Array.isArray(value)) {
+                for (const item of value) {
+                        const parsed = parseExternalAccountSummary(item)
+                        if (parsed) return parsed
+                }
+                return null
+        }
+
+        if (typeof value === 'object') {
+                const record = value as Record<string, unknown>
+                const summary: ExternalAccountSummary = {
+                        bankName: pickString(record.bank_name, record.bankName, record.bank),
+                        last4: pickString(record.last4),
+                        currency: pickString(record.currency),
+                        accountHolderName: pickString(record.account_holder_name, record.accountHolderName),
+                        routingNumber: pickString(record.routing_number, record.routingNumber)
+                }
+
+                if (Object.values(summary).some(Boolean)) {
+                        return summary
+                }
+
+                const nestedCandidates = [
+                        record.summary,
+                        record.data,
+                        record.external_account,
+                        record.externalAccount
+                ]
+
+                for (const candidate of nestedCandidates) {
+                        const parsed = parseExternalAccountSummary(candidate)
+                        if (parsed) return parsed
+                }
+        }
+
+        return null
+}
+
+const detailList = (items: string[]) => {
+        if (!items.length) return null
+        return (
+                <ul className='mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-slate-500'>
+                        {items.map(item => (
+                                <li key={item}>{item}</li>
+                        ))}
+                </ul>
+        )
 }
 
 function extractAccount(payload?: StripeConnectAccountResponse | null): StripeConnectAccount | null {
@@ -103,43 +172,39 @@ const statusDescription = (params: {
         if (!hasAccount) {
                 return {
                         tone: 'warning' as Tone,
-                        title: 'Bạn chưa kết nối Stripe Connect',
-                        description:
-                                'Bắt đầu quy trình Stripe Connect để Stripe xác minh danh tính và thiết lập kênh thanh toán cho bạn.'
+                        title: 'Chưa kết nối Stripe',
+                        description: 'Tạo tài khoản Stripe Connect để nhận thanh toán.'
                 }
         }
 
         if (!detailsSubmitted) {
                 return {
                         tone: 'warning' as Tone,
-                        title: 'Hoàn tất biểu mẫu Stripe',
-                        description:
-                                'Bạn đã tạo tài khoản nhưng vẫn cần hoàn tất các bước onboarding trên Stripe để bắt đầu nhận tiền.'
+                        title: 'Thiếu bước xác minh',
+                        description: 'Hoàn tất các bước onboarding còn lại trên Stripe.'
                 }
         }
 
         if (requirements.length > 0) {
                 return {
                         tone: 'danger' as Tone,
-                        title: 'Stripe yêu cầu thêm thông tin',
-                        description:
-                                'Stripe vẫn còn một vài mục cần bạn bổ sung trước khi có thể kích hoạt thanh toán. Nhấn "Mở Stripe Connect" để hoàn tất.'
+                        title: 'Stripe cần thêm thông tin',
+                        description: 'Bổ sung các mục còn thiếu trước khi Stripe bật payouts.'
                 }
         }
 
         if (!payoutsEnabled) {
                 return {
                         tone: 'info' as Tone,
-                        title: 'Đang chờ Stripe bật payouts',
-                        description:
-                                'Stripe đã nhận đủ thông tin và sẽ bật thanh toán sau khi hoàn tất việc xem xét. Bạn có thể kiểm tra lại sau.'
+                        title: 'Stripe đang xem xét',
+                        description: 'Stripe sẽ bật payouts sau khi hoàn tất kiểm duyệt.'
                 }
         }
 
         return {
                 tone: 'success' as Tone,
                 title: 'Stripe Connect đã sẵn sàng',
-                description: 'Tài khoản Stripe Connect của bạn đã được xác minh và payouts đang hoạt động.'
+                description: 'Bạn có thể nhận tiền bình thường.'
         }
 }
 
@@ -208,7 +273,8 @@ const summarySections = (
         detailsSubmitted?: boolean,
         payoutsEnabled?: boolean,
         requirements: string[] = [],
-        countryName?: string
+        countryName?: string,
+        externalAccountSummary?: ExternalAccountSummary | null
 ) => {
         const sections: Array<{
                 key: string
@@ -254,6 +320,41 @@ const summarySections = (
                         : requirements.length > 0
                                 ? 'Stripe hiện đang chặn payouts cho tới khi bạn bổ sung đủ thông tin.'
                                 : 'Stripe sẽ bật payouts ngay sau khi họ hoàn tất kiểm duyệt.'
+        })
+
+        const hasBankSummary = Boolean(externalAccountSummary)
+        const bankDetails: string[] = []
+
+        if (externalAccountSummary?.bankName) {
+                bankDetails.push(`Ngân hàng: ${externalAccountSummary.bankName}`)
+        }
+
+        if (externalAccountSummary?.last4) {
+                bankDetails.push(`Đuôi tài khoản: •••• ${externalAccountSummary.last4}`)
+        }
+
+        if (externalAccountSummary?.currency) {
+                bankDetails.push(`Tiền tệ: ${externalAccountSummary.currency.toUpperCase()}`)
+        }
+
+        if (externalAccountSummary?.accountHolderName) {
+                bankDetails.push(`Chủ tài khoản: ${externalAccountSummary.accountHolderName}`)
+        }
+
+        if (externalAccountSummary?.routingNumber) {
+                bankDetails.push(`Mã định tuyến: ${externalAccountSummary.routingNumber}`)
+        }
+
+        sections.push({
+                key: 'banking',
+                tone: hasBankSummary ? 'success' : accountId ? 'warning' : 'info',
+                title: 'Tài khoản nhận tiền',
+                description: hasBankSummary
+                        ? 'Stripe đã liên kết tài khoản ngân hàng để chuyển payouts.'
+                        : accountId
+                                ? 'Stripe chưa ghi nhận tài khoản ngân hàng cho payouts.'
+                                : 'Bạn sẽ thêm tài khoản ngân hàng trong quá trình thiết lập.',
+                extra: detailList(bankDetails)
         })
 
         sections.push({
@@ -337,6 +438,28 @@ const GetPaidPage = () => {
         )
         const requirements = useMemo(() => requirementsFromAccount(account), [account])
 
+        const externalAccountSummary = useMemo(() => {
+                if (!account) return null
+                const record = account as Record<string, unknown>
+                const candidates = [
+                        record['externalAccountSummary'],
+                        record['external_account_summary'],
+                        record['externalAccounts'],
+                        record['external_accounts'],
+                        record['bankAccount'],
+                        record['bank_account'],
+                        record['default_external_account'],
+                        record['defaultExternalAccount']
+                ]
+
+                for (const candidate of candidates) {
+                        const parsed = parseExternalAccountSummary(candidate)
+                        if (parsed) return parsed
+                }
+
+                return parseExternalAccountSummary(record)
+        }, [account])
+
         const overview = useMemo(
                 () =>
                         statusDescription({
@@ -355,9 +478,17 @@ const GetPaidPage = () => {
                                 detailsSubmitted,
                                 payoutsEnabled,
                                 requirements,
-                                accountCountryOption?.label
+                                accountCountryOption?.label,
+                                externalAccountSummary
                         ),
-                [accountId, detailsSubmitted, payoutsEnabled, requirements, accountCountryOption]
+                [
+                        accountId,
+                        detailsSubmitted,
+                        payoutsEnabled,
+                        requirements,
+                        accountCountryOption,
+                        externalAccountSummary
+                ]
         )
 
         const loading = isLoading || isFetching
@@ -433,7 +564,13 @@ const GetPaidPage = () => {
 						</div>
 					</header>
 
-					<StatusBanner tone={overview.tone} title={overview.title} description={overview.description} />
+                                        {overview.tone !== 'success' ? (
+                                                <StatusBanner
+                                                        tone={overview.tone}
+                                                        title={overview.title}
+                                                        description={overview.description}
+                                                />
+                                        ) : null}
 
 					<div className='grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,240px)]'>
 						<div className='space-y-3 text-sm leading-relaxed text-slate-600'>
@@ -460,19 +597,19 @@ const GetPaidPage = () => {
 						</div>
 					</div>
 
-					<div className='rounded-2xl border border-amber-200/70 bg-amber-50/70 p-4 text-xs leading-relaxed text-amber-700'>
-						<div className='flex items-start gap-3'>
-							<AlertTriangle className='mt-0.5 h-4 w-4 flex-shrink-0' />
-							<div className='space-y-1'>
-								<p className='text-sm font-semibold'>Quốc gia sẽ bị khóa sau khi tạo tài khoản</p>
-								<p>
-									{countryLocked
-										? 'Bạn đã tạo tài khoản Stripe Connect nên quốc gia hiện được cố định. Để chuyển sang quốc gia khác, hãy xóa tài khoản Stripe Connect và khởi tạo lại quy trình.'
-										: 'Khi hoàn tất onboarding Stripe, lựa chọn quốc gia sẽ bị khóa. Hãy đảm bảo bạn chọn đúng trước khi tiếp tục.'}
-								</p>
-							</div>
-						</div>
-					</div>
+                                        {!countryLocked ? (
+                                                <div className='rounded-2xl border border-amber-200/70 bg-amber-50/70 p-4 text-xs leading-relaxed text-amber-700'>
+                                                        <div className='flex items-start gap-3'>
+                                                                <AlertTriangle className='mt-0.5 h-4 w-4 flex-shrink-0' />
+                                                                <div className='space-y-1'>
+                                                                        <p className='text-sm font-semibold'>Quốc gia sẽ bị khóa sau khi tạo tài khoản</p>
+                                                                        <p>
+                                                                                Khi hoàn tất onboarding Stripe, lựa chọn quốc gia sẽ bị khóa. Hãy đảm bảo bạn chọn đúng trước khi tiếp tục.
+                                                                        </p>
+                                                                </div>
+                                                        </div>
+                                                </div>
+                                        ) : null}
 				</section>
 
 				<aside className='space-y-4'>
