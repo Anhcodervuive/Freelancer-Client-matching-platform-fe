@@ -114,6 +114,34 @@ const detailList = (items: string[]) => {
         )
 }
 
+const collectBankDetails = (summary?: ExternalAccountSummary | null) => {
+        const details: string[] = []
+
+        if (!summary) return details
+
+        if (summary.bankName) {
+                details.push(`Ngân hàng: ${summary.bankName}`)
+        }
+
+        if (summary.last4) {
+                details.push(`Đuôi tài khoản: •••• ${summary.last4}`)
+        }
+
+        if (summary.currency) {
+                details.push(`Tiền tệ: ${summary.currency.toUpperCase()}`)
+        }
+
+        if (summary.accountHolderName) {
+                details.push(`Chủ tài khoản: ${summary.accountHolderName}`)
+        }
+
+        if (summary.routingNumber) {
+                details.push(`Mã định tuyến: ${summary.routingNumber}`)
+        }
+
+        return details
+}
+
 function extractAccount(payload?: StripeConnectAccountResponse | null): StripeConnectAccount | null {
         if (!payload) return null
 
@@ -273,8 +301,7 @@ const summarySections = (
         detailsSubmitted?: boolean,
         payoutsEnabled?: boolean,
         requirements: string[] = [],
-        countryName?: string,
-        externalAccountSummary?: ExternalAccountSummary | null
+        countryName?: string
 ) => {
         const sections: Array<{
                 key: string
@@ -322,66 +349,42 @@ const summarySections = (
                                 : 'Stripe sẽ bật payouts ngay sau khi họ hoàn tất kiểm duyệt.'
         })
 
-        const hasBankSummary = Boolean(externalAccountSummary)
-        const bankDetails: string[] = []
-
-        if (externalAccountSummary?.bankName) {
-                bankDetails.push(`Ngân hàng: ${externalAccountSummary.bankName}`)
+        if (requirements.length > 0) {
+                sections.push({
+                        key: 'requirements',
+                        tone: 'danger',
+                        title: 'Thông tin cần bổ sung',
+                        description: 'Stripe vẫn yêu cầu các hạng mục sau:',
+                        extra: requirementList(requirements)
+                })
         }
-
-        if (externalAccountSummary?.last4) {
-                bankDetails.push(`Đuôi tài khoản: •••• ${externalAccountSummary.last4}`)
-        }
-
-        if (externalAccountSummary?.currency) {
-                bankDetails.push(`Tiền tệ: ${externalAccountSummary.currency.toUpperCase()}`)
-        }
-
-        if (externalAccountSummary?.accountHolderName) {
-                bankDetails.push(`Chủ tài khoản: ${externalAccountSummary.accountHolderName}`)
-        }
-
-        if (externalAccountSummary?.routingNumber) {
-                bankDetails.push(`Mã định tuyến: ${externalAccountSummary.routingNumber}`)
-        }
-
-        sections.push({
-                key: 'banking',
-                tone: hasBankSummary ? 'success' : accountId ? 'warning' : 'info',
-                title: 'Tài khoản nhận tiền',
-                description: hasBankSummary
-                        ? 'Stripe đã liên kết tài khoản ngân hàng để chuyển payouts.'
-                        : accountId
-                                ? 'Stripe chưa ghi nhận tài khoản ngân hàng cho payouts.'
-                                : 'Bạn sẽ thêm tài khoản ngân hàng trong quá trình thiết lập.',
-                extra: detailList(bankDetails)
-        })
-
-        sections.push({
-                key: 'requirements',
-                tone: requirements.length > 0 ? 'danger' : 'info',
-                title: requirements.length > 0 ? 'Thông tin cần bổ sung' : 'Yêu cầu từ Stripe',
-                description: requirements.length > 0
-                        ? 'Stripe vẫn yêu cầu các hạng mục sau:'
-                        : 'Hiện Stripe không còn yêu cầu bổ sung thông tin nào khác.',
-                extra: requirementList(requirements)
-        })
 
         return sections
 }
 
 const renderSummary = (sections: ReturnType<typeof summarySections>) => {
+        const flaggedSections = sections.filter(section => section.tone !== 'success')
+
+        if (flaggedSections.length === 0) {
+                return (
+                        <div className='flex items-center gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-4 text-xs font-medium text-emerald-700'>
+                                <CheckCircle2 className='h-4 w-4' />
+                                Stripe Connect của bạn đã hoàn tất — không có cảnh báo nào.
+                        </div>
+                )
+        }
+
         return (
                 <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
-                        {sections.map(section => (
+                        {flaggedSections.map(section => (
                                 <div key={section.key} className='h-full'>
-					<StatusTile tone={section.tone} title={section.title} description={section.description}>
-						{section.extra}
-					</StatusTile>
-				</div>
-			))}
-		</div>
-	)
+                                        <StatusTile tone={section.tone} title={section.title} description={section.description}>
+                                                {section.extra}
+                                        </StatusTile>
+                                </div>
+                        ))}
+                </div>
+        )
 }
 
 const GetPaidPage = () => {
@@ -478,18 +481,18 @@ const GetPaidPage = () => {
                                 detailsSubmitted,
                                 payoutsEnabled,
                                 requirements,
-                                accountCountryOption?.label,
-                                externalAccountSummary
+                                accountCountryOption?.label
                         ),
-                [
-                        accountId,
-                        detailsSubmitted,
-                        payoutsEnabled,
-                        requirements,
-                        accountCountryOption,
-                        externalAccountSummary
-                ]
+                [accountId, detailsSubmitted, payoutsEnabled, requirements, accountCountryOption]
         )
+
+        const bankDetails = useMemo(() => collectBankDetails(externalAccountSummary), [externalAccountSummary])
+        const hasBankSummary = bankDetails.length > 0
+        const showBankCard = Boolean(accountId || hasBankSummary)
+        const bankTone: Tone = hasBankSummary ? 'success' : accountId ? 'warning' : 'info'
+        const bankDescription = hasBankSummary
+                ? 'Stripe đã liên kết tài khoản ngân hàng để chuyển payouts.'
+                : 'Stripe chưa ghi nhận tài khoản ngân hàng cho payouts.'
 
         const loading = isLoading || isFetching
         const countryLocked = Boolean(accountId)
@@ -572,11 +575,32 @@ const GetPaidPage = () => {
                                                 />
                                         ) : null}
 
-					<div className='grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,240px)]'>
-						<div className='space-y-3 text-sm leading-relaxed text-slate-600'>
-							<p>
-								{countryLocked
-									? `Stripe đang quản lý tài khoản của bạn tại ${accountCountryOption?.label ?? accountCountry ?? '—'}.`
+                                        {showBankCard ? (
+                                                <div className={`rounded-2xl border p-5 ${toneBannerClass[bankTone]}`}>
+                                                        <div className='flex items-start gap-3'>
+                                                                <span
+                                                                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${toneBadgeClass[bankTone]}`}
+                                                                >
+                                                                        {toneIcon[bankTone]}
+                                                                </span>
+                                                                <div className='space-y-1.5'>
+                                                                        <p className={`text-sm font-semibold ${toneTitleClass[bankTone]}`}>
+                                                                                Tài khoản nhận tiền
+                                                                        </p>
+                                                                        <p className='text-xs leading-relaxed text-slate-600'>
+                                                                                {bankDescription}
+                                                                        </p>
+                                                                        {detailList(bankDetails)}
+                                                                </div>
+                                                        </div>
+                                                </div>
+                                        ) : null}
+
+                                        <div className='grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,240px)]'>
+                                                <div className='space-y-3 text-sm leading-relaxed text-slate-600'>
+                                                        <p>
+                                                                {countryLocked
+                                                                        ? `Stripe đang quản lý tài khoản của bạn tại ${accountCountryOption?.label ?? accountCountry ?? '—'}.`
 									: 'Stripe sử dụng quốc gia này để xác minh danh tính và tuân thủ quy định pháp lý tại nơi bạn sinh sống.'}
 							</p>
 							<p className='text-xs text-slate-500'>
