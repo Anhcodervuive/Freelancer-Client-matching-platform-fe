@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, ExternalLink, Info, OctagonAlert, RefreshCcw, Sparkles } from 'lucide-react'
 import { toast } from 'react-toastify'
 import {
         createStripeConnectAccount,
+        deleteStripeConnectAccount,
         getStripeConnectAccount,
         type CreateStripeConnectAccountPayload,
         type StripeConnectAccount,
         type StripeConnectAccountResponse
 } from '~/apis/stripe-connect.api'
 import CountrySelect, { type CountryOption } from '~/components/form/CountryAutocomplete'
+import { routes } from '~/config/routes'
 import {
         getCountryOptionByCode,
         stripeSupportedCountryOptions
@@ -120,23 +123,23 @@ const collectBankDetails = (summary?: ExternalAccountSummary | null) => {
         if (!summary) return details
 
         if (summary.bankName) {
-                details.push(`Ngân hàng: ${summary.bankName}`)
+                details.push(`Bank: ${summary.bankName}`)
         }
 
         if (summary.last4) {
-                details.push(`Đuôi tài khoản: •••• ${summary.last4}`)
+                details.push(`Account ending in •••• ${summary.last4}`)
         }
 
         if (summary.currency) {
-                details.push(`Tiền tệ: ${summary.currency.toUpperCase()}`)
+                details.push(`Currency: ${summary.currency.toUpperCase()}`)
         }
 
         if (summary.accountHolderName) {
-                details.push(`Chủ tài khoản: ${summary.accountHolderName}`)
+                details.push(`Account holder: ${summary.accountHolderName}`)
         }
 
         if (summary.routingNumber) {
-                details.push(`Mã định tuyến: ${summary.routingNumber}`)
+                details.push(`Routing number: ${summary.routingNumber}`)
         }
 
         return details
@@ -200,39 +203,39 @@ const statusDescription = (params: {
         if (!hasAccount) {
                 return {
                         tone: 'warning' as Tone,
-                        title: 'Chưa kết nối Stripe',
-                        description: 'Tạo tài khoản Stripe Connect để nhận thanh toán.'
+                        title: 'Stripe not connected',
+                        description: 'Create a Stripe Connect account to receive payments.'
                 }
         }
 
         if (!detailsSubmitted) {
                 return {
                         tone: 'warning' as Tone,
-                        title: 'Thiếu bước xác minh',
-                        description: 'Hoàn tất các bước onboarding còn lại trên Stripe.'
+                        title: 'Verification incomplete',
+                        description: 'Finish the remaining onboarding steps in Stripe.'
                 }
         }
 
         if (requirements.length > 0) {
                 return {
                         tone: 'danger' as Tone,
-                        title: 'Stripe cần thêm thông tin',
-                        description: 'Bổ sung các mục còn thiếu trước khi Stripe bật payouts.'
+                        title: 'Additional information required',
+                        description: 'Provide the missing details before Stripe enables payouts.'
                 }
         }
 
         if (!payoutsEnabled) {
                 return {
                         tone: 'info' as Tone,
-                        title: 'Stripe đang xem xét',
-                        description: 'Stripe sẽ bật payouts sau khi hoàn tất kiểm duyệt.'
+                        title: 'Stripe review in progress',
+                        description: 'Stripe will enable payouts once their review is complete.'
                 }
         }
 
         return {
                 tone: 'success' as Tone,
-                title: 'Stripe Connect đã sẵn sàng',
-                description: 'Bạn có thể nhận tiền bình thường.'
+                title: 'Stripe Connect is ready',
+                description: 'You can receive payouts as normal.'
         }
 }
 
@@ -314,47 +317,47 @@ const summarySections = (
         sections.push({
                 key: 'country',
                 tone: countryName ? 'success' : 'warning',
-                title: 'Quốc gia Stripe Connect',
+                title: 'Stripe Connect country',
                 description: countryName
-                        ? `Stripe đang thiết lập tài khoản của bạn tại ${countryName}.`
-                        : 'Bạn vẫn chưa chọn quốc gia để bắt đầu quy trình Stripe Connect.'
+                        ? `Stripe is configuring your account in ${countryName}.`
+                        : 'Select a country to begin the Stripe Connect process.'
         })
 
         sections.push({
                 key: 'account',
                 tone: accountId ? 'success' : 'warning',
-                title: 'Tài khoản Stripe Connect',
+                title: 'Stripe Connect account',
                 description: accountId
-                        ? `Đã tạo tài khoản Stripe với mã ${accountId}.`
-                        : 'Bạn vẫn chưa tạo tài khoản Stripe cho freelancer của mình.'
+                        ? `Account created with ID ${accountId}.`
+                        : 'You have not created a Stripe Connect account for your freelancer profile yet.'
         })
 
         sections.push({
                 key: 'details',
                 tone: detailsSubmitted ? 'success' : 'warning',
-                title: 'Hồ sơ xác minh',
+                title: 'Verification profile',
                 description: detailsSubmitted
-                        ? 'Bạn đã gửi thông tin xác minh cần thiết cho Stripe.'
-                        : 'Stripe yêu cầu bạn hoàn tất biểu mẫu xác minh danh tính.'
+                        ? 'You submitted the required verification details to Stripe.'
+                        : 'Stripe still needs you to complete the identity verification form.'
         })
 
         sections.push({
                 key: 'payouts',
                 tone: payoutsEnabled ? 'success' : requirements.length > 0 ? 'danger' : 'info',
-                title: 'Trạng thái payouts',
+                title: 'Payout status',
                 description: payoutsEnabled
-                        ? 'Payouts đã được bật — bạn có thể nhận tiền từ hệ thống.'
+                        ? 'Payouts are enabled—you can receive funds from the platform.'
                         : requirements.length > 0
-                                ? 'Stripe hiện đang chặn payouts cho tới khi bạn bổ sung đủ thông tin.'
-                                : 'Stripe sẽ bật payouts ngay sau khi họ hoàn tất kiểm duyệt.'
+                                ? 'Stripe is blocking payouts until you provide the missing information.'
+                                : 'Stripe will enable payouts once their review is complete.'
         })
 
         if (requirements.length > 0) {
                 sections.push({
                         key: 'requirements',
                         tone: 'danger',
-                        title: 'Thông tin cần bổ sung',
-                        description: 'Stripe vẫn yêu cầu các hạng mục sau:',
+                        title: 'Information to provide',
+                        description: 'Stripe still needs the following items:',
                         extra: requirementList(requirements)
                 })
         }
@@ -367,10 +370,10 @@ const renderSummary = (sections: ReturnType<typeof summarySections>) => {
 
         if (flaggedSections.length === 0) {
                 return (
-                        <div className='flex items-center gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-4 text-xs font-medium text-emerald-700'>
-                                <CheckCircle2 className='h-4 w-4' />
-                                Stripe Connect của bạn đã hoàn tất — không có cảnh báo nào.
-                        </div>
+                                <div className='flex items-center gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-4 text-xs font-medium text-emerald-700'>
+                                        <CheckCircle2 className='h-4 w-4' />
+                                        Your Stripe Connect account is fully set up—no alerts to show.
+                                </div>
                 )
         }
 
@@ -403,11 +406,27 @@ const GetPaidPage = () => {
                                 window.open(urlCandidate, '_blank', 'noopener')
                         }
 
-                        toast.success('Đã tạo đường dẫn Stripe Connect thành công!')
+                        toast.success('Stripe Connect link created successfully!')
                         refetch()
                 },
                 onError: () => {
-                        toast.error('Không thể mở Stripe Connect. Vui lòng thử lại sau.')
+                        toast.error('Unable to open Stripe Connect. Please try again later.')
+                }
+        })
+
+        const deleteAccountMutation = useMutation({
+                mutationFn: () => deleteStripeConnectAccount(),
+                onSuccess: () => {
+                        toast.success('Stripe Connect account deleted successfully.')
+                        setAcknowledgeDelete(false)
+                        setAcknowledgeCreate(false)
+                        setCountryOption(null)
+                        refetch()
+                },
+                onError: () => {
+                        toast.error(
+                                'Unable to delete the Stripe Connect account. Please review the policy and try again.'
+                        )
                 }
         })
 
@@ -430,6 +449,19 @@ const GetPaidPage = () => {
                         setCountryOption(accountCountryOption)
                 }
         }, [accountCountryOption])
+
+        const [acknowledgeCreate, setAcknowledgeCreate] = useState(false)
+        const [acknowledgeDelete, setAcknowledgeDelete] = useState(false)
+
+        useEffect(() => {
+                if (!accountId) {
+                        setAcknowledgeCreate(false)
+                }
+        }, [accountId])
+
+        useEffect(() => {
+                setAcknowledgeDelete(false)
+        }, [accountId])
 
         const detailsSubmitted = useMemo(
                 () => pickBoolean(account?.detailsSubmitted, account?.details_submitted),
@@ -491,27 +523,33 @@ const GetPaidPage = () => {
         const showBankCard = Boolean(accountId || hasBankSummary)
         const bankTone: Tone = hasBankSummary ? 'success' : accountId ? 'warning' : 'info'
         const bankDescription = hasBankSummary
-                ? 'Stripe đã liên kết tài khoản ngân hàng để chuyển payouts.'
-                : 'Stripe chưa ghi nhận tài khoản ngân hàng cho payouts.'
+                ? 'Stripe has linked a bank account to send payouts.'
+                : 'Stripe has not registered a bank account for payouts yet.'
 
         const loading = isLoading || isFetching
+        const isDeleting = deleteAccountMutation.isPending
         const countryLocked = Boolean(accountId)
 
         const callToActionLabel = useMemo(() => {
-                if (!accountId) return 'Bắt đầu thiết lập Stripe Connect'
-                if (!detailsSubmitted) return 'Tiếp tục thiết lập trên Stripe'
-                if (requirements.length > 0) return 'Hoàn tất yêu cầu từ Stripe'
-                if (!payoutsEnabled) return 'Kiểm tra trạng thái trên Stripe'
-                return 'Mở Stripe Connect'
+                if (!accountId) return 'Start Stripe Connect setup'
+                if (!detailsSubmitted) return 'Continue onboarding on Stripe'
+                if (requirements.length > 0) return 'Complete Stripe requirements'
+                if (!payoutsEnabled) return 'Check status on Stripe'
+                return 'Open Stripe Connect'
         }, [accountId, detailsSubmitted, requirements, payoutsEnabled])
 
         const handleOpenStripe = () => {
                 let payload: CreateStripeConnectAccountPayload | undefined
 
                 if (!accountId) {
+                        if (!acknowledgeCreate) {
+                                toast.error('Please confirm the Stripe Connect acknowledgment before continuing.')
+                                return
+                        }
+
                         const selectedCountry = countryOption?.value
                         if (!selectedCountry) {
-                                toast.error('Vui lòng chọn quốc gia trước khi tiếp tục.')
+                                toast.error('Please choose a country before continuing.')
                                 return
                         }
 
@@ -519,6 +557,19 @@ const GetPaidPage = () => {
                 }
 
                 void createAccountMutation.mutateAsync(payload)
+        }
+
+        const handleDeleteAccount = () => {
+                if (!accountId) {
+                        return
+                }
+
+                if (!acknowledgeDelete) {
+                        toast.error('Please confirm the deletion acknowledgment before continuing.')
+                        return
+                }
+
+                void deleteAccountMutation.mutateAsync()
         }
 
 	return (
@@ -529,18 +580,25 @@ const GetPaidPage = () => {
 					Stripe Connect
 				</div>
 				<h1 className='mt-3 text-2xl font-semibold text-slate-900'>Get paid</h1>
-				<p className='mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-500'>
-					Kết nối Stripe Connect để nhận thanh toán cho các dự án trên nền tảng. Bạn có thể mở lại quy trình bất cứ lúc nào để hoàn tất xác minh và bật payouts.
-				</p>
+                                <p className='mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-500'>
+                                        Connect Stripe Connect to receive payments for projects on our platform. You can reopen the onboarding flow whenever you need to finish verification.{' '}
+                                        <Link
+                                                to={routes.comons.policies.connectAccount}
+                                                className='font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:text-secondary'
+                                        >
+                                                Review the Stripe Connect account policy
+                                        </Link>{' '}
+                                        to understand the requirements and limitations.
+                                </p>
 			</div>
 
 			<div className='grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
 				<section className='space-y-6 rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm'>
 					<header className='flex flex-col gap-4 md:flex-row md:items-start md:justify-between'>
 						<div className='space-y-1.5'>
-							<p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Thiết lập Stripe</p>
-							<h2 className='text-lg font-semibold text-slate-900'>Tạo hoặc tiếp tục tài khoản của bạn</h2>
-							<p className='text-sm leading-relaxed text-slate-500'>Chủ động mở trang onboarding Stripe bất cứ lúc nào để hoàn tất xác minh.</p>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Stripe setup</p>
+                                                        <h2 className='text-lg font-semibold text-slate-900'>Create or continue your account</h2>
+                                                        <p className='text-sm leading-relaxed text-slate-500'>Open the Stripe onboarding flow whenever you need to finish verification.</p>
 						</div>
 						<div className='flex flex-wrap items-center gap-2.5'>
 							<button
@@ -549,23 +607,49 @@ const GetPaidPage = () => {
 								onClick={() => refetch()}
 								disabled={loading}
 							>
-								<RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-								Làm mới trạng thái
+                                                                <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                                                                Refresh status
 							</button>
 							<button
 								type='button'
 								className='inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-secondary px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70'
 								onClick={handleOpenStripe}
-								disabled={
-									createAccountMutation.isPending ||
-									(!countryLocked && !countryOption?.value)
-								}
-							>
-								<ExternalLink className='h-4 w-4' />
-								{createAccountMutation.isPending ? 'Đang mở Stripe…' : callToActionLabel}
-							</button>
+                                                                disabled={
+                                                                        createAccountMutation.isPending ||
+                                                                        (!countryLocked && (!countryOption?.value || !acknowledgeCreate))
+                                                                }
+                                                        >
+                                                                <ExternalLink className='h-4 w-4' />
+                                                                {createAccountMutation.isPending ? 'Opening Stripe…' : callToActionLabel}
+                                                        </button>
 						</div>
-					</header>
+                                        </header>
+
+                                        {!countryLocked ? (
+                                                <div className='rounded-2xl border border-sky-200/70 bg-sky-50/70 p-4 text-xs leading-relaxed text-sky-700'>
+                                                        <div className='flex items-start gap-3'>
+                                                                <Info className='mt-0.5 h-4 w-4 flex-shrink-0' />
+                                                                <div className='space-y-2 text-left text-slate-600'>
+                                                                        <p className='text-sm font-semibold text-sky-800'>Confirm before creating your account</p>
+                                                                        <p>
+                                                                                Stripe will verify your identity and store your payout details. Double-check your information before you start the onboarding flow.
+                                                                        </p>
+                                                                        <label htmlFor='acknowledge-create' className='flex items-start gap-2 text-left text-slate-600'>
+                                                                                <input
+                                                                                        id='acknowledge-create'
+                                                                                        type='checkbox'
+                                                                                        className='mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary'
+                                                                                        checked={acknowledgeCreate}
+                                                                                        onChange={event => setAcknowledgeCreate(event.target.checked)}
+                                                                                />
+                                                                                <span className='text-xs leading-relaxed text-slate-600 sm:text-sm'>
+                                                                                        I confirm that the details I share with Stripe are accurate and that I will follow their verification requirements.
+                                                                                </span>
+                                                                        </label>
+                                                                </div>
+                                                        </div>
+                                                </div>
+                                        ) : null}
 
                                         {overview.tone !== 'success' ? (
                                                 <StatusBanner
@@ -585,7 +669,7 @@ const GetPaidPage = () => {
                                                                 </span>
                                                                 <div className='space-y-1.5'>
                                                                         <p className={`text-sm font-semibold ${toneTitleClass[bankTone]}`}>
-                                                                                Tài khoản nhận tiền
+                                                                                Payout destination
                                                                         </p>
                                                                         <p className='text-xs leading-relaxed text-slate-600'>
                                                                                 {bankDescription}
@@ -600,14 +684,14 @@ const GetPaidPage = () => {
                                                 <div className='space-y-3 text-sm leading-relaxed text-slate-600'>
                                                         <p>
                                                                 {countryLocked
-                                                                        ? `Stripe đang quản lý tài khoản của bạn tại ${accountCountryOption?.label ?? accountCountry ?? '—'}.`
-									: 'Stripe sử dụng quốc gia này để xác minh danh tính và tuân thủ quy định pháp lý tại nơi bạn sinh sống.'}
-							</p>
-							<p className='text-xs text-slate-500'>
-								{countryLocked
-									? 'Nếu cần thay đổi quốc gia, bạn sẽ cần làm việc với đội ngũ hỗ trợ để xóa tài khoản Stripe Connect hiện tại và tạo lại.'
-									: 'Danh sách dưới đây chỉ bao gồm các quốc gia Stripe Connect hỗ trợ cho freelancer.'}
-							</p>
+                                                                        ? `Stripe currently manages your account in ${accountCountryOption?.label ?? accountCountry ?? '—'}.`
+                                                                        : 'Stripe uses this country to verify your identity and comply with local regulations.'}
+                                                        </p>
+                                                        <p className='text-xs text-slate-500'>
+                                                                {countryLocked
+                                                                        ? 'If you need to switch countries, contact support so we can remove the existing Stripe Connect account and restart onboarding.'
+                                                                        : 'The list only shows countries that Stripe Connect supports for freelancers.'}
+                                                        </p>
 						</div>
 						<div className='space-y-2'>
 							<CountrySelect
@@ -615,9 +699,9 @@ const GetPaidPage = () => {
 								onChange={option => setCountryOption(option)}
 								isDisabled={countryLocked || createAccountMutation.isPending}
 							/>
-							{!countryLocked ? (
-								<p className='text-xs text-slate-400'>Bạn vẫn có thể cập nhật lựa chọn trước khi mở Stripe.</p>
-							) : null}
+                                                        {!countryLocked ? (
+                                                                <p className='text-xs text-slate-400'>You can adjust this selection before opening Stripe.</p>
+                                                        ) : null}
 						</div>
 					</div>
 
@@ -626,62 +710,106 @@ const GetPaidPage = () => {
                                                         <div className='flex items-start gap-3'>
                                                                 <AlertTriangle className='mt-0.5 h-4 w-4 flex-shrink-0' />
                                                                 <div className='space-y-1'>
-                                                                        <p className='text-sm font-semibold'>Quốc gia sẽ bị khóa sau khi tạo tài khoản</p>
+                                                                        <p className='text-sm font-semibold text-amber-800'>The selected country becomes locked after creation</p>
                                                                         <p>
-                                                                                Khi hoàn tất onboarding Stripe, lựa chọn quốc gia sẽ bị khóa. Hãy đảm bảo bạn chọn đúng trước khi tiếp tục.
+                                                                                Once you complete Stripe onboarding, you can no longer change the country yourself. Confirm your selection before continuing.
                                                                         </p>
                                                                 </div>
                                                         </div>
                                                 </div>
                                         ) : null}
-				</section>
+
+                                        {countryLocked ? (
+                                                <div className='space-y-3 rounded-2xl border border-rose-200/70 bg-rose-50/70 p-4 text-sm leading-relaxed text-rose-700'>
+                                                        <div className='flex items-start gap-3'>
+                                                                <OctagonAlert className='mt-0.5 h-4 w-4 flex-shrink-0' />
+                                                                <div className='space-y-2'>
+                                                                        <p className='text-sm font-semibold text-rose-800'>Delete your Stripe Connect account</p>
+                                                                        <p>
+                                                                                Resolve any pending payouts, balances, or disputes before you submit the request. Stripe automatically blocks deletion if obligations remain.
+                                                                        </p>
+                                                                        <label htmlFor='acknowledge-delete' className='flex items-start gap-2 text-left'>
+                                                                                <input
+                                                                                        id='acknowledge-delete'
+                                                                                        type='checkbox'
+                                                                                        className='mt-1 h-4 w-4 rounded border-rose-300 text-rose-600 focus:ring-rose-500'
+                                                                                        checked={acknowledgeDelete}
+                                                                                        onChange={event => setAcknowledgeDelete(event.target.checked)}
+                                                                                />
+                                                                                <span className='text-xs leading-relaxed text-rose-700 sm:text-sm'>
+                                                                                        I understand that deleting this account is permanent and payouts will pause until I complete onboarding again.
+                                                                                </span>
+                                                                        </label>
+                                                                        <p className='text-xs text-rose-600'>
+                                                                                Need details?{' '}
+                                                                                <Link
+                                                                                        to={routes.comons.policies.connectAccount}
+                                                                                        className='font-semibold text-rose-700 underline decoration-rose-300 underline-offset-4 hover:text-rose-800'
+                                                                                >
+                                                                                        Review the policy
+                                                                                </Link>
+                                                                                .
+                                                                        </p>
+                                                                </div>
+                                                        </div>
+                                                        <button
+                                                                type='button'
+                                                                className='inline-flex items-center justify-center gap-2 rounded-full border border-rose-300 bg-white px-4 py-2 text-xs font-semibold text-rose-600 transition hover:border-rose-400 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-70'
+                                                                onClick={handleDeleteAccount}
+                                                                disabled={isDeleting || !acknowledgeDelete}
+                                                        >
+                                                                {isDeleting ? 'Deleting…' : 'Delete Stripe Connect account'}
+                                                        </button>
+                                                </div>
+                                        ) : null}
+                                </section>
 
 				<aside className='space-y-4'>
-					<div className='space-y-5 rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm'>
-						<div className='space-y-1'>
-							<h3 className='text-sm font-semibold text-slate-900'>Stripe cần những gì?</h3>
-							<p className='text-xs leading-relaxed text-slate-500'>Stripe tuân thủ các quy định về KYC (Know Your Customer), vì vậy họ có thể yêu cầu:</p>
-						</div>
-						<div className='space-y-3 text-xs leading-relaxed text-slate-600'>
-							<div className='flex items-start gap-3 rounded-2xl bg-slate-50/80 p-3'>
-								<CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
-								<p>Thông tin cá nhân: họ tên, ngày sinh, địa chỉ cư trú và giấy tờ tùy thân hợp lệ.</p>
-							</div>
-							<div className='flex items-start gap-3 rounded-2xl bg-slate-50/80 p-3'>
-								<CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
-								<p>Chi tiết tài khoản ngân hàng để Stripe chuyển khoản payouts cho bạn.</p>
-							</div>
-							<div className='flex items-start gap-3 rounded-2xl bg-slate-50/80 p-3'>
-								<CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
-								<p>Các tài liệu bổ sung tùy từng quốc gia (ví dụ: giấy phép kinh doanh hoặc xác nhận địa chỉ).</p>
-							</div>
-						</div>
-						<div className='rounded-2xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-primary'>
-							Khi hoàn tất, hãy quay lại trang này và nhấn “Làm mới trạng thái” để đồng bộ dữ liệu. Nếu cần hỗ trợ, vui lòng liên hệ đội ngũ của chúng tôi.
-						</div>
-					</div>
-					<div className='rounded-3xl border border-sky-200/60 bg-sky-50/60 p-5 text-xs leading-relaxed text-sky-700 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-sm'>
-						<p>Mẹo nhỏ: Hoàn thành từng bước trong quy trình Stripe và giữ lại các tài liệu đã tải lên để tiện kiểm tra về sau.</p>
-						<p className='mt-2'>Đội ngũ hỗ trợ luôn sẵn sàng đồng hành nếu Stripe yêu cầu thông tin bổ sung bất thường.</p>
-					</div>
-				</aside>
+                                        <div className='space-y-5 rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm'>
+                                                <div className='space-y-1'>
+                                                        <h3 className='text-sm font-semibold text-slate-900'>What does Stripe require?</h3>
+                                                        <p className='text-xs leading-relaxed text-slate-500'>Stripe complies with Know Your Customer (KYC) regulations, so they may request:</p>
+                                                </div>
+                                                <div className='space-y-3 text-xs leading-relaxed text-slate-600'>
+                                                        <div className='flex items-start gap-3 rounded-2xl bg-slate-50/80 p-3'>
+                                                                <CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
+                                                                <p>Personal information: full name, date of birth, residential address, and valid identification documents.</p>
+                                                        </div>
+                                                        <div className='flex items-start gap-3 rounded-2xl bg-slate-50/80 p-3'>
+                                                                <CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
+                                                                <p>Bank account details so Stripe can send payouts to you.</p>
+                                                        </div>
+                                                        <div className='flex items-start gap-3 rounded-2xl bg-slate-50/80 p-3'>
+                                                                <CheckCircle2 className='mt-0.5 h-3.5 w-3.5 text-emerald-500' />
+                                                                <p>Additional documents depending on your country (e.g., proof of address or business registration).</p>
+                                                        </div>
+                                                </div>
+                                                <div className='rounded-2xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-primary'>
+                                                        When you're done, return to this page and click “Refresh status” to sync your data. If you need help, reach out to our support team.
+                                                </div>
+                                        </div>
+                                        <div className='rounded-3xl border border-sky-200/60 bg-sky-50/60 p-5 text-xs leading-relaxed text-sky-700 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-sm'>
+                                                <p>Pro tip: Complete each step in the Stripe flow and keep copies of the documents you upload for future reference.</p>
+                                                <p className='mt-2'>Our support team is ready to help if Stripe asks for unusual information.</p>
+                                        </div>
+                                </aside>
 			</div>
 
-			<section className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm'>
-				<div className='space-y-1'>
-					<h2 className='text-lg font-semibold text-slate-900'>Chi tiết trạng thái Stripe</h2>
-					<p className='text-sm text-slate-500'>Theo dõi tiến trình xác minh, quốc gia và trạng thái payouts của bạn.</p>
-				</div>
-				<div className='mt-5'>
-					{loading ? (
-						<div className='flex h-32 items-center justify-center gap-3 text-xs text-slate-500'>
-							<span className='loading loading-spinner loading-md' /> Đang tải trạng thái Stripe…
-						</div>
-					) : (
-						renderSummary(sections)
-					)}
-				</div>
-			</section>
+                        <section className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm'>
+                                <div className='space-y-1'>
+                                        <h2 className='text-lg font-semibold text-slate-900'>Stripe status details</h2>
+                                        <p className='text-sm text-slate-500'>Track your verification progress, country, and payout status.</p>
+                                </div>
+                                <div className='mt-5'>
+                                        {loading ? (
+                                                <div className='flex h-32 items-center justify-center gap-3 text-xs text-slate-500'>
+                                                        <span className='loading loading-spinner loading-md' /> Loading Stripe status…
+                                                </div>
+                                        ) : (
+                                                renderSummary(sections)
+                                        )}
+                                </div>
+                        </section>
 </div>
 )
 }

@@ -40,6 +40,8 @@ import SkillsAdminPage from './pages/Admin/skill/List'
 import CategorySkillsPage from './pages/Admin/category/CategorySkillsPage'
 import SpecialtySkillsPage from './pages/Admin/specialty/SpecialtySkillPage'
 import OnboardingWizard from './pages/onBoarding/OnboardingWizard'
+import PolicyLayout from './layouts/PolicyLayout'
+import ConnectAccountPolicyPage from './pages/Comons/policies/ConnectAccountPolicyPage'
 
 const persistor = persistStore(store)
 
@@ -92,6 +94,20 @@ const router = createBrowserRouter([
                                         {
                                                 path: 'get-paid',
                                                 element: <GetPaidPage />
+                                        }
+                                ]
+                        },
+                        {
+                                path: 'policies',
+                                element: <PolicyLayout />,
+                                children: [
+                                        {
+                                                index: true,
+                                                element: <ConnectAccountPolicyPage />
+                                        },
+                                        {
+                                                path: 'connect-account',
+                                                element: <ConnectAccountPolicyPage />
                                         }
                                 ]
                         },

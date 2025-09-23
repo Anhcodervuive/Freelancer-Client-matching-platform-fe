@@ -1,9 +1,13 @@
 export const routes = {
-	comons: {
-		home: '/',
-		onboarding: '/onboarding',
-		freelancerProfile: (id?: string) => `/freelancer/${id || ''}`
-	},
+        comons: {
+                home: '/',
+                onboarding: '/onboarding',
+                freelancerProfile: (id?: string) => `/freelancer/${id || ''}`,
+                policies: {
+                        root: '/policies',
+                        connectAccount: '/policies/connect-account'
+                }
+        },
 	auth: {
 		signin: '/signin',
 		signup: '/signup',

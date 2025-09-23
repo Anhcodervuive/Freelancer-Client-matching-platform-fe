@@ -44,9 +44,14 @@ export interface CreateStripeConnectAccountPayload {
 }
 
 export const createStripeConnectAccount = async (payload?: CreateStripeConnectAccountPayload) => {
-	const response = await authorizeAxiosInstance.post<StripeConnectAccountResponse>(`${baseUrl}/link`, {
-		...payload,
-		mode: 'onboarding'
-	})
-	return response.data
+        const response = await authorizeAxiosInstance.post<StripeConnectAccountResponse>(`${baseUrl}/link`, {
+                ...payload,
+                mode: 'onboarding'
+        })
+        return response.data
+}
+
+export const deleteStripeConnectAccount = async () => {
+        const response = await authorizeAxiosInstance.delete(`${baseUrl}/`)
+        return response.data
 }
