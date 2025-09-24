@@ -1,26 +1,52 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
+import type {
+        JobDurationCommitment,
+        JobExperienceLevel,
+        JobLocationType,
+        JobPaymentMode,
+        JobStatus,
+        JobVisibility
+} from '~/constants/job'
+import type { LanguageProficiency } from '~/types/profile'
 import type { JobPostDetail, JobPostFilterInput, PaginatedJobPostResponse } from '~/types/job-post'
 
 const jobPostBaseUrl = '/job-posts'
+
+type JobPostPreferredLocation = string | { code: string; label: string }
+
+type JobPostLanguageRequirement = {
+        languageCode: string
+        proficiency: LanguageProficiency
+}
+
+type JobPostSkillsPayload = {
+        required: string[]
+        preferred: string[]
+}
+
+type JobPostScreeningQuestionPayload = {
+        question: string
+        isRequired: boolean
+}
 
 type JobPostPayload = {
         specialtyId: string
         title: string
         description: string
-        paymentMode: string
+        paymentMode: JobPaymentMode
         formVersion: string
         budgetAmount?: number | null
         budgetCurrency?: string | null
-        duration?: string | null
-        experienceLevel: string
-        locationType?: string | null
-        preferredLocations?: unknown
+        duration?: JobDurationCommitment | null
+        experienceLevel: JobExperienceLevel
+        locationType?: JobLocationType | null
+        preferredLocations?: JobPostPreferredLocation[]
         customTerms?: Record<string, unknown>
-        visibility?: string
-        status?: string
-        languages?: unknown
-        skills?: unknown
-        screeningQuestions?: unknown
+        visibility?: JobVisibility
+        status?: JobStatus
+        languages?: JobPostLanguageRequirement[]
+        skills?: JobPostSkillsPayload
+        screeningQuestions?: JobPostScreeningQuestionPayload[]
         attachments?: string[]
 }
 
@@ -35,47 +61,29 @@ type JobPostRequest = {
         attachmentFiles?: File[]
 }
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-        typeof value === 'object' && value !== null && !Array.isArray(value)
+const JSON_FIELD_KEYS: Array<keyof JobPostPayload> = [
+        'preferredLocations',
+        'customTerms',
+        'languages',
+        'skills',
+        'screeningQuestions',
+        'attachments'
+]
+
+const jsonFieldSet = new Set<string>(JSON_FIELD_KEYS)
 
 const appendFormDataValue = (formData: FormData, key: string, value: unknown) => {
-        if (value === undefined) return
+        if (value === undefined || value === null) {
+                return
+        }
 
-        if (value === null) {
-                formData.append(key, 'null')
+        if (jsonFieldSet.has(key)) {
+                formData.append(key, JSON.stringify(value))
                 return
         }
 
         if (value instanceof Date) {
                 formData.append(key, value.toISOString())
-                return
-        }
-
-        if (Array.isArray(value)) {
-                if (value.length === 0) {
-                        formData.append(key, '[]')
-                        return
-                }
-
-                value.forEach((item, index) => {
-                        appendFormDataValue(formData, `${key}[${index}]`, item)
-                })
-
-                return
-        }
-
-        if (isPlainObject(value)) {
-                const entries = Object.entries(value)
-
-                if (entries.length === 0) {
-                        formData.append(key, '{}')
-                        return
-                }
-
-                entries.forEach(([childKey, childValue]) => {
-                        appendFormDataValue(formData, `${key}[${childKey}]`, childValue)
-                })
-
                 return
         }
 
