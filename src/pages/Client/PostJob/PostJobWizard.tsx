@@ -9,6 +9,7 @@ import { JOB_PAYMENT_MODES } from '~/constants/job'
 import { routes } from '~/config/routes'
 import { createJobPost, fetchJobPostDetail, updateJobPost } from '~/apis/job-post.api'
 import type { JobPostDetail } from '~/types/job-post'
+import type { LanguageProficiency } from '~/types/profile'
 import {
 	normalizeCustomTerms,
 	normalizeLanguages,
@@ -22,6 +23,8 @@ import { jobPostFormSchema, type JobPostFormValues } from './schema'
 import { AboutStep } from './components/AboutStep'
 import { FreelancerRequirementsStep } from './components/FreelancerRequirementsStep'
 import { BudgetStep } from './components/BudgetStep'
+
+type JobPostRequestPayload = Parameters<typeof createJobPost>[0]['payload']
 
 type WizardStep = {
 	id: 'about' | 'requirements' | 'budget'
@@ -249,7 +252,7 @@ export default function PostJobWizard() {
 	const isSubmitting = createMutation.isPending || updateMutation.isPending
 
 	const buildPayload = useCallback(
-		(values: JobPostFormValues) => {
+		(values: JobPostFormValues): JobPostRequestPayload => {
 			const {
 				categoryId: _categoryId,
 				customTerms,
@@ -262,54 +265,129 @@ export default function PostJobWizard() {
 
 			void _categoryId
 
+			const normalizeStringArray = (items: Array<string | null | undefined>) =>
+				Array.from(
+					new Set(
+						items
+							.map(item => (typeof item === 'string' ? item.trim() : ''))
+							.filter((item): item is string => Boolean(item))
+					)
+				)
+
 			const trimmedCustomTerms = customTerms
 				? Object.fromEntries(
 						Object.entries(customTerms)
-							.filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
-							.map(([key, value]) => [key, (value as string).trim()])
+							.map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+							.filter(([, value]) => (typeof value === 'string' ? value.length > 0 : value !== undefined))
 				  )
 				: undefined
 
-			const formattedLanguages = (languages ?? []).map(language => ({
-				languageCode: language.languageCode?.toUpperCase() ?? 'EN',
-				proficiency: language.proficiency
-			}))
+			const formattedLocations = (preferredLocations ?? [])
+				.map(location => {
+					const code = typeof location.code === 'string' ? location.code.trim() : ''
+					const label = typeof location.label === 'string' ? location.label.trim() : ''
+					if (!code && !label) return null
+					const normalizedCode = code || label
+					const normalizedLabel = label || code || ''
+					return { code: normalizedCode, label: normalizedLabel }
+				})
+				.filter((location): location is { code: string; label: string } => Boolean(location))
 
-			const payload = {
+			const formattedLanguagesMap = new Map<string, { languageCode: string; proficiency: LanguageProficiency }>()
+			for (const language of languages ?? []) {
+				const rawCode = typeof language.languageCode === 'string' ? language.languageCode.trim() : ''
+				if (!rawCode) continue
+				const code = rawCode.toUpperCase()
+				const proficiency = (language.proficiency ?? 'CONVERSATIONAL') as LanguageProficiency
+				formattedLanguagesMap.set(code, { languageCode: code, proficiency })
+			}
+			const formattedLanguages = Array.from(formattedLanguagesMap.values())
+
+			const formattedSkills = {
+				required: normalizeStringArray(skills?.required ?? []),
+				preferred: normalizeStringArray(skills?.preferred ?? [])
+			}
+
+			const formattedScreeningQuestions = (screeningQuestions ?? [])
+				.map(question => {
+					const prompt = typeof question.question === 'string' ? question.question.trim() : ''
+					if (!prompt) return null
+					return { question: prompt, isRequired: question.isRequired !== false }
+				})
+				.filter((question): question is { question: string; isRequired: boolean } => Boolean(question))
+
+			const attachmentIds = Array.from(
+				new Set(
+					existingAttachments
+						.map(attachment => attachment.id)
+						.filter((id): id is string => Boolean(id?.trim()))
+						.map(id => id.trim())
+				)
+			)
+
+			const shouldSendPreferredLocations = isEditing || formattedLocations.length > 0
+			const shouldSendLanguages = isEditing || formattedLanguages.length > 0
+			const shouldSendScreening = isEditing || formattedScreeningQuestions.length > 0
+
+			const payload: Record<string, unknown> = {
 				...rest,
 				specialtyId: values.specialtyId,
+				title: values.title.trim(),
+				description: values.description.trim(),
+				paymentMode: values.paymentMode,
 				formVersion: 'VERSION_1',
+				experienceLevel: values.experienceLevel,
 				customTerms: trimmedCustomTerms && Object.keys(trimmedCustomTerms).length > 0 ? trimmedCustomTerms : undefined,
-				preferredLocations: preferredLocations && preferredLocations.length > 0 ? preferredLocations : undefined,
-				languages: formattedLanguages,
-				skills,
-				screeningQuestions: screeningQuestions && screeningQuestions.length > 0 ? screeningQuestions : undefined,
-				attachments: existingAttachments.map(attachment => attachment.id).filter((id): id is string => Boolean(id))
+				preferredLocations: shouldSendPreferredLocations ? formattedLocations : undefined,
+				languages: shouldSendLanguages ? formattedLanguages : undefined,
+				skills: formattedSkills,
+				screeningQuestions: shouldSendScreening ? formattedScreeningQuestions : undefined,
+				attachments: isEditing || attachmentIds.length > 0 ? attachmentIds : undefined
 			}
 
-			if (!payload.budgetCurrency) {
-				delete (payload as { budgetCurrency?: string }).budgetCurrency
+			const optionalKeys: Array<keyof JobPostRequestPayload> = [
+				'budgetAmount',
+				'budgetCurrency',
+				'duration',
+				'locationType',
+				'visibility',
+				'status'
+			]
+
+			optionalKeys.forEach(key => {
+				const value = payload[key]
+				if (value === undefined || value === null || value === '') {
+					delete payload[key]
+				}
+			})
+
+			if (typeof values.budgetCurrency === 'string' && values.budgetCurrency.trim()) {
+				payload.budgetCurrency = values.budgetCurrency.trim().toUpperCase()
 			}
 
-			if (!payload.duration) {
-				delete (payload as { duration?: string | undefined }).duration
+			if (typeof values.budgetAmount === 'number') {
+				payload.budgetAmount = values.budgetAmount
 			}
 
-			if (!payload.locationType) {
-				delete (payload as { locationType?: string | undefined }).locationType
+			if (values.duration) {
+				payload.duration = values.duration
 			}
 
-			if (!payload.visibility) {
-				delete (payload as { visibility?: string | undefined }).visibility
+			if (values.locationType) {
+				payload.locationType = values.locationType
 			}
 
-			if (!payload.status) {
-				delete (payload as { status?: string | undefined }).status
+			if (values.visibility) {
+				payload.visibility = values.visibility
 			}
 
-			return payload
+			if (values.status) {
+				payload.status = values.status
+			}
+
+			return payload as JobPostRequestPayload
 		},
-		[existingAttachments]
+		[existingAttachments, isEditing]
 	)
 
 	const onSubmit = useCallback(
