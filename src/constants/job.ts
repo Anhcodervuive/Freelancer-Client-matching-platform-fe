@@ -1,8 +1,22 @@
 import { z } from 'zod'
 
 export const JOB_PAYMENT_MODES = [
-        { value: 'HOURLY', label: 'Hourly rate' },
-        { value: 'FIXED_PRICE', label: 'Fixed price' }
+        {
+                value: 'fix_single',
+                label: 'Single payment project',
+                description: 'Pay talent once when all agreed deliverables are complete.',
+                budgetLabel: 'Total project budget',
+                placeholder: 'e.g. 1500',
+                step: 5
+        },
+        {
+                value: 'fix_milestone',
+                label: 'Milestone-based project',
+                description: 'Divide the scope into milestones and release funds as work is approved.',
+                budgetLabel: 'Budget per milestone',
+                placeholder: 'e.g. 500',
+                step: 5
+        }
 ] as const
 
 export const JOB_EXPERIENCE_LEVELS = [

@@ -52,7 +52,7 @@ export default function PostJobWizard() {
                         title: '',
                         description: '',
                         customTerms: { deliverables: '', additionalNotes: '' },
-                        paymentMode: JOB_PAYMENT_MODES[0]?.value ?? 'HOURLY',
+                        paymentMode: JOB_PAYMENT_MODES[0]?.value ?? 'fix_single',
                         budgetAmount: undefined,
                         budgetCurrency: 'USD',
                         duration: 'LESS_THAN_ONE_MONTH',

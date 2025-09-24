@@ -26,6 +26,14 @@ export function BudgetStep({ hidden }: BudgetStepProps) {
         const attachments = watch('attachments') ?? []
         const skills = watch('skills') ?? { required: [], preferred: [] }
 
+        const paymentModeConfig = useMemo(
+                () => JOB_PAYMENT_MODES.find(mode => mode.value === paymentMode),
+                [paymentMode]
+        )
+        const budgetLabel = paymentModeConfig?.budgetLabel ?? 'Project budget'
+        const budgetPlaceholder = paymentModeConfig?.placeholder ?? 'e.g. 1500'
+        const budgetStep = paymentModeConfig?.step ?? 5
+
         const talentSummary = useMemo(() => {
                 const requiredCount = skills.required?.length ?? 0
                 const preferredCount = skills.preferred?.length ?? 0
@@ -72,11 +80,7 @@ export function BudgetStep({ hidden }: BudgetStepProps) {
                                                                                         <Banknote className='size-4' />
                                                                                         {mode.label}
                                                                                 </div>
-                                                                                <p className='mt-2 text-xs text-base-content/70'>
-                                                                                        {mode.value === 'HOURLY'
-                                                                                                ? 'Pay talent for the hours they work. Ideal for ongoing or flexible scope.'
-                                                                                                : 'Pay a flat fee for completed deliverables. Perfect for well-defined outcomes.'}
-                                                                                </p>
+                                                                                <p className='mt-2 text-xs text-base-content/70'>{mode.description}</p>
                                                                         </label>
                                                                 )
                                                         })}
@@ -85,7 +89,7 @@ export function BudgetStep({ hidden }: BudgetStepProps) {
 
                                         <div className='rounded-2xl border border-base-200 p-5'>
                                                 <div className='mb-4 flex items-center justify-between text-sm font-medium text-base-content'>
-                                                        <span>{paymentMode === 'HOURLY' ? 'Hourly rate' : 'Project budget'}</span>
+                                                        <span>{budgetLabel}</span>
                                                         <button type='button' className='btn btn-ghost btn-xs text-base-content/70' onClick={() => setValue('budgetAmount', undefined)}>
                                                                 Not sure yet
                                                         </button>
@@ -98,7 +102,7 @@ export function BudgetStep({ hidden }: BudgetStepProps) {
                                                                         <input
                                                                                 type='number'
                                                                                 min={0}
-                                                                                step={paymentMode === 'HOURLY' ? 1 : 5}
+                                                                                step={budgetStep}
                                                                                 value={field.value ?? ''}
                                                                                 onChange={event => {
                                                                                         const raw = event.target.value
@@ -109,7 +113,7 @@ export function BudgetStep({ hidden }: BudgetStepProps) {
                                                                                         const parsed = Number(raw)
                                                                                         field.onChange(Number.isNaN(parsed) ? raw : parsed)
                                                                                 }}
-                                                                                placeholder={paymentMode === 'HOURLY' ? 'e.g. 25 (per hour)' : 'e.g. 1500'}
+                                                                                placeholder={budgetPlaceholder}
                                                                                 className='input input-bordered'
                                                                         />
                                                                 )}
