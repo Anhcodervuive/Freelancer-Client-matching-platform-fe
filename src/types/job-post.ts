@@ -6,28 +6,17 @@ import type {
         JobStatus,
         JobVisibility
 } from '~/constants/job'
-import type { LanguageProficiency } from './profile'
 
-export type JobLanguageRequirement = {
-        languageCode: string
-        proficiency: LanguageProficiency
-}
+export type JsonValue =
+        | string
+        | number
+        | boolean
+        | null
+        | { [key: string]: JsonValue }
+        | JsonValue[]
 
-export type JobScreeningQuestion = {
-        question: string
-        isRequired: boolean
-}
-
-export type JobPostSkills = {
-        required: string[]
-        preferred: string[]
-}
-
-export type JobAttachment = {
-        id?: string
-        name: string
-        url?: string
-}
+export type JsonObject = { [key: string]: JsonValue }
+export type JsonArray = JsonValue[]
 
 export type JobPostListItem = {
         id: string
@@ -59,12 +48,12 @@ export type JobPostListItem = {
 }
 
 export type JobPostDetail = JobPostListItem & {
-        preferredLocations?: unknown
-        customTerms?: Record<string, unknown> | null
-        languages?: JobLanguageRequirement[]
-        skills?: JobPostSkills
-        screeningQuestions?: JobScreeningQuestion[]
-        attachments?: JobAttachment[]
+        preferredLocations?: JsonValue
+        customTerms?: JsonObject | null
+        languages?: JsonValue
+        skills?: JsonValue
+        screeningQuestions?: JsonValue
+        attachments?: JsonValue
 }
 
 export type JobPostFilterInput = {

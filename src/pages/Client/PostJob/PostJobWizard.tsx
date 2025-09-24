@@ -8,7 +8,15 @@ import { toast } from 'react-toastify'
 import { JOB_PAYMENT_MODES } from '~/constants/job'
 import { routes } from '~/config/routes'
 import { createJobPost, fetchJobPostDetail, updateJobPost } from '~/apis/job-post.api'
-import type { JobAttachment, JobPostDetail } from '~/types/job-post'
+import type { JobPostDetail } from '~/types/job-post'
+import {
+        extractAttachmentIdentifiers,
+        normalizeCustomTerms,
+        normalizeLanguages,
+        normalizePreferredLocations,
+        normalizeScreeningQuestions,
+        normalizeSkills
+} from '~/utils/jobPost'
 import { jobPostFormSchema, type JobPostFormValues } from './schema'
 import { AboutStep } from './components/AboutStep'
 import { FreelancerRequirementsStep } from './components/FreelancerRequirementsStep'
@@ -67,39 +75,15 @@ const defaultValues: JobPostFormValues = {
         attachments: []
 }
 
-function extractAttachmentNames(attachments?: JobAttachment[]) {
-        if (!attachments) return []
-        return attachments
-                .map(attachment => attachment?.name ?? attachment?.url ?? '')
-                .filter((name): name is string => Boolean(name))
-}
-
 function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
-        const customTerms = detail.customTerms ?? {}
-        const deliverables = typeof customTerms?.deliverables === 'string' ? customTerms.deliverables : ''
-        const additionalNotes = typeof customTerms?.additionalNotes === 'string' ? customTerms.additionalNotes : ''
-        const preferredLocationsRaw = Array.isArray(detail.preferredLocations) ? detail.preferredLocations : []
-        const preferredLocations = preferredLocationsRaw
-                .map(entry => {
-                        if (typeof entry === 'string') {
-                                return { code: entry, label: entry }
-                        }
-                        if (entry && typeof entry === 'object') {
-                                const code = 'code' in entry ? String(entry.code) : ''
-                                const label = 'label' in entry ? String(entry.label) : ''
-                                if (code || label) {
-                                        return { code: code || label, label: label || code }
-                                }
-                        }
-                        return null
-                })
-                .filter((item): item is { code: string; label: string } => Boolean(item))
-
-        const languages =
-                detail.languages?.map(language => ({
-                        languageCode: language.languageCode?.toLowerCase() ?? 'en',
-                        proficiency: language.proficiency
-                })) ?? []
+        const customTerms = normalizeCustomTerms(detail.customTerms)
+        const deliverables = customTerms.deliverables ?? ''
+        const additionalNotes = customTerms.additionalNotes ?? ''
+        const preferredLocations = normalizePreferredLocations(detail.preferredLocations)
+        const languages = normalizeLanguages(detail.languages)
+        const skills = normalizeSkills(detail.skills)
+        const screeningQuestions = normalizeScreeningQuestions(detail.screeningQuestions)
+        const attachments = extractAttachmentIdentifiers(detail.attachments)
 
         return {
                 categoryId: detail.specialty?.category?.id ?? '',
@@ -120,12 +104,9 @@ function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
                 visibility: detail.visibility ?? 'PUBLIC',
                 status: detail.status ?? 'DRAFT',
                 languages,
-                skills: {
-                        required: detail.skills?.required ?? [],
-                        preferred: detail.skills?.preferred ?? []
-                },
-                screeningQuestions: detail.screeningQuestions ?? [],
-                attachments: extractAttachmentNames(detail.attachments)
+                skills,
+                screeningQuestions,
+                attachments
         }
 }
 
@@ -174,10 +155,10 @@ export default function PostJobWizard() {
                 if (!isEditing || !jobDetail) return
                 const mapped = mapDetailToForm(jobDetail)
                 methods.reset({ ...defaultValues, ...mapped })
-                const existingNames = extractAttachmentNames(jobDetail.attachments)
-                setExistingAttachments(existingNames)
+                const existingIds = extractAttachmentIdentifiers(jobDetail.attachments)
+                setExistingAttachments(existingIds)
                 setNewAttachments([])
-                updateAttachmentField(existingNames, [], { shouldDirty: false })
+                updateAttachmentField(existingIds, [], { shouldDirty: false })
         }, [isEditing, jobDetail, methods, updateAttachmentField])
 
         const handleNewAttachmentsChange = useCallback(
