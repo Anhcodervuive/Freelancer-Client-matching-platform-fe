@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronLeft, ChevronRight, FileText, Loader2, Sparkles, Wallet } from 'lucide-react'
 import { FormProvider, useForm } from 'react-hook-form'
@@ -210,7 +210,8 @@ export default function PostJobWizard() {
                 [methods, stepIndex]
         )
 
-        const goNext = useCallback(async () => {
+        const goNext = useCallback(async (event?: MouseEvent<HTMLButtonElement>) => {
+                event?.preventDefault()
                 const step = wizardSteps[stepIndex]
                 if (!step) return
                 const isValid = await methods.trigger(step.validateFields as (keyof JobPostFormValues)[], {
