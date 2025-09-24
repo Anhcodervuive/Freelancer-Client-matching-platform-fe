@@ -40,6 +40,17 @@ export const getJobPost = async (id: string): Promise<JobPostDetailResponse> => 
         return response.data
 }
 
+export const fetchJobPostDetail = async (id: string): Promise<JobPostDetail> => {
+        const response = await getJobPost(id)
+        const jobPost = response?.jobPost
+
+        if (!jobPost) {
+                throw new Error('Job post not found')
+        }
+
+        return jobPost
+}
+
 export const createJobPost = async (payload: JobPostPayload) => {
         const response = await authorizeAxiosInstance.post(jobPostBaseUrl, payload)
         return response.data

@@ -45,6 +45,7 @@ import PolicyLayout from './layouts/PolicyLayout'
 import ConnectAccountPolicyPage from './pages/Comons/policies/ConnectAccountPolicyPage'
 import PostJobWizard from './pages/Client/PostJob/PostJobWizard'
 import JobPostListPage from './pages/Client/JobPosts/JobPostListPage'
+import JobPostDetailPage from './pages/Client/JobPosts/JobPostDetailPage'
 
 const persistor = persistStore(store)
 
@@ -94,6 +95,11 @@ const router = createBrowserRouter([
                                 path: routes.me.client.jobs.create,
                                 loader: composeLoaders(checkAuthenticatedUser, isClientUser),
                                 element: <PostJobWizard />
+                        },
+                        {
+                                path: routes.me.client.jobs.detail(':jobId'),
+                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+                                element: <JobPostDetailPage />
                         },
                         {
                                 path: routes.me.client.jobs.edit(':jobId'),

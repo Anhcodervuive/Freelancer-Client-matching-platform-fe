@@ -19,7 +19,8 @@ export const routes = {
                         jobs: {
                                 list: '/me/client/jobs',
                                 create: '/me/client/jobs/create',
-                                edit: (id: string = 'id') => `/me/client/jobs/${id}/edit`
+                                edit: (id: string = 'id') => `/me/client/jobs/${id}/edit`,
+                                detail: (id: string = 'id') => `/me/client/jobs/${id}`
                         }
                 },
                 freelancer: {
