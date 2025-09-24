@@ -1,9 +1,14 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Check, ChevronLeft, ChevronRight, FileText, Sparkles, Wallet } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FileText, Loader2, Sparkles, Wallet } from 'lucide-react'
 import { FormProvider, useForm } from 'react-hook-form'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { JOB_PAYMENT_MODES } from '~/constants/job'
+import { routes } from '~/config/routes'
+import { createJobPost, getJobPost, updateJobPost } from '~/apis/job-post.api'
+import type { JobAttachment, JobPostDetail } from '~/types/job-post'
 import { jobPostFormSchema, type JobPostFormValues } from './schema'
 import { AboutStep } from './components/AboutStep'
 import { FreelancerRequirementsStep } from './components/FreelancerRequirementsStep'
@@ -41,47 +46,151 @@ const wizardSteps: WizardStep[] = [
         }
 ]
 
+const defaultValues: JobPostFormValues = {
+        categoryId: '',
+        specialtyId: '',
+        title: '',
+        description: '',
+        customTerms: { deliverables: '', additionalNotes: '' },
+        paymentMode: JOB_PAYMENT_MODES[0]?.value ?? 'fix_single',
+        budgetAmount: undefined,
+        budgetCurrency: 'USD',
+        duration: 'LESS_THAN_ONE_MONTH',
+        experienceLevel: 'ENTRY_LEVEL',
+        locationType: 'REMOTE',
+        preferredLocations: [],
+        visibility: 'PUBLIC',
+        status: 'DRAFT',
+        languages: [{ languageCode: 'en', proficiency: 'CONVERSATIONAL' }],
+        skills: { required: [], preferred: [] },
+        screeningQuestions: [],
+        attachments: []
+}
+
+function extractAttachmentNames(attachments?: JobAttachment[]) {
+        if (!attachments) return []
+        return attachments
+                .map(attachment => attachment?.name ?? attachment?.url ?? '')
+                .filter((name): name is string => Boolean(name))
+}
+
+function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
+        const customTerms = detail.customTerms ?? {}
+        const deliverables = typeof customTerms?.deliverables === 'string' ? customTerms.deliverables : ''
+        const additionalNotes = typeof customTerms?.additionalNotes === 'string' ? customTerms.additionalNotes : ''
+        const preferredLocationsRaw = Array.isArray(detail.preferredLocations) ? detail.preferredLocations : []
+        const preferredLocations = preferredLocationsRaw
+                .map(entry => {
+                        if (typeof entry === 'string') {
+                                return { code: entry, label: entry }
+                        }
+                        if (entry && typeof entry === 'object') {
+                                const code = 'code' in entry ? String(entry.code) : ''
+                                const label = 'label' in entry ? String(entry.label) : ''
+                                if (code || label) {
+                                        return { code: code || label, label: label || code }
+                                }
+                        }
+                        return null
+                })
+                .filter((item): item is { code: string; label: string } => Boolean(item))
+
+        const languages =
+                detail.languages?.map(language => ({
+                        languageCode: language.languageCode?.toLowerCase() ?? 'en',
+                        proficiency: language.proficiency
+                })) ?? []
+
+        return {
+                categoryId: detail.specialty?.category?.id ?? '',
+                specialtyId: detail.specialty?.id ?? '',
+                title: detail.title ?? '',
+                description: detail.description ?? '',
+                customTerms:
+                        deliverables || additionalNotes
+                                ? { deliverables: deliverables || undefined, additionalNotes: additionalNotes || undefined }
+                                : undefined,
+                paymentMode: detail.paymentMode ?? (JOB_PAYMENT_MODES[0]?.value ?? 'fix_single'),
+                budgetAmount: detail.budgetAmount ?? undefined,
+                budgetCurrency: detail.budgetCurrency ?? undefined,
+                duration: detail.duration ?? undefined,
+                experienceLevel: detail.experienceLevel ?? 'ENTRY_LEVEL',
+                locationType: detail.locationType ?? 'REMOTE',
+                preferredLocations,
+                visibility: detail.visibility ?? 'PUBLIC',
+                status: detail.status ?? 'DRAFT',
+                languages,
+                skills: {
+                        required: detail.skills?.required ?? [],
+                        preferred: detail.skills?.preferred ?? []
+                },
+                screeningQuestions: detail.screeningQuestions ?? [],
+                attachments: extractAttachmentNames(detail.attachments)
+        }
+}
+
 export default function PostJobWizard() {
-        const [attachments, setAttachments] = useState<File[]>([])
+        const navigate = useNavigate()
+        const { jobId } = useParams<{ jobId?: string }>()
+        const queryClient = useQueryClient()
+        const isEditing = Boolean(jobId)
+        const [newAttachments, setNewAttachments] = useState<File[]>([])
+        const [existingAttachments, setExistingAttachments] = useState<string[]>([])
+
         const methods = useForm<JobPostFormValues>({
                 resolver: zodResolver(jobPostFormSchema),
                 mode: 'onChange',
-                defaultValues: {
-                        categoryId: '',
-                        specialtyId: '',
-                        title: '',
-                        description: '',
-                        customTerms: { deliverables: '', additionalNotes: '' },
-                        paymentMode: JOB_PAYMENT_MODES[0]?.value ?? 'fix_single',
-                        budgetAmount: undefined,
-                        budgetCurrency: 'USD',
-                        duration: 'LESS_THAN_ONE_MONTH',
-                        experienceLevel: 'ENTRY_LEVEL',
-                        locationType: 'REMOTE',
-                        preferredLocations: [],
-                        visibility: 'PUBLIC',
-                        status: 'DRAFT',
-                        languages: [{ languageCode: 'en', proficiency: 'CONVERSATIONAL' }],
-                        skills: { required: [], preferred: [] },
-                        screeningQuestions: [],
-                        attachments: []
-                }
+                defaultValues
         })
         const [stepIndex, setStepIndex] = useState(0)
 
         const currentStep = wizardSteps[stepIndex]
         const totalSteps = wizardSteps.length
 
-        const handleAttachmentsChange = useCallback(
-                (files: File[]) => {
-                        setAttachments(files)
+        const updateAttachmentField = useCallback(
+                (existing: string[], files: File[], opts?: { shouldDirty?: boolean }) => {
                         methods.setValue(
                                 'attachments',
-                                files.map(file => file.name),
-                                { shouldValidate: true, shouldDirty: true }
+                                [...existing, ...files.map(file => file.name)],
+                                { shouldValidate: true, shouldDirty: opts?.shouldDirty ?? true }
                         )
                 },
                 [methods]
+        )
+
+        const { data: jobDetail, isLoading: isLoadingJob, isError } = useQuery<JobPostDetail>({
+                queryKey: ['job-post', jobId],
+                enabled: isEditing,
+                queryFn: async () => {
+                        const response = await getJobPost(jobId ?? '')
+                        return response.jobPost
+                }
+        })
+
+        useEffect(() => {
+                if (!isEditing || !jobDetail) return
+                const mapped = mapDetailToForm(jobDetail)
+                methods.reset({ ...defaultValues, ...mapped })
+                const existingNames = extractAttachmentNames(jobDetail.attachments)
+                setExistingAttachments(existingNames)
+                setNewAttachments([])
+                updateAttachmentField(existingNames, [], { shouldDirty: false })
+        }, [isEditing, jobDetail, methods, updateAttachmentField])
+
+        const handleNewAttachmentsChange = useCallback(
+                (files: File[]) => {
+                        setNewAttachments(files)
+                        updateAttachmentField(existingAttachments, files)
+                },
+                [existingAttachments, updateAttachmentField]
+        )
+
+        const handleExistingAttachmentsChange = useCallback(
+                (names: string[]) => {
+                        setExistingAttachments(names)
+                        updateAttachmentField(names, newAttachments)
+                },
+                [newAttachments, updateAttachmentField]
         )
 
         const progress = useMemo(() => Math.round(((stepIndex + 1) / totalSteps) * 100), [stepIndex, totalSteps])
@@ -115,18 +224,138 @@ export default function PostJobWizard() {
                 setStepIndex(prev => Math.max(prev - 1, 0))
         }, [])
 
-        const onSubmit = useCallback(
-                (values: JobPostFormValues) => {
-                        const payload = {
-                                ...values,
-                                attachments: attachments.map(file => file.name),
-                                formVersion: 'VERSION_1'
-                        }
-                        console.info('Job post payload', payload)
-                        toast.success('Draft job post saved!')
+        const createMutation = useMutation({
+                mutationFn: createJobPost,
+                onSuccess: () => {
+                        toast.success('Job post created successfully')
+                        queryClient.invalidateQueries({ queryKey: ['job-posts'] })
+                        navigate(routes.me.client.jobs.list)
+                }
+        })
+
+        const updateMutation = useMutation({
+                mutationFn: async (payload: Parameters<typeof createJobPost>[0]) => {
+                        if (!jobId) throw new Error('Missing job identifier')
+                        return updateJobPost(jobId, payload)
                 },
-                [attachments]
+                onSuccess: () => {
+                        toast.success('Job post updated successfully')
+                        queryClient.invalidateQueries({ queryKey: ['job-posts'] })
+                        if (jobId) {
+                                queryClient.invalidateQueries({ queryKey: ['job-post', jobId] })
+                        }
+                        navigate(routes.me.client.jobs.list)
+                }
+        })
+
+        const isSubmitting = createMutation.isPending || updateMutation.isPending
+
+        const buildPayload = useCallback(
+                (values: JobPostFormValues) => {
+                        const {
+                                categoryId: _categoryId,
+                                customTerms,
+                                preferredLocations,
+                                languages,
+                                screeningQuestions,
+                                skills,
+                                ...rest
+                        } = values
+
+                        void _categoryId
+
+                        const trimmedCustomTerms = customTerms
+                                ? Object.fromEntries(
+                                          Object.entries(customTerms)
+                                                  .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
+                                                  .map(([key, value]) => [key, (value as string).trim()])
+                                  )
+                                : undefined
+
+                        const formattedLanguages = (languages ?? []).map(language => ({
+                                languageCode: language.languageCode?.toUpperCase() ?? 'EN',
+                                proficiency: language.proficiency
+                        }))
+
+                        const payload = {
+                                ...rest,
+                                specialtyId: values.specialtyId,
+                                formVersion: 'VERSION_1',
+                                customTerms:
+                                        trimmedCustomTerms && Object.keys(trimmedCustomTerms).length > 0
+                                                ? trimmedCustomTerms
+                                                : undefined,
+                                preferredLocations:
+                                        preferredLocations && preferredLocations.length > 0 ? preferredLocations : undefined,
+                                languages: formattedLanguages,
+                                skills,
+                                screeningQuestions:
+                                        screeningQuestions && screeningQuestions.length > 0 ? screeningQuestions : undefined,
+                                attachments: [...existingAttachments, ...newAttachments.map(file => file.name)]
+                        }
+
+                        if (!payload.budgetCurrency) {
+                                delete (payload as { budgetCurrency?: string }).budgetCurrency
+                        }
+
+                        if (!payload.duration) {
+                                delete (payload as { duration?: string | undefined }).duration
+                        }
+
+                        if (!payload.locationType) {
+                                delete (payload as { locationType?: string | undefined }).locationType
+                        }
+
+                        if (!payload.visibility) {
+                                delete (payload as { visibility?: string | undefined }).visibility
+                        }
+
+                        if (!payload.status) {
+                                delete (payload as { status?: string | undefined }).status
+                        }
+
+                        return payload
+                },
+                [existingAttachments, newAttachments]
         )
+
+        const onSubmit = useCallback(
+                async (values: JobPostFormValues) => {
+                        const payload = buildPayload(values)
+                        if (isEditing) {
+                                await updateMutation.mutateAsync(payload)
+                        } else {
+                                await createMutation.mutateAsync(payload)
+                        }
+                },
+                [buildPayload, createMutation, isEditing, updateMutation]
+        )
+
+        if (isEditing && isLoadingJob) {
+                return (
+                        <div className='mx-auto flex min-h-[50vh] w-full max-w-4xl items-center justify-center px-4 py-10 text-base-content/70'>
+                                <div className='flex items-center gap-3 rounded-2xl border border-base-200 bg-base-100 px-6 py-4 shadow-sm'>
+                                        <Loader2 className='size-5 animate-spin text-primary' />
+                                        <span>Loading job post details...</span>
+                                </div>
+                        </div>
+                )
+        }
+
+        if (isEditing && isError) {
+                return (
+                        <div className='mx-auto flex min-h-[50vh] w-full max-w-4xl items-center justify-center px-4 py-10'>
+                                <div className='rounded-2xl border border-error/40 bg-error/10 px-6 py-5 text-center text-sm text-error'>
+                                        Unable to load the job post. Please return to the list and try again.
+                                </div>
+                        </div>
+                )
+        }
+
+        const headerTitle = isEditing ? 'Edit job post' : 'Create a job post'
+        const headerDescription = isEditing
+                ? 'Update your listing to keep freelancers informed with the latest requirements.'
+                : 'Guide clients through a focused, three-step flow inspired by Upwork\'s posting experience.'
 
         return (
                 <FormProvider {...methods}>
@@ -137,11 +366,8 @@ export default function PostJobWizard() {
                                 <div className='mb-8 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
                                         <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
                                                 <div>
-                                                        <h1 className='text-2xl font-semibold text-base-content'>Draft job post</h1>
-                                                        <p className='text-base-content/70 mt-1 text-sm'>
-                                                                Guide clients through a focused, three-step flow inspired by Upwork&apos;s posting
-                                                                experience.
-                                                        </p>
+                                                        <h1 className='text-2xl font-semibold text-base-content'>{headerTitle}</h1>
+                                                        <p className='text-base-content/70 mt-1 text-sm'>{headerDescription}</p>
                                                 </div>
                                                 <div className='flex items-center gap-3'>
                                                         <div className='text-sm text-base-content/70'>Progress</div>
@@ -193,7 +419,13 @@ export default function PostJobWizard() {
                                 </div>
 
                                 <div className='space-y-6'>
-                                        <AboutStep onAttachmentsChange={handleAttachmentsChange} attachments={attachments} hidden={currentStep.id !== 'about'} />
+                                        <AboutStep
+                                                hidden={currentStep.id !== 'about'}
+                                                newAttachments={newAttachments}
+                                                existingAttachments={existingAttachments}
+                                                onNewAttachmentsChange={handleNewAttachmentsChange}
+                                                onExistingAttachmentsChange={handleExistingAttachmentsChange}
+                                        />
                                         <FreelancerRequirementsStep hidden={currentStep.id !== 'requirements'} />
                                         <BudgetStep hidden={currentStep.id !== 'budget'} />
                                 </div>
@@ -203,18 +435,36 @@ export default function PostJobWizard() {
                                                 type='button'
                                                 onClick={goPrev}
                                                 className='btn btn-ghost gap-2'
-                                                disabled={stepIndex === 0}
+                                                disabled={stepIndex === 0 || isSubmitting}
                                         >
                                                 <ChevronLeft className='size-4' /> Back
                                         </button>
                                         <div className='flex flex-1 flex-col items-stretch gap-3 md:flex-row md:justify-end'>
                                                 {stepIndex === totalSteps - 1 ? (
-                                                        <button type='submit' className='btn btn-primary gap-2'>
-                                                                Finalize job post
-                                                                <Check className='size-4' />
+                                                        <button
+                                                                type='submit'
+                                                                className='btn btn-primary gap-2'
+                                                                disabled={isSubmitting}
+                                                        >
+                                                                {isSubmitting ? (
+                                                                        <>
+                                                                                <Loader2 className='size-4 animate-spin' />
+                                                                                Saving...
+                                                                        </>
+                                                                ) : (
+                                                                        <>
+                                                                                Finalize job post
+                                                                                <Check className='size-4' />
+                                                                        </>
+                                                                )}
                                                         </button>
                                                 ) : (
-                                                        <button type='button' className='btn btn-primary gap-2' onClick={goNext}>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-primary gap-2'
+                                                                onClick={goNext}
+                                                                disabled={isSubmitting}
+                                                        >
                                                                 Continue
                                                                 <ChevronRight className='size-4' />
                                                         </button>

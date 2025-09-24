@@ -5,22 +5,34 @@ import type { JobPostFormValues } from '../schema'
 
 type AboutStepProps = {
         hidden?: boolean
-        attachments: File[]
-        onAttachmentsChange: (_files: File[]) => void
+        newAttachments: File[]
+        existingAttachments: string[]
+        onNewAttachmentsChange: (_files: File[]) => void
+        onExistingAttachmentsChange: (_names: string[]) => void
 }
 
-export function AboutStep({ hidden, attachments, onAttachmentsChange }: AboutStepProps) {
+export function AboutStep({
+        hidden,
+        newAttachments,
+        existingAttachments,
+        onNewAttachmentsChange,
+        onExistingAttachmentsChange
+}: AboutStepProps) {
         const inputRef = useRef<HTMLInputElement | null>(null)
         const {
                 register,
-                setValue,
-                watch,
                 formState: { errors }
         } = useFormContext<JobPostFormValues>()
 
-        const attachmentNames = watch('attachments') ?? []
+        const attachmentNames = useMemo(
+                () => [...existingAttachments, ...newAttachments.map(file => file.name)],
+                [existingAttachments, newAttachments]
+        )
 
-        const canAddMore = useMemo(() => attachments.length < 20, [attachments.length])
+        const canAddMore = useMemo(
+                () => existingAttachments.length + newAttachments.length < 20,
+                [existingAttachments.length, newAttachments.length]
+        )
 
         const pickFiles = () => {
                 if (inputRef.current) {
@@ -31,28 +43,25 @@ export function AboutStep({ hidden, attachments, onAttachmentsChange }: AboutSte
         const handleFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
                 const fileList = event.target.files
                 if (!fileList) return
-                const existing = [...attachments]
+                const nextFiles = [...newAttachments]
                 Array.from(fileList).forEach(file => {
-                        if (existing.length < 20) {
-                                existing.push(file)
+                        if (existingAttachments.length + nextFiles.length < 20) {
+                                nextFiles.push(file)
                         }
                 })
-                onAttachmentsChange(existing)
-                setValue(
-                        'attachments',
-                        existing.map(file => file.name),
-                        { shouldDirty: true, shouldValidate: true }
-                )
+                onNewAttachmentsChange(nextFiles)
         }
 
         const removeFile = (index: number) => {
-                const nextFiles = attachments.filter((_, i) => i !== index)
-                onAttachmentsChange(nextFiles)
-                setValue(
-                        'attachments',
-                        nextFiles.map(file => file.name),
-                        { shouldDirty: true, shouldValidate: true }
-                )
+                const existingCount = existingAttachments.length
+                if (index < existingCount) {
+                        const nextNames = existingAttachments.filter((_, i) => i !== index)
+                        onExistingAttachmentsChange(nextNames)
+                        return
+                }
+                const fileIndex = index - existingCount
+                const nextFiles = newAttachments.filter((_, i) => i !== fileIndex)
+                onNewAttachmentsChange(nextFiles)
         }
 
         return (
@@ -146,7 +155,7 @@ export function AboutStep({ hidden, attachments, onAttachmentsChange }: AboutSte
                                                                 <Paperclip className='size-4' /> Upload files
                                                         </button>
                                                         <p className='text-xs text-base-content/60'>
-                                                                {attachments.length}/20 files attached. Accepted up to 25MB each.
+                                                                {attachmentNames.length}/20 files attached. Accepted up to 25MB each.
                                                         </p>
                                                 </div>
                                         </div>
