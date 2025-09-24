@@ -10,13 +10,13 @@ import { routes } from '~/config/routes'
 import { createJobPost, fetchJobPostDetail, updateJobPost } from '~/apis/job-post.api'
 import type { JobPostDetail } from '~/types/job-post'
 import {
-        normalizeCustomTerms,
-        normalizeLanguages,
-        normalizePreferredLocations,
-        normalizeScreeningQuestions,
-        normalizeSkills,
-        normalizeAttachments,
-        type NormalizedAttachment
+	normalizeCustomTerms,
+	normalizeLanguages,
+	normalizePreferredLocations,
+	normalizeScreeningQuestions,
+	normalizeSkills,
+	normalizeAttachments,
+	type NormalizedAttachment
 } from '~/utils/jobPost'
 import { jobPostFormSchema, type JobPostFormValues } from './schema'
 import { AboutStep } from './components/AboutStep'
@@ -76,40 +76,15 @@ const defaultValues: JobPostFormValues = {
 	attachments: []
 }
 
-<<<<<<< HEAD
-function extractAttachmentNames(attachments?: JobAttachment[]) {
-	if (!attachments) return []
-	return attachments
-		.map(attachment => attachment?.name ?? attachment?.url ?? '')
-		.filter((name): name is string => Boolean(name))
-}
-
 function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
-	const customTerms = detail.customTerms ?? {}
-	const deliverables = typeof customTerms?.deliverables === 'string' ? customTerms.deliverables : ''
-	const additionalNotes = typeof customTerms?.additionalNotes === 'string' ? customTerms.additionalNotes : ''
-	const preferredLocationsRaw = Array.isArray(detail.preferredLocations) ? detail.preferredLocations : []
-	const preferredLocations = preferredLocationsRaw
-		.map(entry => {
-			if (typeof entry === 'string') {
-				return { code: entry, label: entry }
-			}
-			if (entry && typeof entry === 'object') {
-				const code = 'code' in entry ? String(entry.code) : ''
-				const label = 'label' in entry ? String(entry.label) : ''
-				if (code || label) {
-					return { code: code || label, label: label || code }
-				}
-			}
-			return null
-		})
-		.filter((item): item is { code: string; label: string } => Boolean(item))
-
-	const languages =
-		detail.languages?.map(language => ({
-			languageCode: language.languageCode?.toLowerCase() ?? 'en',
-			proficiency: language.proficiency
-		})) ?? []
+	const customTerms = normalizeCustomTerms(detail.customTerms)
+	const deliverables = customTerms.deliverables ?? ''
+	const additionalNotes = customTerms.additionalNotes ?? ''
+	const preferredLocations = normalizePreferredLocations(detail.preferredLocations)
+	const languages = normalizeLanguages(detail.languages)
+	const skills = normalizeSkills(detail.skills)
+	const screeningQuestions = normalizeScreeningQuestions(detail.screeningQuestions)
+	const attachments = normalizeAttachments(detail.attachments)
 
 	return {
 		categoryId: detail.specialty?.category?.id ?? '',
@@ -130,12 +105,9 @@ function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
 		visibility: detail.visibility ?? 'PUBLIC',
 		status: detail.status ?? 'DRAFT',
 		languages,
-		skills: {
-			required: detail.skills?.required ?? [],
-			preferred: detail.skills?.preferred ?? []
-		},
-		screeningQuestions: detail.screeningQuestions ?? [],
-		attachments: extractAttachmentNames(detail.attachments)
+		skills,
+		screeningQuestions,
+		attachments: attachments.map(attachment => attachment.label ?? attachment.id).filter(Boolean)
 	}
 }
 
@@ -145,51 +117,7 @@ export default function PostJobWizard() {
 	const queryClient = useQueryClient()
 	const isEditing = Boolean(jobId)
 	const [newAttachments, setNewAttachments] = useState<File[]>([])
-	const [existingAttachments, setExistingAttachments] = useState<string[]>([])
-=======
-function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
-        const customTerms = normalizeCustomTerms(detail.customTerms)
-        const deliverables = customTerms.deliverables ?? ''
-        const additionalNotes = customTerms.additionalNotes ?? ''
-        const preferredLocations = normalizePreferredLocations(detail.preferredLocations)
-        const languages = normalizeLanguages(detail.languages)
-        const skills = normalizeSkills(detail.skills)
-        const screeningQuestions = normalizeScreeningQuestions(detail.screeningQuestions)
-        const attachments = normalizeAttachments(detail.attachments)
-
-        return {
-                categoryId: detail.specialty?.category?.id ?? '',
-                specialtyId: detail.specialty?.id ?? '',
-                title: detail.title ?? '',
-                description: detail.description ?? '',
-                customTerms:
-                        deliverables || additionalNotes
-                                ? { deliverables: deliverables || undefined, additionalNotes: additionalNotes || undefined }
-                                : undefined,
-                paymentMode: detail.paymentMode ?? (JOB_PAYMENT_MODES[0]?.value ?? 'fix_single'),
-                budgetAmount: detail.budgetAmount ?? undefined,
-                budgetCurrency: detail.budgetCurrency ?? undefined,
-                duration: detail.duration ?? undefined,
-                experienceLevel: detail.experienceLevel ?? 'ENTRY_LEVEL',
-                locationType: detail.locationType ?? 'REMOTE',
-                preferredLocations,
-                visibility: detail.visibility ?? 'PUBLIC',
-                status: detail.status ?? 'DRAFT',
-                languages,
-                skills,
-                screeningQuestions,
-                attachments: attachments.map(attachment => attachment.label ?? attachment.id).filter(Boolean)
-        }
-}
-
-export default function PostJobWizard() {
-        const navigate = useNavigate()
-        const { jobId } = useParams<{ jobId?: string }>()
-        const queryClient = useQueryClient()
-        const isEditing = Boolean(jobId)
-        const [newAttachments, setNewAttachments] = useState<File[]>([])
-        const [existingAttachments, setExistingAttachments] = useState<NormalizedAttachment[]>([])
->>>>>>> b1bfc05aa301a90963585647a01b264c16064e2b
+	const [existingAttachments, setExistingAttachments] = useState<NormalizedAttachment[]>([])
 
 	const methods = useForm<JobPostFormValues>({
 		resolver: zodResolver(jobPostFormSchema),
@@ -201,33 +129,21 @@ export default function PostJobWizard() {
 	const currentStep = wizardSteps[stepIndex]
 	const totalSteps = wizardSteps.length
 
-<<<<<<< HEAD
 	const updateAttachmentField = useCallback(
-		(existing: string[], files: File[], opts?: { shouldDirty?: boolean }) => {
-			methods.setValue('attachments', [...existing, ...files.map(file => file.name)], {
-				shouldValidate: true,
-				shouldDirty: opts?.shouldDirty ?? true
-			})
+		(existing: NormalizedAttachment[], files: File[], opts?: { shouldDirty?: boolean }) => {
+			methods.setValue(
+				'attachments',
+				[
+					...existing
+						.map(attachment => attachment.label ?? attachment.id)
+						.filter((value): value is string => Boolean(value)),
+					...files.map(file => file.name)
+				],
+				{ shouldValidate: true, shouldDirty: opts?.shouldDirty ?? true }
+			)
 		},
 		[methods]
 	)
-=======
-        const updateAttachmentField = useCallback(
-                (existing: NormalizedAttachment[], files: File[], opts?: { shouldDirty?: boolean }) => {
-                        methods.setValue(
-                                'attachments',
-                                [
-                                        ...existing
-                                                .map(attachment => attachment.label ?? attachment.id)
-                                                .filter((value): value is string => Boolean(value)),
-                                        ...files.map(file => file.name)
-                                ],
-                                { shouldValidate: true, shouldDirty: opts?.shouldDirty ?? true }
-                        )
-                },
-                [methods]
-        )
->>>>>>> b1bfc05aa301a90963585647a01b264c16064e2b
 
 	const {
 		data: jobDetail,
@@ -245,27 +161,15 @@ export default function PostJobWizard() {
 		}
 	})
 
-<<<<<<< HEAD
 	useEffect(() => {
 		if (!isEditing || !jobDetail) return
 		const mapped = mapDetailToForm(jobDetail)
 		methods.reset({ ...defaultValues, ...mapped })
-		const existingNames = extractAttachmentNames(jobDetail.attachments)
-		setExistingAttachments(existingNames)
+		const normalizedAttachments = normalizeAttachments(jobDetail.attachments)
+		setExistingAttachments(normalizedAttachments)
 		setNewAttachments([])
-		updateAttachmentField(existingNames, [], { shouldDirty: false })
+		updateAttachmentField(normalizedAttachments, [], { shouldDirty: false })
 	}, [isEditing, jobDetail, methods, updateAttachmentField])
-=======
-        useEffect(() => {
-                if (!isEditing || !jobDetail) return
-                const mapped = mapDetailToForm(jobDetail)
-                methods.reset({ ...defaultValues, ...mapped })
-                const normalizedAttachments = normalizeAttachments(jobDetail.attachments)
-                setExistingAttachments(normalizedAttachments)
-                setNewAttachments([])
-                updateAttachmentField(normalizedAttachments, [], { shouldDirty: false })
-        }, [isEditing, jobDetail, methods, updateAttachmentField])
->>>>>>> b1bfc05aa301a90963585647a01b264c16064e2b
 
 	const handleNewAttachmentsChange = useCallback(
 		(files: File[]) => {
@@ -275,23 +179,13 @@ export default function PostJobWizard() {
 		[existingAttachments, updateAttachmentField]
 	)
 
-<<<<<<< HEAD
 	const handleExistingAttachmentsChange = useCallback(
-		(names: string[]) => {
-			setExistingAttachments(names)
-			updateAttachmentField(names, newAttachments)
+		(attachments: NormalizedAttachment[]) => {
+			setExistingAttachments(attachments)
+			updateAttachmentField(attachments, newAttachments)
 		},
 		[newAttachments, updateAttachmentField]
 	)
-=======
-        const handleExistingAttachmentsChange = useCallback(
-                (attachments: NormalizedAttachment[]) => {
-                        setExistingAttachments(attachments)
-                        updateAttachmentField(attachments, newAttachments)
-                },
-                [newAttachments, updateAttachmentField]
-        )
->>>>>>> b1bfc05aa301a90963585647a01b264c16064e2b
 
 	const progress = useMemo(() => Math.round(((stepIndex + 1) / totalSteps) * 100), [stepIndex, totalSteps])
 
@@ -381,7 +275,6 @@ export default function PostJobWizard() {
 				proficiency: language.proficiency
 			}))
 
-<<<<<<< HEAD
 			const payload = {
 				...rest,
 				specialtyId: values.specialtyId,
@@ -391,28 +284,8 @@ export default function PostJobWizard() {
 				languages: formattedLanguages,
 				skills,
 				screeningQuestions: screeningQuestions && screeningQuestions.length > 0 ? screeningQuestions : undefined,
-				attachments: [...existingAttachments, ...newAttachments.map(file => file.name)]
+				attachments: existingAttachments.map(attachment => attachment.id).filter((id): id is string => Boolean(id))
 			}
-=======
-                        const payload = {
-                                ...rest,
-                                specialtyId: values.specialtyId,
-                                formVersion: 'VERSION_1',
-                                customTerms:
-                                        trimmedCustomTerms && Object.keys(trimmedCustomTerms).length > 0
-                                                ? trimmedCustomTerms
-                                                : undefined,
-                                preferredLocations:
-                                        preferredLocations && preferredLocations.length > 0 ? preferredLocations : undefined,
-                                languages: formattedLanguages,
-                                skills,
-                                screeningQuestions:
-                                        screeningQuestions && screeningQuestions.length > 0 ? screeningQuestions : undefined,
-                                attachments: existingAttachments
-                                        .map(attachment => attachment.id)
-                                        .filter((id): id is string => Boolean(id))
-                        }
->>>>>>> b1bfc05aa301a90963585647a01b264c16064e2b
 
 			if (!payload.budgetCurrency) {
 				delete (payload as { budgetCurrency?: string }).budgetCurrency
@@ -434,42 +307,23 @@ export default function PostJobWizard() {
 				delete (payload as { status?: string | undefined }).status
 			}
 
-<<<<<<< HEAD
 			return payload
 		},
-		[existingAttachments, newAttachments]
+		[existingAttachments]
 	)
 
 	const onSubmit = useCallback(
 		async (values: JobPostFormValues) => {
 			const payload = buildPayload(values)
+			const request = { payload, attachmentFiles: newAttachments }
 			if (isEditing) {
-				await updateMutation.mutateAsync(payload)
+				await updateMutation.mutateAsync(request)
 			} else {
-				await createMutation.mutateAsync(payload)
+				await createMutation.mutateAsync(request)
 			}
 		},
-		[buildPayload, createMutation, isEditing, updateMutation]
+		[buildPayload, createMutation, isEditing, newAttachments, updateMutation]
 	)
-=======
-                        return payload
-                },
-                [existingAttachments]
-        )
-
-        const onSubmit = useCallback(
-                async (values: JobPostFormValues) => {
-                        const payload = buildPayload(values)
-                        const request = { payload, attachmentFiles: newAttachments }
-                        if (isEditing) {
-                                await updateMutation.mutateAsync(request)
-                        } else {
-                                await createMutation.mutateAsync(request)
-                        }
-                },
-                [buildPayload, createMutation, isEditing, newAttachments, updateMutation]
-        )
->>>>>>> b1bfc05aa301a90963585647a01b264c16064e2b
 
 	if (isEditing && isLoadingJob) {
 		return (

@@ -38,46 +38,55 @@ type JobPostRequest = {
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 	typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const appendFormDataValue = (formData: FormData, key: string, value: unknown) => {
+	if (value === undefined) return
+
+	if (value === null) {
+		formData.append(key, 'null')
+		return
+	}
+
+	if (value instanceof Date) {
+		formData.append(key, value.toISOString())
+		return
+	}
+
+	if (Array.isArray(value)) {
+		if (value.length === 0) {
+			formData.append(key, '[]')
+			return
+		}
+
+		value.forEach((item, index) => {
+			appendFormDataValue(formData, `${key}[${index}]`, item)
+		})
+
+		return
+	}
+
+	if (isPlainObject(value)) {
+		const entries = Object.entries(value)
+
+		if (entries.length === 0) {
+			formData.append(key, '{}')
+			return
+		}
+
+		entries.forEach(([childKey, childValue]) => {
+			appendFormDataValue(formData, `${key}[${childKey}]`, childValue)
+		})
+
+		return
+	}
+
+	formData.append(key, String(value))
+}
+
 const buildJobPostFormData = ({ payload, attachmentFiles = [] }: JobPostRequest): FormData => {
 	const formData = new FormData()
 
 	Object.entries(payload).forEach(([key, value]) => {
-		if (value === undefined) return
-
-		if (value === null) {
-			formData.append(key, 'null')
-			return
-		}
-
-		if (Array.isArray(value)) {
-			if (value.length === 0) {
-				// Preserve the intent to clear arrays on the backend
-				formData.append(key, '[]')
-				return
-			}
-
-			const isPrimitiveArray = value.every(
-				item => item === null || ['string', 'number', 'boolean'].includes(typeof item)
-			)
-
-			if (isPrimitiveArray) {
-				value.forEach(item => {
-					if (item === undefined || item === null) return
-					formData.append(key, String(item))
-				})
-				return
-			}
-
-			formData.append(key, JSON.stringify(value))
-			return
-		}
-
-		if (isPlainObject(value)) {
-			formData.append(key, JSON.stringify(value))
-			return
-		}
-
-		formData.append(key, String(value))
+		appendFormDataValue(formData, key, value)
 	})
 
 	attachmentFiles.forEach(file => {
