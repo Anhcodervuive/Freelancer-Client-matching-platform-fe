@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const JOB_PAYMENT_MODES = [
 	{
-		value: 'fix_single',
+		value: 'FIXED_SINGLE',
 		label: 'Single payment project',
 		description: 'Pay talent once when all agreed deliverables are complete.',
 		budgetLabel: 'Total project budget',
@@ -10,7 +10,7 @@ export const JOB_PAYMENT_MODES = [
 		step: 5
 	},
 	{
-		value: 'fix_milestone',
+		value: 'FIXED_MILESTONE',
 		label: 'Milestone-based project',
 		description: 'Divide the scope into milestones and release funds as work is approved.',
 		budgetLabel: 'Budget per milestone',
@@ -21,7 +21,7 @@ export const JOB_PAYMENT_MODES = [
 
 export const JOB_EXPERIENCE_LEVELS = [
 	{
-		value: 'ENTRY_LEVEL',
+		value: 'ENTRY',
 		label: 'Entry',
 		description: 'Looking for beginners getting started with this type of work.'
 	},
@@ -52,7 +52,7 @@ export const JOB_LOCATION_TYPES = [
 		description: 'Work from anywhere. Great for distributed teams.'
 	},
 	{
-		value: 'ONSITE',
+		value: 'ON_SITE',
 		label: 'On-site',
 		description: 'Freelancers work from your office or a specific location.'
 	},

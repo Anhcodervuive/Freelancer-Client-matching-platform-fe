@@ -88,7 +88,6 @@ export default function JobPostListPage() {
                                 paymentModes: paymentMode ? ([paymentMode] as JobPaymentMode[]) : undefined,
                                 mine: true
                         }),
-                keepPreviousData: true
         })
 
         const deleteMutation = useMutation({
