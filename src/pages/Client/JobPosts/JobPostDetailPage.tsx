@@ -21,6 +21,14 @@ import { languageNameFromCode, PROFICIENCY_OPTIONS } from '~/constants/language'
 import { routes } from '~/config/routes'
 import type { JobPostDetail } from '~/types/job-post'
 import type { LanguageProficiency } from '~/types/profile'
+import {
+	normalizeAttachments,
+	normalizeCustomTerms,
+	normalizeLanguages,
+	normalizePreferredLocations,
+	normalizeScreeningQuestions,
+	normalizeSkills
+} from '~/utils/jobPost'
 
 const statusMap = Object.fromEntries(JOB_STATUS_OPTIONS.map(option => [option.value, option.label])) as Record<
 	JobStatus,
@@ -76,25 +84,6 @@ function formatDate(value?: string | null) {
 	}
 }
 
-function parsePreferredLocations(preferred?: JobPostDetail['preferredLocations']) {
-	if (!Array.isArray(preferred)) return []
-	return preferred
-		.map(entry => {
-			if (typeof entry === 'string') {
-				return { code: entry, label: entry }
-			}
-			if (entry && typeof entry === 'object') {
-				const code = 'code' in entry ? String(entry.code) : ''
-				const label = 'label' in entry ? String(entry.label) : ''
-				if (code || label) {
-					return { code: code || label, label: label || code }
-				}
-			}
-			return null
-		})
-		.filter((item): item is { code: string; label: string } => Boolean(item))
-}
-
 export default function JobPostDetailPage() {
 	const navigate = useNavigate()
 	const { jobId } = useParams<{ jobId: string }>()
@@ -115,12 +104,21 @@ export default function JobPostDetailPage() {
 		}
 	})
 
-	const preferredLocations = useMemo(() => parsePreferredLocations(job?.preferredLocations), [job?.preferredLocations])
-	const requiredSkills = job?.skills?.required ?? []
-	const preferredSkills = job?.skills?.preferred ?? []
-	const screeningQuestions = job?.screeningQuestions ?? []
-	const attachments = job?.attachments ?? []
-	const languages = job?.languages ?? []
+	const preferredLocations = useMemo(
+		() => normalizePreferredLocations(job?.preferredLocations),
+		[job?.preferredLocations]
+	)
+	const normalizedSkills = useMemo(() => normalizeSkills(job?.skills), [job?.skills])
+	const requiredSkills = normalizedSkills.required
+	const preferredSkills = normalizedSkills.preferred
+	const screeningQuestions = useMemo(
+		() => normalizeScreeningQuestions(job?.screeningQuestions),
+		[job?.screeningQuestions]
+	)
+	const attachments = useMemo(() => normalizeAttachments(job?.attachments), [job?.attachments])
+	const languages = useMemo(() => normalizeLanguages(job?.languages), [job?.languages])
+	const customTerms = useMemo(() => normalizeCustomTerms(job?.customTerms), [job?.customTerms])
+	const customTermEntries = useMemo(() => Object.entries(customTerms), [customTerms])
 
 	if (!jobId) {
 		return (
@@ -312,11 +310,14 @@ export default function JobPostDetailPage() {
 							<ul className='mt-3 space-y-3 text-sm text-base-content/80'>
 								{languages.map(language => {
 									const proficiencyLabel = proficiencyMap[language.proficiency] ?? language.proficiency
+									const code = language.languageCode?.toLowerCase()
+									const displayName = code ? languageNameFromCode(code) : language.languageCode
+									if (!displayName) return null
 									return (
 										<li
 											key={`${language.languageCode}-${language.proficiency}`}
 											className='flex items-center justify-between rounded-xl bg-base-200/60 px-3 py-2'>
-											<span>{languageNameFromCode(language.languageCode.toLowerCase())}</span>
+											<span>{displayName}</span>
 											<span className='text-xs uppercase tracking-wide text-base-content/60'>{proficiencyLabel}</span>
 										</li>
 									)
@@ -335,9 +336,9 @@ export default function JobPostDetailPage() {
 							<ul className='mt-3 space-y-3 text-sm text-base-content/80'>
 								{attachments.map(attachment => (
 									<li
-										key={attachment.id ?? attachment.name}
+										key={attachment.id}
 										className='flex items-center justify-between rounded-xl bg-base-200/60 px-3 py-2'>
-										<span className='truncate pr-3'>{attachment.name}</span>
+										<span className='truncate pr-3'>{attachment.label}</span>
 										{attachment.url ? (
 											<a
 												href={attachment.url}
@@ -356,18 +357,16 @@ export default function JobPostDetailPage() {
 					</section>
 				</div>
 
-				{job.customTerms ? (
+				{customTermEntries.length > 0 ? (
 					<section className='mt-6 rounded-2xl border border-base-200 bg-base-100 p-5 shadow-sm'>
 						<div className='flex items-center gap-2 text-base font-semibold text-base-content'>
 							<FileText className='size-5 text-primary' /> Custom terms
 						</div>
 						<div className='mt-3 space-y-3 text-sm text-base-content/70'>
-							{Object.entries(job.customTerms).map(([key, value]) => (
+							{customTermEntries.map(([key, value]) => (
 								<div key={key}>
 									<div className='text-xs uppercase tracking-wide text-base-content/60'>{key}</div>
-									<div className='mt-1 rounded-xl bg-base-200/60 px-3 py-2 text-base-content/80'>
-										{typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
-									</div>
+									<div className='mt-1 rounded-xl bg-base-200/60 px-3 py-2 text-base-content/80'>{value}</div>
 								</div>
 							))}
 						</div>
