@@ -10,12 +10,13 @@ import { routes } from '~/config/routes'
 import { createJobPost, fetchJobPostDetail, updateJobPost } from '~/apis/job-post.api'
 import type { JobPostDetail } from '~/types/job-post'
 import {
-        extractAttachmentIdentifiers,
         normalizeCustomTerms,
         normalizeLanguages,
         normalizePreferredLocations,
         normalizeScreeningQuestions,
-        normalizeSkills
+        normalizeSkills,
+        normalizeAttachments,
+        type NormalizedAttachment
 } from '~/utils/jobPost'
 import { jobPostFormSchema, type JobPostFormValues } from './schema'
 import { AboutStep } from './components/AboutStep'
@@ -83,7 +84,7 @@ function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
         const languages = normalizeLanguages(detail.languages)
         const skills = normalizeSkills(detail.skills)
         const screeningQuestions = normalizeScreeningQuestions(detail.screeningQuestions)
-        const attachments = extractAttachmentIdentifiers(detail.attachments)
+        const attachments = normalizeAttachments(detail.attachments)
 
         return {
                 categoryId: detail.specialty?.category?.id ?? '',
@@ -106,7 +107,7 @@ function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
                 languages,
                 skills,
                 screeningQuestions,
-                attachments
+                attachments: attachments.map(attachment => attachment.label ?? attachment.id).filter(Boolean)
         }
 }
 
@@ -116,7 +117,7 @@ export default function PostJobWizard() {
         const queryClient = useQueryClient()
         const isEditing = Boolean(jobId)
         const [newAttachments, setNewAttachments] = useState<File[]>([])
-        const [existingAttachments, setExistingAttachments] = useState<string[]>([])
+        const [existingAttachments, setExistingAttachments] = useState<NormalizedAttachment[]>([])
 
         const methods = useForm<JobPostFormValues>({
                 resolver: zodResolver(jobPostFormSchema),
@@ -129,10 +130,15 @@ export default function PostJobWizard() {
         const totalSteps = wizardSteps.length
 
         const updateAttachmentField = useCallback(
-                (existing: string[], files: File[], opts?: { shouldDirty?: boolean }) => {
+                (existing: NormalizedAttachment[], files: File[], opts?: { shouldDirty?: boolean }) => {
                         methods.setValue(
                                 'attachments',
-                                [...existing, ...files.map(file => file.name)],
+                                [
+                                        ...existing
+                                                .map(attachment => attachment.label ?? attachment.id)
+                                                .filter((value): value is string => Boolean(value)),
+                                        ...files.map(file => file.name)
+                                ],
                                 { shouldValidate: true, shouldDirty: opts?.shouldDirty ?? true }
                         )
                 },
@@ -155,10 +161,10 @@ export default function PostJobWizard() {
                 if (!isEditing || !jobDetail) return
                 const mapped = mapDetailToForm(jobDetail)
                 methods.reset({ ...defaultValues, ...mapped })
-                const existingIds = extractAttachmentIdentifiers(jobDetail.attachments)
-                setExistingAttachments(existingIds)
+                const normalizedAttachments = normalizeAttachments(jobDetail.attachments)
+                setExistingAttachments(normalizedAttachments)
                 setNewAttachments([])
-                updateAttachmentField(existingIds, [], { shouldDirty: false })
+                updateAttachmentField(normalizedAttachments, [], { shouldDirty: false })
         }, [isEditing, jobDetail, methods, updateAttachmentField])
 
         const handleNewAttachmentsChange = useCallback(
@@ -170,9 +176,9 @@ export default function PostJobWizard() {
         )
 
         const handleExistingAttachmentsChange = useCallback(
-                (names: string[]) => {
-                        setExistingAttachments(names)
-                        updateAttachmentField(names, newAttachments)
+                (attachments: NormalizedAttachment[]) => {
+                        setExistingAttachments(attachments)
+                        updateAttachmentField(attachments, newAttachments)
                 },
                 [newAttachments, updateAttachmentField]
         )
@@ -276,7 +282,9 @@ export default function PostJobWizard() {
                                 skills,
                                 screeningQuestions:
                                         screeningQuestions && screeningQuestions.length > 0 ? screeningQuestions : undefined,
-                                attachments: [...existingAttachments, ...newAttachments.map(file => file.name)]
+                                attachments: existingAttachments
+                                        .map(attachment => attachment.id)
+                                        .filter((id): id is string => Boolean(id))
                         }
 
                         if (!payload.budgetCurrency) {
@@ -301,19 +309,20 @@ export default function PostJobWizard() {
 
                         return payload
                 },
-                [existingAttachments, newAttachments]
+                [existingAttachments]
         )
 
         const onSubmit = useCallback(
                 async (values: JobPostFormValues) => {
                         const payload = buildPayload(values)
+                        const request = { payload, attachmentFiles: newAttachments }
                         if (isEditing) {
-                                await updateMutation.mutateAsync(payload)
+                                await updateMutation.mutateAsync(request)
                         } else {
-                                await createMutation.mutateAsync(payload)
+                                await createMutation.mutateAsync(request)
                         }
                 },
-                [buildPayload, createMutation, isEditing, updateMutation]
+                [buildPayload, createMutation, isEditing, newAttachments, updateMutation]
         )
 
         if (isEditing && isLoadingJob) {

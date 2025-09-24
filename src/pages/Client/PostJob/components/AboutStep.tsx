@@ -2,13 +2,14 @@ import { useMemo, useRef } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { Paperclip, UploadCloud } from 'lucide-react'
 import type { JobPostFormValues } from '../schema'
+import type { NormalizedAttachment } from '~/utils/jobPost'
 
 type AboutStepProps = {
         hidden?: boolean
         newAttachments: File[]
-        existingAttachments: string[]
+        existingAttachments: NormalizedAttachment[]
         onNewAttachmentsChange: (_files: File[]) => void
-        onExistingAttachmentsChange: (_names: string[]) => void
+        onExistingAttachmentsChange: (_attachments: NormalizedAttachment[]) => void
 }
 
 export function AboutStep({
@@ -25,7 +26,12 @@ export function AboutStep({
         } = useFormContext<JobPostFormValues>()
 
         const attachmentNames = useMemo(
-                () => [...existingAttachments, ...newAttachments.map(file => file.name)],
+                () => [
+                        ...existingAttachments
+                                .map(attachment => attachment.label ?? attachment.id ?? '')
+                                .filter(Boolean),
+                        ...newAttachments.map(file => file.name)
+                ],
                 [existingAttachments, newAttachments]
         )
 
@@ -55,8 +61,8 @@ export function AboutStep({
         const removeFile = (index: number) => {
                 const existingCount = existingAttachments.length
                 if (index < existingCount) {
-                        const nextNames = existingAttachments.filter((_, i) => i !== index)
-                        onExistingAttachmentsChange(nextNames)
+                        const nextAttachments = existingAttachments.filter((_, i) => i !== index)
+                        onExistingAttachmentsChange(nextAttachments)
                         return
                 }
                 const fileIndex = index - existingCount

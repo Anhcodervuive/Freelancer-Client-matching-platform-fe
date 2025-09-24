@@ -30,6 +30,63 @@ type JobPostDetailResponse = { jobPost: JobPostDetail }
 
 type JobPostListResponse = PaginatedJobPostResponse
 
+type JobPostRequest = {
+        payload: JobPostPayload | UpdateJobPostPayload
+        attachmentFiles?: File[]
+}
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+        typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const buildJobPostFormData = ({ payload, attachmentFiles = [] }: JobPostRequest): FormData => {
+        const formData = new FormData()
+
+        Object.entries(payload).forEach(([key, value]) => {
+                if (value === undefined) return
+
+                if (value === null) {
+                        formData.append(key, 'null')
+                        return
+                }
+
+                if (Array.isArray(value)) {
+                        if (value.length === 0) {
+                                // Preserve the intent to clear arrays on the backend
+                                formData.append(key, '[]')
+                                return
+                        }
+
+                        const isPrimitiveArray = value.every(item =>
+                                item === null || ['string', 'number', 'boolean'].includes(typeof item)
+                        )
+
+                        if (isPrimitiveArray) {
+                                value.forEach(item => {
+                                        if (item === undefined || item === null) return
+                                        formData.append(key, String(item))
+                                })
+                                return
+                        }
+
+                        formData.append(key, JSON.stringify(value))
+                        return
+                }
+
+                if (isPlainObject(value)) {
+                        formData.append(key, JSON.stringify(value))
+                        return
+                }
+
+                formData.append(key, String(value))
+        })
+
+        attachmentFiles.forEach(file => {
+                formData.append('attachmentFiles', file)
+        })
+
+        return formData
+}
+
 const serializeFilters = (filters: JobPostFilterInput = {}) => {
         const serialized = new URLSearchParams()
 
@@ -93,13 +150,18 @@ export const fetchJobPostDetail = async (id: string): Promise<JobPostDetail> => 
         return jobPost
 }
 
-export const createJobPost = async (payload: JobPostPayload) => {
-        const response = await authorizeAxiosInstance.post(jobPostBaseUrl, payload)
+export const createJobPost = async ({ payload, attachmentFiles = [] }: JobPostRequest) => {
+        const formData = buildJobPostFormData({ payload, attachmentFiles })
+        const response = await authorizeAxiosInstance.post(jobPostBaseUrl, formData)
         return response.data
 }
 
-export const updateJobPost = async (id: string, payload: UpdateJobPostPayload) => {
-        const response = await authorizeAxiosInstance.patch(`${jobPostBaseUrl}/${id}`, payload)
+export const updateJobPost = async (
+        id: string,
+        { payload, attachmentFiles = [] }: JobPostRequest
+) => {
+        const formData = buildJobPostFormData({ payload, attachmentFiles })
+        const response = await authorizeAxiosInstance.patch(`${jobPostBaseUrl}/${id}`, formData)
         return response.data
 }
 
