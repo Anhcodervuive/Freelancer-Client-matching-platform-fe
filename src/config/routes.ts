@@ -8,16 +8,18 @@ export const routes = {
                         connectAccount: '/policies/connect-account'
                 }
         },
-	auth: {
-		signin: '/signin',
-		signup: '/signup',
-		verify: '/verify'
-	},
-	me: {
-		client: {},
-		freelancer: {
-			profile: '/me/freelancer/profile'
-		},
+        auth: {
+                signin: '/signin',
+                signup: '/signup',
+                verify: '/verify'
+        },
+        me: {
+                client: {
+                        postJob: '/me/client/jobs/create'
+                },
+                freelancer: {
+                        profile: '/me/freelancer/profile'
+                },
                 setting: {
                         contactInfo: '/me/setting/contact-info',
                         getPaid: '/me/setting/get-paid',

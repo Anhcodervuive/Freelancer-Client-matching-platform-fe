@@ -12,11 +12,12 @@ import { persistStore } from 'redux-persist'
 import AuthPage from './pages/Auth'
 import HomePage from './pages/Comons/HomePage'
 import {
-	checkAuthenticatedUser,
-	checkWhetherUserLoginMiddleware,
-	composeLoaders,
-	isAdminUser,
-	isFreelancerUser
+        checkAuthenticatedUser,
+        checkWhetherUserLoginMiddleware,
+        composeLoaders,
+        isAdminUser,
+        isClientUser,
+        isFreelancerUser
 } from './middlewares/auth'
 import { injectStore } from './utils/injectedStore'
 import { routes } from './config/routes'
@@ -42,6 +43,7 @@ import SpecialtySkillsPage from './pages/Admin/specialty/SpecialtySkillPage'
 import OnboardingWizard from './pages/onBoarding/OnboardingWizard'
 import PolicyLayout from './layouts/PolicyLayout'
 import ConnectAccountPolicyPage from './pages/Comons/policies/ConnectAccountPolicyPage'
+import PostJobWizard from './pages/Client/PostJob/PostJobWizard'
 
 const persistor = persistStore(store)
 
@@ -78,10 +80,15 @@ const router = createBrowserRouter([
 				path: 'freelancer/:id',
 				element: <ProfilePage />
 			},
-			{
-				path: routes.comons.onboarding,
-				element: <OnboardingWizard />
-			},
+                        {
+                                path: routes.comons.onboarding,
+                                element: <OnboardingWizard />
+                        },
+                        {
+                                path: routes.me.client.postJob,
+                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+                                element: <PostJobWizard />
+                        },
                         {
                                 path: '/me/setting',
                                 loader: checkAuthenticatedUser,
