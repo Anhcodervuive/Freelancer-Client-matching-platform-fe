@@ -230,7 +230,10 @@ export default function JobPostListPage() {
                         ) : (
                                 <div className='mt-8 space-y-4'>
                                         {jobs.map(job => {
-                                                const statusLabel = statusMap[job.status] ?? job.status
+                                                const statusLabel =
+                                                        job.status === 'DRAFT'
+                                                                ? 'Draft'
+                                                                : statusMap[job.status] ?? job.status
                                                 const visibilityLabel = visibilityMap[job.visibility] ?? job.visibility
                                                 const paymentLabel = paymentModeMap[job.paymentMode] ?? job.paymentMode
                                                 const locationLabel = locationMap[job.locationType] ?? job.locationType
@@ -274,6 +277,14 @@ export default function JobPostListPage() {
                                                                                 </span>
                                                                         </div>
                                                                         <div className='flex items-center gap-2'>
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-ghost btn-sm gap-2'
+                                                                                        onClick={() => navigate(routes.me.client.jobs.detail(job.id))}
+                                                                                        disabled={isDeleting}
+                                                                                >
+                                                                                        View details
+                                                                                </button>
                                                                                 <button
                                                                                         type='button'
                                                                                         className='btn btn-outline btn-sm gap-2'

@@ -7,7 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { JOB_PAYMENT_MODES } from '~/constants/job'
 import { routes } from '~/config/routes'
-import { createJobPost, getJobPost, updateJobPost } from '~/apis/job-post.api'
+import { createJobPost, fetchJobPostDetail, updateJobPost } from '~/apis/job-post.api'
 import type { JobAttachment, JobPostDetail } from '~/types/job-post'
 import { jobPostFormSchema, type JobPostFormValues } from './schema'
 import { AboutStep } from './components/AboutStep'
@@ -163,10 +163,13 @@ export default function PostJobWizard() {
 		isError
 	} = useQuery<JobPostDetail>({
 		queryKey: ['job-post', jobId],
-		enabled: isEditing,
+		enabled: isEditing && Boolean(jobId),
 		queryFn: async () => {
-			const response = await getJobPost(jobId ?? '')
-			return response.jobPost
+			if (!jobId) {
+				throw new Error('Missing job identifier')
+			}
+
+			return fetchJobPostDetail(jobId)
 		}
 	})
 

@@ -30,14 +30,65 @@ type JobPostDetailResponse = { jobPost: JobPostDetail }
 
 type JobPostListResponse = PaginatedJobPostResponse
 
+const serializeFilters = (filters: JobPostFilterInput = {}) => {
+	const serialized = new URLSearchParams()
+
+	Object.entries(filters).forEach(([key, value]) => {
+		if (value === undefined || value === null) {
+			return
+		}
+
+		if (Array.isArray(value)) {
+			value
+				.map(item => {
+					if (item === undefined || item === null) return null
+					const asString = typeof item === 'string' ? item.trim() : String(item)
+					return asString ? asString : null
+				})
+				.filter((item): item is string => Boolean(item))
+				.forEach(item => serialized.append(key, item))
+
+			return
+		}
+
+		if (value instanceof Date) {
+			serialized.append(key, value.toISOString())
+			return
+		}
+
+		if (typeof value === 'string') {
+			const trimmed = value.trim()
+			if (!trimmed) return
+			serialized.append(key, trimmed)
+			return
+		}
+
+		serialized.append(key, String(value))
+	})
+
+	return serialized.toString()
+}
+
 export const listJobPosts = async (params: JobPostFilterInput = {}): Promise<JobPostListResponse> => {
-	const response = await authorizeAxiosInstance.get(jobPostBaseUrl, { params })
+	const queryString = serializeFilters(params)
+	const response = await authorizeAxiosInstance.get(queryString ? `${jobPostBaseUrl}?${queryString}` : jobPostBaseUrl)
 	return response.data
 }
 
 export const getJobPost = async (id: string): Promise<JobPostDetailResponse> => {
 	const response = await authorizeAxiosInstance.get(`${jobPostBaseUrl}/${id}`)
 	return response.data
+}
+
+export const fetchJobPostDetail = async (id: string): Promise<JobPostDetail> => {
+	const response = await getJobPost(id)
+	const jobPost = response?.jobPost
+
+	if (!jobPost) {
+		throw new Error('Job post not found')
+	}
+
+	return jobPost
 }
 
 export const createJobPost = async (payload: JobPostPayload) => {
