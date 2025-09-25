@@ -61,6 +61,9 @@ type JobPostRequest = {
 	attachmentFiles?: File[]
 }
 
+const isDate = (v: unknown): v is Date =>
+	typeof v === 'object' && v !== null && Object.prototype.toString.call(v) === '[object Date]'
+
 const JSON_FIELD_KEYS: Array<keyof JobPostPayload> = [
 	'preferredLocations',
 	'customTerms',
@@ -127,7 +130,7 @@ const serializeFilters = (filters: JobPostFilterInput = {}) => {
 			return
 		}
 
-		if (value instanceof Date) {
+		if (isDate(value)) {
 			serialized.append(key, value.toISOString())
 			return
 		}

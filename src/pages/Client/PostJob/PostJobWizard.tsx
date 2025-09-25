@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronLeft, ChevronRight, FileText, Loader2, Sparkles, Wallet } from 'lucide-react'
-import { FormProvider, useForm } from 'react-hook-form'
+import { FormProvider, useForm, type Resolver } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
@@ -123,7 +123,7 @@ export default function PostJobWizard() {
 	const [existingAttachments, setExistingAttachments] = useState<NormalizedAttachment[]>([])
 
 	const methods = useForm<JobPostFormValues>({
-		resolver: zodResolver(jobPostFormSchema),
+		resolver: zodResolver(jobPostFormSchema) as unknown as Resolver<JobPostFormValues>,
 		mode: 'onChange',
 		defaultValues
 	})

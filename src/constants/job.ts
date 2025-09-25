@@ -57,7 +57,7 @@ export const JOB_LOCATION_TYPES = [
 		description: 'Freelancers work from your office or a specific location.'
 	},
 	{
-		value: 'CLIENT_LOCATION_ONLY',
+		value: 'HYBRID',
 		label: 'Hybrid',
 		description: 'Blend of remote and on-site collaboration.'
 	}
