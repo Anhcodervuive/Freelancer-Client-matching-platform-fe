@@ -15,7 +15,12 @@ import { updateRole } from '~/apis/profile.api'
 import { routes } from '~/config/routes'
 import { useFreelancerEducation } from '~/hooks/api/useFreelancerEducation'
 import { useProfileLanguages } from '~/hooks/api/useFreelancerLanguages'
-import { selectCurrentUser, siginGoogle, updateProfileAPI as updateProfileReduxAPI } from '~/redux/user/userSlice'
+import {
+        selectCurrentUser,
+        siginGoogle,
+        updateProfile,
+        updateProfileAPI as updateProfileReduxAPI
+} from '~/redux/user/userSlice'
 import type { AppDispatch } from '~/redux/store'
 import { Role } from '~/types'
 import { CategorySpecialtyStep } from './components/CategorySpecialtyStep'
@@ -75,14 +80,15 @@ function useWizardMutations(userId?: string) {
 	const queryClient = useQueryClient()
 	const dispatch = useDispatch<AppDispatch>()
 
-	const setRoleMutation = useMutation({
-		mutationFn: async (role: Role) => {
-			await updateRole(role)
-		},
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: queryKeys.me })
-		}
-	})
+        const setRoleMutation = useMutation({
+                mutationFn: async (role: Role) => {
+                        await updateRole(role)
+                },
+                onSuccess: (_, nextRole) => {
+                        dispatch(updateProfile({ role: nextRole }))
+                        void queryClient.invalidateQueries({ queryKey: queryKeys.me })
+                }
+        })
 
 	const setCategorySpecialtyMutation = useMutation({
 		mutationFn: async (payload: { categoryIds: string[]; specialtyIds: string[] }) =>
