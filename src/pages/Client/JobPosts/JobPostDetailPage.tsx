@@ -91,7 +91,8 @@ export default function JobPostDetailPage() {
 	const {
 		data: job,
 		isLoading,
-		isError
+		isError,
+		error
 	} = useQuery<JobPostDetail>({
 		queryKey: ['job-post', jobId],
 		enabled: Boolean(jobId),
@@ -140,7 +141,7 @@ export default function JobPostDetailPage() {
 			</div>
 		)
 	}
-
+	console.log(error, job)
 	if (isError || !job) {
 		return (
 			<div className='mx-auto flex min-h-[50vh] w-full max-w-4xl items-center justify-center px-4 py-10'>
