@@ -269,14 +269,19 @@ export default function SpecialtiesGlobal() {
 				}}
 			/>
 
-			<ConfirmDelete
-				open={confirmOpen}
-				onClose={() => setConfirmOpen(false)}
-				name={toDelete?.name || ''}
-				onConfirm={async () => {
-					if (toDelete) await deleteMut.mutateAsync(toDelete.id)
-				}}
-			/>
-		</div>
-	)
+                        <ConfirmDelete
+                                open={confirmOpen}
+                                title='Delete specialty'
+                                name={toDelete?.name || ''}
+                                isProcessing={deleteMut.isPending}
+                                onClose={() => {
+                                        setConfirmOpen(false)
+                                        setToDelete(null)
+                                }}
+                                onConfirm={async () => {
+                                        if (toDelete) await deleteMut.mutateAsync(toDelete.id)
+                                }}
+                        />
+                </div>
+        )
 }

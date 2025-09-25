@@ -22,8 +22,8 @@ export default function AdminCategories() {
 	const [modalOpen, setModalOpen] = useState(false)
 	const [editing, setEditing] = useState<Category | null>(null)
 
-	const [confirmOpen, setConfirmOpen] = useState(false)
-	const [toDelete, setToDelete] = useState<Category | null>(null)
+        const [confirmOpen, setConfirmOpen] = useState(false)
+        const [toDelete, setToDelete] = useState<Category | null>(null)
 
 	const qc = useQueryClient()
 	const qKey = useMemo(() => ['categories', { page, limit, searchDebouced }], [page, limit, searchDebouced])
@@ -256,14 +256,19 @@ export default function AdminCategories() {
 				}}
 			/>
 
-			<ConfirmDelete
-				open={confirmOpen}
-				onClose={() => setConfirmOpen(false)}
-				name={toDelete?.name || ''}
-				onConfirm={async () => {
-					if (toDelete) await deleteMut.mutateAsync(toDelete.id)
-				}}
-			/>
-		</div>
-	)
+                        <ConfirmDelete
+                                open={confirmOpen}
+                                title='Delete category'
+                                name={toDelete?.name || ''}
+                                isProcessing={deleteMut.isPending}
+                                onClose={() => {
+                                        setConfirmOpen(false)
+                                        setToDelete(null)
+                                }}
+                                onConfirm={async () => {
+                                        if (toDelete) await deleteMut.mutateAsync(toDelete.id)
+                                }}
+                        />
+                </div>
+        )
 }

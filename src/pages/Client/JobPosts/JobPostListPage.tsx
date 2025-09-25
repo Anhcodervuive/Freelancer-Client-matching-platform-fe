@@ -18,6 +18,7 @@ import {
 } from '~/constants/job'
 import type { JobPostListItem } from '~/types/job-post'
 import { routes } from '~/config/routes'
+import ConfirmDelete from '~/components/ConfirmDelete'
 
 const PAGE_SIZE = 6
 
@@ -65,6 +66,7 @@ export default function JobPostListPage() {
         const [status, setStatus] = useState('')
         const [visibility, setVisibility] = useState('')
         const [paymentMode, setPaymentMode] = useState('')
+        const [jobToDelete, setJobToDelete] = useState<JobPostListItem | null>(null)
 
         const debouncedSearch = useDebounce(search, 400)
 
@@ -104,14 +106,14 @@ export default function JobPostListPage() {
         const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
         const endItem = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
 
-        const handleDelete = (id: string) => {
-                const confirmed = window.confirm('Are you sure you want to delete this job post?')
-                if (!confirmed) return
-                deleteMutation.mutate(id)
-        }
-
         const isDeleting = deleteMutation.isPending
         const showEmptyState = !isLoading && jobs.length === 0
+
+        const closeDeleteDialog = () => setJobToDelete(null)
+        const confirmDeleteJob = async () => {
+                if (!jobToDelete) return
+                await deleteMutation.mutateAsync(jobToDelete.id)
+        }
 
         return (
                 <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
@@ -296,7 +298,7 @@ export default function JobPostListPage() {
                                                                                 <button
                                                                                         type='button'
                                                                                         className='btn btn-ghost btn-sm gap-2 text-error'
-                                                                                        onClick={() => handleDelete(job.id)}
+                                                                                        onClick={() => setJobToDelete(job)}
                                                                                         disabled={isDeleting}
                                                                                 >
                                                                                         <Trash2 className='size-4' /> Delete
@@ -343,6 +345,24 @@ export default function JobPostListPage() {
                                         </span>
                                 </div>
                         ) : null}
+
+                        <ConfirmDelete
+                                open={Boolean(jobToDelete)}
+                                title='Delete job post'
+                                name={jobToDelete?.title}
+                                description={
+                                        <p>
+                                                This will permanently remove{' '}
+                                                <span className='font-medium text-base-content'>{jobToDelete?.title}</span> from your job listings. Freelancers will no
+                                                longer be able to view or apply to it.
+                                        </p>
+                                }
+                                confirmLabel='Delete post'
+                                cancelLabel='Keep post'
+                                isProcessing={deleteMutation.isPending}
+                                onClose={closeDeleteDialog}
+                                onConfirm={confirmDeleteJob}
+                        />
                 </div>
         )
 }
