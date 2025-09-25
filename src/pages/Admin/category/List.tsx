@@ -15,15 +15,15 @@ const formatDate = (iso: string) => new Date(iso).toLocaleString()
 // ---------- Main Page ----------
 export default function AdminCategories() {
 	const [page, setPage] = useState(1)
-	const [limit] = useState(3)
+	const [limit] = useState(7)
 	const [search, setSearch] = useState('')
 	const searchDebouced = useDebounce<string>(search, 1000)
 
 	const [modalOpen, setModalOpen] = useState(false)
 	const [editing, setEditing] = useState<Category | null>(null)
 
-        const [confirmOpen, setConfirmOpen] = useState(false)
-        const [toDelete, setToDelete] = useState<Category | null>(null)
+	const [confirmOpen, setConfirmOpen] = useState(false)
+	const [toDelete, setToDelete] = useState<Category | null>(null)
 
 	const qc = useQueryClient()
 	const qKey = useMemo(() => ['categories', { page, limit, searchDebouced }], [page, limit, searchDebouced])
@@ -64,14 +64,14 @@ export default function AdminCategories() {
 			}
 			return { prev }
 		},
-                onError: (_err, _id, ctx) => {
-                        // rollback
-                        if (ctx?.prev) qc.setQueryData(qKey, ctx.prev)
-                        toast.error('Failed to delete category')
-                },
-                onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
-                onSuccess: () => toast.success('Category deleted successfully!')
-        })
+		onError: (_err, _id, ctx) => {
+			// rollback
+			if (ctx?.prev) qc.setQueryData(qKey, ctx.prev)
+			toast.error('Failed to delete category')
+		},
+		onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+		onSuccess: () => toast.success('Category deleted successfully!')
+	})
 
 	const total = data?.total ?? 0
 	const pages = Math.max(1, Math.ceil(total / limit))
@@ -256,19 +256,19 @@ export default function AdminCategories() {
 				}}
 			/>
 
-                        <ConfirmDelete
-                                open={confirmOpen}
-                                title='Delete category'
-                                name={toDelete?.name || ''}
-                                isProcessing={deleteMut.isPending}
-                                onClose={() => {
-                                        setConfirmOpen(false)
-                                        setToDelete(null)
-                                }}
-                                onConfirm={async () => {
-                                        if (toDelete) await deleteMut.mutateAsync(toDelete.id)
-                                }}
-                        />
-                </div>
-        )
+			<ConfirmDelete
+				open={confirmOpen}
+				title='Delete category'
+				name={toDelete?.name || ''}
+				isProcessing={deleteMut.isPending}
+				onClose={() => {
+					setConfirmOpen(false)
+					setToDelete(null)
+				}}
+				onConfirm={async () => {
+					if (toDelete) await deleteMut.mutateAsync(toDelete.id)
+				}}
+			/>
+		</div>
+	)
 }

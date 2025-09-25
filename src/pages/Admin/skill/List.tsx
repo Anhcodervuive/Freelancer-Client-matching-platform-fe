@@ -11,7 +11,7 @@ export default function SkillsAdminPage() {
 	const [q, setQ] = useState('')
 	const dq = useDebounce(q, 400)
 	const [page, setPage] = useState(1)
-	const limit = 20
+	const limit = 10
 	const queryKey = ['skills-admin', dq, page]
 	const { data, isFetching } = useQuery({ queryKey, queryFn: () => searchSkills({ search: dq, page, limit }) })
 	const items = data?.data ?? []
