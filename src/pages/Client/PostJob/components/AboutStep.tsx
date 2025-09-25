@@ -1,8 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { useFormContext } from 'react-hook-form'
-import { Paperclip, UploadCloud } from 'lucide-react'
+import { Download, Eye, Paperclip, UploadCloud } from 'lucide-react'
 import type { JobPostFormValues } from '../schema'
 import type { NormalizedAttachment } from '~/utils/jobPost'
+import { extractFileExtension, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 
 type AboutStepProps = {
         hidden?: boolean
@@ -25,20 +26,20 @@ export function AboutStep({
                 formState: { errors }
         } = useFormContext<JobPostFormValues>()
 
-        const attachmentNames = useMemo(
+        type AttachmentItem =
+                | { kind: 'existing'; attachment: NormalizedAttachment }
+                | { kind: 'new'; file: File }
+
+        const attachmentsWithMeta = useMemo<AttachmentItem[]>(
                 () => [
-                        ...existingAttachments
-                                .map(attachment => attachment.label ?? attachment.id ?? '')
-                                .filter(Boolean),
-                        ...newAttachments.map(file => file.name)
+                        ...existingAttachments.map(attachment => ({ kind: 'existing' as const, attachment })),
+                        ...newAttachments.map(file => ({ kind: 'new' as const, file }))
                 ],
                 [existingAttachments, newAttachments]
         )
 
-        const canAddMore = useMemo(
-                () => existingAttachments.length + newAttachments.length < 20,
-                [existingAttachments.length, newAttachments.length]
-        )
+        const totalAttachments = attachmentsWithMeta.length
+        const canAddMore = totalAttachments < 20
 
         const pickFiles = () => {
                 if (inputRef.current) {
@@ -69,6 +70,20 @@ export function AboutStep({
                 const nextFiles = newAttachments.filter((_, i) => i !== fileIndex)
                 onNewAttachmentsChange(nextFiles)
         }
+
+        const previewLocalFile = useCallback((file: File) => {
+                if (typeof window === 'undefined') return
+                const blobUrl = URL.createObjectURL(file)
+                const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer')
+                const revoke = () => URL.revokeObjectURL(blobUrl)
+                if (!opened) {
+                        revoke()
+                        return
+                }
+                opened.addEventListener('load', revoke, { once: true })
+                opened.addEventListener('beforeunload', revoke, { once: true })
+                window.setTimeout(revoke, 15000)
+        }, [])
 
         return (
                 <section className={`rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm ${hidden ? 'hidden' : ''}`}>
@@ -161,27 +176,145 @@ export function AboutStep({
                                                                 <Paperclip className='size-4' /> Upload files
                                                         </button>
                                                         <p className='text-xs text-base-content/60'>
-                                                                {attachmentNames.length}/20 files attached. Accepted up to 25MB each.
+                                                                {totalAttachments}/20 files attached. Accepted up to 25MB each.
                                                         </p>
                                                 </div>
                                         </div>
-                                        {attachmentNames.length > 0 ? (
-                                                <ul className='mt-4 space-y-2'>
-                                                        {attachmentNames.map((name, index) => (
-                                                                <li
-                                                                        key={`${name}-${index}`}
-                                                                        className='flex items-center justify-between rounded-xl border border-base-200 bg-base-100 p-3 text-sm'
-                                                                >
-                                                                        <span className='truncate pr-4'>{name}</span>
-                                                                        <button
-                                                                                type='button'
-                                                                                className='btn btn-ghost btn-xs text-error'
-                                                                                onClick={() => removeFile(index)}
+                                        {totalAttachments > 0 ? (
+                                                <ul className='mt-4 space-y-3'>
+                                                        {attachmentsWithMeta.map((item, index) => {
+                                                                if (item.kind === 'existing') {
+                                                                        const { attachment } = item
+                                                                        const sizeLabel = formatFileSize(attachment.size)
+                                                                        const typeLabel = formatFileType({
+                                                                                mimeType: attachment.mimeType,
+                                                                                extension: attachment.extension
+                                                                        })
+                                                                        const uploadedLabel = attachment.createdAt
+                                                                                ? formatDateTime(attachment.createdAt, {
+                                                                                          dateStyle: 'medium',
+                                                                                          timeStyle: 'short'
+                                                                                  })
+                                                                                : undefined
+                                                                        const metadata = [
+                                                                                sizeLabel,
+                                                                                typeLabel,
+                                                                                uploadedLabel ? `Uploaded ${uploadedLabel}` : undefined
+                                                                        ].filter((value): value is string => Boolean(value))
+
+                                                                        return (
+                                                                                <li
+                                                                                        key={attachment.id}
+                                                                                        className='rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm'
+                                                                                >
+                                                                                        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                                                                                                <div className='flex min-w-0 items-start gap-3'>
+                                                                                                        <div className='flex size-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
+                                                                                                                {attachment.extension ?? 'FILE'}
+                                                                                                        </div>
+                                                                                                        <div className='min-w-0'>
+                                                                                                                <p className='truncate font-medium text-sm text-base-content'>
+                                                                                                                        {attachment.label}
+                                                                                                                </p>
+                                                                                                                {metadata.length > 0 ? (
+                                                                                                                        <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/60'>
+                                                                                                                                {metadata.map((value, metaIndex) => (
+                                                                                                                                        <span key={`${value}-${metaIndex}`}>{value}</span>
+                                                                                                                                ))}
+                                                                                                                        </div>
+                                                                                                                ) : null}
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                                <div className='flex flex-wrap items-center gap-2 sm:flex-shrink-0'>
+                                                                                                        {attachment.url ? (
+                                                                                                                <>
+                                                                                                                        <a
+                                                                                                                                href={attachment.url}
+                                                                                                                                target='_blank'
+                                                                                                                                rel='noopener noreferrer'
+                                                                                                                                className='btn btn-ghost btn-xs gap-2'
+                                                                                                                        >
+                                                                                                                                <Eye className='size-4' /> Preview
+                                                                                                                        </a>
+                                                                                                                        <a
+                                                                                                                                href={attachment.url}
+                                                                                                                                download={attachment.fileName ?? attachment.label}
+                                                                                                                                className='btn btn-outline btn-xs gap-2'
+                                                                                                                        >
+                                                                                                                                <Download className='size-4' /> Download
+                                                                                                                        </a>
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <span className='text-xs text-base-content/50'>No link available</span>
+                                                                                                        )}
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                className='btn btn-ghost btn-xs text-error'
+                                                                                                                onClick={() => removeFile(index)}
+                                                                                                        >
+                                                                                                                Remove
+                                                                                                        </button>
+                                                                                                </div>
+                                                                                        </div>
+                                                                                </li>
+                                                                        )
+                                                                }
+
+                                                                const { file } = item
+                                                                const sizeLabel = formatFileSize(file.size)
+                                                                const typeLabel = formatFileType({
+                                                                        mimeType: file.type,
+                                                                        extension: extractFileExtension(file.name)
+                                                                })
+                                                                const metadata = [
+                                                                        sizeLabel,
+                                                                        typeLabel,
+                                                                        'Pending upload'
+                                                                ].filter((value): value is string => Boolean(value))
+
+                                                                return (
+                                                                        <li
+                                                                                key={`new-${file.name}-${index}`}
+                                                                                className='rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm'
                                                                         >
-                                                                                Remove
-                                                                        </button>
-                                                                </li>
-                                                        ))}
+                                                                                <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                                                                                        <div className='flex min-w-0 items-start gap-3'>
+                                                                                                <div className='flex size-11 flex-shrink-0 items-center justify-center rounded-xl bg-base-200 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
+                                                                                                        {typeLabel ?? 'FILE'}
+                                                                                                </div>
+                                                                                                <div className='min-w-0'>
+                                                                                                        <p className='truncate font-medium text-sm text-base-content'>
+                                                                                                                {file.name}
+                                                                                                        </p>
+                                                                                                        {metadata.length > 0 ? (
+                                                                                                                <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/60'>
+                                                                                                                        {metadata.map((value, metaIndex) => (
+                                                                                                                                <span key={`${value}-${metaIndex}`}>{value}</span>
+                                                                                                                        ))}
+                                                                                                                </div>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        </div>
+                                                                                        <div className='flex flex-wrap items-center gap-2 sm:flex-shrink-0'>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-ghost btn-xs gap-2'
+                                                                                                        onClick={() => previewLocalFile(file)}
+                                                                                                >
+                                                                                                        <Eye className='size-4' /> Preview
+                                                                                                </button>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-ghost btn-xs text-error'
+                                                                                                        onClick={() => removeFile(index)}
+                                                                                                >
+                                                                                                        Remove
+                                                                                                </button>
+                                                                                        </div>
+                                                                                </div>
+                                                                        </li>
+                                                                )
+                                                        })}
                                                 </ul>
                                         ) : null}
                                 </div>

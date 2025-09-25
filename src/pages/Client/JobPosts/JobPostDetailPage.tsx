@@ -1,7 +1,19 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Clock, FileText, Globe, Loader2, MapPin, Paperclip, Sparkles, Wallet } from 'lucide-react'
+import {
+        ArrowLeft,
+        Clock,
+        Download,
+        Eye,
+        FileText,
+        Globe,
+        Loader2,
+        MapPin,
+        Paperclip,
+        Sparkles,
+        Wallet
+} from 'lucide-react'
 import { fetchJobPostDetail } from '~/apis/job-post.api'
 import {
 	JOB_DURATION_COMMITMENTS,
@@ -22,13 +34,14 @@ import { routes } from '~/config/routes'
 import type { JobPostDetail } from '~/types/job-post'
 import type { LanguageProficiency } from '~/types/profile'
 import {
-	normalizeAttachments,
-	normalizeCustomTerms,
-	normalizeLanguages,
-	normalizePreferredLocations,
-	normalizeScreeningQuestions,
-	normalizeSkills
+        normalizeAttachments,
+        normalizeCustomTerms,
+        normalizeLanguages,
+        normalizePreferredLocations,
+        normalizeScreeningQuestions,
+        normalizeSkills
 } from '~/utils/jobPost'
+import { formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 
 const statusMap = Object.fromEntries(JOB_STATUS_OPTIONS.map(option => [option.value, option.label])) as Record<
 	JobStatus,
@@ -334,27 +347,75 @@ export default function JobPostDetailPage() {
 						{attachments.length === 0 ? (
 							<p className='mt-3 text-sm text-base-content/70'>No attachments were uploaded.</p>
 						) : (
-							<ul className='mt-3 space-y-3 text-sm text-base-content/80'>
-								{attachments.map(attachment => (
-									<li
-										key={attachment.id}
-										className='flex items-center justify-between rounded-xl bg-base-200/60 px-3 py-2'>
-										<span className='truncate pr-3'>{attachment.label}</span>
-										{attachment.url ? (
-											<a
-												href={attachment.url}
-												target='_blank'
-												rel='noopener noreferrer'
-												className='link link-primary text-xs'>
-												Download
-											</a>
-										) : (
-											<span className='text-xs text-base-content/50'>No link available</span>
-										)}
-									</li>
-								))}
-							</ul>
-						)}
+                                                        <ul className='mt-4 space-y-3'>
+                                                                {attachments.map(attachment => {
+                                                                        const sizeLabel = formatFileSize(attachment.size)
+                                                                        const typeLabel = formatFileType({
+                                                                                mimeType: attachment.mimeType,
+                                                                                extension: attachment.extension
+                                                                        })
+                                                                        const uploadedLabel = attachment.createdAt
+                                                                                ? formatDateTime(attachment.createdAt, {
+                                                                                          dateStyle: 'medium',
+                                                                                          timeStyle: 'short'
+                                                                                  })
+                                                                                : undefined
+                                                                        const metadata = [
+                                                                                sizeLabel,
+                                                                                typeLabel,
+                                                                                uploadedLabel ? `Uploaded ${uploadedLabel}` : undefined
+                                                                        ].filter((value): value is string => Boolean(value))
+
+                                                                        return (
+                                                                                <li
+                                                                                        key={attachment.id}
+                                                                                        className='rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm'
+                                                                                >
+                                                                                        <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+                                                                                                <div className='flex min-w-0 items-start gap-3'>
+                                                                                                        <div className='flex size-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
+                                                                                                                {attachment.extension ?? 'FILE'}
+                                                                                                        </div>
+                                                                                                        <div className='min-w-0'>
+                                                                                                                <p className='truncate text-sm font-medium text-base-content'>
+                                                                                                                        {attachment.label}
+                                                                                                                </p>
+                                                                                                                {metadata.length > 0 ? (
+                                                                                                                        <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/60'>
+                                                                                                                                {metadata.map((value, metaIndex) => (
+                                                                                                                                        <span key={`${attachment.id}-meta-${metaIndex}`}>{value}</span>
+                                                                                                                                ))}
+                                                                                                                        </div>
+                                                                                                                ) : null}
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                                {attachment.url ? (
+                                                                                                        <div className='flex flex-wrap items-center gap-2 text-xs md:flex-shrink-0'>
+                                                                                                                <a
+                                                                                                                        href={attachment.url}
+                                                                                                                        target='_blank'
+                                                                                                                        rel='noopener noreferrer'
+                                                                                                                        className='btn btn-ghost btn-sm gap-2'
+                                                                                                                >
+                                                                                                                        <Eye className='size-4' /> Preview
+                                                                                                                </a>
+                                                                                                                <a
+                                                                                                                        href={attachment.url}
+                                                                                                                        download={attachment.fileName ?? attachment.label}
+                                                                                                                        className='btn btn-primary btn-sm gap-2'
+                                                                                                                >
+                                                                                                                        <Download className='size-4' /> Download
+                                                                                                                </a>
+                                                                                                        </div>
+                                                                                                ) : (
+                                                                                                        <span className='text-xs text-base-content/50'>No link available</span>
+                                                                                                )}
+                                                                                        </div>
+                                                                                </li>
+                                                                        )
+                                                                })}
+                                                        </ul>
+                                                )}
 					</section>
 				</div>
 

@@ -110,7 +110,9 @@ function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
 		languages,
 		skills,
 		screeningQuestions,
-		attachments: attachments.map(attachment => attachment.label ?? attachment.id).filter(Boolean)
+                attachments: attachments
+                        .map(attachment => attachment.fileName ?? attachment.label ?? attachment.id)
+                        .filter((value): value is string => Boolean(value))
 	}
 }
 
@@ -136,12 +138,14 @@ export default function PostJobWizard() {
 		(existing: NormalizedAttachment[], files: File[], opts?: { shouldDirty?: boolean }) => {
 			methods.setValue(
 				'attachments',
-				[
-					...existing
-						.map(attachment => attachment.label ?? attachment.id)
-						.filter((value): value is string => Boolean(value)),
-					...files.map(file => file.name)
-				],
+                                [
+                                        ...existing
+                                                .map(
+                                                        attachment => attachment.fileName ?? attachment.label ?? attachment.id
+                                                )
+                                                .filter((value): value is string => Boolean(value)),
+                                        ...files.map(file => file.name)
+                                ],
 				{ shouldValidate: true, shouldDirty: opts?.shouldDirty ?? true }
 			)
 		},
