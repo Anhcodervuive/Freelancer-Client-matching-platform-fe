@@ -7,17 +7,6 @@ import type {
         JobVisibility
 } from '~/constants/job'
 
-export type JsonValue =
-        | string
-        | number
-        | boolean
-        | null
-        | { [key: string]: JsonValue }
-        | JsonValue[]
-
-export type JsonObject = { [key: string]: JsonValue }
-export type JsonArray = JsonValue[]
-
 export type JobPostListItem = {
         id: string
         clientId: string
@@ -48,12 +37,12 @@ export type JobPostListItem = {
 }
 
 export type JobPostDetail = JobPostListItem & {
-        preferredLocations?: JsonValue
-        customTerms?: JsonObject | null
-        languages?: JsonValue
-        skills?: JsonValue
-        screeningQuestions?: JsonValue
-        attachments?: JsonValue
+        preferredLocations?: unknown
+        customTerms?: Record<string, unknown> | null
+        languages?: unknown
+        skills?: unknown
+        screeningQuestions?: unknown
+        attachments?: unknown
 }
 
 export type JobPostFilterInput = {

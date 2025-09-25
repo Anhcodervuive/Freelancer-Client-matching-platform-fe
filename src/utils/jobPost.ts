@@ -1,4 +1,3 @@
-import type { JsonObject, JsonValue } from '~/types/job-post'
 import type { LanguageProficiency } from '~/types/profile'
 
 export type NormalizedLocation = { code: string; label: string }
@@ -19,7 +18,9 @@ const ALLOWED_PROFICIENCIES: readonly LanguageProficiency[] = [
 
 const proficiencySet = new Set<string>(ALLOWED_PROFICIENCIES)
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+type UnknownRecord = Record<string, unknown>
+
+const isRecord = (value: unknown): value is UnknownRecord =>
         typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const ensureString = (value: unknown): string | undefined => {
@@ -33,8 +34,9 @@ const ensureIdentifier = (value: unknown): string | undefined => {
         return undefined
 }
 
-const toArray = (value: JsonValue | undefined): unknown[] => {
+const toArray = (value: unknown): unknown[] => {
         if (Array.isArray(value)) return value
+        if (isRecord(value)) return [value]
         if (typeof value === 'string') {
                 try {
                         const parsed = JSON.parse(value)
@@ -46,15 +48,13 @@ const toArray = (value: JsonValue | undefined): unknown[] => {
         return []
 }
 
-const toStringArray = (value: JsonValue | undefined): string[] =>
+const toStringArray = (value: unknown): string[] =>
         toArray(value)
                 .map(item => ensureString(item))
                 .filter((item): item is string => Boolean(item?.trim()))
                 .map(item => item.trim())
 
-export const normalizePreferredLocations = (
-        value: JsonValue | undefined
-): NormalizedLocation[] =>
+export const normalizePreferredLocations = (value: unknown): NormalizedLocation[] =>
         toArray(value)
                 .map((entry, index) => {
                         if (typeof entry === 'string') {
@@ -92,7 +92,7 @@ export const normalizePreferredLocations = (
                 .filter((item): item is NormalizedLocation => item !== null)
 
 export const normalizeLanguages = (
-        value: JsonValue | undefined
+        value: unknown
 ): NormalizedLanguageRequirement[] =>
         toArray(value)
                 .map(item => {
@@ -124,21 +124,21 @@ export const normalizeLanguages = (
                 })
                 .filter((item): item is NormalizedLanguageRequirement => item !== null)
 
-export const normalizeSkills = (value: JsonValue | undefined): NormalizedSkills => {
+export const normalizeSkills = (value: unknown): NormalizedSkills => {
         if (!value) {
-            return { required: [], preferred: [] }
+                return { required: [], preferred: [] }
         }
 
         if (isRecord(value)) {
-                const required = toStringArray(value.required as JsonValue | undefined)
-                const preferred = toStringArray(value.preferred as JsonValue | undefined)
+                const required = toStringArray(value.required)
+                const preferred = toStringArray(value.preferred)
                 return { required, preferred }
         }
 
         const asArray = toArray(value)
         if (asArray.length > 0) {
                 const required = asArray
-                        .map(entry => (isRecord(entry) ? toStringArray(entry.required as JsonValue | undefined) : []))
+                        .map(entry => (isRecord(entry) ? toStringArray(entry.required) : []))
                         .flat()
                 return { required, preferred: [] }
         }
@@ -147,7 +147,7 @@ export const normalizeSkills = (value: JsonValue | undefined): NormalizedSkills 
 }
 
 export const normalizeScreeningQuestions = (
-        value: JsonValue | undefined
+        value: unknown
 ): NormalizedScreeningQuestion[] =>
         toArray(value)
                 .map(item => {
@@ -194,7 +194,7 @@ const normalizeAttachmentRecord = (
         return { id: identifier ?? label, label, url: url ?? undefined }
 }
 
-export const normalizeAttachments = (value: JsonValue | undefined): NormalizedAttachment[] =>
+export const normalizeAttachments = (value: unknown): NormalizedAttachment[] =>
         toArray(value)
                 .map((item, index) => {
                         if (typeof item === 'string') {
@@ -211,13 +211,13 @@ export const normalizeAttachments = (value: JsonValue | undefined): NormalizedAt
                 })
                 .filter((item): item is NormalizedAttachment => item !== null)
 
-export const extractAttachmentIdentifiers = (value: JsonValue | undefined): string[] =>
+export const extractAttachmentIdentifiers = (value: unknown): string[] =>
         normalizeAttachments(value)
                 .map(attachment => attachment.id)
                 .filter((id): id is string => Boolean(id))
 
 export const normalizeCustomTerms = (
-        value: JsonObject | null | undefined
+        value: Record<string, unknown> | null | undefined
 ): Partial<Record<string, string>> => {
         if (!value) return {}
         const entries = Object.entries(value)
