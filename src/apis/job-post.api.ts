@@ -52,7 +52,10 @@ type JobPostPayload = {
 
 type UpdateJobPostPayload = Partial<JobPostPayload>
 
-type JobPostDetailResponse = { jobPost: JobPostDetail }
+type JobPostDetailResponse =
+        | JobPostDetail
+        | { jobPost: JobPostDetail }
+        | { data: JobPostDetail }
 
 type JobPostListResponse = PaginatedJobPostResponse
 
@@ -71,6 +74,9 @@ const JSON_FIELD_KEYS: Array<keyof JobPostPayload> = [
 ]
 
 const jsonFieldSet = new Set<string>(JSON_FIELD_KEYS)
+
+const isObjectLike = (value: unknown): value is Record<string, unknown> =>
+        typeof value === 'object' && value !== null
 
 const appendFormDataValue = (formData: FormData, key: string, value: unknown) => {
         if (value === undefined || value === null) {
@@ -156,9 +162,24 @@ export const getJobPost = async (id: string): Promise<JobPostDetailResponse> => 
         return response.data
 }
 
+const extractJobPost = (payload: JobPostDetailResponse): JobPostDetail | undefined => {
+        if (!payload) return undefined
+        if (Array.isArray(payload)) return undefined
+
+        if ('jobPost' in payload && isObjectLike(payload.jobPost)) {
+                return payload.jobPost as JobPostDetail
+        }
+
+        if ('data' in payload && isObjectLike(payload.data) && !Array.isArray(payload.data)) {
+                return payload.data as JobPostDetail
+        }
+
+        return isObjectLike(payload) ? (payload as JobPostDetail) : undefined
+}
+
 export const fetchJobPostDetail = async (id: string): Promise<JobPostDetail> => {
         const response = await getJobPost(id)
-        const jobPost = response?.jobPost
+        const jobPost = extractJobPost(response)
 
         if (!jobPost) {
                 throw new Error('Job post not found')
