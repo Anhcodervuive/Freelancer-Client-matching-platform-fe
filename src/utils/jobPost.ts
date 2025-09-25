@@ -29,6 +29,7 @@ const ALLOWED_PROFICIENCIES: readonly LanguageProficiency[] = [
 const proficiencySet = new Set<string>(ALLOWED_PROFICIENCIES)
 
 type UnknownRecord = Record<string, unknown>
+type SkillExtractor = (_value: unknown) => string | undefined
 
 const isRecord = (value: unknown): value is UnknownRecord =>
         typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -65,6 +66,70 @@ const pickTrimmedString = (...values: unknown[]): string | undefined => {
         return undefined
 }
 
+const normalizeSkillEntries = (
+        value: unknown,
+        extractor: SkillExtractor
+): string[] =>
+        toArray(value)
+                .map(entry => extractor(entry))
+                .filter((result): result is string => Boolean(result))
+
+const pickSkillLabel = (entry: unknown): string | undefined => {
+        if (typeof entry === 'string') {
+                const trimmed = entry.trim()
+                return trimmed || undefined
+        }
+
+        if (isRecord(entry)) {
+                const label = pickTrimmedString(
+                        entry.name,
+                        entry.label,
+                        entry.slug,
+                        entry.title,
+                        entry.value
+                )
+                if (label) return label
+
+                const identifier = pickTrimmedString(
+                        ensureIdentifier(entry.id),
+                        ensureIdentifier(entry.skillId),
+                        ensureIdentifier(entry.code)
+                )
+                if (identifier) return identifier
+        }
+
+        if (entry != null) {
+                const asString = String(entry).trim()
+                if (asString) return asString
+        }
+
+        return undefined
+}
+
+const pickSkillId = (entry: unknown): string | undefined => {
+        if (typeof entry === 'string') {
+                const trimmed = entry.trim()
+                return trimmed || undefined
+        }
+
+        if (isRecord(entry)) {
+                const identifier =
+                        ensureIdentifier(entry.id) ??
+                        ensureIdentifier(entry.skillId) ??
+                        ensureIdentifier(entry.code) ??
+                        ensureIdentifier(entry.slug) ??
+                        ensureIdentifier(entry.name)
+                if (identifier) return identifier
+        }
+
+        if (entry != null) {
+                const asString = String(entry).trim()
+                if (asString) return asString
+        }
+
+        return undefined
+}
+
 const decodeSegment = (value: string): string => {
         try {
                 return decodeURIComponent(value)
@@ -97,12 +162,6 @@ const toArray = (value: unknown): unknown[] => {
         }
         return []
 }
-
-const toStringArray = (value: unknown): string[] =>
-        toArray(value)
-                .map(item => ensureString(item))
-                .filter((item): item is string => Boolean(item?.trim()))
-                .map(item => item.trim())
 
 export const normalizePreferredLocations = (value: unknown): NormalizedLocation[] =>
         toArray(value)
@@ -180,20 +239,28 @@ export const normalizeSkills = (value: unknown): NormalizedSkills => {
         }
 
         if (isRecord(value)) {
-                const required = toStringArray(value.required)
-                const preferred = toStringArray(value.preferred)
+                const required = normalizeSkillEntries(value.required, pickSkillLabel)
+                const preferred = normalizeSkillEntries(value.preferred, pickSkillLabel)
                 return { required, preferred }
         }
 
-        const asArray = toArray(value)
-        if (asArray.length > 0) {
-                const required = asArray
-                        .map(entry => (isRecord(entry) ? toStringArray(entry.required) : []))
-                        .flat()
-                return { required, preferred: [] }
+        const required = normalizeSkillEntries(value, pickSkillLabel)
+        return { required, preferred: [] }
+}
+
+export const normalizeSkillIds = (value: unknown): NormalizedSkills => {
+        if (!value) {
+                return { required: [], preferred: [] }
         }
 
-        return { required: [], preferred: [] }
+        if (isRecord(value)) {
+                const required = normalizeSkillEntries(value.required, pickSkillId)
+                const preferred = normalizeSkillEntries(value.preferred, pickSkillId)
+                return { required, preferred }
+        }
+
+        const required = normalizeSkillEntries(value, pickSkillId)
+        return { required, preferred: [] }
 }
 
 export const normalizeScreeningQuestions = (

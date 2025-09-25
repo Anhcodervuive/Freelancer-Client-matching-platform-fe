@@ -11,13 +11,13 @@ import { createJobPost, fetchJobPostDetail, updateJobPost } from '~/apis/job-pos
 import type { JobPostDetail } from '~/types/job-post'
 import type { LanguageProficiency } from '~/types/profile'
 import {
-	normalizeCustomTerms,
-	normalizeLanguages,
-	normalizePreferredLocations,
-	normalizeScreeningQuestions,
-	normalizeSkills,
-	normalizeAttachments,
-	type NormalizedAttachment
+        normalizeCustomTerms,
+        normalizeLanguages,
+        normalizePreferredLocations,
+        normalizeScreeningQuestions,
+        normalizeSkillIds,
+        normalizeAttachments,
+        type NormalizedAttachment
 } from '~/utils/jobPost'
 import { jobPostFormSchema, type JobPostFormValues } from './schema'
 import { AboutStep } from './components/AboutStep'
@@ -85,7 +85,7 @@ function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
 	const additionalNotes = customTerms.additionalNotes ?? ''
 	const preferredLocations = normalizePreferredLocations(detail.preferredLocations)
 	const languages = normalizeLanguages(detail.languages)
-	const skills = normalizeSkills(detail.skills)
+        const skills = normalizeSkillIds(detail.skills)
 	const screeningQuestions = normalizeScreeningQuestions(detail.screeningQuestions)
 	const attachments = normalizeAttachments(detail.attachments)
 
