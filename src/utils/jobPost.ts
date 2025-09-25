@@ -1,4 +1,5 @@
 import type { LanguageProficiency } from '~/types/profile'
+import { extractFileExtension } from './format'
 
 export type NormalizedLocation = { code: string; label: string }
 export type NormalizedLanguageRequirement = {
@@ -7,7 +8,16 @@ export type NormalizedLanguageRequirement = {
 }
 export type NormalizedSkills = { required: string[]; preferred: string[] }
 export type NormalizedScreeningQuestion = { question: string; isRequired: boolean }
-export type NormalizedAttachment = { id: string; label: string; url?: string }
+export type NormalizedAttachment = {
+        id: string
+        label: string
+        fileName?: string
+        mimeType?: string
+        size?: number
+        createdAt?: string
+        url?: string
+        extension?: string
+}
 
 const ALLOWED_PROFICIENCIES: readonly LanguageProficiency[] = [
         'BASIC',
@@ -19,6 +29,7 @@ const ALLOWED_PROFICIENCIES: readonly LanguageProficiency[] = [
 const proficiencySet = new Set<string>(ALLOWED_PROFICIENCIES)
 
 type UnknownRecord = Record<string, unknown>
+type SkillExtractor = (_value: unknown) => string | undefined
 
 const isRecord = (value: unknown): value is UnknownRecord =>
         typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -34,6 +45,110 @@ const ensureIdentifier = (value: unknown): string | undefined => {
         return undefined
 }
 
+const ensureNumber = (value: unknown): number | undefined => {
+        if (typeof value === 'number' && Number.isFinite(value)) return value
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                if (!trimmed) return undefined
+                const parsed = Number(trimmed)
+                if (Number.isFinite(parsed)) return parsed
+        }
+        return undefined
+}
+
+const pickTrimmedString = (...values: unknown[]): string | undefined => {
+        for (const value of values) {
+                if (typeof value === 'string') {
+                        const trimmed = value.trim()
+                        if (trimmed) return trimmed
+                }
+        }
+        return undefined
+}
+
+const normalizeSkillEntries = (
+        value: unknown,
+        extractor: SkillExtractor
+): string[] =>
+        toArray(value)
+                .map(entry => extractor(entry))
+                .filter((result): result is string => Boolean(result))
+
+const pickSkillLabel = (entry: unknown): string | undefined => {
+        if (typeof entry === 'string') {
+                const trimmed = entry.trim()
+                return trimmed || undefined
+        }
+
+        if (isRecord(entry)) {
+                const label = pickTrimmedString(
+                        entry.name,
+                        entry.label,
+                        entry.slug,
+                        entry.title,
+                        entry.value
+                )
+                if (label) return label
+
+                const identifier = pickTrimmedString(
+                        ensureIdentifier(entry.id),
+                        ensureIdentifier(entry.skillId),
+                        ensureIdentifier(entry.code)
+                )
+                if (identifier) return identifier
+        }
+
+        if (entry != null) {
+                const asString = String(entry).trim()
+                if (asString) return asString
+        }
+
+        return undefined
+}
+
+const pickSkillId = (entry: unknown): string | undefined => {
+        if (typeof entry === 'string') {
+                const trimmed = entry.trim()
+                return trimmed || undefined
+        }
+
+        if (isRecord(entry)) {
+                const identifier =
+                        ensureIdentifier(entry.id) ??
+                        ensureIdentifier(entry.skillId) ??
+                        ensureIdentifier(entry.code) ??
+                        ensureIdentifier(entry.slug) ??
+                        ensureIdentifier(entry.name)
+                if (identifier) return identifier
+        }
+
+        if (entry != null) {
+                const asString = String(entry).trim()
+                if (asString) return asString
+        }
+
+        return undefined
+}
+
+const decodeSegment = (value: string): string => {
+        try {
+                return decodeURIComponent(value)
+        } catch {
+                return value
+        }
+}
+
+const fileNameFromUrl = (value?: string): string | undefined => {
+        if (!value) return undefined
+        const trimmed = value.trim()
+        if (!trimmed) return undefined
+        const withoutQuery = trimmed.split(/[?#]/)[0] ?? trimmed
+        const segments = withoutQuery.split('/').filter(Boolean)
+        const last = segments[segments.length - 1]
+        if (!last) return undefined
+        return decodeSegment(last)
+}
+
 const toArray = (value: unknown): unknown[] => {
         if (Array.isArray(value)) return value
         if (isRecord(value)) return [value]
@@ -47,12 +162,6 @@ const toArray = (value: unknown): unknown[] => {
         }
         return []
 }
-
-const toStringArray = (value: unknown): string[] =>
-        toArray(value)
-                .map(item => ensureString(item))
-                .filter((item): item is string => Boolean(item?.trim()))
-                .map(item => item.trim())
 
 export const normalizePreferredLocations = (value: unknown): NormalizedLocation[] =>
         toArray(value)
@@ -130,20 +239,28 @@ export const normalizeSkills = (value: unknown): NormalizedSkills => {
         }
 
         if (isRecord(value)) {
-                const required = toStringArray(value.required)
-                const preferred = toStringArray(value.preferred)
+                const required = normalizeSkillEntries(value.required, pickSkillLabel)
+                const preferred = normalizeSkillEntries(value.preferred, pickSkillLabel)
                 return { required, preferred }
         }
 
-        const asArray = toArray(value)
-        if (asArray.length > 0) {
-                const required = asArray
-                        .map(entry => (isRecord(entry) ? toStringArray(entry.required) : []))
-                        .flat()
-                return { required, preferred: [] }
+        const required = normalizeSkillEntries(value, pickSkillLabel)
+        return { required, preferred: [] }
+}
+
+export const normalizeSkillIds = (value: unknown): NormalizedSkills => {
+        if (!value) {
+                return { required: [], preferred: [] }
         }
 
-        return { required: [], preferred: [] }
+        if (isRecord(value)) {
+                const required = normalizeSkillEntries(value.required, pickSkillId)
+                const preferred = normalizeSkillEntries(value.preferred, pickSkillId)
+                return { required, preferred }
+        }
+
+        const required = normalizeSkillEntries(value, pickSkillId)
+        return { required, preferred: [] }
 }
 
 export const normalizeScreeningQuestions = (
@@ -172,26 +289,117 @@ const normalizeAttachmentRecord = (
         attachment: Record<string, unknown>,
         index: number
 ): NormalizedAttachment => {
+        const asset = isRecord(attachment.asset) ? attachment.asset : undefined
+        const metadata = isRecord(attachment.metadata) ? attachment.metadata : undefined
+
         const identifier =
                 ensureIdentifier(attachment.id) ??
                 ensureIdentifier(attachment.assetId) ??
                 ensureIdentifier(attachment.fileId) ??
                 ensureIdentifier(attachment.attachmentId) ??
-                ensureIdentifier(attachment.key)
+                ensureIdentifier(attachment.key) ??
+                (asset
+                        ? ensureIdentifier(asset.id) ??
+                          ensureIdentifier(asset.assetId) ??
+                          ensureIdentifier(asset.fileId) ??
+                          ensureIdentifier(asset.key)
+                        : undefined)
 
-        const label =
-                ensureString(attachment.name) ??
-                ensureString(attachment.fileName) ??
-                ensureString(attachment.label) ??
-                (identifier ? String(identifier) : undefined) ??
-                `Attachment ${index + 1}`
+        const sanitizedIdentifier = identifier?.trim()
 
         const url =
-                ensureString(attachment.url) ??
-                ensureString(attachment.fileUrl) ??
-                ensureString(attachment.downloadUrl)
+                pickTrimmedString(
+                        attachment.url,
+                        attachment.fileUrl,
+                        attachment.downloadUrl,
+                        asset?.url,
+                        asset?.fileUrl,
+                        asset?.downloadUrl
+                ) ?? undefined
 
-        return { id: identifier ?? label, label, url: url ?? undefined }
+        const assetName = asset
+                ? pickTrimmedString(
+                          asset.name,
+                          asset.fileName,
+                          asset.filename,
+                          asset.originalName,
+                          asset.originalFilename,
+                          asset.label,
+                          asset.title
+                  )
+                : undefined
+
+        const explicitName = pickTrimmedString(
+                attachment.name,
+                attachment.fileName,
+                attachment.filename,
+                attachment.originalName,
+                attachment.originalFilename,
+                attachment.title,
+                assetName
+        )
+
+        const rawLabel = pickTrimmedString(attachment.label)
+        const labelCandidate =
+                rawLabel && sanitizedIdentifier && rawLabel.toLowerCase() === sanitizedIdentifier.toLowerCase()
+                        ? undefined
+                        : rawLabel
+
+        const urlFileName = fileNameFromUrl(url)
+
+        const label =
+                explicitName ??
+                urlFileName ??
+                labelCandidate ??
+                sanitizedIdentifier ??
+                `Attachment ${index + 1}`
+
+        const fileName = urlFileName ?? explicitName ?? labelCandidate ?? sanitizedIdentifier
+
+        const extension = extractFileExtension(fileName ?? label)
+
+        const mimeType =
+                pickTrimmedString(
+                        attachment.mimeType,
+                        attachment.fileType,
+                        attachment.contentType,
+                        metadata?.mimeType,
+                        metadata?.contentType,
+                        asset?.mimeType,
+                        asset?.contentType,
+                        asset?.fileType
+                ) ?? undefined
+
+        const size =
+                ensureNumber(attachment.size) ??
+                ensureNumber(attachment.fileSize) ??
+                ensureNumber(attachment.bytes) ??
+                (metadata ? ensureNumber(metadata.size) ?? ensureNumber(metadata.bytes) : undefined) ??
+                (asset ? ensureNumber(asset.size) ?? ensureNumber(asset.bytes) : undefined)
+
+        const createdAt =
+                pickTrimmedString(
+                        attachment.createdAt,
+                        (attachment as UnknownRecord)['created_at'],
+                        attachment.uploadedAt,
+                        attachment.updatedAt,
+                        metadata?.createdAt,
+                        (metadata as UnknownRecord | undefined)?.['created_at'],
+                        metadata?.uploadedAt,
+                        asset?.createdAt,
+                        (asset as UnknownRecord | undefined)?.['created_at']
+                ) ?? undefined
+
+        return {
+                id: sanitizedIdentifier ?? label,
+                label,
+                fileName: fileName ?? undefined,
+                mimeType,
+                size,
+                createdAt,
+                url,
+                extension
+        }
 }
 
 export const normalizeAttachments = (value: unknown): NormalizedAttachment[] =>
@@ -200,7 +408,12 @@ export const normalizeAttachments = (value: unknown): NormalizedAttachment[] =>
                         if (typeof item === 'string') {
                                 const trimmed = item.trim()
                                 if (!trimmed) return null
-                                return { id: trimmed, label: trimmed }
+                                return {
+                                        id: trimmed,
+                                        label: trimmed,
+                                        fileName: trimmed,
+                                        extension: extractFileExtension(trimmed)
+                                }
                         }
 
                         if (isRecord(item)) {
