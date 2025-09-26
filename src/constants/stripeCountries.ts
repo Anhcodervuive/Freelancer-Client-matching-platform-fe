@@ -46,7 +46,7 @@ export const STRIPE_SUPPORTED_COUNTRY_CODES = [
         'US'
 ] as const
 
-const supportedCountrySet = new Set(STRIPE_SUPPORTED_COUNTRY_CODES)
+const supportedCountrySet = new Set<string>(STRIPE_SUPPORTED_COUNTRY_CODES)
 const allCountries = countryList().getData()
 
 export const stripeSupportedCountryOptions: CountryOption[] = allCountries

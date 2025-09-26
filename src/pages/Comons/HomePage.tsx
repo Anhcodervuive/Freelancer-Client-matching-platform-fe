@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { routes } from '~/config/routes'
 
 const featureCards = [
         {
@@ -21,6 +22,21 @@ const highlights = [
         { label: 'Avg. client rating', value: '4.9/5' }
 ]
 
+const onboardingSteps = [
+        {
+                title: 'Create your workspace',
+                description: 'Sign up in minutes to unlock tailored dashboards for clients or freelancers.'
+        },
+        {
+                title: 'Complete guided onboarding',
+                description: 'Answer a few focused questions so we can personalise job matches and recommendations.'
+        },
+        {
+                title: 'Start collaborating',
+                description: 'Access the marketplace, connect with talent, and manage projects once you are verified.'
+        }
+]
+
 const HomePage = () => {
         return (
                 <div className='space-y-16'>
@@ -30,14 +46,20 @@ const HomePage = () => {
                                 <div className='relative grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] md:items-center'>
                                         <div className='space-y-6'>
                                                 <span className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-primary'>New era of freelancing</span>
-                                                <h1 className='text-4xl font-bold leading-tight text-slate-900 md:text-5xl'>Craft your dream team with a marketplace that feels thoughtfully designed.</h1>
-                                                <p className='max-w-xl text-base text-slate-600 md:text-lg'>Workreap-ish brings together elite freelancers and ambitious teams in a serene, design-driven experience. Navigate projects effortlessly, stay aligned, and deliver better work together.</p>
-                                                <div className='flex flex-wrap gap-3'>
-                                                        <Link to='/explore' className='btn btn-lg rounded-full border-none bg-gradient-to-r from-primary to-secondary px-8 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:shadow-primary/40'>
-                                                                Get started
+                                                <h1 className='text-4xl font-bold leading-tight text-slate-900 md:text-5xl'>Join the Workreap-ish community and unlock curated opportunities.</h1>
+                                                <p className='max-w-xl text-base text-slate-600 md:text-lg'>Our marketplace is available exclusively to signed-in members. Create an account, complete the guided onboarding, and then browse jobs or hire verified experts with confidence.</p>
+                                                <div className='flex flex-wrap items-center gap-3'>
+                                                        <Link
+                                                                to={routes.auth.signup}
+                                                                className='btn btn-lg rounded-full border-none bg-gradient-to-r from-primary to-secondary px-8 text-base font-semibold text-white shadow-lg shadow-primary/30 transition hover:shadow-primary/40'
+                                                        >
+                                                                Create your account
                                                         </Link>
-                                                        <Link to='/search' className='btn btn-lg rounded-full border border-primary/20 bg-white/70 px-8 text-base font-semibold text-primary shadow-sm transition hover:border-primary/40 hover:bg-primary/10'>
-                                                                Browse talent
+                                                        <Link
+                                                                to={routes.auth.signin}
+                                                                className='btn btn-lg rounded-full border border-primary/20 bg-white/70 px-8 text-base font-semibold text-primary shadow-sm transition hover:border-primary/40 hover:bg-primary/10'
+                                                        >
+                                                                I already have an account
                                                         </Link>
                                                 </div>
                                                 <dl className='grid gap-4 pt-4 sm:grid-cols-3'>
@@ -88,6 +110,27 @@ const HomePage = () => {
                                                         </div>
                                                 </div>
                                         </div>
+                                </div>
+                        </section>
+
+                        <section className='rounded-[32px] border border-white/60 bg-white/70 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.08)] md:p-12'>
+                                <div className='grid gap-8 md:grid-cols-3 md:gap-10'>
+                                        <div className='md:col-span-1'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-primary/70'>How it works</p>
+                                                <h2 className='mt-3 text-3xl font-bold text-slate-900'>A guided path to the marketplace.</h2>
+                                                <p className='mt-4 text-sm text-slate-600'>To protect both clients and freelancers, access to projects and talent is available once you finish onboarding. Here&apos;s what to expect after you click &ldquo;Get started&rdquo;.</p>
+                                        </div>
+                                        <ol className='grid gap-6 md:col-span-2'>
+                                                {onboardingSteps.map((step, index) => (
+                                                        <li key={step.title} className='relative rounded-3xl border border-white/70 bg-white/80 p-6 shadow-sm shadow-primary/10'>
+                                                                <span className='inline-flex size-10 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-sm font-semibold text-primary'>
+                                                                        {String(index + 1).padStart(2, '0')}
+                                                                </span>
+                                                                <h3 className='mt-4 text-xl font-semibold text-slate-900'>{step.title}</h3>
+                                                                <p className='mt-2 text-sm text-slate-600'>{step.description}</p>
+                                                        </li>
+                                                ))}
+                                        </ol>
                                 </div>
                         </section>
 

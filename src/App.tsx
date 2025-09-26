@@ -12,11 +12,12 @@ import { persistStore } from 'redux-persist'
 import AuthPage from './pages/Auth'
 import HomePage from './pages/Comons/HomePage'
 import {
-        checkAuthenticatedUser,
-        checkWhetherUserLoginMiddleware,
-        composeLoaders,
-        isAdminUser,
-        isClientUser
+	checkAuthenticatedUser,
+	checkWhetherUserLoginMiddleware,
+	composeLoaders,
+	isAdminUser,
+	isClientUser,
+	requireAuthenticatedUserOrRedirectHome
 } from './middlewares/auth'
 import { injectStore } from './utils/injectedStore'
 import { routes } from './config/routes'
@@ -71,85 +72,88 @@ const router = createBrowserRouter([
 	{
 		element: <CommonLayout />,
 		children: [
-                        {
-                                path: routes.comons.home,
-                                element: <HomePage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.list,
-                                element: <JobMarketplacePage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.detail(':jobId'),
-                                element: <JobMarketplaceDetailPage />
-                        },
-                        {
-                                path: routes.client.freelancers.list,
-                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
-                                element: <ClientFreelancerListPage />
-                        },
-                        {
-                                path: routes.me.freelancer.profile,
-                                loader: checkAuthenticatedUser,
-                                element: <ProfilePage />
-                        },
 			{
-				path: 'freelancer/:id',
+				path: routes.comons.home,
+				element: <HomePage />
+			},
+			{
+				path: routes.freelancer.jobs.list,
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <JobMarketplacePage />
+			},
+			{
+				path: routes.freelancer.jobs.detail(':jobId'),
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <JobMarketplaceDetailPage />
+			},
+			{
+				path: routes.client.freelancers.list,
+				loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+				element: <ClientFreelancerListPage />
+			},
+			{
+				path: routes.me.freelancer.profile,
+				loader: checkAuthenticatedUser,
 				element: <ProfilePage />
 			},
-                        {
-                                path: routes.comons.onboarding,
-                                element: <OnboardingWizard />
-                        },
-                        {
-                                path: routes.me.client.jobs.list,
-                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
-                                element: <JobPostListPage />
-                        },
-                        {
-                                path: routes.me.client.jobs.create,
-                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
-                                element: <PostJobWizard />
-                        },
-                        {
-                                path: routes.me.client.jobs.detail(':jobId'),
-                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
-                                element: <JobPostDetailPage />
-                        },
-                        {
-                                path: routes.me.client.jobs.edit(':jobId'),
-                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
-                                element: <PostJobWizard />
-                        },
-                        {
-                                path: '/me/setting',
-                                loader: checkAuthenticatedUser,
-                                element: <SettingLayout />,
-                                children: [
-                                        {
-                                                path: 'contact-info',
-                                                element: <ContactInfo />
-                                        },
-                                        {
-                                                path: 'get-paid',
-                                                element: <GetPaidPage />
-                                        }
-                                ]
-                        },
-                        {
-                                path: 'policies',
-                                element: <PolicyLayout />,
-                                children: [
-                                        {
-                                                index: true,
-                                                element: <ConnectAccountPolicyPage />
-                                        },
-                                        {
-                                                path: 'connect-account',
-                                                element: <ConnectAccountPolicyPage />
-                                        }
-                                ]
-                        },
+			{
+				path: 'freelancer/:id',
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <ProfilePage />
+			},
+			{
+				path: routes.comons.onboarding,
+				element: <OnboardingWizard />
+			},
+			{
+				path: routes.me.client.jobs.list,
+				loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+				element: <JobPostListPage />
+			},
+			{
+				path: routes.me.client.jobs.create,
+				loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+				element: <PostJobWizard />
+			},
+			{
+				path: routes.me.client.jobs.detail(':jobId'),
+				loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+				element: <JobPostDetailPage />
+			},
+			{
+				path: routes.me.client.jobs.edit(':jobId'),
+				loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+				element: <PostJobWizard />
+			},
+			{
+				path: '/me/setting',
+				loader: checkAuthenticatedUser,
+				element: <SettingLayout />,
+				children: [
+					{
+						path: 'contact-info',
+						element: <ContactInfo />
+					},
+					{
+						path: 'get-paid',
+						element: <GetPaidPage />
+					}
+				]
+			},
+			{
+				path: 'policies',
+				element: <PolicyLayout />,
+				children: [
+					{
+						index: true,
+						element: <ConnectAccountPolicyPage />
+					},
+					{
+						path: 'connect-account',
+						element: <ConnectAccountPolicyPage />
+					}
+				]
+			},
 			{
 				path: '/me/setting/payment-method',
 				element: <PaymentMethodWrapper />,
