@@ -43,7 +43,7 @@ export const addFreelancerSkill = async ({
 	skillId: string
 	weight?: number
 }) => {
-	const res = await authorizeAxiosInstance.put(`${freelancerProfileBaseUrl}/${userId}/skill`, {
+	const res = await authorizeAxiosInstance.post(`${freelancerProfileBaseUrl}/${userId}/skill`, {
 		skillId,
 		weight
 	})
