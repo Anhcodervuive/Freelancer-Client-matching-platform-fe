@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
+        Bookmark,
+        BookmarkCheck,
         BriefcaseBusiness,
         Clock,
         DollarSign,
@@ -11,7 +13,11 @@ import {
         MapPin,
         Search
 } from 'lucide-react'
-import { listFreelancerJobPosts } from '~/apis/job-post.api'
+import {
+        listFreelancerJobPosts,
+        saveFreelancerJobPost,
+        unsaveFreelancerJobPost
+} from '~/apis/job-post.api'
 import { routes } from '~/config/routes'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import {
@@ -24,7 +30,7 @@ import {
         type JobLocationType,
         type JobPaymentMode
 } from '~/constants/job'
-import type { JobPostListItem } from '~/types/job-post'
+import type { JobPostDetail, JobPostListItem, PaginatedJobPostResponse } from '~/types/job-post'
 
 const PAGE_SIZE = 6
 
@@ -75,8 +81,11 @@ export default function JobMarketplacePage() {
         const [budgetMin, setBudgetMin] = useState('')
         const [budgetMax, setBudgetMax] = useState('')
         const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest')
+        const [savedOnly, setSavedOnly] = useState(false)
 
         const debouncedSearch = useDebounce(search, 400)
+
+        const queryClient = useQueryClient()
 
         const budgetMinNumber = useMemo(() => {
                 if (!budgetMin.trim()) return undefined
@@ -102,7 +111,8 @@ export default function JobMarketplacePage() {
                                 locationTypes,
                                 budgetMin: budgetMinNumber,
                                 budgetMax: budgetMaxNumber,
-                                sortBy
+                                sortBy,
+                                savedOnly
                         }
                 ],
                 [
@@ -113,11 +123,12 @@ export default function JobMarketplacePage() {
                         locationTypes,
                         budgetMinNumber,
                         budgetMaxNumber,
-                        sortBy
+                        sortBy,
+                        savedOnly
                 ]
         )
 
-        const { data, isLoading, isFetching, isError, error } = useQuery({
+        const { data, isLoading, isFetching, isError, error } = useQuery<PaginatedJobPostResponse>({
                 queryKey,
                 queryFn: () =>
                         listFreelancerJobPosts({
@@ -135,8 +146,38 @@ export default function JobMarketplacePage() {
                                         : undefined,
                                 budgetMin: budgetMinNumber,
                                 budgetMax: budgetMaxNumber,
-                                sortBy
+                                sortBy,
+                                savedOnly: savedOnly || undefined
                         })
+        })
+
+        const toggleSaveMutation = useMutation({
+                mutationFn: async ({ id, isSaved }: { id: string; isSaved?: boolean }) => {
+                        if (isSaved) {
+                                await unsaveFreelancerJobPost(id)
+                                return { id, isSaved: false }
+                        }
+
+                        await saveFreelancerJobPost(id)
+                        return { id, isSaved: true }
+                },
+                onSuccess: async ({ id, isSaved }) => {
+                        queryClient.setQueryData<PaginatedJobPostResponse>(queryKey, previous => {
+                                if (!previous) return previous
+                                const updatedData = previous.data.map(job =>
+                                        job.id === id ? { ...job, isSaved } : job
+                                )
+
+                                return { ...previous, data: updatedData }
+                        })
+
+                        queryClient.setQueryData<JobPostDetail>(['freelancer-job-post', id], previous => {
+                                if (!previous) return previous
+                                return { ...previous, isSaved }
+                        })
+
+                        await queryClient.invalidateQueries({ queryKey: ['freelancer-job-posts'] })
+                }
         })
 
         const jobs = data?.data ?? []
@@ -152,6 +193,7 @@ export default function JobMarketplacePage() {
                 setBudgetMin('')
                 setBudgetMax('')
                 setSortBy('newest')
+                setSavedOnly(false)
                 setPage(1)
         }
 
@@ -162,6 +204,10 @@ export default function JobMarketplacePage() {
                 const durationLabel = job.duration
                         ? durationMap[job.duration as JobDurationCommitment] ?? 'Duration flexible'
                         : 'Duration flexible'
+
+                const isMutating =
+                        toggleSaveMutation.isPending && toggleSaveMutation.variables?.id === job.id
+                const Icon = isMutating ? Loader2 : job.isSaved ? BookmarkCheck : Bookmark
 
                 return (
                         <article
@@ -183,9 +229,27 @@ export default function JobMarketplacePage() {
                                                         <span className='badge badge-outline'>{formatDate(job.publishedAt ?? job.createdAt)}</span>
                                                 </div>
                                         </div>
-                                        <div className='text-right'>
-                                                <div className='text-sm text-base-content/70'>Budget</div>
-                                                <div className='text-base font-semibold text-base-content'>{formatBudget(job)}</div>
+                                        <div className='flex flex-col items-end gap-3 text-right sm:flex-row sm:items-center sm:gap-4'>
+                                                <div>
+                                                        <div className='text-sm text-base-content/70'>Budget</div>
+                                                        <div className='text-base font-semibold text-base-content'>
+                                                                {formatBudget(job)}
+                                                        </div>
+                                                </div>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-ghost btn-sm gap-2 text-sm'
+                                                        onClick={() =>
+                                                                toggleSaveMutation.mutate({
+                                                                        id: job.id,
+                                                                        isSaved: job.isSaved
+                                                                })
+                                                        }
+                                                        disabled={isMutating}
+                                                >
+                                                        <Icon className={`size-4 ${isMutating ? 'animate-spin' : ''}`} />
+                                                        {job.isSaved ? 'Saved' : 'Save job'}
+                                                </button>
                                         </div>
                                 </div>
 
@@ -269,125 +333,143 @@ export default function JobMarketplacePage() {
                                                         </button>
                                                 </div>
                                                 <div className='mt-4 space-y-5 text-sm text-base-content/80'>
-                                                        <div>
-                                                                <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                        <Filter className='size-3' /> Experience level
-                                                                </div>
-                                                                <div className='space-y-2'>
-                                                                        {JOB_EXPERIENCE_LEVELS.map(option => (
-                                                                                <label
-                                                                                        key={option.value}
-                                                                                        className='flex items-center gap-2 rounded-lg border border-transparent px-1 py-1 hover:border-base-200'
-                                                                                >
-                                                                                        <input
-                                                                                                type='checkbox'
-                                                                                                className='checkbox checkbox-sm'
-                                                                                                checked={experienceLevels.includes(option.value)}
-                                                                                                onChange={() => {
-                                                                                                        setExperienceLevels(prev => {
-                                                                                                                const next = toggleFilterValue(prev, option.value)
-                                                                                                                setPage(1)
-                                                                                                                return next
-                                                                                                        })
-                                                                                                }}
-                                                                                        />
-                                                                                        <span>{option.label}</span>
-                                                                                </label>
-                                                                        ))}
-                                                                </div>
-                                                        </div>
+                    <div>
+                            <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                    <Filter className='size-3' /> Experience level
+                            </div>
+                            <div className='space-y-2'>
+                                    {JOB_EXPERIENCE_LEVELS.map(option => (
+                                            <label
+                                                    key={option.value}
+                                                    className='flex items-center gap-2 rounded-lg border border-transparent px-1 py-1 hover:border-base-200'
+                                            >
+                                                    <input
+                                                            type='checkbox'
+                                                            className='checkbox checkbox-sm'
+                                                            checked={experienceLevels.includes(option.value)}
+                                                            onChange={() => {
+                                                                    setExperienceLevels(prev => {
+                                                                            const next = toggleFilterValue(prev, option.value)
+                                                                            setPage(1)
+                                                                            return next
+                                                                    })
+                                                            }}
+                                                    />
+                                                    <span>{option.label}</span>
+                                            </label>
+                                    ))}
+                            </div>
+                    </div>
 
-                                                        <div>
-                                                                <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                        <Layers className='size-3' /> Payment mode
-                                                                </div>
-                                                                <div className='space-y-2'>
-                                                                        {JOB_PAYMENT_MODES.map(option => (
-                                                                                <label
-                                                                                        key={option.value}
-                                                                                        className='flex items-center gap-2 rounded-lg border border-transparent px-1 py-1 hover:border-base-200'
-                                                                                >
-                                                                                        <input
-                                                                                                type='checkbox'
-                                                                                                className='checkbox checkbox-sm'
-                                                                                                checked={paymentModes.includes(option.value)}
-                                                                                                onChange={() => {
-                                                                                                        setPaymentModes(prev => {
-                                                                                                                const next = toggleFilterValue(prev, option.value)
-                                                                                                                setPage(1)
-                                                                                                                return next
-                                                                                                        })
-                                                                                                }}
-                                                                                        />
-                                                                                        <span>{option.label}</span>
-                                                                                </label>
-                                                                        ))}
-                                                                </div>
-                                                        </div>
+                    <div>
+                            <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                    <Layers className='size-3' /> Payment mode
+                            </div>
+                            <div className='space-y-2'>
+                                    {JOB_PAYMENT_MODES.map(option => (
+                                            <label
+                                                    key={option.value}
+                                                    className='flex items-center gap-2 rounded-lg border border-transparent px-1 py-1 hover:border-base-200'
+                                            >
+                                                    <input
+                                                            type='checkbox'
+                                                            className='checkbox checkbox-sm'
+                                                            checked={paymentModes.includes(option.value)}
+                                                            onChange={() => {
+                                                                    setPaymentModes(prev => {
+                                                                            const next = toggleFilterValue(prev, option.value)
+                                                                            setPage(1)
+                                                                            return next
+                                                                    })
+                                                            }}
+                                                    />
+                                                    <span>{option.label}</span>
+                                            </label>
+                                    ))}
+                            </div>
+                    </div>
 
-                                                        <div>
-                                                                <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                        <MapPin className='size-3' /> Location type
-                                                                </div>
-                                                                <div className='space-y-2'>
-                                                                        {JOB_LOCATION_TYPES.map(option => (
-                                                                                <label
-                                                                                        key={option.value}
-                                                                                        className='flex items-center gap-2 rounded-lg border border-transparent px-1 py-1 hover:border-base-200'
-                                                                                >
-                                                                                        <input
-                                                                                                type='checkbox'
-                                                                                                className='checkbox checkbox-sm'
-                                                                                                checked={locationTypes.includes(option.value)}
-                                                                                                onChange={() => {
-                                                                                                        setLocationTypes(prev => {
-                                                                                                                const next = toggleFilterValue(prev, option.value)
-                                                                                                                setPage(1)
-                                                                                                                return next
-                                                                                                        })
-                                                                                                }}
-                                                                                        />
-                                                                                        <span>{option.label}</span>
-                                                                                </label>
-                                                                        ))}
-                                                                </div>
-                                                        </div>
+                    <div>
+                            <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                    <MapPin className='size-3' /> Location type
+                            </div>
+                            <div className='space-y-2'>
+                                    {JOB_LOCATION_TYPES.map(option => (
+                                            <label
+                                                    key={option.value}
+                                                    className='flex items-center gap-2 rounded-lg border border-transparent px-1 py-1 hover:border-base-200'
+                                            >
+                                                    <input
+                                                            type='checkbox'
+                                                            className='checkbox checkbox-sm'
+                                                            checked={locationTypes.includes(option.value)}
+                                                            onChange={() => {
+                                                                    setLocationTypes(prev => {
+                                                                            const next = toggleFilterValue(prev, option.value)
+                                                                            setPage(1)
+                                                                            return next
+                                                                    })
+                                                            }}
+                                                    />
+                                                    <span>{option.label}</span>
+                                            </label>
+                                    ))}
+                            </div>
+                    </div>
 
-                                                        <div>
-                                                                <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                        <DollarSign className='size-3' /> Budget range (USD)
-                                                                </div>
-                                                                <div className='grid grid-cols-2 gap-3'>
-                                                                        <label className='flex flex-col gap-1 text-xs text-base-content/60'>
-                                                                                <span>Min</span>
-                                                                                <input
-                                                                                        type='number'
-                                                                                        inputMode='numeric'
-                                                                                        className='input input-bordered input-sm'
-                                                                                        value={budgetMin}
-                                                                                        onChange={event => {
-                                                                                                setBudgetMin(event.target.value)
-                                                                                                setPage(1)
-                                                                                        }}
-                                                                                />
-                                                                        </label>
-                                                                        <label className='flex flex-col gap-1 text-xs text-base-content/60'>
-                                                                                <span>Max</span>
-                                                                                <input
-                                                                                        type='number'
-                                                                                        inputMode='numeric'
-                                                                                        className='input input-bordered input-sm'
-                                                                                        value={budgetMax}
-                                                                                        onChange={event => {
-                                                                                                setBudgetMax(event.target.value)
-                                                                                                setPage(1)
-                                                                                        }}
-                                                                                />
-                                                                        </label>
-                                                                </div>
-                                                        </div>
-                                                </div>
-                                        </div>
+                    <div>
+                            <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                    <DollarSign className='size-3' /> Budget range (USD)
+                            </div>
+                            <div className='grid grid-cols-2 gap-3'>
+                                    <label className='flex flex-col gap-1 text-xs text-base-content/60'>
+                                            <span>Min</span>
+                                            <input
+                                                    type='number'
+                                                    inputMode='numeric'
+                                                    className='input input-bordered input-sm'
+                                                    value={budgetMin}
+                                                    onChange={event => {
+                                                            setBudgetMin(event.target.value)
+                                                            setPage(1)
+                                                    }}
+                                            />
+                                    </label>
+                                    <label className='flex flex-col gap-1 text-xs text-base-content/60'>
+                                            <span>Max</span>
+                                            <input
+                                                    type='number'
+                                                    inputMode='numeric'
+                                                    className='input input-bordered input-sm'
+                                                    value={budgetMax}
+                                                    onChange={event => {
+                                                            setBudgetMax(event.target.value)
+                                                            setPage(1)
+                                                    }}
+                                            />
+                                    </label>
+                            </div>
+                    </div>
+
+                    <div>
+                            <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                    <Bookmark className='size-3' /> Saved jobs
+                            </div>
+                            <label className='flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2 hover:border-base-200'>
+                                    <span className='text-sm text-base-content/80'>Show saved jobs only</span>
+                                    <input
+                                            type='checkbox'
+                                            className='toggle toggle-sm'
+                                            checked={savedOnly}
+                                            onChange={event => {
+                                                    setSavedOnly(event.target.checked)
+                                                    setPage(1)
+                                            }}
+                                    />
+                            </label>
+                    </div>
+            </div>
+                    </div>
                                 </aside>
 
                                 <main className='space-y-6'>

@@ -1,14 +1,19 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import type {
-	JobDurationCommitment,
-	JobExperienceLevel,
-	JobLocationType,
-	JobPaymentMode,
-	JobStatus,
-	JobVisibility
+        JobDurationCommitment,
+        JobExperienceLevel,
+        JobLocationType,
+        JobPaymentMode,
+        JobStatus,
+        JobVisibility
 } from '~/constants/job'
 import type { LanguageProficiency } from '~/types/profile'
-import type { JobPostDetail, JobPostFilterInput, PaginatedJobPostResponse } from '~/types/job-post'
+import type {
+        FreelancerJobPostFilterInput,
+        JobPostDetail,
+        JobPostFilterInput,
+        PaginatedJobPostResponse
+} from '~/types/job-post'
 
 const jobPostBaseUrl = '/job-posts'
 const freelancerJobPostBaseUrl = '/freelancer/job-posts'
@@ -110,7 +115,7 @@ const buildJobPostFormData = ({ payload, attachmentFiles = [] }: JobPostRequest)
 	return formData
 }
 
-const serializeFilters = (filters: JobPostFilterInput = {}) => {
+const serializeFilters = (filters: JobPostFilterInput | FreelancerJobPostFilterInput = {}) => {
 	const serialized = new URLSearchParams()
 
 	Object.entries(filters).forEach(([key, value]) => {
@@ -160,7 +165,7 @@ export const listJobPosts = async (params: JobPostFilterInput = {}): Promise<Job
 }
 
 export const listFreelancerJobPosts = async (
-        params: JobPostFilterInput = {}
+        params: FreelancerJobPostFilterInput = {}
 ): Promise<JobPostListResponse> => {
         const response = await authorizeAxiosInstance.get(buildListUrl(freelancerJobPostBaseUrl, params))
         return response.data
@@ -173,6 +178,16 @@ export const getJobPost = async (id: string): Promise<JobPostDetailResponse> => 
 
 export const getFreelancerJobPost = async (id: string): Promise<JobPostDetailResponse> => {
         const response = await authorizeAxiosInstance.get(`${freelancerJobPostBaseUrl}/${id}`)
+        return response.data
+}
+
+export const saveFreelancerJobPost = async (id: string) => {
+        const response = await authorizeAxiosInstance.post(`${freelancerJobPostBaseUrl}/${id}/save`)
+        return response.data
+}
+
+export const unsaveFreelancerJobPost = async (id: string) => {
+        const response = await authorizeAxiosInstance.delete(`${freelancerJobPostBaseUrl}/${id}/save`)
         return response.data
 }
 

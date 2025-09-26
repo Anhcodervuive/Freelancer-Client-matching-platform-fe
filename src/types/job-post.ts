@@ -33,6 +33,7 @@ export type JobPostListItem = {
         attachmentsCount: number
         createdAt?: string
         updatedAt?: string
+        isSaved?: boolean
         [key: string]: unknown
 }
 
@@ -64,8 +65,8 @@ export type JobPostFilterInput = {
         hasAttachments?: boolean
         budgetMin?: number
         budgetMax?: number
-        createdFrom?: string
-        createdTo?: string
+        createdFrom?: string | Date
+        createdTo?: string | Date
         sortBy?: 'newest' | 'oldest'
 }
 
@@ -74,4 +75,8 @@ export type PaginatedJobPostResponse = {
         total: number
         page: number
         limit: number
+}
+
+export type FreelancerJobPostFilterInput = Omit<JobPostFilterInput, 'mine' | 'clientId' | 'visibility'> & {
+        savedOnly?: boolean
 }

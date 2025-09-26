@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import DOMPurify from 'dompurify'
 import {
         ArrowLeft,
+        Bookmark,
+        BookmarkCheck,
         BriefcaseBusiness,
         Clock,
         DollarSign,
@@ -13,7 +15,11 @@ import {
         Sparkles,
         Wallet
 } from 'lucide-react'
-import { fetchFreelancerJobPostDetail } from '~/apis/job-post.api'
+import {
+        fetchFreelancerJobPostDetail,
+        saveFreelancerJobPost,
+        unsaveFreelancerJobPost
+} from '~/apis/job-post.api'
 import { routes } from '~/config/routes'
 import {
         JOB_DURATION_COMMITMENTS,
@@ -28,7 +34,7 @@ import {
         type JobVisibility
 } from '~/constants/job'
 import { languageNameFromCode, PROFICIENCY_OPTIONS } from '~/constants/language'
-import type { JobPostDetail } from '~/types/job-post'
+import type { JobPostDetail, PaginatedJobPostResponse } from '~/types/job-post'
 import type { LanguageProficiency } from '~/types/profile'
 import {
         normalizeCustomTerms,
@@ -78,6 +84,8 @@ const formatDate = (value?: string | null) => {
 export default function JobMarketplaceDetailPage() {
         const { jobId } = useParams<{ jobId: string }>()
 
+        const queryClient = useQueryClient()
+
         const {
                 data: job,
                 isLoading,
@@ -91,6 +99,34 @@ export default function JobMarketplaceDetailPage() {
                                 throw new Error('Missing job identifier')
                         }
                         return fetchFreelancerJobPostDetail(jobId)
+                }
+        })
+
+        const toggleSaveMutation = useMutation({
+                mutationFn: async ({ id, isSaved }: { id: string; isSaved?: boolean }) => {
+                        if (isSaved) {
+                                await unsaveFreelancerJobPost(id)
+                                return { id, isSaved: false }
+                        }
+
+                        await saveFreelancerJobPost(id)
+                        return { id, isSaved: true }
+                },
+                onSuccess: async ({ id, isSaved }) => {
+                        queryClient.setQueryData<JobPostDetail>(['freelancer-job-post', id], previous => {
+                                if (!previous) return previous
+                                return { ...previous, isSaved }
+                        })
+
+                        queryClient.setQueriesData<PaginatedJobPostResponse>({ queryKey: ['freelancer-job-posts'] }, previous => {
+                                if (!previous) return previous
+                                return {
+                                        ...previous,
+                                        data: previous.data.map(item => (item.id === id ? { ...item, isSaved } : item))
+                                }
+                        })
+
+                        await queryClient.invalidateQueries({ queryKey: ['freelancer-job-posts'] })
                 }
         })
 
@@ -151,6 +187,9 @@ export default function JobMarketplaceDetailPage() {
                 : 'Duration flexible'
         const visibilityLabel = visibilityMap[job.visibility as JobVisibility] ?? job.visibility
 
+        const isTogglingSave = toggleSaveMutation.isPending && toggleSaveMutation.variables?.id === job.id
+        const SaveIcon = isTogglingSave ? Loader2 : job.isSaved ? BookmarkCheck : Bookmark
+
         return (
                 <div className='mx-auto w-full max-w-5xl px-4 py-8 lg:px-0'>
                         <div className='flex items-center gap-3 text-sm text-base-content/70'>
@@ -163,13 +202,31 @@ export default function JobMarketplaceDetailPage() {
                         <div className='mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]'>
                                 <article className='rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
                                         <header className='border-b border-base-200 pb-5'>
-                                                <p className='text-xs font-semibold uppercase tracking-wide text-primary/80'>
-                                                        {job.specialty?.category?.name ?? 'General'} · {job.specialty?.name ?? 'General'}
-                                                </p>
-                                                <h1 className='mt-2 text-3xl font-semibold text-base-content'>{job.title}</h1>
-                                                <div className='mt-3 flex flex-wrap items-center gap-3 text-xs text-base-content/70'>
-                                                        <span>Posted {formatDate(job.publishedAt ?? job.createdAt)}</span>
-                                                        <span>Attachments: {job.attachmentsCount ?? 0}</span>
+                                                <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+                                                        <div>
+                                                                <p className='text-xs font-semibold uppercase tracking-wide text-primary/80'>
+                                                                        {job.specialty?.category?.name ?? 'General'} · {job.specialty?.name ?? 'General'}
+                                                                </p>
+                                                                <h1 className='mt-2 text-3xl font-semibold text-base-content'>{job.title}</h1>
+                                                                <div className='mt-3 flex flex-wrap items-center gap-3 text-xs text-base-content/70'>
+                                                                        <span>Posted {formatDate(job.publishedAt ?? job.createdAt)}</span>
+                                                                        <span>Attachments: {job.attachmentsCount ?? 0}</span>
+                                                                </div>
+                                                        </div>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-outline btn-sm gap-2 self-start'
+                                                                onClick={() =>
+                                                                        toggleSaveMutation.mutate({
+                                                                                id: job.id,
+                                                                                isSaved: job.isSaved
+                                                                        })
+                                                                }
+                                                                disabled={isTogglingSave}
+                                                        >
+                                                                <SaveIcon className={`size-4 ${isTogglingSave ? 'animate-spin' : ''}`} />
+                                                                {job.isSaved ? 'Saved job' : 'Save job'}
+                                                        </button>
                                                 </div>
                                         </header>
 
