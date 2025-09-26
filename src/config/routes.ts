@@ -21,8 +21,7 @@ export const routes = {
         },
         client: {
                 freelancers: {
-                        list: '/client/freelancers',
-                        detail: (id: string = 'id') => `/client/freelancers/${id}`
+                        list: '/client/freelancers'
                 }
         },
         me: {

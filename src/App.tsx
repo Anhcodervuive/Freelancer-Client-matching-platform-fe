@@ -16,8 +16,7 @@ import {
         checkWhetherUserLoginMiddleware,
         composeLoaders,
         isAdminUser,
-        isClientUser,
-        isFreelancerUser
+        isClientUser
 } from './middlewares/auth'
 import { injectStore } from './utils/injectedStore'
 import { routes } from './config/routes'
@@ -49,7 +48,6 @@ import JobPostDetailPage from './pages/Client/JobPosts/JobPostDetailPage'
 import JobMarketplacePage from './pages/Freelancer/Jobs/JobMarketplacePage'
 import JobMarketplaceDetailPage from './pages/Freelancer/Jobs/JobMarketplaceDetailPage'
 import ClientFreelancerListPage from './pages/Client/Freelancers/ClientFreelancerListPage'
-import ClientFreelancerDetailPage from './pages/Client/Freelancers/ClientFreelancerDetailPage'
 
 const persistor = persistStore(store)
 
@@ -91,13 +89,8 @@ const router = createBrowserRouter([
                                 element: <ClientFreelancerListPage />
                         },
                         {
-                                path: routes.client.freelancers.detail(':freelancerId'),
-                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
-                                element: <ClientFreelancerDetailPage />
-                        },
-                        {
                                 path: routes.me.freelancer.profile,
-                                loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
+                                loader: checkAuthenticatedUser,
                                 element: <ProfilePage />
                         },
 			{

@@ -1,5 +1,5 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
-import type { ClientFreelancerDetail, PaginatedClientFreelancerResponse } from '~/types/client-freelancer'
+import type { PaginatedClientFreelancerResponse } from '~/types/client-freelancer'
 
 export type ClientFreelancerFilterInput = {
         page?: number
@@ -55,7 +55,3 @@ export const listClientFreelancers = async (
         return response.data
 }
 
-export const getClientFreelancerDetail = async (id: string): Promise<ClientFreelancerDetail> => {
-        const response = await authorizeAxiosInstance.get<ClientFreelancerDetail>(`${baseUrl}/${id}`)
-        return response.data
-}

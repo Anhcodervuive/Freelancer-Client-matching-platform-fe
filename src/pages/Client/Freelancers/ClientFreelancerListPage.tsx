@@ -370,7 +370,7 @@ export default function ClientFreelancerListPage() {
                                                                 return (
                                                                         <Link
                                                                                 key={freelancer.id}
-                                                                                to={routes.client.freelancers.detail(freelancer.id)}
+                                                                                to={routes.comons.freelancerProfile(freelancer.id)}
                                                                                 className='group block rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm transition hover:border-primary/50'
                                                                         >
                                                                                 <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
