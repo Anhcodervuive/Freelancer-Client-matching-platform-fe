@@ -46,6 +46,8 @@ import ConnectAccountPolicyPage from './pages/Comons/policies/ConnectAccountPoli
 import PostJobWizard from './pages/Client/PostJob/PostJobWizard'
 import JobPostListPage from './pages/Client/JobPosts/JobPostListPage'
 import JobPostDetailPage from './pages/Client/JobPosts/JobPostDetailPage'
+import JobMarketplacePage from './pages/Freelancer/Jobs/JobMarketplacePage'
+import JobMarketplaceDetailPage from './pages/Freelancer/Jobs/JobMarketplaceDetailPage'
 
 const persistor = persistStore(store)
 
@@ -69,10 +71,18 @@ const router = createBrowserRouter([
 	{
 		element: <CommonLayout />,
 		children: [
-			{
-				path: routes.comons.home,
-				element: <HomePage />
-			},
+                        {
+                                path: routes.comons.home,
+                                element: <HomePage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.list,
+                                element: <JobMarketplacePage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.detail(':jobId'),
+                                element: <JobMarketplaceDetailPage />
+                        },
 			{
 				path: routes.me.freelancer.profile,
 				loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),

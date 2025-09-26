@@ -11,6 +11,7 @@ import type { LanguageProficiency } from '~/types/profile'
 import type { JobPostDetail, JobPostFilterInput, PaginatedJobPostResponse } from '~/types/job-post'
 
 const jobPostBaseUrl = '/job-posts'
+const freelancerJobPostBaseUrl = '/freelancer/job-posts'
 
 type JobPostPreferredLocation = string | { code: string; label: string }
 
@@ -148,15 +149,31 @@ const serializeFilters = (filters: JobPostFilterInput = {}) => {
 	return serialized.toString()
 }
 
+const buildListUrl = (base: string, params: JobPostFilterInput = {}) => {
+        const queryString = serializeFilters(params)
+        return queryString ? `${base}?${queryString}` : base
+}
+
 export const listJobPosts = async (params: JobPostFilterInput = {}): Promise<JobPostListResponse> => {
-	const queryString = serializeFilters(params)
-	const response = await authorizeAxiosInstance.get(queryString ? `${jobPostBaseUrl}?${queryString}` : jobPostBaseUrl)
-	return response.data
+        const response = await authorizeAxiosInstance.get(buildListUrl(jobPostBaseUrl, params))
+        return response.data
+}
+
+export const listFreelancerJobPosts = async (
+        params: JobPostFilterInput = {}
+): Promise<JobPostListResponse> => {
+        const response = await authorizeAxiosInstance.get(buildListUrl(freelancerJobPostBaseUrl, params))
+        return response.data
 }
 
 export const getJobPost = async (id: string): Promise<JobPostDetailResponse> => {
-	const response = await authorizeAxiosInstance.get(`${jobPostBaseUrl}/${id}`)
-	return response.data
+        const response = await authorizeAxiosInstance.get(`${jobPostBaseUrl}/${id}`)
+        return response.data
+}
+
+export const getFreelancerJobPost = async (id: string): Promise<JobPostDetailResponse> => {
+        const response = await authorizeAxiosInstance.get(`${freelancerJobPostBaseUrl}/${id}`)
+        return response.data
 }
 
 const extractJobPost = (payload: JobPostDetailResponse): JobPostDetail | undefined => {
@@ -175,14 +192,25 @@ const extractJobPost = (payload: JobPostDetailResponse): JobPostDetail | undefin
 }
 
 export const fetchJobPostDetail = async (id: string): Promise<JobPostDetail> => {
-	const response = await getJobPost(id)
-	const jobPost = extractJobPost(response)
+        const response = await getJobPost(id)
+        const jobPost = extractJobPost(response)
 
-	if (!jobPost) {
-		throw new Error('Job post not found')
-	}
+        if (!jobPost) {
+                throw new Error('Job post not found')
+        }
 
-	return jobPost
+        return jobPost
+}
+
+export const fetchFreelancerJobPostDetail = async (id: string): Promise<JobPostDetail> => {
+        const response = await getFreelancerJobPost(id)
+        const jobPost = extractJobPost(response)
+
+        if (!jobPost) {
+                throw new Error('Job post not found')
+        }
+
+        return jobPost
 }
 
 export const createJobPost = async ({ payload, attachmentFiles = [] }: JobPostRequest) => {

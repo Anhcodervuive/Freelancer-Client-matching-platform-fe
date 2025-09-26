@@ -8,6 +8,12 @@ export const routes = {
                         connectAccount: '/policies/connect-account'
                 }
         },
+        freelancer: {
+                jobs: {
+                        list: '/freelancer/jobs',
+                        detail: (id: string = 'id') => `/freelancer/jobs/${id}`
+                }
+        },
         auth: {
                 signin: '/signin',
                 signup: '/signup',
