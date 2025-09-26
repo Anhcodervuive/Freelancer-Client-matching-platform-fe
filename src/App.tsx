@@ -48,6 +48,8 @@ import JobPostListPage from './pages/Client/JobPosts/JobPostListPage'
 import JobPostDetailPage from './pages/Client/JobPosts/JobPostDetailPage'
 import JobMarketplacePage from './pages/Freelancer/Jobs/JobMarketplacePage'
 import JobMarketplaceDetailPage from './pages/Freelancer/Jobs/JobMarketplaceDetailPage'
+import ClientFreelancerListPage from './pages/Client/Freelancers/ClientFreelancerListPage'
+import ClientFreelancerDetailPage from './pages/Client/Freelancers/ClientFreelancerDetailPage'
 
 const persistor = persistStore(store)
 
@@ -83,11 +85,21 @@ const router = createBrowserRouter([
                                 path: routes.freelancer.jobs.detail(':jobId'),
                                 element: <JobMarketplaceDetailPage />
                         },
-			{
-				path: routes.me.freelancer.profile,
-				loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
-				element: <ProfilePage />
-			},
+                        {
+                                path: routes.client.freelancers.list,
+                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+                                element: <ClientFreelancerListPage />
+                        },
+                        {
+                                path: routes.client.freelancers.detail(':freelancerId'),
+                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+                                element: <ClientFreelancerDetailPage />
+                        },
+                        {
+                                path: routes.me.freelancer.profile,
+                                loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
+                                element: <ProfilePage />
+                        },
 			{
 				path: 'freelancer/:id',
 				element: <ProfilePage />

@@ -19,6 +19,12 @@ export const routes = {
                 signup: '/signup',
                 verify: '/verify'
         },
+        client: {
+                freelancers: {
+                        list: '/client/freelancers',
+                        detail: (id: string = 'id') => `/client/freelancers/${id}`
+                }
+        },
         me: {
                 client: {
                         postJob: '/me/client/jobs/create',
