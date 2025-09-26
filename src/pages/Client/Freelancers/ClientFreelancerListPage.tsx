@@ -519,7 +519,8 @@ export default function ClientFreelancerListPage() {
                                                                                 icon: <Sparkles className='size-3 text-secondary' />,
                                                                                 items: freelancer.specialties,
                                                                                 limit: 4,
-                                                                                badgeClass: 'badge badge-soft badge-xs rounded-full bg-secondary/10 text-secondary'
+                                                                                badgeClass:
+                                                                                        'badge badge-soft badge-xs rounded-full bg-secondary/10 text-secondary leading-tight'
                                                                         })
                                                                 }
 
@@ -530,7 +531,8 @@ export default function ClientFreelancerListPage() {
                                                                                 icon: <Layers className='size-3 text-purple-500' />,
                                                                                 items: freelancer.categories,
                                                                                 limit: 4,
-                                                                                badgeClass: 'badge badge-outline badge-xs rounded-full text-base-content/70'
+                                                                                badgeClass:
+                                                                                        'badge badge-outline badge-xs rounded-full text-base-content/70 leading-tight'
                                                                         })
                                                                 }
 
@@ -541,7 +543,8 @@ export default function ClientFreelancerListPage() {
                                                                                 icon: <BadgeCheck className='size-3 text-primary' />,
                                                                                 items: freelancer.skills,
                                                                                 limit: 5,
-                                                                                badgeClass: 'badge badge-soft badge-xs rounded-full bg-primary/10 text-primary'
+                                                                                badgeClass:
+                                                                                        'badge badge-soft badge-xs rounded-full bg-primary/10 text-primary leading-tight'
                                                                         })
                                                                 }
 
@@ -557,7 +560,8 @@ export default function ClientFreelancerListPage() {
                                                                                                 : language.name
                                                                                 }),
                                                                                 limit: 4,
-                                                                                badgeClass: 'badge badge-soft badge-xs rounded-full bg-emerald-50 text-emerald-600'
+                                                                                badgeClass:
+                                                                                        'badge badge-soft badge-xs rounded-full bg-emerald-50 text-emerald-600 leading-tight'
                                                                         })
                                                                 }
 
@@ -661,12 +665,14 @@ export default function ClientFreelancerListPage() {
                                                                                                                                 </span>
                                                                                                                                 <div className='mt-2 flex flex-wrap gap-1.5'>
                                                                                                                                         {displayedItems.map(item => (
-                                                                                                                                                <span key={`${freelancer.id}-${section.key}-${item}`} className={section.badgeClass}>
+                <span key={`${freelancer.id}-${section.key}-${item}`} className={section.badgeClass}>
                                                                                                                                                         {item}
                                                                                                                                                 </span>
                                                                                                                                         ))}
                                                                                                                                         {remaining > 0 && (
-                                                                                                                                                <span className='badge badge-outline badge-xs rounded-full text-base-content/60'>+{remaining} more</span>
+                <span className='badge badge-outline badge-xs rounded-full text-base-content/60 leading-tight'>
+                        +{remaining} more
+                </span>
                                                                                                                                         )}
                                                                                                                                 </div>
                                                                                                                         </div>
