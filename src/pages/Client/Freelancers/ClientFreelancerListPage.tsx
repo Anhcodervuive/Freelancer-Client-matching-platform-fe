@@ -655,8 +655,13 @@ export default function ClientFreelancerListPage() {
                                                                         <Link
                                                                                 key={freelancer.id}
                                                                                 to={routes.comons.freelancerProfile(freelancer.id)}
-                                                                                className='group block rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm transition hover:border-primary/50'
+                                                                                className='group relative block rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm transition hover:border-primary/50'
                                                                         >
+                                                                                {freelancer.isSaved ? (
+                                                                                        <div className='pointer-events-none absolute right-6 top-6 z-10 inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary shadow-sm'>
+                                                                                                <BookmarkCheck className='size-3' /> Saved
+                                                                                        </div>
+                                                                                ) : null}
                                                                                 <div className='flex flex-col gap-5'>
                                                                                         <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
                                                                                                 <div className='flex flex-1 items-start gap-4'>
