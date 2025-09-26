@@ -33,6 +33,8 @@ import {
 import type { JobPostDetail, JobPostListItem, PaginatedJobPostResponse } from '~/types/job-post'
 
 const PAGE_SIZE = 6
+const SEARCH_DEBOUNCE = 400
+const FILTER_DEBOUNCE = 300
 
 const experienceMap = Object.fromEntries(
         JOB_EXPERIENCE_LEVELS.map(option => [option.value, option.label])
@@ -83,72 +85,65 @@ export default function JobMarketplacePage() {
         const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest')
         const [savedOnly, setSavedOnly] = useState(false)
 
-        const debouncedSearch = useDebounce(search, 400)
+        const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE)
+        const debouncedExperienceLevels = useDebounce(experienceLevels, FILTER_DEBOUNCE)
+        const debouncedPaymentModes = useDebounce(paymentModes, FILTER_DEBOUNCE)
+        const debouncedLocationTypes = useDebounce(locationTypes, FILTER_DEBOUNCE)
+        const debouncedBudgetMin = useDebounce(budgetMin, FILTER_DEBOUNCE)
+        const debouncedBudgetMax = useDebounce(budgetMax, FILTER_DEBOUNCE)
+        const debouncedSavedOnly = useDebounce(savedOnly, FILTER_DEBOUNCE)
 
         const queryClient = useQueryClient()
 
         const budgetMinNumber = useMemo(() => {
-                if (!budgetMin.trim()) return undefined
-                const parsed = Number(budgetMin)
+                if (!debouncedBudgetMin.trim()) return undefined
+                const parsed = Number(debouncedBudgetMin)
                 return Number.isFinite(parsed) ? parsed : undefined
-        }, [budgetMin])
+        }, [debouncedBudgetMin])
 
         const budgetMaxNumber = useMemo(() => {
-                if (!budgetMax.trim()) return undefined
-                const parsed = Number(budgetMax)
+                if (!debouncedBudgetMax.trim()) return undefined
+                const parsed = Number(debouncedBudgetMax)
                 return Number.isFinite(parsed) ? parsed : undefined
-        }, [budgetMax])
+        }, [debouncedBudgetMax])
 
-        const queryKey = useMemo(
-                () => [
-                        'freelancer-job-posts',
-                        {
-                                page,
-                                limit: PAGE_SIZE,
-                                search: debouncedSearch,
-                                experienceLevels,
-                                paymentModes,
-                                locationTypes,
-                                budgetMin: budgetMinNumber,
-                                budgetMax: budgetMaxNumber,
-                                sortBy,
-                                savedOnly
-                        }
-                ],
+        const filters = useMemo(
+                () => ({
+                        page,
+                        limit: PAGE_SIZE,
+                        search: debouncedSearch || undefined,
+                        experienceLevels: debouncedExperienceLevels.length
+                                ? (debouncedExperienceLevels as JobExperienceLevel[])
+                                : undefined,
+                        paymentModes: debouncedPaymentModes.length
+                                ? (debouncedPaymentModes as JobPaymentMode[])
+                                : undefined,
+                        locationTypes: debouncedLocationTypes.length
+                                ? (debouncedLocationTypes as JobLocationType[])
+                                : undefined,
+                        budgetMin: budgetMinNumber,
+                        budgetMax: budgetMaxNumber,
+                        sortBy,
+                        savedOnly: debouncedSavedOnly ? true : undefined
+                }),
                 [
                         page,
                         debouncedSearch,
-                        experienceLevels,
-                        paymentModes,
-                        locationTypes,
+                        debouncedExperienceLevels,
+                        debouncedPaymentModes,
+                        debouncedLocationTypes,
                         budgetMinNumber,
                         budgetMaxNumber,
                         sortBy,
-                        savedOnly
+                        debouncedSavedOnly
                 ]
         )
 
+        const queryKey = useMemo(() => ['freelancer-job-posts', filters], [filters])
+
         const { data, isLoading, isFetching, isError, error } = useQuery<PaginatedJobPostResponse>({
                 queryKey,
-                queryFn: () =>
-                        listFreelancerJobPosts({
-                                page,
-                                limit: PAGE_SIZE,
-                                search: debouncedSearch || undefined,
-                                experienceLevels: experienceLevels.length
-                                        ? (experienceLevels as JobExperienceLevel[])
-                                        : undefined,
-                                paymentModes: paymentModes.length
-                                        ? (paymentModes as JobPaymentMode[])
-                                        : undefined,
-                                locationTypes: locationTypes.length
-                                        ? (locationTypes as JobLocationType[])
-                                        : undefined,
-                                budgetMin: budgetMinNumber,
-                                budgetMax: budgetMaxNumber,
-                                sortBy,
-                                savedOnly: savedOnly || undefined
-                        })
+                queryFn: () => listFreelancerJobPosts(filters)
         })
 
         const toggleSaveMutation = useMutation({
@@ -162,14 +157,17 @@ export default function JobMarketplacePage() {
                         return { id, isSaved: true }
                 },
                 onSuccess: async ({ id, isSaved }) => {
-                        queryClient.setQueryData<PaginatedJobPostResponse>(queryKey, previous => {
-                                if (!previous) return previous
-                                const updatedData = previous.data.map(job =>
-                                        job.id === id ? { ...job, isSaved } : job
-                                )
+                        queryClient.setQueriesData<PaginatedJobPostResponse>(
+                                { queryKey: ['freelancer-job-posts'] },
+                                previous => {
+                                        if (!previous) return previous
+                                        const updatedData = previous.data.map(job =>
+                                                job.id === id ? { ...job, isSaved } : job
+                                        )
 
-                                return { ...previous, data: updatedData }
-                        })
+                                        return { ...previous, data: updatedData }
+                                }
+                        )
 
                         queryClient.setQueryData<JobPostDetail>(['freelancer-job-post', id], previous => {
                                 if (!previous) return previous
