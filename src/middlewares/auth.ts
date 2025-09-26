@@ -29,13 +29,28 @@ export const checkWhetherUserLoginMiddleware = () => {
 }
 
 export const checkAuthenticatedUser = () => {
-	const persistedRoot = localStorage.getItem('persist:root')
-	if (!persistedRoot) throw redirect(routes.auth.signin)
-	const state = JSON.parse(persistedRoot)
-	const user = JSON.parse(state.user)
-	if (!user.currentUser) throw redirect(routes.auth.signin)
+        const persistedRoot = localStorage.getItem('persist:root')
+        if (!persistedRoot) throw redirect(routes.auth.signin)
+        const state = JSON.parse(persistedRoot)
+        const user = JSON.parse(state.user)
+        if (!user.currentUser) throw redirect(routes.auth.signin)
 
-	return null
+        return null
+}
+
+export const requireAuthenticatedUserOrRedirectHome = () => {
+        const persistedRoot = localStorage.getItem('persist:root')
+        if (!persistedRoot) throw redirect(routes.comons.home)
+
+        try {
+                const state = JSON.parse(persistedRoot)
+                const user = JSON.parse(state.user)
+                if (!user.currentUser) throw redirect(routes.comons.home)
+        } catch (error) {
+                throw redirect(routes.comons.home)
+        }
+
+        return null
 }
 
 export const isFreelancerUser = () => {

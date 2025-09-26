@@ -17,7 +17,8 @@ import {
         composeLoaders,
         isAdminUser,
         isClientUser,
-        isFreelancerUser
+        isFreelancerUser,
+        requireAuthenticatedUserOrRedirectHome
 } from './middlewares/auth'
 import { injectStore } from './utils/injectedStore'
 import { routes } from './config/routes'
@@ -77,21 +78,24 @@ const router = createBrowserRouter([
                         },
                         {
                                 path: routes.freelancer.jobs.list,
+                                loader: requireAuthenticatedUserOrRedirectHome,
                                 element: <JobMarketplacePage />
                         },
                         {
                                 path: routes.freelancer.jobs.detail(':jobId'),
+                                loader: requireAuthenticatedUserOrRedirectHome,
                                 element: <JobMarketplaceDetailPage />
                         },
-			{
-				path: routes.me.freelancer.profile,
-				loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
-				element: <ProfilePage />
-			},
-			{
-				path: 'freelancer/:id',
-				element: <ProfilePage />
-			},
+                        {
+                                path: routes.me.freelancer.profile,
+                                loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
+                                element: <ProfilePage />
+                        },
+                        {
+                                path: 'freelancer/:id',
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <ProfilePage />
+                        },
                         {
                                 path: routes.comons.onboarding,
                                 element: <OnboardingWizard />
