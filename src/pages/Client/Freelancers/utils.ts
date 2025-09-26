@@ -173,11 +173,13 @@ export const getFreelancerName = (
         if (!freelancer) return 'Freelancer'
         const base = freelancer as Record<string, unknown>
         const user = asRecord(base.user)
+        const profile = asRecord(base.profile)
         const candidate =
                 firstNonEmpty(
                         joinName(base.firstName, base.lastName),
                         base.fullName,
                         base.name,
+                        profile.displayName,
                         joinName(user.firstName, user.lastName),
                         user.fullName,
                         user.name
@@ -191,12 +193,14 @@ export const getFreelancerAvatar = (
         if (!freelancer) return undefined
         const base = freelancer as Record<string, unknown>
         const user = asRecord(base.user)
+        const profile = asRecord(base.profile)
         return firstNonEmpty(
                 base.avatar,
                 base.imageUrl,
                 base.photoUrl,
                 base.picture,
                 user.avatar,
+                profile.avatarUrl,
                 () => asRecord(base.freelancerProfile).avatar
         )
 }
@@ -226,16 +230,26 @@ export const getFreelancerLocation = (
         const base = freelancer as Record<string, unknown>
         const profile = asRecord(base.freelancerProfile)
         const user = asRecord(base.user)
+        const marketplaceProfile = asRecord(base.profile)
         const locationRecord = asRecord(base.location)
+        const profileLocation = asRecord(marketplaceProfile.location)
 
-        const city = firstNonEmpty(base.city, profile.city, user.city, locationRecord.city, locationRecord.cityName)
+        const city = firstNonEmpty(
+                base.city,
+                profile.city,
+                user.city,
+                locationRecord.city,
+                locationRecord.cityName,
+                profileLocation.city
+        )
         const country = firstNonEmpty(
                 base.country,
                 profile.country,
                 user.country,
                 locationRecord.country,
                 locationRecord.countryName,
-                typeof base.location === 'string' ? base.location : undefined
+                typeof base.location === 'string' ? base.location : undefined,
+                profileLocation.country
         )
 
         const parts = [city, country].filter((part): part is string => Boolean(part && part.trim()))

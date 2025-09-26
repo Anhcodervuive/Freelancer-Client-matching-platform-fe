@@ -98,6 +98,14 @@ export type ClientFreelancerListItem = {
                 city?: string | null
                 country?: string | null
         } | null
+        profile?: {
+                displayName?: string | null
+                avatarUrl?: string | null
+                location?: {
+                        country?: string | null
+                        city?: string | null
+                } | null
+        } | null
         user?: {
                 id?: string | number | null
                 firstName?: string | null
