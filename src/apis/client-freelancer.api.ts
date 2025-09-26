@@ -8,6 +8,7 @@ export type ClientFreelancerFilterInput = {
         specialtyId?: string
         skillIds?: string[]
         country?: string
+        saved?: boolean
 }
 
 const baseUrl = '/client/freelancers'
@@ -52,6 +53,16 @@ export const listClientFreelancers = async (
         filters: ClientFreelancerFilterInput = {}
 ): Promise<PaginatedClientFreelancerResponse> => {
         const response = await authorizeAxiosInstance.get<PaginatedClientFreelancerResponse>(buildListUrl(filters))
+        return response.data
+}
+
+export const saveClientFreelancer = async (freelancerId: string) => {
+        const response = await authorizeAxiosInstance.post(`${baseUrl}/${freelancerId}/save`)
+        return response.data
+}
+
+export const unsaveClientFreelancer = async (freelancerId: string) => {
+        const response = await authorizeAxiosInstance.delete(`${baseUrl}/${freelancerId}/save`)
         return response.data
 }
 

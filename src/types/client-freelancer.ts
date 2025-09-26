@@ -154,6 +154,8 @@ export type ClientFreelancerListItem = {
                 availability?: string | null
                 createdAt?: string | null
         } | null
+        isSaved?: boolean | null
+        saved?: boolean | null
         skills?: ClientFreelancerSkill[] | null
         freelancerSkills?: ClientFreelancerSkill[] | null
         specialties?: Array<string | { id?: string | number | null; name?: string | null; label?: string | null }> | null
