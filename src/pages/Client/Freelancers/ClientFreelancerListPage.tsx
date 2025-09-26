@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { type MouseEvent, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AsyncSelect from 'react-select/async'
 import Select, { type SingleValue, type MultiValue, type StylesConfig } from 'react-select'
 import countryList from 'react-select-country-list'
 import {
+        Bookmark,
+        BookmarkCheck,
         Filter,
         Loader2,
         MapPin,
@@ -23,13 +25,19 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { listClientFreelancers, type ClientFreelancerFilterInput } from '~/apis/client-freelancer.api'
+import {
+        listClientFreelancers,
+        saveClientFreelancer,
+        unsaveClientFreelancer,
+        type ClientFreelancerFilterInput
+} from '~/apis/client-freelancer.api'
 import { searchSkills } from '~/apis/admin/skkill.api'
 import { getSpecialties } from '~/apis/admin/specialty.api'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import { routes } from '~/config/routes'
 import {
         formatCurrency,
+        getFreelancerId,
         getFreelancerInitials,
         normalizeFreelancer,
         type NormalizedFreelancer
@@ -37,6 +45,8 @@ import {
 import type { ClientFreelancerListItem, PaginatedClientFreelancerResponse } from '~/types/client-freelancer'
 
 const PAGE_SIZE = 9
+const SEARCH_DEBOUNCE = 400
+const FILTER_DEBOUNCE = 300
 
 type Option = { value: string; label: string }
 
@@ -131,14 +141,16 @@ const buildFilters = (
         search: string,
         specialty: Option | null,
         skills: Option[],
-        country: Option | null
+        country: Option | null,
+        savedOnly: boolean
 ): ClientFreelancerFilterInput => ({
         page,
         limit: PAGE_SIZE,
         search: search.trim() || undefined,
         specialtyId: specialty?.value,
         skillIds: skills.map(skill => skill.value),
-        country: country?.value
+        country: country?.value,
+        saved: savedOnly || undefined
 })
 
 export default function ClientFreelancerListPage() {
@@ -147,12 +159,25 @@ export default function ClientFreelancerListPage() {
         const [selectedSpecialty, setSelectedSpecialty] = useState<Option | null>(null)
         const [selectedSkills, setSelectedSkills] = useState<Option[]>([])
         const [selectedCountry, setSelectedCountry] = useState<Option | null>(null)
+        const [showSavedOnly, setShowSavedOnly] = useState(false)
 
-        const debouncedSearch = useDebounce(search, 400)
+        const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE)
+        const debouncedSpecialty = useDebounce(selectedSpecialty, FILTER_DEBOUNCE)
+        const debouncedSkills = useDebounce(selectedSkills, FILTER_DEBOUNCE)
+        const debouncedCountry = useDebounce(selectedCountry, FILTER_DEBOUNCE)
+        const debouncedSavedOnly = useDebounce(showSavedOnly, FILTER_DEBOUNCE)
 
         const filters = useMemo(
-                () => buildFilters(page, debouncedSearch, selectedSpecialty, selectedSkills, selectedCountry),
-                [page, debouncedSearch, selectedSpecialty, selectedSkills, selectedCountry]
+                () =>
+                        buildFilters(
+                                page,
+                                debouncedSearch,
+                                debouncedSpecialty,
+                                debouncedSkills,
+                                debouncedCountry,
+                                debouncedSavedOnly
+                        ),
+                [page, debouncedSearch, debouncedSpecialty, debouncedSkills, debouncedCountry, debouncedSavedOnly]
         )
 
         const queryKey = useMemo(
@@ -160,10 +185,44 @@ export default function ClientFreelancerListPage() {
                 [filters]
         )
 
+        const queryClient = useQueryClient()
+
         const { data, isLoading, isFetching, isError, error } = useQuery<PaginatedClientFreelancerResponse>({
                 queryKey,
                 queryFn: () => listClientFreelancers(filters),
                 keepPreviousData: true
+        })
+
+        const toggleSaveMutation = useMutation({
+                mutationFn: async ({ id, isSaved }: { id: string; isSaved?: boolean }) => {
+                        if (isSaved) {
+                                await unsaveClientFreelancer(id)
+                                return { id, isSaved: false }
+                        }
+
+                        await saveClientFreelancer(id)
+                        return { id, isSaved: true }
+                },
+                onSuccess: async ({ id, isSaved }) => {
+                        queryClient.setQueriesData<PaginatedClientFreelancerResponse>(
+                                { queryKey: ['client-freelancers'] },
+                                previous => {
+                                        if (!previous?.data) return previous
+                                        const updatedData = previous.data.map(item => {
+                                                if (!item) return item
+                                                const itemId = getFreelancerId(item)
+                                                if (itemId === id) {
+                                                        return { ...item, isSaved, saved: isSaved }
+                                                }
+                                                return item
+                                        })
+
+                                        return { ...previous, data: updatedData }
+                                }
+                        )
+
+                        await queryClient.invalidateQueries({ queryKey: ['client-freelancers'] })
+                }
         })
 
         const freelancers = useMemo(
@@ -229,6 +288,7 @@ export default function ClientFreelancerListPage() {
                 setSelectedSkills([])
                 setSelectedCountry(null)
                 setSearch('')
+                setShowSavedOnly(false)
                 setPage(1)
         }
 
@@ -376,10 +436,27 @@ export default function ClientFreelancerListPage() {
                                                         classNamePrefix='freelancer-select'
                                                 />
                                         </label>
+                                        <div className='flex flex-col text-sm text-base-content'>
+                                                <span className='mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                        <Bookmark className='size-3 text-primary' /> Saved
+                                                </span>
+                                                <label className='flex items-center justify-between gap-3 rounded-2xl border border-base-200 bg-base-100 px-4 py-3 text-sm text-base-content/80 shadow-sm'>
+                                                        <span>Show saved freelancers only</span>
+                                                        <input
+                                                                type='checkbox'
+                                                                className='toggle toggle-sm'
+                                                                checked={showSavedOnly}
+                                                                onChange={event => {
+                                                                        setShowSavedOnly(event.target.checked)
+                                                                        setPage(1)
+                                                                }}
+                                                        />
+                                                </label>
+                                        </div>
                                 </div>
                                 <div className='mt-4 flex flex-col gap-2 text-sm text-base-content/70 sm:flex-row sm:items-center sm:justify-between'>
                                         <span>
-                                                Active filters: {selectedSpecialty ? 1 : 0} specialty, {selectedSkills.length} skills, {selectedCountry ? 1 : 0} location
+                                                Active filters: {selectedSpecialty ? 1 : 0} specialty, {selectedSkills.length} skills, {selectedCountry ? 1 : 0} location, saved {showSavedOnly ? 'on' : 'off'}
                                         </span>
                                         <button type='button' onClick={resetFilters} className='btn btn-ghost btn-sm gap-2'>
                                                 Reset filters
@@ -565,6 +642,15 @@ export default function ClientFreelancerListPage() {
                                                                         })
                                                                 }
 
+                                                                const isTogglingSave =
+                                                                        toggleSaveMutation.isPending &&
+                                                                        toggleSaveMutation.variables?.id === freelancer.id
+                                                                const SaveIcon = isTogglingSave
+                                                                        ? Loader2
+                                                                        : freelancer.isSaved
+                                                                          ? BookmarkCheck
+                                                                          : Bookmark
+
                                                                 return (
                                                                         <Link
                                                                                 key={freelancer.id}
@@ -623,6 +709,29 @@ export default function ClientFreelancerListPage() {
                                                                                                 </div>
 
                                                                                                 <div className='flex flex-col items-stretch gap-3 lg:max-w-xl lg:flex-1'>
+                                                                                                        <div className='flex justify-end'>
+                                                                                                                <button
+                                                                                                                        type='button'
+                                                                                                                        className={`btn btn-ghost btn-sm gap-2 text-sm ${
+                                                                                                                                freelancer.isSaved
+                                                                                                                                        ? 'text-primary'
+                                                                                                                                        : 'text-base-content/70'
+                                                                                                                        }`}
+                                                                                                                        aria-pressed={freelancer.isSaved}
+                                                                                                                        disabled={isTogglingSave}
+                                                                                                                        onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                                                                                                                                event.preventDefault()
+                                                                                                                                event.stopPropagation()
+                                                                                                                                toggleSaveMutation.mutate({
+                                                                                                                                        id: freelancer.id,
+                                                                                                                                        isSaved: freelancer.isSaved
+                                                                                                                                })
+                                                                                                                        }}
+                                                                                                                >
+                                                                                                                        <SaveIcon className={`size-4 ${isTogglingSave ? 'animate-spin' : ''}`} />
+                                                                                                                        {freelancer.isSaved ? 'Saved' : 'Save'}
+                                                                                                                </button>
+                                                                                                        </div>
                                                                                                         {stats.length > 0 && (
                                                                                                                 <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
                                                                                                                         {stats.map(stat => (

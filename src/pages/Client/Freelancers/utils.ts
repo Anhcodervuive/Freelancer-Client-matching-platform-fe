@@ -60,6 +60,21 @@ const pickNumber = (value: unknown): number | undefined => {
         return undefined
 }
 
+const pickBoolean = (value: unknown): boolean | undefined => {
+        if (typeof value === 'boolean') return value
+        if (typeof value === 'number') {
+                if (value === 1) return true
+                if (value === 0) return false
+        }
+        if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase()
+                if (!normalized) return undefined
+                if (['true', '1', 'yes', 'y'].includes(normalized)) return true
+                if (['false', '0', 'no', 'n'].includes(normalized)) return false
+        }
+        return undefined
+}
+
 const pickDateString = (value: unknown): string | undefined => {
         if (!value && value !== 0) return undefined
 
@@ -155,6 +170,7 @@ export type NormalizedFreelancer = {
         availability?: string
         availableHoursPerWeek?: number
         memberSince?: string
+        isSaved: boolean
         skills: string[]
         specialties: string[]
         categories: string[]
@@ -185,6 +201,7 @@ export const normalizeFreelancer = (
                 availability: getFreelancerAvailability(freelancer),
                 availableHoursPerWeek: getFreelancerAvailableHoursPerWeek(freelancer),
                 memberSince: getFreelancerMemberSince(freelancer),
+                isSaved: getFreelancerSavedStatus(freelancer),
                 skills: getFreelancerSkillNames(freelancer),
                 specialties: getFreelancerSpecialtyNames(freelancer),
                 categories: getFreelancerCategoryNames(freelancer),
@@ -226,6 +243,30 @@ export const getFreelancerId = (
                 if (value) return value
         }
         return undefined
+}
+
+export const getFreelancerSavedStatus = (
+        freelancer?: ClientFreelancerListItem | ClientFreelancerDetail | null
+): boolean => {
+        if (!freelancer) return false
+        const base = freelancer as Record<string, unknown>
+        const meta = asRecord(base.meta)
+
+        const candidates = [
+                base.isSaved,
+                base.saved,
+                meta.isSaved,
+                meta.saved,
+                asRecord(base.freelancerProfile).isSaved,
+                asRecord(base.freelancerProfile).saved
+        ]
+
+        for (const candidate of candidates) {
+                const value = pickBoolean(candidate)
+                if (value !== undefined) return value
+        }
+
+        return false
 }
 
 export const getFreelancerName = (
