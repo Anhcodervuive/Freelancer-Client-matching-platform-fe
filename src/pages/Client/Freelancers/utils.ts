@@ -16,6 +16,27 @@ const pickString = (value: unknown): string | undefined => {
         return undefined
 }
 
+const toTitleCase = (value: string): string => {
+        return value
+                .replace(/[_-]+/g, ' ')
+                .split(' ')
+                .map(part => part.trim())
+                .filter(Boolean)
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+                .join(' ')
+}
+
+const languageDisplay = (() => {
+        try {
+                if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+                        return new Intl.DisplayNames(['en'], { type: 'language' })
+                }
+        } catch {
+                return undefined
+        }
+        return undefined
+})()
+
 const firstNonEmpty = (...candidates: Array<unknown>): string | undefined => {
         for (const candidate of candidates) {
                 if (typeof candidate === 'function') {
@@ -36,6 +57,34 @@ const pickNumber = (value: unknown): number | undefined => {
                 const parsed = Number(value)
                 if (Number.isFinite(parsed)) return parsed
         }
+        return undefined
+}
+
+const pickDateString = (value: unknown): string | undefined => {
+        if (!value && value !== 0) return undefined
+
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                return value.toISOString()
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+                const milliseconds = value > 1e12 ? value : value * 1000
+                const date = new Date(milliseconds)
+                return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+        }
+
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                if (!trimmed) return undefined
+                const numeric = Number(trimmed)
+                if (Number.isFinite(numeric) && trimmed.replace(/[\d.]/g, '').length === 0) {
+                        return pickDateString(numeric)
+                }
+
+                const date = new Date(trimmed)
+                return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+        }
+
         return undefined
 }
 
@@ -102,8 +151,14 @@ export type NormalizedFreelancer = {
         totalEarned?: number
         rating?: number
         completedJobs?: number
+        totalHoursWorked?: number
+        availability?: string
+        availableHoursPerWeek?: number
+        memberSince?: string
         skills: string[]
         specialties: string[]
+        categories: string[]
+        languages: Array<{ name: string; proficiency?: string }>
 }
 
 export const normalizeFreelancer = (
@@ -126,8 +181,14 @@ export const normalizeFreelancer = (
                 totalEarned: getFreelancerTotalEarned(freelancer),
                 rating: getFreelancerRating(freelancer),
                 completedJobs: getFreelancerCompletedJobs(freelancer),
+                totalHoursWorked: getFreelancerTotalHoursWorked(freelancer),
+                availability: getFreelancerAvailability(freelancer),
+                availableHoursPerWeek: getFreelancerAvailableHoursPerWeek(freelancer),
+                memberSince: getFreelancerMemberSince(freelancer),
                 skills: getFreelancerSkillNames(freelancer),
-                specialties: getFreelancerSpecialtyNames(freelancer)
+                specialties: getFreelancerSpecialtyNames(freelancer),
+                categories: getFreelancerCategoryNames(freelancer),
+                languages: getFreelancerLanguageList(freelancer)
         }
 }
 
@@ -350,18 +411,33 @@ export const getFreelancerSpecialtyNames = (
         return extractNameList(base.specialties ?? base.freelancerSpecialties)
 }
 
+export const getFreelancerCategoryNames = (
+        freelancer?: ClientFreelancerListItem | ClientFreelancerDetail | null
+): string[] => {
+        if (!freelancer) return []
+        const base = freelancer as Record<string, unknown>
+        const profile = asRecord(base.freelancerProfile)
+        const marketplaceProfile = asRecord(base.profile)
+        return extractNameList(base.categories ?? profile.categories ?? marketplaceProfile.categories)
+}
+
 export const getFreelancerLanguageList = (
         freelancer?: ClientFreelancerDetail | ClientFreelancerListItem | null
 ): Array<{ name: string; proficiency?: string }> => {
         if (!freelancer) return []
         const base = freelancer as Record<string, unknown>
-        const languages = base.languages
+        const languages = base.languages ?? asRecord(base.freelancerProfile).languages
         if (!Array.isArray(languages)) return []
         return languages
                 .map(language => {
                         if (!language) return null
                         if (typeof language === 'string') {
-                                return { name: language }
+                                const normalizedName = (() => {
+                                        if (!languageDisplay) return toTitleCase(language)
+                                        const displayName = languageDisplay.of(language.toLowerCase())
+                                        return displayName ?? toTitleCase(language)
+                                })()
+                                return { name: normalizedName }
                         }
                         const record = asRecord(language)
                         const name =
@@ -374,9 +450,128 @@ export const getFreelancerLanguageList = (
                                 )
                         if (!name) return null
                         const proficiency = firstNonEmpty(record.proficiency, record.level)
-                        return { name, proficiency }
+                        const normalizedName = (() => {
+                                if (!languageDisplay) return toTitleCase(name)
+                                const displayName = languageDisplay.of(String(name).toLowerCase())
+                                return displayName ?? toTitleCase(String(name))
+                        })()
+                        return { name: normalizedName, proficiency }
                 })
                 .filter((item): item is { name: string; proficiency?: string } => Boolean(item))
+}
+
+export const getFreelancerTotalHoursWorked = (
+        freelancer?: ClientFreelancerListItem | ClientFreelancerDetail | null
+): number | undefined => {
+        if (!freelancer) return undefined
+        const base = freelancer as Record<string, unknown>
+        const stats = asRecord(base.stats)
+        const profile = asRecord(base.freelancerProfile)
+
+        const candidates = [
+                base.totalHoursWorked,
+                base.totalHours,
+                base.hoursWorked,
+                base.hoursBilled,
+                base.billedHours,
+                base.lifetimeHours,
+                profile.totalHoursWorked,
+                profile.totalHours,
+                profile.hoursWorked,
+                profile.hoursBilled,
+                profile.billedHours,
+                stats.totalHoursWorked,
+                stats.totalHours,
+                stats.hoursWorked,
+                stats.hoursBilled,
+                stats.billedHours,
+                stats.lifetimeHours
+        ]
+
+        for (const candidate of candidates) {
+                const value = pickNumber(candidate)
+                if (value !== undefined) return value
+        }
+
+        return undefined
+}
+
+export const getFreelancerAvailability = (
+        freelancer?: ClientFreelancerListItem | ClientFreelancerDetail | null
+): string | undefined => {
+        if (!freelancer) return undefined
+        const base = freelancer as Record<string, unknown>
+        const stats = asRecord(base.stats)
+        const profile = asRecord(base.freelancerProfile)
+        const user = asRecord(base.user)
+
+        const candidate = firstNonEmpty(
+                base.availability,
+                base.availabilityType,
+                base.availabilityStatus,
+                profile.availability,
+                profile.availabilityType,
+                stats.availability,
+                stats.availabilityType,
+                user.availability
+        )
+
+        return candidate
+}
+
+export const getFreelancerAvailableHoursPerWeek = (
+        freelancer?: ClientFreelancerListItem | ClientFreelancerDetail | null
+): number | undefined => {
+        if (!freelancer) return undefined
+        const base = freelancer as Record<string, unknown>
+        const stats = asRecord(base.stats)
+        const profile = asRecord(base.freelancerProfile)
+
+        const candidates = [
+                base.availableHoursPerWeek,
+                base.hoursPerWeek,
+                base.weeklyAvailability,
+                profile.availableHoursPerWeek,
+                profile.hoursPerWeek,
+                profile.weeklyAvailability,
+                stats.availableHoursPerWeek
+        ]
+
+        for (const candidate of candidates) {
+                const value = pickNumber(candidate)
+                if (value !== undefined) return value
+        }
+
+        return undefined
+}
+
+export const getFreelancerMemberSince = (
+        freelancer?: ClientFreelancerListItem | ClientFreelancerDetail | null
+): string | undefined => {
+        if (!freelancer) return undefined
+        const base = freelancer as Record<string, unknown>
+        const profile = asRecord(base.freelancerProfile)
+        const marketplaceProfile = asRecord(base.profile)
+        const stats = asRecord(base.stats)
+        const user = asRecord(base.user)
+
+        const candidates = [
+                base.memberSince,
+                base.joinedAt,
+                base.createdAt,
+                base.updatedAt,
+                profile.createdAt,
+                marketplaceProfile.createdAt,
+                stats.createdAt,
+                user.createdAt
+        ]
+
+        for (const candidate of candidates) {
+                const value = pickDateString(candidate)
+                if (value) return value
+        }
+
+        return undefined
 }
 
 export type NormalizedPortfolioItem = {

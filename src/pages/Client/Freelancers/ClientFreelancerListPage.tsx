@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import AsyncSelect from 'react-select/async'
 import Select, { type SingleValue, type MultiValue, type StylesConfig } from 'react-select'
@@ -13,7 +13,13 @@ import {
         BriefcaseBusiness,
         Wallet,
         ArrowRight,
-        Clock
+        Clock,
+        CircleDollarSign,
+        Languages,
+        Layers,
+        BadgeCheck,
+        CalendarDays,
+        Gauge
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -35,6 +41,41 @@ const PAGE_SIZE = 9
 type Option = { value: string; label: string }
 
 type AsyncOptionLoader = (_inputValue: string) => Promise<Option[]>
+
+const toTitleCase = (value: string): string =>
+        value
+                .replace(/[_-]+/g, ' ')
+                .split(' ')
+                .map(part => part.trim())
+                .filter(Boolean)
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+                .join(' ')
+
+const formatLabel = (value?: string): string | undefined => {
+        if (!value) return undefined
+        return toTitleCase(value)
+}
+
+const formatProficiency = (value?: string): string | undefined => formatLabel(value)
+
+const formatMemberSince = (value?: string): string | undefined => {
+        if (!value) return undefined
+        try {
+                const date = new Date(value)
+                if (Number.isNaN(date.getTime())) return undefined
+                return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(date)
+        } catch {
+                return undefined
+        }
+}
+
+const formatNumberValue = (value: number): string => {
+        const hasFraction = !Number.isInteger(value)
+        return new Intl.NumberFormat('en-US', {
+                maximumFractionDigits: hasFraction ? 1 : 0,
+                minimumFractionDigits: hasFraction ? 1 : 0
+        }).format(value)
+}
 
 const selectStyles: StylesConfig<Option, boolean> = {
         control: (base, state) => ({
@@ -208,33 +249,44 @@ export default function ClientFreelancerListPage() {
 
         const renderSkeletonCard = (index: number) => (
                 <div key={`freelancer-skeleton-${index}`} className='rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                        <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+                        <div className='flex flex-col gap-6 md:flex-row md:justify-between'>
                                 <div className='flex items-center gap-4'>
                                         <div className='h-16 w-16 rounded-2xl bg-base-200' />
-                                        <div className='space-y-2'>
+                                        <div className='space-y-3'>
                                                 <div className='h-4 w-40 rounded-full bg-base-200/80' />
-                                                <div className='h-3 w-28 rounded-full bg-base-200/70' />
-                                                <div className='h-3 w-24 rounded-full bg-base-200/60' />
+                                                <div className='h-3 w-32 rounded-full bg-base-200/70' />
+                                                <div className='flex flex-wrap gap-2'>
+                                                        <div className='h-3 w-20 rounded-full bg-base-200/60' />
+                                                        <div className='h-3 w-24 rounded-full bg-base-200/50' />
+                                                        <div className='h-3 w-24 rounded-full bg-base-200/40' />
+                                                </div>
                                         </div>
                                 </div>
-                                <div className='flex flex-col items-start gap-2 md:items-end'>
-                                        <div className='h-4 w-24 rounded-full bg-base-200/70' />
-                                        <div className='h-3 w-28 rounded-full bg-base-200/60' />
-                                        <div className='h-3 w-20 rounded-full bg-base-200/50' />
+                                <div className='grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+                                        {Array.from({ length: 6 }).map((_, statIndex) => (
+                                                <div key={`freelancer-skeleton-stat-${index}-${statIndex}`} className='flex items-center gap-3 rounded-2xl bg-base-200/60 px-4 py-3'>
+                                                        <div className='h-9 w-9 rounded-xl bg-base-200' />
+                                                        <div className='space-y-2'>
+                                                                <div className='h-3 w-20 rounded-full bg-base-200/70' />
+                                                                <div className='h-3 w-24 rounded-full bg-base-200/50' />
+                                                        </div>
+                                                </div>
+                                        ))}
                                 </div>
-                        </div>
-                        <div className='mt-4 flex flex-wrap gap-2'>
-                                <div className='h-6 w-20 rounded-full bg-base-200/70' />
-                                <div className='h-6 w-16 rounded-full bg-base-200/60' />
-                                <div className='h-6 w-24 rounded-full bg-base-200/50' />
                         </div>
                         <div className='mt-4 h-3 w-full rounded-full bg-base-200/60' />
-                        <div className='mt-4 flex items-center justify-between border-t border-base-200 pt-4'>
-                                <div className='flex gap-2'>
-                                        <div className='h-6 w-28 rounded-full bg-base-200/60' />
-                                        <div className='h-6 w-24 rounded-full bg-base-200/50' />
-                                </div>
-                                <div className='h-8 w-28 rounded-full bg-base-200/60' />
+                        <div className='mt-4 flex flex-wrap gap-2'>
+                                {Array.from({ length: 6 }).map((_, chipIndex) => (
+                                        <div key={`freelancer-skeleton-specialty-${index}-${chipIndex}`} className='h-6 w-24 rounded-full bg-base-200/50' />
+                                ))}
+                        </div>
+                        <div className='mt-4 flex flex-wrap gap-2'>
+                                {Array.from({ length: 6 }).map((_, chipIndex) => (
+                                        <div key={`freelancer-skeleton-language-${index}-${chipIndex}`} className='h-6 w-20 rounded-full bg-base-200/40' />
+                                ))}
+                        </div>
+                        <div className='mt-5 flex justify-end border-t border-base-200 pt-4'>
+                                <div className='h-8 w-32 rounded-full bg-base-200/60' />
                         </div>
                 </div>
         )
@@ -364,8 +416,92 @@ export default function ClientFreelancerListPage() {
                                                                         freelancer.jobSuccess !== undefined
                                                                                 ? `${freelancer.jobSuccess}%`
                                                                                 : undefined
+                                                                const completedJobsDisplay =
+                                                                        freelancer.completedJobs !== undefined
+                                                                                ? `${formatNumberValue(freelancer.completedJobs)} jobs`
+                                                                                : undefined
+                                                                const totalHoursDisplay =
+                                                                        freelancer.totalHoursWorked !== undefined
+                                                                                ? `${formatNumberValue(freelancer.totalHoursWorked)} hrs billed`
+                                                                                : undefined
+                                                                const weeklyCapacityDisplay =
+                                                                        freelancer.availableHoursPerWeek !== undefined
+                                                                                ? `${formatNumberValue(freelancer.availableHoursPerWeek)} hrs/week`
+                                                                                : undefined
+                                                                const availabilityDisplay = formatLabel(freelancer.availability)
+                                                                const memberSinceDisplay = formatMemberSince(freelancer.memberSince)
 
                                                                 const initials = getFreelancerInitials(freelancer.name)
+
+                                                                const stats: Array<{
+                                                                        key: string
+                                                                        label: string
+                                                                        value: string
+                                                                        icon: ReactNode
+                                                                }> = []
+
+                                                                if (hourlyRateDisplay) {
+                                                                        stats.push({
+                                                                                key: 'hourly-rate',
+                                                                                label: 'Hourly rate',
+                                                                                value: hourlyRateDisplay,
+                                                                                icon: <CircleDollarSign className='size-4 text-primary' />
+                                                                        })
+                                                                }
+
+                                                                if (totalEarnedDisplay) {
+                                                                        stats.push({
+                                                                                key: 'total-earned',
+                                                                                label: 'Total earned',
+                                                                                value: totalEarnedDisplay,
+                                                                                icon: <Wallet className='size-4 text-emerald-500' />
+                                                                        })
+                                                                }
+
+                                                                if (jobSuccessDisplay) {
+                                                                        stats.push({
+                                                                                key: 'job-success',
+                                                                                label: 'Job success',
+                                                                                value: jobSuccessDisplay,
+                                                                                icon: <BadgeCheck className='size-4 text-emerald-500' />
+                                                                        })
+                                                                }
+
+                                                                if (ratingDisplay) {
+                                                                        stats.push({
+                                                                                key: 'rating',
+                                                                                label: 'Rating',
+                                                                                value: ratingDisplay,
+                                                                                icon: <Star className='size-4 fill-amber-400 text-amber-400' />
+                                                                        })
+                                                                }
+
+                                                                if (completedJobsDisplay) {
+                                                                        stats.push({
+                                                                                key: 'completed-jobs',
+                                                                                label: 'Completed jobs',
+                                                                                value: completedJobsDisplay,
+                                                                                icon: <BriefcaseBusiness className='size-4 text-secondary' />
+                                                                        })
+                                                                }
+
+                                                                if (totalHoursDisplay) {
+                                                                        stats.push({
+                                                                                key: 'hours-billed',
+                                                                                label: 'Hours billed',
+                                                                                value: totalHoursDisplay,
+                                                                                icon: <Clock className='size-4 text-primary' />
+                                                                        })
+                                                                }
+
+                                                                if (weeklyCapacityDisplay) {
+                                                                        stats.push({
+                                                                                key: 'weekly-capacity',
+                                                                                label: 'Weekly capacity',
+                                                                                value: weeklyCapacityDisplay,
+                                                                                icon: <Gauge className='size-4 text-sky-500' />
+                                                                        })
+                                                                }
 
                                                                 return (
                                                                         <Link
@@ -373,8 +509,8 @@ export default function ClientFreelancerListPage() {
                                                                                 to={routes.comons.freelancerProfile(freelancer.id)}
                                                                                 className='group block rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm transition hover:border-primary/50'
                                                                         >
-                                                                                <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-                                                                                        <div className='flex items-center gap-4'>
+                                                                                <div className='flex flex-col gap-6 lg:flex-row lg:justify-between'>
+                                                                                        <div className='flex items-start gap-4'>
                                                                                                 <div className='flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 text-lg font-semibold text-primary'>
                                                                                                         {freelancer.avatar ? (
                                                                                                                 <img
@@ -393,74 +529,155 @@ export default function ClientFreelancerListPage() {
                                                                                                         {freelancer.title && (
                                                                                                                 <p className='text-sm text-base-content/70'>{freelancer.title}</p>
                                                                                                         )}
-                                                                                                        <div className='mt-2 flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
+                                                                                                        <div className='mt-3 flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
                                                                                                                 {freelancer.location && (
-                                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-2.5 py-1'>
+                                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
                                                                                                                                 <MapPin className='size-3 text-primary' /> {freelancer.location}
                                                                                                                         </span>
                                                                                                                 )}
                                                                                                                 {freelancer.experienceLevel && (
-                                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-2.5 py-1'>
-                                                                                                                                <BriefcaseBusiness className='size-3 text-secondary' /> {freelancer.experienceLevel}
+                                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                                <BriefcaseBusiness className='size-3 text-secondary' /> {formatLabel(freelancer.experienceLevel)}
+                                                                                                                        </span>
+                                                                                                                )}
+                                                                                                                {availabilityDisplay && (
+                                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                                <BadgeCheck className='size-3 text-emerald-500' /> {availabilityDisplay}
+                                                                                                                        </span>
+                                                                                                                )}
+                                                                                                                {memberSinceDisplay && (
+                                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                                <CalendarDays className='size-3 text-base-content/70' /> Member since {memberSinceDisplay}
                                                                                                                         </span>
                                                                                                                 )}
                                                                                                         </div>
+
+                                                                                                        {freelancer.specialties.length > 0 && (
+                                                                                                                <div className='mt-4'>
+                                                                                                                        <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                                                <Sparkles className='size-3 text-secondary' /> Specialties
+                                                                                                                        </span>
+                                                                                                                        <div className='mt-2 flex flex-wrap gap-2'>
+                                                                                                                                {freelancer.specialties.slice(0, 6).map((specialty, index) => (
+                                                                                                                                        <span
+                                                                                                                                                key={`${freelancer.id}-specialty-${index}-${specialty}`}
+                                                                                                                                                className='badge badge-soft badge-sm rounded-full bg-secondary/10 text-secondary'
+                                                                                                                                        >
+                                                                                                                                                {specialty}
+                                                                                                                                        </span>
+                                                                                                                                ))}
+                                                                                                                                {freelancer.specialties.length > 6 && (
+                                                                                                                                        <span className='badge badge-outline badge-sm rounded-full text-base-content/60'>
+                                                                                                                                                +{freelancer.specialties.length - 6} more
+                                                                                                                                        </span>
+                                                                                                                                )}
+                                                                                                                        </div>
+                                                                                                                </div>
+                                                                                                        )}
                                                                                                 </div>
                                                                                         </div>
-                                                                                        <div className='flex flex-col items-start gap-1 text-sm text-base-content/70 md:items-end'>
-                                                                                                {hourlyRateDisplay && (
-                                                                                                        <span className='font-semibold text-base-content'>{hourlyRateDisplay}</span>
-                                                                                                )}
-                                                                                                {jobSuccessDisplay && <span>Job success: {jobSuccessDisplay}</span>}
-                                                                                                {ratingDisplay && (
-                                                                                                        <span className='flex items-center gap-1 text-amber-600'>
-                                                                                                                <Star className='size-4 fill-amber-400 text-amber-400' /> {ratingDisplay}
-                                                                                                        </span>
-                                                                                                )}
-                                                                                                {totalEarnedDisplay && (
-                                                                                                        <span className='flex items-center gap-1 text-emerald-600'>
-                                                                                                                <Wallet className='size-4 text-emerald-500' /> {totalEarnedDisplay} earned
-                                                                                                        </span>
-                                                                                                )}
-                                                                                        </div>
+
+                                                                                        {stats.length > 0 && (
+                                                                                                <div className='grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+                                                                                                        {stats.map(stat => (
+                                                                                                                <div
+                                                                                                                        key={`${freelancer.id}-${stat.key}`}
+                                                                                                                        className='flex items-center gap-3 rounded-2xl bg-base-200/60 px-4 py-3 text-sm text-base-content/80'
+                                                                                                                >
+                                                                                                                        <span className='flex h-9 w-9 items-center justify-center rounded-xl bg-base-100 text-primary'>
+                                                                                                                                {stat.icon}
+                                                                                                                        </span>
+                                                                                                                        <div>
+                                                                                                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                                                        {stat.label}
+                                                                                                                                </p>
+                                                                                                                                <p className='font-semibold text-base-content'>{stat.value}</p>
+                                                                                                                        </div>
+                                                                                                                </div>
+                                                                                                        ))}
+                                                                                                </div>
+                                                                                        )}
                                                                                 </div>
 
                                                                                 {freelancer.bio && (
-                                                                                        <p className='mt-3 line-clamp-2 text-sm text-base-content/70'>{freelancer.bio}</p>
+                                                                                        <p className='line-clamp-3 text-sm text-base-content/70'>{freelancer.bio}</p>
+                                                                                )}
+
+                                                                                {freelancer.categories.length > 0 && (
+                                                                                        <div className='mt-4'>
+                                                                                                <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        <Layers className='size-3 text-purple-500' /> Categories
+                                                                                                </span>
+                                                                                                <div className='mt-2 flex flex-wrap gap-2'>
+                                                                                                        {freelancer.categories.slice(0, 6).map((category, index) => (
+                                                                                                                <span
+                                                                                                                        key={`${freelancer.id}-category-${index}-${category}`}
+                                                                                                                        className='badge badge-outline badge-sm rounded-full text-base-content/70'
+                                                                                                                >
+                                                                                                                        {category}
+                                                                                                                </span>
+                                                                                                        ))}
+                                                                                                        {freelancer.categories.length > 6 && (
+                                                                                                                <span className='badge badge-outline badge-sm rounded-full text-base-content/60'>
+                                                                                                                        +{freelancer.categories.length - 6} more
+                                                                                                                </span>
+                                                                                                        )}
+                                                                                                </div>
+                                                                                        </div>
                                                                                 )}
 
                                                                                 {freelancer.skills.length > 0 && (
-                                                                                        <div className='mt-4 flex flex-wrap gap-2'>
-                                                                                                {freelancer.skills.slice(0, 5).map(skill => (
-                                                                                                        <span
-                                                                                                                key={`${freelancer.id}-${skill}`}
-                                                                                                                className='badge badge-soft badge-sm rounded-full bg-primary/10 text-primary'
-                                                                                                        >
-                                                                                                                {skill}
-                                                                                                        </span>
-                                                                                                ))}
-                                                                                                {freelancer.skills.length > 5 && (
-                                                                                                        <span className='badge badge-outline badge-sm rounded-full text-base-content/70'>
-                                                                                                                +{freelancer.skills.length - 5} more
-                                                                                                        </span>
-                                                                                                )}
+                                                                                        <div className='mt-4'>
+                                                                                                <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        <BadgeCheck className='size-3 text-primary' /> Top skills
+                                                                                                </span>
+                                                                                                <div className='mt-2 flex flex-wrap gap-2'>
+                                                                                                        {freelancer.skills.slice(0, 8).map(skill => (
+                                                                                                                <span
+                                                                                                                        key={`${freelancer.id}-skill-${skill}`}
+                                                                                                                        className='badge badge-soft badge-sm rounded-full bg-primary/10 text-primary'
+                                                                                                                >
+                                                                                                                        {skill}
+                                                                                                                </span>
+                                                                                                        ))}
+                                                                                                        {freelancer.skills.length > 8 && (
+                                                                                                                <span className='badge badge-outline badge-sm rounded-full text-base-content/60'>
+                                                                                                                        +{freelancer.skills.length - 8} more
+                                                                                                                </span>
+                                                                                                        )}
+                                                                                                </div>
                                                                                         </div>
                                                                                 )}
 
-                                                                                <div className='mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-base-200 pt-4 text-sm text-base-content/70'>
-                                                                                        <div className='flex flex-wrap items-center gap-3'>
-                                                                                                {freelancer.completedJobs !== undefined && (
-                                                                                                        <span className='flex items-center gap-2'>
-                                                                                                                <BriefcaseBusiness className='size-4 text-secondary' /> {freelancer.completedJobs} jobs
-                                                                                                        </span>
-                                                                                                )}
-                                                                                                {freelancer.totalHoursWorked !== undefined && (
-                                                                                                        <span className='flex items-center gap-2'>
-                                                                                                                <Clock className='size-4 text-primary' /> {freelancer.totalHoursWorked} hours billed
-                                                                                                        </span>
-                                                                                                )}
+                                                                                {freelancer.languages.length > 0 && (
+                                                                                        <div className='mt-4'>
+                                                                                                <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        <Languages className='size-3 text-emerald-600' /> Languages
+                                                                                                </span>
+                                                                                                <div className='mt-2 flex flex-wrap gap-2'>
+                                                                                                        {freelancer.languages.slice(0, 6).map((language, index) => {
+                                                                                                                const proficiencyLabel = formatProficiency(language.proficiency)
+                                                                                                                return (
+                                                                                                                        <span
+                                                                                                                                key={`${freelancer.id}-language-${index}-${language.name}`}
+                                                                                                                                className='badge badge-soft badge-sm rounded-full bg-emerald-50 text-emerald-600'
+                                                                                                                        >
+                                                                                                                                {language.name}
+                                                                                                                                {proficiencyLabel ? ` · ${proficiencyLabel}` : ''}
+                                                                                                                        </span>
+                                                                                                                )
+                                                                                                        })}
+                                                                                                        {freelancer.languages.length > 6 && (
+                                                                                                                <span className='badge badge-outline badge-sm rounded-full text-base-content/60'>
+                                                                                                                        +{freelancer.languages.length - 6} more
+                                                                                                                </span>
+                                                                                                        )}
+                                                                                                </div>
                                                                                         </div>
-                                                                                        <span className='flex items-center gap-2 text-primary transition group-hover:translate-x-1'>
+                                                                                )}
+
+                                                                                <div className='mt-6 flex justify-end border-t border-base-200 pt-4 text-sm text-primary'>
+                                                                                        <span className='flex items-center gap-2 transition group-hover:translate-x-1'>
                                                                                                 View profile <ArrowRight className='size-4' />
                                                                                         </span>
                                                                                 </div>

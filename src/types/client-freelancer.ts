@@ -54,6 +54,12 @@ export type ClientFreelancerListItem = {
         overview?: string | null
         about?: string | null
         summary?: string | null
+        availability?: string | null
+        availabilityType?: string | null
+        availabilityStatus?: string | null
+        availableHoursPerWeek?: number | string | null
+        hoursPerWeek?: number | string | null
+        weeklyAvailability?: number | string | null
         country?: string | null
         city?: string | null
         location?:
@@ -76,8 +82,19 @@ export type ClientFreelancerListItem = {
         jobSuccessRate?: number | string | null
         successRate?: number | string | null
         totalEarned?: number | string | null
+        totalHoursWorked?: number | string | null
+        totalHours?: number | string | null
+        hoursWorked?: number | string | null
+        hoursBilled?: number | string | null
+        billedHours?: number | string | null
+        lifetimeHours?: number | string | null
         completedJobs?: number | string | null
         rating?: number | string | null
+        englishProficiency?: string | null
+        englishLevel?: string | null
+        joinedAt?: string | null
+        createdAt?: string | null
+        updatedAt?: string | null
         stats?: {
                 jobSuccessScore?: number | string | null
                 jobSuccessPercent?: number | string | null
@@ -85,8 +102,18 @@ export type ClientFreelancerListItem = {
                 jobSuccessRate?: number | string | null
                 successRate?: number | string | null
                 totalEarned?: number | string | null
+                totalHoursWorked?: number | string | null
+                totalHours?: number | string | null
+                hoursWorked?: number | string | null
+                hoursBilled?: number | string | null
+                billedHours?: number | string | null
+                lifetimeHours?: number | string | null
+                availability?: string | null
+                availabilityType?: string | null
+                availableHoursPerWeek?: number | string | null
                 completedJobs?: number | string | null
                 rating?: number | string | null
+                createdAt?: string | null
         } | null
         freelancerProfile?: {
                 title?: string | null
@@ -97,6 +124,14 @@ export type ClientFreelancerListItem = {
                 experienceLevel?: string | null
                 city?: string | null
                 country?: string | null
+                availability?: string | null
+                availabilityType?: string | null
+                availableHoursPerWeek?: number | string | null
+                hoursPerWeek?: number | string | null
+                weeklyAvailability?: number | string | null
+                englishProficiency?: string | null
+                englishLevel?: string | null
+                createdAt?: string | null
         } | null
         profile?: {
                 displayName?: string | null
@@ -105,6 +140,7 @@ export type ClientFreelancerListItem = {
                         country?: string | null
                         city?: string | null
                 } | null
+                createdAt?: string | null
         } | null
         user?: {
                 id?: string | number | null
@@ -115,16 +151,18 @@ export type ClientFreelancerListItem = {
                 avatar?: string | null
                 country?: string | null
                 city?: string | null
+                availability?: string | null
+                createdAt?: string | null
         } | null
         skills?: ClientFreelancerSkill[] | null
         freelancerSkills?: ClientFreelancerSkill[] | null
         specialties?: Array<string | { id?: string | number | null; name?: string | null; label?: string | null }> | null
         freelancerSpecialties?: Array<string | { id?: string | number | null; name?: string | null; label?: string | null }> | null
+        categories?: Array<{ id?: string | number | null; name?: string | null } | string> | null
+        languages?: Array<{ name?: string | null; code?: string | null; languageCode?: string | null; proficiency?: string | null }> | null
 } & Record<string, unknown>
 
 export type ClientFreelancerDetail = ClientFreelancerListItem & {
-        categories?: Array<{ id?: string | number | null; name?: string | null } | string> | null
-        languages?: Array<{ name?: string | null; code?: string | null; languageCode?: string | null; proficiency?: string | null }> | null
         portfolios?: ClientFreelancerPortfolioItem[] | null
         portfolioItems?: ClientFreelancerPortfolioItem[] | null
         portfolio?: ClientFreelancerPortfolioItem[] | null
