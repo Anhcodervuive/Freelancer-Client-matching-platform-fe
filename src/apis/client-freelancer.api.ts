@@ -9,6 +9,7 @@ export type ClientFreelancerFilterInput = {
         skillIds?: string[]
         country?: string
         saved?: boolean
+        invitedJobId?: string
 }
 
 const baseUrl = '/client/freelancers'

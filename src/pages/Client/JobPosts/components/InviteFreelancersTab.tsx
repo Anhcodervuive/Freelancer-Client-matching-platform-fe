@@ -33,7 +33,7 @@ import {
 } from '~/apis/client-freelancer.api'
 import { getSpecialties } from '~/apis/admin/specialty.api'
 import { searchSkills } from '~/apis/admin/skkill.api'
-import { createJobInvitation, listJobInvitations } from '~/apis/job-invitation.api'
+import { createJobInvitation } from '~/apis/job-invitation.api'
 import { routes } from '~/config/routes'
 import {
         formatCurrency,
@@ -50,11 +50,7 @@ import type {
         ClientFreelancerListItem,
         PaginatedClientFreelancerResponse
 } from '~/types/client-freelancer'
-import type {
-        CreateJobInvitationInput,
-        JobInvitation,
-        PaginatedJobInvitationResponse
-} from '~/types/job-invitation'
+import type { CreateJobInvitationInput, JobInvitation } from '~/types/job-invitation'
 import type { JobPostDetail } from '~/types/job-post'
 import { formatDateTime } from '~/utils/format'
 import { normalizeSkillIds, normalizeSkills } from '~/utils/jobPost'
@@ -129,11 +125,16 @@ const buildFilters = (
         skillIds?: string[],
         search?: string,
         country?: string,
-        saved?: boolean
+        saved?: boolean,
+        invitedJobId?: string
 ): ClientFreelancerFilterInput => {
         const filters: ClientFreelancerFilterInput = {
                 page,
                 limit: PAGE_SIZE
+        }
+
+        if (invitedJobId) {
+                filters.invitedJobId = invitedJobId
         }
 
         if (specialtyId) {
@@ -293,20 +294,6 @@ const invitationStatusMeta = (status?: string) => {
         }
 }
 
-const normalizeIdentifier = (value?: string | null) => {
-        if (value === undefined || value === null) return undefined
-        const normalized = String(value).trim()
-        return normalized.length > 0 ? normalized : undefined
-}
-
-const getInvitationFreelancerId = (invitation?: JobInvitation) => {
-        if (!invitation) return undefined
-        return (
-                normalizeIdentifier(invitation.freelancerId) ??
-                normalizeIdentifier(invitation.freelancer?.id)
-        )
-}
-
 type InvitationLike = JobInvitation | NormalizedFreelancerInvitation | undefined
 
 const getInvitationSentAt = (invitation: InvitationLike) => {
@@ -388,9 +375,6 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                 onSuccess: () => {
                         queryClient.invalidateQueries({
                                 queryKey: ['job-post', job.id, 'matching-freelancers']
-                        })
-                        queryClient.invalidateQueries({
-                                queryKey: ['job-post', job.id, 'invitations']
                         })
                 }
         })
@@ -549,7 +533,8 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                         : undefined,
                                 appliedFilters.search,
                                 appliedFilters.country?.value,
-                                appliedFilters.savedOnly
+                                appliedFilters.savedOnly,
+                                job.id
                         ),
                 [
                         page,
@@ -557,7 +542,8 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                         appliedFilters.skills,
                         appliedFilters.search,
                         appliedFilters.country,
-                        appliedFilters.savedOnly
+                        appliedFilters.savedOnly,
+                        job.id
                 ]
         )
 
@@ -575,13 +561,6 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                 staleTime: 1000 * 60 * 5
         })
 
-        const { data: invitationResponse, isLoading: isLoadingInvitations } = useQuery<PaginatedJobInvitationResponse>({
-                queryKey: ['job-post', job.id, 'invitations'],
-                queryFn: () => listJobInvitations({ jobId: job.id, page: 1, limit: 200 }),
-                enabled: isActive,
-                staleTime: 1000 * 60 * 2
-        })
-
         const freelancers = useMemo(
                 () => (data?.data ?? []) as ClientFreelancerListItem[],
                 [data?.data]
@@ -595,35 +574,18 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                 [freelancers]
         )
 
-        const remoteInvitations = useMemo(
-                () => (invitationResponse?.data ?? []) as JobInvitation[],
-                [invitationResponse?.data]
-        )
-
-        const remoteInvitationMap = useMemo(() => {
-                const map = new Map<string, JobInvitation>()
-                remoteInvitations.forEach(invitation => {
-                        const freelancerId = getInvitationFreelancerId(invitation)
-                        if (freelancerId) {
-                                map.set(freelancerId, invitation)
-                        }
-                })
-                return map
-        }, [remoteInvitations])
-
         const invitedFreelancersSet = useMemo(() => {
                 const invited = new Set<string>()
                 Object.entries(invitationState).forEach(([freelancerId, details]) => {
                         if (details?.status) invited.add(freelancerId)
                 })
-                remoteInvitationMap.forEach((_invitation, freelancerId) => invited.add(freelancerId))
                 normalizedFreelancers.forEach(freelancer => {
                         if (freelancer.latestInvitation?.jobId === job.id) {
                                 invited.add(freelancer.id)
                         }
                 })
                 return invited
-        }, [invitationState, remoteInvitationMap, normalizedFreelancers, job.id])
+        }, [invitationState, normalizedFreelancers, job.id])
 
         const invitedCount = useMemo(() => {
                 let count = 0
@@ -873,11 +835,6 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                                         </button>
                                                 )
                                         })}
-                                        {isLoadingInvitations ? (
-                                                <span className='inline-flex items-center gap-2 text-xs text-base-content/60'>
-                                                        <Loader2 className='size-3 animate-spin text-primary' /> Updating invitations…
-                                                </span>
-                                        ) : null}
                                 </div>
                         </section>
 
@@ -945,19 +902,16 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 
                                                 const initials = getFreelancerInitials(freelancer.name)
                                                 const storedInvitation = invitationState[freelancer.id]
-                                                const remoteInvitation = remoteInvitationMap.get(freelancer.id)
                                                 const latestInvitation =
                                                         freelancer.latestInvitation?.jobId === job.id
                                                                 ? freelancer.latestInvitation
                                                                 : undefined
                                                 const invitationStatus =
                                                         storedInvitation?.status ??
-                                                        remoteInvitation?.status ??
                                                         latestInvitation?.status
                                                 const invitationMetaInfo = invitationStatusMeta(invitationStatus)
                                                 const invitationDetails: InvitationLike =
                                                         storedInvitation?.invitation ??
-                                                        remoteInvitation ??
                                                         latestInvitation
                                                 const sentAtLabel = getInvitationSentAt(invitationDetails)
                                                 const respondedAtLabel = getInvitationRespondedAt(invitationDetails)
