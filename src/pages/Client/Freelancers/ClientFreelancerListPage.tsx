@@ -36,11 +36,15 @@ import { getSpecialties } from '~/apis/admin/specialty.api'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import { routes } from '~/config/routes'
 import {
-	formatCurrency,
-	getFreelancerId,
-	getFreelancerInitials,
-	normalizeFreelancer,
-	type NormalizedFreelancer
+        formatCurrency,
+        formatLabel,
+        formatMemberSince,
+        formatNumberValue,
+        formatProficiency,
+        getFreelancerId,
+        getFreelancerInitials,
+        normalizeFreelancer,
+        type NormalizedFreelancer
 } from './utils'
 import type { ClientFreelancerListItem, PaginatedClientFreelancerResponse } from '~/types/client-freelancer'
 
@@ -51,41 +55,6 @@ const FILTER_DEBOUNCE = 300
 type Option = { value: string; label: string }
 
 type AsyncOptionLoader = (_inputValue: string) => Promise<Option[]>
-
-const toTitleCase = (value: string): string =>
-	value
-		.replace(/[_-]+/g, ' ')
-		.split(' ')
-		.map(part => part.trim())
-		.filter(Boolean)
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-		.join(' ')
-
-const formatLabel = (value?: string): string | undefined => {
-	if (!value) return undefined
-	return toTitleCase(value)
-}
-
-const formatProficiency = (value?: string): string | undefined => formatLabel(value)
-
-const formatMemberSince = (value?: string): string | undefined => {
-	if (!value) return undefined
-	try {
-		const date = new Date(value)
-		if (Number.isNaN(date.getTime())) return undefined
-		return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(date)
-	} catch {
-		return undefined
-	}
-}
-
-const formatNumberValue = (value: number): string => {
-	const hasFraction = !Number.isInteger(value)
-	return new Intl.NumberFormat('en-US', {
-		maximumFractionDigits: hasFraction ? 1 : 0,
-		minimumFractionDigits: hasFraction ? 1 : 0
-	}).format(value)
-}
 
 const selectStyles: StylesConfig<Option, boolean> = {
 	control: (base, state) => ({

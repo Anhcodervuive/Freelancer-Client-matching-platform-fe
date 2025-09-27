@@ -16,7 +16,7 @@ const pickString = (value: unknown): string | undefined => {
         return undefined
 }
 
-const toTitleCase = (value: string): string => {
+export const toTitleCase = (value: string): string => {
         return value
                 .replace(/[_-]+/g, ' ')
                 .split(' ')
@@ -673,6 +673,32 @@ export const getFreelancerPortfolioItems = (
                         } satisfies NormalizedPortfolioItem
                 })
                 .filter((item): item is NormalizedPortfolioItem => Boolean(item))
+}
+
+export const formatLabel = (value?: string): string | undefined => {
+        if (!value) return undefined
+        return toTitleCase(value)
+}
+
+export const formatProficiency = (value?: string): string | undefined => formatLabel(value)
+
+export const formatMemberSince = (value?: string): string | undefined => {
+        if (!value) return undefined
+        try {
+                const date = new Date(value)
+                if (Number.isNaN(date.getTime())) return undefined
+                return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(date)
+        } catch {
+                return undefined
+        }
+}
+
+export const formatNumberValue = (value: number): string => {
+        const hasFraction = !Number.isInteger(value)
+        return new Intl.NumberFormat('en-US', {
+                maximumFractionDigits: hasFraction ? 1 : 0,
+                minimumFractionDigits: hasFraction ? 1 : 0
+        }).format(value)
 }
 
 export const formatCurrency = (amount?: number, currency?: string): string | undefined => {
