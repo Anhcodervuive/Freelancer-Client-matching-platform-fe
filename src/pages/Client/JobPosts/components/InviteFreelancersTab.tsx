@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
 import AsyncSelect from 'react-select/async'
 import Select, { type MultiValue, type SingleValue, type StylesConfig } from 'react-select'
 import countryList from 'react-select-country-list'
@@ -526,7 +526,6 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 		queryKey: ['job-post', job.id, 'matching-freelancers', filters],
 		queryFn: () => listClientFreelancers(filters),
 		enabled: isActive,
-		keepPreviousData: true,
 		staleTime: 1000 * 60 * 5
 	})
 
