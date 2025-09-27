@@ -591,15 +591,19 @@ export default function ClientFreelancerListPage() {
 							const isTogglingSave = toggleSaveMutation.isPending && toggleSaveMutation.variables?.id === freelancer.id
 							const SaveIcon = isTogglingSave ? Loader2 : freelancer.isSaved ? BookmarkCheck : Bookmark
 
-							return (
-								<Link
-									key={freelancer.id}
-									to={routes.comons.freelancerProfile(freelancer.id)}
-									className='group relative block rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm transition hover:border-primary/50'>
-									<div className='flex flex-col gap-5'>
-										<div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+                                                        return (
+                                                                <Link
+                                                                        key={freelancer.id}
+                                                                        to={routes.comons.freelancerProfile(freelancer.id)}
+                                                                        className='group relative block overflow-hidden rounded-3xl border border-base-200 bg-base-100 p-6 shadow-md transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-lg'>
+                                                                        <span
+                                                                                className='pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/40 to-primary/0'
+                                                                                aria-hidden='true'
+                                                                        />
+                                                                        <div className='flex flex-col gap-6'>
+                                                                                <div className='flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between'>
 											<div className='flex flex-1 items-start gap-4'>
-												<div className='flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 text-lg font-semibold text-primary'>
+                                                                                                <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 text-lg font-semibold text-primary shadow-inner'>
 													{freelancer.avatar ? (
 														<img
 															src={freelancer.avatar}
@@ -647,13 +651,15 @@ export default function ClientFreelancerListPage() {
 												</div>
 											</div>
 
-											<div className='flex flex-col items-stretch gap-3 lg:max-w-xl lg:flex-1'>
-												<div className='flex justify-end'>
-													<button
-														type='button'
-														className={`btn btn-ghost btn-sm gap-2 text-sm ${
-															freelancer.isSaved ? 'text-primary' : 'text-base-content/70'
-														}`}
+                                                                                        <div className='flex w-full flex-col gap-3 lg:max-w-xl'>
+                                                                                                <div className='flex justify-end'>
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                className={`btn btn-outline btn-sm gap-2 transition ${
+                                                                                                                        freelancer.isSaved
+                                                                                                                                ? 'border-primary bg-primary/10 text-primary'
+                                                                                                                                : 'text-base-content/70'
+                                                                                                                }`}
 														aria-pressed={freelancer.isSaved}
 														disabled={isTogglingSave}
 														onClick={(event: MouseEvent<HTMLButtonElement>) => {
@@ -668,31 +674,27 @@ export default function ClientFreelancerListPage() {
 														{freelancer.isSaved ? 'Saved' : 'Save'}
 													</button>
 												</div>
-												{stats.length > 0 && (
-													<div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
-														{stats.map(stat => (
-															<div
-																key={`${freelancer.id}-${stat.key}`}
-																className='flex items-center gap-3 rounded-2xl bg-base-200/60 px-4 py-2.5 text-sm text-base-content/80'>
-																<span className='flex h-9 w-9 items-center justify-center rounded-xl bg-base-100 text-primary'>
-																	{stat.icon}
-																</span>
-																<div>
-																	<p className='text-[0.65rem] font-semibold uppercase tracking-wide text-base-content/60'>
-																		{stat.label}
-																	</p>
-																	<p className='font-semibold text-base-content'>{stat.value}</p>
-																</div>
-															</div>
-														))}
-													</div>
-												)}
+                                                                                                {stats.length > 0 && (
+                                                                                                        <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+                                                                                                                {stats.map(stat => (
+                                                                                                                        <div
+                                                                                                                                key={`${freelancer.id}-${stat.key}`}
+                                                                                                                                className='rounded-2xl border border-base-200/70 bg-base-100/90 px-4 py-3 text-xs text-base-content/70 shadow-sm transition group-hover:border-primary/40'>
+                                                                                                                                <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                                                        {stat.icon}
+                                                                                                                                        {stat.label}
+                                                                                                                                </span>
+                                                                                                                                <p className='mt-1 text-sm font-medium text-base-content'>{stat.value}</p>
+                                                                                                                        </div>
+                                                                                                                ))}
+                                                                                                        </div>
+                                                                                                )}
 
-												<div className='flex items-center justify-end text-sm text-primary'>
-													<span className='flex items-center gap-2 transition group-hover:translate-x-1'>
-														View profile <ArrowRight className='size-4' />
-													</span>
-												</div>
+                                                                                                <div className='flex items-center justify-end text-sm font-semibold text-primary'>
+                                                                                                        <span className='flex items-center gap-2 transition group-hover:translate-x-1'>
+                                                                                                                View profile <ArrowRight className='size-4' />
+                                                                                                        </span>
+                                                                                                </div>
 											</div>
 										</div>
 
@@ -703,9 +705,9 @@ export default function ClientFreelancerListPage() {
 													const remaining = section.items.length - displayedItems.length
 
 													return (
-														<div
-															key={`${freelancer.id}-${section.key}`}
-															className='rounded-2xl border border-base-200/60 bg-base-100 px-4 py-3 text-xs text-base-content/70'>
+                                                                                                                <div
+                                                                                                                        key={`${freelancer.id}-${section.key}`}
+                                                                                                                        className='rounded-2xl border border-base-200/60 bg-base-200/40 px-4 py-3 text-xs text-base-content/70 shadow-sm'>
 															<span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
 																{section.icon} {section.label}
 															</span>

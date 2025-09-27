@@ -46,7 +46,7 @@ export const requireAuthenticatedUserOrRedirectHome = () => {
                 const state = JSON.parse(persistedRoot)
                 const user = JSON.parse(state.user)
                 if (!user.currentUser) throw redirect(routes.comons.home)
-        } catch (error) {
+        } catch {
                 throw redirect(routes.comons.home)
         }
 
