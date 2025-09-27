@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
         ArrowLeft,
@@ -459,16 +459,16 @@ export default function JobPostDetailPage() {
         }
 
         return (
-                <div className='mx-auto w-full max-w-5xl px-4 py-8 lg:px-0'>
+                <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
                         <button type='button' className='btn btn-ghost btn-sm gap-2' onClick={() => navigate(routes.me.client.jobs.list)}>
                                 <ArrowLeft className='size-4' /> Back to listings
                         </button>
 
                         <div className='mt-4 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                <div className='flex flex-col gap-4 md:flex-row md:items-start md:justify-between'>
-                                        <div>
+                                <div className='flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,3fr)_minmax(260px,2fr)] md:items-start md:gap-8'>
+                                        <div className='space-y-4'>
                                                 <h1 className='text-2xl font-semibold text-base-content'>{job.title}</h1>
-                                                <div className='mt-3 flex flex-wrap items-center gap-2 text-xs text-base-content/70'>
+                                                <div className='flex flex-wrap items-center gap-2 text-xs text-base-content/70'>
                                                         <span className='badge badge-outline'>{statusLabel}</span>
                                                         <span className='badge badge-outline'>{visibilityLabel}</span>
                                                         <span className='badge badge-outline'>{paymentLabel}</span>
@@ -476,24 +476,28 @@ export default function JobPostDetailPage() {
                                                                 {job.specialty?.category?.name ?? 'Uncategorized'} · {job.specialty?.name ?? 'General'}
                                                         </span>
                                                 </div>
-                                                <p className='mt-4 text-sm leading-relaxed text-base-content/70'>{job.description}</p>
+                                                <p className='text-sm leading-relaxed text-base-content/70'>{job.description}</p>
                                         </div>
-                                        <div className='flex flex-col items-start gap-3 text-sm text-base-content/80 md:items-end'>
-                                                <div>
+                                        <div className='flex flex-col gap-4 rounded-2xl border border-base-200 bg-base-200/50 p-4 text-sm text-base-content/80'>
+                                                <div className='space-y-1'>
                                                         <div className='text-xs uppercase tracking-wide text-base-content/60'>Budget</div>
                                                         <div className='text-base font-semibold text-base-content'>{formatBudget(job)}</div>
                                                 </div>
-                                                <div>
+                                                <div className='space-y-1'>
                                                         <div className='text-xs uppercase tracking-wide text-base-content/60'>Published</div>
                                                         <div className='text-sm text-base-content/70'>{formatDate(job.publishedAt ?? job.createdAt)}</div>
                                                 </div>
-                                                <div className='flex items-center gap-2'>
+                                                <div className='flex flex-wrap gap-2'>
                                                         <button
                                                                 type='button'
                                                                 className='btn btn-outline btn-sm gap-2'
-                                                                onClick={() => navigate(routes.me.client.jobs.edit(job.id))}>
+                                                                onClick={() => navigate(routes.me.client.jobs.edit(job.id))}
+                                                        >
                                                                 Edit job
                                                         </button>
+                                                        <Link to={routes.client.freelancers.list} className='btn btn-ghost btn-sm'>
+                                                                Browse talent
+                                                        </Link>
                                                 </div>
                                         </div>
                                 </div>

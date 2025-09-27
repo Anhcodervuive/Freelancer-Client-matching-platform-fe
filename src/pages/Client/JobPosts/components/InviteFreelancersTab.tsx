@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import AsyncSelect from 'react-select/async'
+import Select, { type MultiValue, type SingleValue, type StylesConfig } from 'react-select'
+import countryList from 'react-select-country-list'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
@@ -7,15 +10,19 @@ import {
         BriefcaseBusiness,
         CheckCircle2,
         CircleDollarSign,
+        Filter,
         Clock,
         Loader2,
         MapPin,
+        Search,
         Send,
+        SlidersHorizontal,
         Sparkles,
         Star,
         Timer,
         Undo2,
         Wallet,
+        X,
         XCircle
 } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -24,7 +31,9 @@ import {
         listClientFreelancers,
         type ClientFreelancerFilterInput
 } from '~/apis/client-freelancer.api'
-import { createJobInvitation } from '~/apis/job-invitation.api'
+import { getSpecialties } from '~/apis/admin/specialty.api'
+import { searchSkills } from '~/apis/admin/skkill.api'
+import { createJobInvitation, listJobInvitations } from '~/apis/job-invitation.api'
 import { routes } from '~/config/routes'
 import {
         formatCurrency,
@@ -34,13 +43,18 @@ import {
         formatProficiency,
         getFreelancerInitials,
         normalizeFreelancer,
-        type NormalizedFreelancer
+        type NormalizedFreelancer,
+        type NormalizedFreelancerInvitation
 } from '~/pages/Client/Freelancers/utils'
 import type {
         ClientFreelancerListItem,
         PaginatedClientFreelancerResponse
 } from '~/types/client-freelancer'
-import type { CreateJobInvitationInput, JobInvitation } from '~/types/job-invitation'
+import type {
+        CreateJobInvitationInput,
+        JobInvitation,
+        PaginatedJobInvitationResponse
+} from '~/types/job-invitation'
 import type { JobPostDetail } from '~/types/job-post'
 import { formatDateTime } from '~/utils/format'
 import { normalizeSkillIds, normalizeSkills } from '~/utils/jobPost'
@@ -53,12 +67,69 @@ type Props = {
         isActive: boolean
 }
 
+type Option = { value: string; label: string }
+
+type AsyncOptionLoader = (_inputValue: string) => Promise<Option[]>
+
+type FilterState = {
+        search: string
+        specialty: Option | null
+        skills: Option[]
+        country: Option | null
+        savedOnly: boolean
+}
+
 const createSkillKey = (values: string[]): string => values.filter(Boolean).join('|')
+
+const selectStyles: StylesConfig<Option, boolean> = {
+        control: (base, state) => ({
+                ...base,
+                borderRadius: '1rem',
+                borderColor: state.isFocused ? 'rgba(59,130,246,0.6)' : 'rgba(226,232,240,1)',
+                boxShadow: 'none',
+                backgroundColor: 'rgba(255,255,255,0.95)',
+                minHeight: '2.5rem',
+                paddingLeft: '0.25rem'
+        }),
+        valueContainer: base => ({
+                ...base,
+                padding: '0 0.5rem'
+        }),
+        multiValue: base => ({
+                ...base,
+                borderRadius: '999px',
+                backgroundColor: 'rgba(59,130,246,0.1)',
+                color: '#1d4ed8'
+        }),
+        multiValueLabel: base => ({
+                ...base,
+                fontSize: '0.8rem',
+                color: '#1d4ed8'
+        }),
+        option: base => ({
+                ...base,
+                fontSize: '0.85rem'
+        }),
+        menu: base => ({
+                ...base,
+                borderRadius: '1rem',
+                overflow: 'hidden',
+                zIndex: 30
+        })
+}
+
+const createOption = (item: { id?: string; name?: string }): Option | null => {
+        if (!item?.id || !item?.name) return null
+        return { value: item.id, label: item.name }
+}
 
 const buildFilters = (
         page: number,
         specialtyId?: string,
-        skillIds?: string[]
+        skillIds?: string[],
+        search?: string,
+        country?: string,
+        saved?: boolean
 ): ClientFreelancerFilterInput => {
         const filters: ClientFreelancerFilterInput = {
                 page,
@@ -71,6 +142,18 @@ const buildFilters = (
 
         if (skillIds && skillIds.length > 0) {
                 filters.skillIds = skillIds
+        }
+
+        if (search && search.trim()) {
+                filters.search = search.trim()
+        }
+
+        if (country) {
+                filters.country = country
+        }
+
+        if (saved) {
+                filters.saved = saved
         }
 
         return filters
@@ -210,6 +293,63 @@ const invitationStatusMeta = (status?: string) => {
         }
 }
 
+const normalizeIdentifier = (value?: string | null) => {
+        if (value === undefined || value === null) return undefined
+        const normalized = String(value).trim()
+        return normalized.length > 0 ? normalized : undefined
+}
+
+const getInvitationFreelancerId = (invitation?: JobInvitation) => {
+        if (!invitation) return undefined
+        return (
+                normalizeIdentifier(invitation.freelancerId) ??
+                normalizeIdentifier(invitation.freelancer?.id)
+        )
+}
+
+type InvitationLike = JobInvitation | NormalizedFreelancerInvitation | undefined
+
+const getInvitationSentAt = (invitation: InvitationLike) => {
+        if (!invitation) return undefined
+        if (invitation.sentAt) return invitation.sentAt
+        if ('createdAt' in invitation && invitation.createdAt) return invitation.createdAt
+        return undefined
+}
+
+const getInvitationRespondedAt = (invitation: InvitationLike) => {
+        if (!invitation) return undefined
+        if (invitation.respondedAt) return invitation.respondedAt
+        if ('updatedAt' in invitation && invitation.updatedAt) return invitation.updatedAt
+        return undefined
+}
+
+const getInvitationExpiresAt = (invitation: InvitationLike) => {
+        if (!invitation) return undefined
+        if (invitation.expiresAt) return invitation.expiresAt
+        return undefined
+}
+
+const isSameOption = (a: Option | null, b: Option | null) => {
+        if (!a && !b) return true
+        if (!a || !b) return false
+        return a.value === b.value
+}
+
+const areSameOptionArrays = (a: Option[], b: Option[]) => {
+        if (a.length !== b.length) return false
+        const valuesA = [...a.map(item => item.value)].sort()
+        const valuesB = [...b.map(item => item.value)].sort()
+        return valuesA.every((value, index) => value === valuesB[index])
+}
+
+const cloneFilterState = (state: FilterState): FilterState => ({
+        search: state.search,
+        specialty: state.specialty ? { ...state.specialty } : null,
+        skills: state.skills.map(skill => ({ ...skill })),
+        country: state.country ? { ...state.country } : null,
+        savedOnly: state.savedOnly
+})
+
 type InvitationState = Record<string, { status: string; invitation?: JobInvitation }>
 
 export function InviteFreelancersTab({ job, isActive }: Props) {
@@ -217,6 +357,8 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
         const [selectedFreelancer, setSelectedFreelancer] = useState<NormalizedFreelancer | null>(null)
         const [isInviteDialogOpen, setInviteDialogOpen] = useState(false)
         const [invitationState, setInvitationState] = useState<InvitationState>({})
+        const [isFilterPanelOpen, setFilterPanelOpen] = useState(false)
+        const [invitationFilter, setInvitationFilter] = useState<'all' | 'invited' | 'not-invited'>('all')
         const queryClient = useQueryClient()
 
         const inviteMutation = useMutation<
@@ -246,6 +388,9 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                 onSuccess: () => {
                         queryClient.invalidateQueries({
                                 queryKey: ['job-post', job.id, 'matching-freelancers']
+                        })
+                        queryClient.invalidateQueries({
+                                queryKey: ['job-post', job.id, 'invitations']
                         })
                 }
         })
@@ -293,6 +438,58 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                 return Array.from(unique)
         }, [normalizedSkillIdentifiers])
 
+        const jobSkillOptions = useMemo<Option[]>(() => {
+                const entries = new Map<string, Option>()
+                normalizedSkillIdentifiers.required.forEach((id, index) => {
+                        const label = normalizedSkillNames.required[index]
+                        if (id && label) {
+                                entries.set(id, { value: id, label })
+                        }
+                })
+                normalizedSkillIdentifiers.preferred.forEach((id, index) => {
+                        const label = normalizedSkillNames.preferred[index]
+                        if (id && label && !entries.has(id)) {
+                                entries.set(id, { value: id, label })
+                        }
+                })
+                return Array.from(entries.values())
+        }, [normalizedSkillIdentifiers, normalizedSkillNames])
+
+        const defaultSpecialtyOption = useMemo<Option | null>(() => {
+                if (!job.specialty?.id) return null
+                const label = job.specialty?.name
+                        ? job.specialty?.category?.name
+                                ? `${job.specialty.category.name} · ${job.specialty.name}`
+                                : job.specialty.name
+                        : job.specialty?.category?.name ?? 'Specialty'
+                return { value: job.specialty.id, label }
+        }, [job.specialty?.category?.name, job.specialty?.id, job.specialty?.name])
+
+        const defaultFilterState = useMemo<FilterState>(() => ({
+                search: '',
+                specialty: defaultSpecialtyOption,
+                skills: jobSkillOptions,
+                country: null,
+                savedOnly: false
+        }), [defaultSpecialtyOption, jobSkillOptions])
+
+        const blankFilterState = useMemo<FilterState>(
+                () => ({ search: '', specialty: null, skills: [], country: null, savedOnly: false }),
+                []
+        )
+
+        const [appliedFilters, setAppliedFilters] = useState<FilterState>(() =>
+                cloneFilterState(defaultFilterState)
+        )
+        const [filterDraft, setFilterDraft] = useState<FilterState>(() =>
+                cloneFilterState(defaultFilterState)
+        )
+
+        useEffect(() => {
+                setAppliedFilters(cloneFilterState(defaultFilterState))
+                setFilterDraft(cloneFilterState(defaultFilterState))
+        }, [defaultFilterState])
+
         const skillFilterKey = useMemo(
                 () => createSkillKey(combinedSkillIds),
                 [combinedSkillIds]
@@ -300,11 +497,68 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 
         useEffect(() => {
                 setPage(1)
+                setInvitationFilter('all')
         }, [job.id, job.specialty?.id, skillFilterKey])
 
+        const countryOptions = useMemo<Option[]>(() => {
+                return countryList()
+                        .getData()
+                        .map(country => ({ value: country.value, label: country.label }))
+        }, [])
+
+        const loadSkillOptions = useCallback<AsyncOptionLoader>(async inputValue => {
+                try {
+                        const response = await searchSkills({
+                                search: inputValue,
+                                page: 1,
+                                limit: 15,
+                                onlyActive: true
+                        })
+                        return (
+                                response.data
+                                        ?.map(skill => createOption({ id: skill.id, name: skill.name }))
+                                        ?.filter((option): option is Option => Boolean(option)) ?? []
+                        )
+                } catch (error) {
+                        console.error('Failed to load skills', error)
+                        return []
+                }
+        }, [])
+
+        const loadSpecialtyOptions = useCallback<AsyncOptionLoader>(async inputValue => {
+                try {
+                        const response = await getSpecialties({ page: 1, limit: 15, search: inputValue })
+                        return (
+                                response.data
+                                        ?.map(specialty => createOption({ id: specialty.id, name: specialty.name }))
+                                        ?.filter((option): option is Option => Boolean(option)) ?? []
+                        )
+                } catch (error) {
+                        console.error('Failed to load specialties', error)
+                        return []
+                }
+        }, [])
+
         const filters = useMemo(
-                () => buildFilters(page, job.specialty?.id, combinedSkillIds),
-                [page, job.specialty?.id, combinedSkillIds]
+                () =>
+                        buildFilters(
+                                page,
+                                appliedFilters.specialty?.value,
+                                appliedFilters.skills.length > 0
+                                        ? appliedFilters.skills.map(skill => skill.value)
+                                        : undefined,
+                                appliedFilters.search,
+                                appliedFilters.country?.value,
+                                appliedFilters.savedOnly
+                        ),
+                [
+                        page,
+                        appliedFilters.specialty,
+                        appliedFilters.skills,
+                        appliedFilters.search,
+                        appliedFilters.country,
+                        appliedFilters.savedOnly
+                ]
         )
 
         const {
@@ -321,6 +575,13 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                 staleTime: 1000 * 60 * 5
         })
 
+        const { data: invitationResponse, isLoading: isLoadingInvitations } = useQuery<PaginatedJobInvitationResponse>({
+                queryKey: ['job-post', job.id, 'invitations'],
+                queryFn: () => listJobInvitations({ jobId: job.id, page: 1, limit: 200 }),
+                enabled: isActive,
+                staleTime: 1000 * 60 * 2
+        })
+
         const freelancers = useMemo(
                 () => (data?.data ?? []) as ClientFreelancerListItem[],
                 [data?.data]
@@ -334,6 +595,152 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                 [freelancers]
         )
 
+        const remoteInvitations = useMemo(
+                () => (invitationResponse?.data ?? []) as JobInvitation[],
+                [invitationResponse?.data]
+        )
+
+        const remoteInvitationMap = useMemo(() => {
+                const map = new Map<string, JobInvitation>()
+                remoteInvitations.forEach(invitation => {
+                        const freelancerId = getInvitationFreelancerId(invitation)
+                        if (freelancerId) {
+                                map.set(freelancerId, invitation)
+                        }
+                })
+                return map
+        }, [remoteInvitations])
+
+        const invitedFreelancersSet = useMemo(() => {
+                const invited = new Set<string>()
+                Object.entries(invitationState).forEach(([freelancerId, details]) => {
+                        if (details?.status) invited.add(freelancerId)
+                })
+                remoteInvitationMap.forEach((_invitation, freelancerId) => invited.add(freelancerId))
+                normalizedFreelancers.forEach(freelancer => {
+                        if (freelancer.latestInvitation?.jobId === job.id) {
+                                invited.add(freelancer.id)
+                        }
+                })
+                return invited
+        }, [invitationState, remoteInvitationMap, normalizedFreelancers, job.id])
+
+        const invitedCount = useMemo(() => {
+                let count = 0
+                normalizedFreelancers.forEach(freelancer => {
+                        if (invitedFreelancersSet.has(freelancer.id)) {
+                                count += 1
+                        }
+                })
+                return count
+        }, [normalizedFreelancers, invitedFreelancersSet])
+
+        const notInvitedCount = Math.max(0, normalizedFreelancers.length - invitedCount)
+
+        const filteredFreelancers = useMemo(() => {
+                if (invitationFilter === 'all') return normalizedFreelancers
+                return normalizedFreelancers.filter(freelancer => {
+                        const isInvited = invitedFreelancersSet.has(freelancer.id)
+                        return invitationFilter === 'invited' ? isInvited : !isInvited
+                })
+        }, [normalizedFreelancers, invitationFilter, invitedFreelancersSet])
+
+        const visibleInvitedCount = useMemo(() => {
+                let count = 0
+                filteredFreelancers.forEach(freelancer => {
+                        if (invitedFreelancersSet.has(freelancer.id)) {
+                                count += 1
+                        }
+                })
+                return count
+        }, [filteredFreelancers, invitedFreelancersSet])
+
+        const invitationSegments = useMemo(
+                () => [
+                        { key: 'all' as const, label: 'All', count: normalizedFreelancers.length },
+                        { key: 'invited' as const, label: 'Invited', count: invitedCount },
+                        { key: 'not-invited' as const, label: 'Not invited', count: notInvitedCount }
+                ],
+                [normalizedFreelancers.length, invitedCount, notInvitedCount]
+        )
+
+        const activeFilterCount = useMemo(() => {
+                let count = 0
+                if (appliedFilters.search.trim()) count += 1
+                if (!isSameOption(appliedFilters.specialty, defaultFilterState.specialty)) count += 1
+                if (!areSameOptionArrays(appliedFilters.skills, defaultFilterState.skills)) count += 1
+                if (!isSameOption(appliedFilters.country, defaultFilterState.country) && appliedFilters.country) count += 1
+                if (appliedFilters.savedOnly !== defaultFilterState.savedOnly) count += 1
+                return count
+        }, [appliedFilters, defaultFilterState])
+
+        const hasActiveFilters = activeFilterCount > 0
+
+        const activeFilterChips = useMemo(() => {
+                const chips: string[] = []
+                const trimmedSearch = appliedFilters.search.trim()
+                if (trimmedSearch) chips.push(`Search: “${trimmedSearch}”`)
+                if (
+                        appliedFilters.specialty &&
+                        !isSameOption(appliedFilters.specialty, defaultFilterState.specialty)
+                ) {
+                        chips.push(`Specialty: ${appliedFilters.specialty.label}`)
+                }
+                if (
+                        appliedFilters.skills.length > 0 &&
+                        !areSameOptionArrays(appliedFilters.skills, defaultFilterState.skills)
+                ) {
+                        chips.push(`Skills: ${appliedFilters.skills.map(skill => skill.label).join(', ')}`)
+                }
+                if (
+                        appliedFilters.country &&
+                        !isSameOption(appliedFilters.country, defaultFilterState.country)
+                ) {
+                        chips.push(`Country: ${appliedFilters.country.label}`)
+                }
+                if (appliedFilters.savedOnly) {
+                        chips.push('Saved talent only')
+                }
+                return chips
+        }, [appliedFilters, defaultFilterState])
+
+        const isFilterDraftDirty = useMemo(
+                () =>
+                        filterDraft.search !== appliedFilters.search ||
+                        !isSameOption(filterDraft.specialty, appliedFilters.specialty) ||
+                        !areSameOptionArrays(filterDraft.skills, appliedFilters.skills) ||
+                        !isSameOption(filterDraft.country, appliedFilters.country) ||
+                        filterDraft.savedOnly !== appliedFilters.savedOnly,
+                [filterDraft, appliedFilters]
+        )
+
+        const openFilterPanel = () => {
+                setFilterDraft(cloneFilterState(appliedFilters))
+                setFilterPanelOpen(true)
+        }
+
+        const closeFilterPanel = () => {
+                setFilterPanelOpen(false)
+        }
+
+        const handleApplyFilters = () => {
+                setAppliedFilters(cloneFilterState(filterDraft))
+                setFilterPanelOpen(false)
+                setPage(1)
+        }
+
+        const handleResetFilterDraft = () => {
+                setFilterDraft(cloneFilterState(defaultFilterState))
+        }
+
+        const handleClearFilters = () => {
+                setAppliedFilters(cloneFilterState(blankFilterState))
+                setFilterDraft(cloneFilterState(blankFilterState))
+                setFilterPanelOpen(false)
+                setInvitationFilter('all')
+                setPage(1)
+        }
+
         const hasExplicitTotal = typeof data?.total === 'number'
         const total = hasExplicitTotal
                 ? data?.total ?? 0
@@ -341,15 +748,14 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
         const hasNext = hasExplicitTotal
                 ? page * PAGE_SIZE < (data?.total ?? 0)
                 : normalizedFreelancers.length === PAGE_SIZE
-        const startItem = normalizedFreelancers.length > 0 ? (page - 1) * PAGE_SIZE + 1 : 0
-        const endItem = normalizedFreelancers.length > 0
-                ? (page - 1) * PAGE_SIZE + normalizedFreelancers.length
-                : 0
+        const visibleCount = filteredFreelancers.length
+        const startItem = visibleCount > 0 ? (page - 1) * PAGE_SIZE + 1 : 0
+        const endItem = visibleCount > 0 ? (page - 1) * PAGE_SIZE + visibleCount : 0
 
         return (
                 <div className='space-y-6'>
                         <section className='rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+                                <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
                                         <div>
                                                 <h2 className='text-xl font-semibold text-base-content'>Invite freelancers</h2>
                                                 <p className='mt-1 text-sm text-base-content/70'>
@@ -357,41 +763,119 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                                         a great fit. Adjust the search from the freelancer marketplace at any time.
                                                 </p>
                                         </div>
-                                        <Link
-                                                to={routes.client.freelancers.list}
-                                                className='btn btn-outline btn-sm gap-2 self-start'
-                                        >
-                                                Browse all freelancers
-                                                <ArrowRight className='size-4' />
-                                        </Link>
+                                        <div className='flex flex-wrap items-center gap-2 self-start'>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-ghost btn-sm gap-2'
+                                                        onClick={openFilterPanel}
+                                                >
+                                                        <SlidersHorizontal className='size-4' />
+                                                        Filters
+                                                        {activeFilterCount > 0 ? (
+                                                                <span className='badge badge-primary badge-sm rounded-full'>
+                                                                        {activeFilterCount}
+                                                                </span>
+                                                        ) : null}
+                                                </button>
+                                                {hasActiveFilters ? (
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-ghost btn-sm text-primary'
+                                                                onClick={handleClearFilters}
+                                                        >
+                                                                Clear filters
+                                                        </button>
+                                                ) : null}
+                                                <Link
+                                                        to={routes.client.freelancers.list}
+                                                        className='btn btn-outline btn-sm gap-2'
+                                                >
+                                                        Browse all freelancers
+                                                        <ArrowRight className='size-4' />
+                                                </Link>
+                                        </div>
                                 </div>
 
-                                <div className='mt-4 flex flex-wrap gap-2 text-xs text-base-content/70'>
+                                <div className='mt-4 flex flex-wrap items-center gap-3 text-xs text-base-content/70'>
                                         {job.specialty?.name ? (
                                                 <span className='badge badge-soft rounded-full bg-secondary/10 text-secondary'>
                                                         Specialty: {job.specialty?.category?.name ?? 'General'} · {job.specialty.name}
                                                 </span>
                                         ) : null}
-                                        {normalizedSkillNames.required.map(skill => (
-                                                <span
-                                                        key={`required-skill-${skill}`}
-                                                        className='badge badge-soft rounded-full bg-primary/10 text-primary'
-                                                >
-                                                        Must-have: {skill}
-                                                </span>
-                                        ))}
-                                        {normalizedSkillNames.preferred.map(skill => (
-                                                <span
-                                                        key={`preferred-skill-${skill}`}
-                                                        className='badge badge-outline rounded-full text-base-content/60'
-                                                >
-                                                        Nice-to-have: {skill}
-                                                </span>
-                                        ))}
+                                        {normalizedSkillNames.required.length > 0 ? (
+                                                <div className='flex flex-wrap items-center gap-1'>
+                                                        <span className='badge badge-soft rounded-full bg-primary/10 text-primary'>
+                                                                Must-have
+                                                        </span>
+                                                        {normalizedSkillNames.required.map(skill => (
+                                                                <span
+                                                                        key={`required-skill-${skill}`}
+                                                                        className='badge badge-outline rounded-full text-base-content/70'
+                                                                >
+                                                                        {skill}
+                                                                </span>
+                                                        ))}
+                                                </div>
+                                        ) : null}
+                                        {normalizedSkillNames.preferred.length > 0 ? (
+                                                <div className='flex flex-wrap items-center gap-1'>
+                                                        <span className='badge badge-outline rounded-full text-base-content/60'>
+                                                                Nice-to-have
+                                                        </span>
+                                                        {normalizedSkillNames.preferred.map(skill => (
+                                                                <span
+                                                                        key={`preferred-skill-${skill}`}
+                                                                        className='badge badge-outline rounded-full text-base-content/60'
+                                                                >
+                                                                        {skill}
+                                                                </span>
+                                                        ))}
+                                                </div>
+                                        ) : null}
                                         {normalizedSkillNames.required.length === 0 &&
                                         normalizedSkillNames.preferred.length === 0 ? (
                                                 <span className='badge badge-outline rounded-full text-base-content/60'>
                                                         No specific skills were provided for this job.
+                                                </span>
+                                        ) : null}
+                                </div>
+
+                                {hasActiveFilters ? (
+                                        <div className='mt-4 flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
+                                                {activeFilterChips.map(chip => (
+                                                        <span
+                                                                key={chip}
+                                                                className='badge badge-soft rounded-full bg-primary/10 text-primary'
+                                                        >
+                                                                {chip}
+                                                        </span>
+                                                ))}
+                                        </div>
+                                ) : null}
+
+                                <div className='mt-6 flex flex-wrap items-center gap-2 text-sm'>
+                                        {invitationSegments.map(segment => {
+                                                const isSelected = invitationFilter === segment.key
+                                                const baseClasses = isSelected
+                                                        ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                                                        : 'border-base-200 bg-base-200/50 text-base-content/70 hover:border-primary/40 hover:text-primary'
+                                                return (
+                                                        <button
+                                                                key={segment.key}
+                                                                type='button'
+                                                                onClick={() => setInvitationFilter(segment.key)}
+                                                                className={`flex items-center gap-2 rounded-full border px-4 py-2 transition ${baseClasses}`}
+                                                        >
+                                                                {segment.label}
+                                                                <span className='rounded-full bg-base-100 px-2 py-0.5 text-xs text-base-content/60'>
+                                                                        {segment.count}
+                                                                </span>
+                                                        </button>
+                                                )
+                                        })}
+                                        {isLoadingInvitations ? (
+                                                <span className='inline-flex items-center gap-2 text-xs text-base-content/60'>
+                                                        <Loader2 className='size-3 animate-spin text-primary' /> Updating invitations…
                                                 </span>
                                         ) : null}
                                 </div>
@@ -413,16 +897,30 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                                   )
                                                 : null}
 
-                                        {!isLoading && normalizedFreelancers.length === 0 ? (
+                                        {!isLoading && filteredFreelancers.length === 0 ? (
                                                 <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70 shadow-sm'>
-                                                        <p className='text-lg font-medium text-base-content'>No matching freelancers yet</p>
+                                                        <p className='text-lg font-medium text-base-content'>
+                                                                {invitationFilter === 'invited'
+                                                                        ? 'No invited freelancers yet'
+                                                                        : invitationFilter === 'not-invited'
+                                                                                ? 'Everyone here has already been invited'
+                                                                                : hasActiveFilters
+                                                                                        ? 'No freelancers match your filters'
+                                                                                        : 'No matching freelancers yet'}
+                                                        </p>
                                                         <p className='mt-2'>
-                                                                Try broadening the skill requirements or search the freelancer marketplace manually.
+                                                                {invitationFilter === 'invited'
+                                                                        ? 'Send invitations from the list to see them appear here.'
+                                                                        : invitationFilter === 'not-invited'
+                                                                                ? 'Clear filters or load more suggestions to discover new talent to invite.'
+                                                                                : hasActiveFilters
+                                                                                        ? 'Adjust or clear your filters to explore additional suggestions.'
+                                                                                        : 'Try broadening the skill requirements or search the freelancer marketplace manually.'}
                                                         </p>
                                                 </div>
                                         ) : null}
 
-                                        {normalizedFreelancers.map(freelancer => {
+                                        {filteredFreelancers.map(freelancer => {
                                                 const stats = matchStats(freelancer)
                                                 const availabilityDisplay = formatLabel(freelancer.availability)
                                                 const memberSinceDisplay = formatMemberSince(freelancer.memberSince)
@@ -447,28 +945,23 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 
                                                 const initials = getFreelancerInitials(freelancer.name)
                                                 const storedInvitation = invitationState[freelancer.id]
-                                                const remoteInvitation =
+                                                const remoteInvitation = remoteInvitationMap.get(freelancer.id)
+                                                const latestInvitation =
                                                         freelancer.latestInvitation?.jobId === job.id
                                                                 ? freelancer.latestInvitation
                                                                 : undefined
-                                                const invitationStatus = storedInvitation?.status ?? remoteInvitation?.status
+                                                const invitationStatus =
+                                                        storedInvitation?.status ??
+                                                        remoteInvitation?.status ??
+                                                        latestInvitation?.status
                                                 const invitationMetaInfo = invitationStatusMeta(invitationStatus)
-                                                const invitationDetails = storedInvitation?.invitation ?? remoteInvitation
-                                                const sentAtLabel = invitationDetails
-                                                        ? 'createdAt' in invitationDetails
-                                                                ? invitationDetails.createdAt
-                                                                : remoteInvitation?.sentAt
-                                                        : remoteInvitation?.sentAt
-                                                const respondedAtLabel = invitationDetails
-                                                        ? 'respondedAt' in invitationDetails
-                                                                ? invitationDetails.respondedAt
-                                                                : remoteInvitation?.respondedAt
-                                                        : remoteInvitation?.respondedAt
-                                                const expiresAtLabel = invitationDetails
-                                                        ? 'expiresAt' in invitationDetails
-                                                                ? invitationDetails.expiresAt
-                                                                : remoteInvitation?.expiresAt
-                                                        : remoteInvitation?.expiresAt
+                                                const invitationDetails: InvitationLike =
+                                                        storedInvitation?.invitation ??
+                                                        remoteInvitation ??
+                                                        latestInvitation
+                                                const sentAtLabel = getInvitationSentAt(invitationDetails)
+                                                const respondedAtLabel = getInvitationRespondedAt(invitationDetails)
+                                                const expiresAtLabel = getInvitationExpiresAt(invitationDetails)
                                                 const isPendingInvitation =
                                                         (invitationStatus ?? '').toUpperCase() === 'PENDING'
                                                 const isInvitingCurrent =
@@ -694,10 +1187,17 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                 </div>
                         )}
 
-                        {normalizedFreelancers.length > 0 ? (
+                        {filteredFreelancers.length > 0 ? (
                                 <div className='flex flex-col items-center justify-between gap-3 border-t border-base-200 pt-6 text-sm text-base-content/70 md:flex-row'>
-                                        <div>
-                                                Showing {startItem}-{endItem} of {total} freelancers
+                                        <div className='flex flex-wrap items-center gap-2'>
+                                                <span>
+                                                        Showing {startItem}-{endItem} of {total} freelancers
+                                                </span>
+                                                {visibleInvitedCount > 0 ? (
+                                                        <span className='text-xs text-base-content/60'>
+                                                                {visibleInvitedCount} invited in view
+                                                        </span>
+                                                ) : null}
                                         </div>
                                         <div className='flex items-center gap-2'>
                                                 <button
@@ -728,6 +1228,145 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                         <span className='flex items-center gap-2'>
                                                 <Loader2 className='size-4 animate-spin text-primary' /> Updating suggestions…
                                         </span>
+                                </div>
+                        ) : null}
+                        {isFilterPanelOpen ? (
+                                <div className='fixed inset-0 z-30 flex items-center justify-center bg-base-300/40 px-4 py-6 backdrop-blur-sm'>
+                                        <div className='w-full max-w-2xl rounded-3xl border border-base-200 bg-base-100 p-6 shadow-xl'>
+                                                <div className='flex items-start justify-between gap-3'>
+                                                        <div>
+                                                                <h3 className='text-lg font-semibold text-base-content'>Refine matches</h3>
+                                                                <p className='mt-1 text-sm text-base-content/60'>Tweak the filters below to customise your freelancer suggestions.</p>
+                                                        </div>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-circle btn-ghost btn-sm'
+                                                                onClick={closeFilterPanel}
+                                                                aria-label='Close filters'
+                                                        >
+                                                                <X className='size-4' />
+                                                        </button>
+                                                </div>
+                                                <div className='mt-6 space-y-5 text-sm'>
+                                                        <label className='flex flex-col gap-2 text-base-content'>
+                                                                <span className='font-semibold'>Keyword search</span>
+                                                                <div className='relative'>
+                                                                        <Search className='pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-base-content/40' />
+                                                                        <input
+                                                                                type='text'
+                                                                                value={filterDraft.search}
+                                                                                onChange={event =>
+                                                                                        setFilterDraft(previous => ({
+                                                                                                ...previous,
+                                                                                                search: event.target.value
+                                                                                        }))
+                                                                                }
+                                                                                className='input input-bordered w-full pl-10'
+                                                                                placeholder='Search by name, title or skills'
+                                                                        />
+                                                                </div>
+                                                        </label>
+                                                        <div className='grid gap-4 md:grid-cols-2'>
+                                                                <div className='space-y-2'>
+                                                                        <span className='font-semibold text-base-content'>Specialty</span>
+                                                                        <AsyncSelect
+                                                                                cacheOptions
+                                                                                defaultOptions
+                                                                                loadOptions={loadSpecialtyOptions}
+                                                                                value={filterDraft.specialty}
+                                                                                onChange={(option: SingleValue<Option>) =>
+                                                                                        setFilterDraft(previous => ({
+                                                                                                ...previous,
+                                                                                                specialty: option ? { ...option } : null
+                                                                                        }))
+                                                                                }
+                                                                                isClearable
+                                                                                styles={selectStyles}
+                                                                                placeholder='Search specialties'
+                                                                        />
+                                                                </div>
+                                                                <div className='space-y-2'>
+                                                                        <span className='font-semibold text-base-content'>Country</span>
+                                                                        <Select
+                                                                                options={countryOptions}
+                                                                                value={filterDraft.country}
+                                                                                onChange={(option: SingleValue<Option>) =>
+                                                                                        setFilterDraft(previous => ({
+                                                                                                ...previous,
+                                                                                                country: option ? { ...option } : null
+                                                                                        }))
+                                                                                }
+                                                                                isClearable
+                                                                                styles={selectStyles}
+                                                                                placeholder='Any location'
+                                                                        />
+                                                                </div>
+                                                        </div>
+                                                        <div className='space-y-2'>
+                                                                <span className='font-semibold text-base-content'>Skills</span>
+                                                                <AsyncSelect
+                                                                        isMulti
+                                                                        cacheOptions
+                                                                        defaultOptions
+                                                                        loadOptions={loadSkillOptions}
+                                                                        value={filterDraft.skills}
+                                                                        onChange={(options: MultiValue<Option>) =>
+                                                                                setFilterDraft(previous => ({
+                                                                                        ...previous,
+                                                                                        skills: (options as Option[]).map(option => ({ ...option }))
+                                                                                }))
+                                                                        }
+                                                                        styles={selectStyles}
+                                                                        placeholder='Add skills to focus the list'
+                                                                />
+                                                        </div>
+                                                        <label className='flex items-center gap-3 rounded-2xl border border-base-200 bg-base-200/50 px-4 py-3 text-base-content'>
+                                                                <input
+                                                                        type='checkbox'
+                                                                        className='checkbox checkbox-primary'
+                                                                        checked={filterDraft.savedOnly}
+                                                                        onChange={event =>
+                                                                                setFilterDraft(previous => ({
+                                                                                        ...previous,
+                                                                                        savedOnly: event.target.checked
+                                                                                }))
+                                                                        }
+                                                                />
+                                                                <span>Show only freelancers you have saved</span>
+                                                        </label>
+                                                </div>
+                                                <div className='mt-6 flex flex-wrap items-center justify-between gap-3 text-sm'>
+                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-ghost btn-sm gap-2'
+                                                                        onClick={handleResetFilterDraft}
+                                                                >
+                                                                        <Undo2 className='size-4' /> Reset to job defaults
+                                                                </button>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-ghost btn-sm gap-2'
+                                                                        onClick={() => setFilterDraft(cloneFilterState(blankFilterState))}
+                                                                >
+                                                                        <Filter className='size-4' /> Clear selections
+                                                                </button>
+                                                        </div>
+                                                        <div className='flex flex-wrap gap-2'>
+                                                                <button type='button' className='btn btn-ghost btn-sm' onClick={closeFilterPanel}>
+                                                                        Cancel
+                                                                </button>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-primary btn-sm'
+                                                                        onClick={handleApplyFilters}
+                                                                        disabled={!isFilterDraftDirty}
+                                                                >
+                                                                        Apply filters
+                                                                </button>
+                                                        </div>
+                                                </div>
+                                        </div>
                                 </div>
                         ) : null}
                         <InviteFreelancerDialog

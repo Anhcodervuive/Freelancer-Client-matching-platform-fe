@@ -6,6 +6,28 @@ export type JobInvitationStatus =
         | 'WITHDRAWN'
         | (string & {})
 
+export type JobInvitationJob = {
+        id: string
+        title?: string | null
+        status?: string | null
+}
+
+export type JobInvitationFreelancerProfile = {
+        firstName?: string | null
+        lastName?: string | null
+        displayName?: string | null
+        location?: {
+                country?: string | null
+                city?: string | null
+        } | null
+}
+
+export type JobInvitationFreelancer = {
+        id: string
+        title?: string | null
+        profile?: JobInvitationFreelancerProfile | null
+}
+
 export type JobInvitation = {
         id: string
         jobId: string
@@ -17,6 +39,9 @@ export type JobInvitation = {
         createdAt?: string | null
         updatedAt?: string | null
         respondedMessage?: string | null
+        sentAt?: string | null
+        job?: JobInvitationJob | null
+        freelancer?: JobInvitationFreelancer | null
 }
 
 export type CreateJobInvitationInput = {
