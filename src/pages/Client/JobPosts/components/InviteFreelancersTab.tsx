@@ -345,7 +345,7 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
         const [isInviteDialogOpen, setInviteDialogOpen] = useState(false)
         const [invitationState, setInvitationState] = useState<InvitationState>({})
         const [isFilterPanelOpen, setFilterPanelOpen] = useState(false)
-        const [invitationFilter, setInvitationFilter] = useState<'all' | 'invited' | 'not-invited'>('all')
+        const [invitationFilter, setInvitationFilter] = useState<'all' | 'invited'>('all')
         const queryClient = useQueryClient()
 
         const inviteMutation = useMutation<
@@ -534,7 +534,7 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                 appliedFilters.search,
                                 appliedFilters.country?.value,
                                 appliedFilters.savedOnly,
-                                job.id
+                                invitationFilter === 'invited' ? job.id : undefined
                         ),
                 [
                         page,
@@ -543,6 +543,7 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                         appliedFilters.search,
                         appliedFilters.country,
                         appliedFilters.savedOnly,
+                        invitationFilter,
                         job.id
                 ]
         )
@@ -597,14 +598,9 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                 return count
         }, [normalizedFreelancers, invitedFreelancersSet])
 
-        const notInvitedCount = Math.max(0, normalizedFreelancers.length - invitedCount)
-
         const filteredFreelancers = useMemo(() => {
                 if (invitationFilter === 'all') return normalizedFreelancers
-                return normalizedFreelancers.filter(freelancer => {
-                        const isInvited = invitedFreelancersSet.has(freelancer.id)
-                        return invitationFilter === 'invited' ? isInvited : !isInvited
-                })
+                return normalizedFreelancers.filter(freelancer => invitedFreelancersSet.has(freelancer.id))
         }, [normalizedFreelancers, invitationFilter, invitedFreelancersSet])
 
         const visibleInvitedCount = useMemo(() => {
@@ -620,10 +616,9 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
         const invitationSegments = useMemo(
                 () => [
                         { key: 'all' as const, label: 'All', count: normalizedFreelancers.length },
-                        { key: 'invited' as const, label: 'Invited', count: invitedCount },
-                        { key: 'not-invited' as const, label: 'Not invited', count: notInvitedCount }
+                        { key: 'invited' as const, label: 'Invited', count: invitedCount }
                 ],
-                [normalizedFreelancers.length, invitedCount, notInvitedCount]
+                [normalizedFreelancers.length, invitedCount]
         )
 
         const activeFilterCount = useMemo(() => {
@@ -825,7 +820,10 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                                         <button
                                                                 key={segment.key}
                                                                 type='button'
-                                                                onClick={() => setInvitationFilter(segment.key)}
+                                                                onClick={() => {
+                                                                        setInvitationFilter(segment.key)
+                                                                        setPage(1)
+                                                                }}
                                                                 className={`flex items-center gap-2 rounded-full border px-4 py-2 transition ${baseClasses}`}
                                                         >
                                                                 {segment.label}
@@ -859,20 +857,16 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                                         <p className='text-lg font-medium text-base-content'>
                                                                 {invitationFilter === 'invited'
                                                                         ? 'No invited freelancers yet'
-                                                                        : invitationFilter === 'not-invited'
-                                                                                ? 'Everyone here has already been invited'
-                                                                                : hasActiveFilters
-                                                                                        ? 'No freelancers match your filters'
-                                                                                        : 'No matching freelancers yet'}
+                                                                        : hasActiveFilters
+                                                                                ? 'No freelancers match your filters'
+                                                                                : 'No matching freelancers yet'}
                                                         </p>
                                                         <p className='mt-2'>
                                                                 {invitationFilter === 'invited'
                                                                         ? 'Send invitations from the list to see them appear here.'
-                                                                        : invitationFilter === 'not-invited'
-                                                                                ? 'Clear filters or load more suggestions to discover new talent to invite.'
-                                                                                : hasActiveFilters
-                                                                                        ? 'Adjust or clear your filters to explore additional suggestions.'
-                                                                                        : 'Try broadening the skill requirements or search the freelancer marketplace manually.'}
+                                                                        : hasActiveFilters
+                                                                                ? 'Adjust or clear your filters to explore additional suggestions.'
+                                                                                : 'Try broadening the skill requirements or search the freelancer marketplace manually.'}
                                                         </p>
                                                 </div>
                                         ) : null}
