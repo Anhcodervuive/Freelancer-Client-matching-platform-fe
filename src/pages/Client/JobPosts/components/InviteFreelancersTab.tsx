@@ -1,22 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
         ArrowRight,
         BadgeCheck,
         BriefcaseBusiness,
+        CheckCircle2,
         CircleDollarSign,
+        Clock,
         Loader2,
         MapPin,
+        Send,
         Sparkles,
         Star,
-        Wallet
+        Timer,
+        Undo2,
+        Wallet,
+        XCircle
 } from 'lucide-react'
+import { toast } from 'react-toastify'
 
 import {
         listClientFreelancers,
         type ClientFreelancerFilterInput
 } from '~/apis/client-freelancer.api'
+import { createJobInvitation } from '~/apis/job-invitation.api'
 import { routes } from '~/config/routes'
 import {
         formatCurrency,
@@ -32,8 +40,11 @@ import type {
         ClientFreelancerListItem,
         PaginatedClientFreelancerResponse
 } from '~/types/client-freelancer'
+import type { CreateJobInvitationInput, JobInvitation } from '~/types/job-invitation'
 import type { JobPostDetail } from '~/types/job-post'
+import { formatDateTime } from '~/utils/format'
 import { normalizeSkillIds, normalizeSkills } from '~/utils/jobPost'
+import InviteFreelancerDialog, { type InvitationFormValues } from './InviteFreelancerDialog'
 
 const PAGE_SIZE = 6
 
@@ -160,8 +171,117 @@ const matchStats = (
         return stats
 }
 
+const invitationStatusMeta = (status?: string) => {
+        if (!status) return undefined
+        const normalized = status.toUpperCase()
+
+        switch (normalized) {
+                case 'ACCEPTED':
+                        return {
+                                label: 'Accepted',
+                                className: 'border-success/60 bg-success/10 text-success',
+                                icon: <CheckCircle2 className='size-4 text-success' />
+                        }
+                case 'DECLINED':
+                        return {
+                                label: 'Declined',
+                                className: 'border-error/50 bg-error/10 text-error',
+                                icon: <XCircle className='size-4 text-error' />
+                        }
+                case 'EXPIRED':
+                        return {
+                                label: 'Expired',
+                                className: 'border-warning/50 bg-warning/10 text-warning',
+                                icon: <Timer className='size-4 text-warning' />
+                        }
+                case 'WITHDRAWN':
+                        return {
+                                label: 'Withdrawn',
+                                className: 'border-base-300 bg-base-200/70 text-base-content/70',
+                                icon: <Undo2 className='size-4 text-base-content/70' />
+                        }
+                case 'PENDING':
+                default:
+                        return {
+                                label: normalized === 'PENDING' ? 'Awaiting response' : status,
+                                className: 'border-primary/50 bg-primary/5 text-primary',
+                                icon: <Clock className='size-4 text-primary' />
+                        }
+        }
+}
+
+type InvitationState = Record<string, { status: string; invitation?: JobInvitation }>
+
 export function InviteFreelancersTab({ job, isActive }: Props) {
         const [page, setPage] = useState(1)
+        const [selectedFreelancer, setSelectedFreelancer] = useState<NormalizedFreelancer | null>(null)
+        const [isInviteDialogOpen, setInviteDialogOpen] = useState(false)
+        const [invitationState, setInvitationState] = useState<InvitationState>({})
+        const queryClient = useQueryClient()
+
+        const inviteMutation = useMutation<
+                JobInvitation,
+                Error,
+                InvitationFormValues & { freelancerId: string }
+        >({
+                mutationFn: async ({ freelancerId, message, expiresAt }) => {
+                        const trimmedMessage = message?.trim()
+                        const expiresDate = expiresAt ? new Date(expiresAt) : undefined
+
+                        const payload: CreateJobInvitationInput = {
+                                jobId: job.id,
+                                freelancerId,
+                                message: trimmedMessage && trimmedMessage.length > 0 ? trimmedMessage : undefined,
+                                expiresAt: expiresDate ? expiresDate.toISOString() : undefined
+                        }
+
+                        return createJobInvitation(payload)
+                },
+                onError: error => {
+                        const message = error instanceof Error
+                                ? error.message
+                                : 'Failed to send invitation. Please try again.'
+                        toast.error(message)
+                },
+                onSuccess: () => {
+                        queryClient.invalidateQueries({
+                                queryKey: ['job-post', job.id, 'matching-freelancers']
+                        })
+                }
+        })
+
+        const openInviteDialog = (freelancer: NormalizedFreelancer) => {
+                setSelectedFreelancer(freelancer)
+                setInviteDialogOpen(true)
+        }
+
+        const closeInviteDialog = () => {
+                if (inviteMutation.isPending) return
+                setInviteDialogOpen(false)
+                setSelectedFreelancer(null)
+        }
+
+        const handleSubmitInvitation = async (values: InvitationFormValues) => {
+                if (!selectedFreelancer) return
+                try {
+                        const invitation = await inviteMutation.mutateAsync({
+                                ...values,
+                                freelancerId: selectedFreelancer.id
+                        })
+                        setInvitationState(previous => ({
+                                ...previous,
+                                [selectedFreelancer.id]: {
+                                        status: invitation.status ?? 'PENDING',
+                                        invitation
+                                }
+                        }))
+                        toast.success(`Invitation sent to ${selectedFreelancer.name}`)
+                        setInviteDialogOpen(false)
+                        setSelectedFreelancer(null)
+                } catch {
+                        // error toast handled in mutation onError
+                }
+        }
 
         const normalizedSkillNames = useMemo(() => normalizeSkills(job.skills), [job.skills])
         const normalizedSkillIdentifiers = useMemo(() => normalizeSkillIds(job.skills), [job.skills])
@@ -326,168 +446,247 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                                 )
 
                                                 const initials = getFreelancerInitials(freelancer.name)
+                                                const storedInvitation = invitationState[freelancer.id]
+                                                const remoteInvitation =
+                                                        freelancer.latestInvitation?.jobId === job.id
+                                                                ? freelancer.latestInvitation
+                                                                : undefined
+                                                const invitationStatus = storedInvitation?.status ?? remoteInvitation?.status
+                                                const invitationMetaInfo = invitationStatusMeta(invitationStatus)
+                                                const invitationDetails = storedInvitation?.invitation ?? remoteInvitation
+                                                const sentAtLabel = invitationDetails
+                                                        ? 'createdAt' in invitationDetails
+                                                                ? invitationDetails.createdAt
+                                                                : remoteInvitation?.sentAt
+                                                        : remoteInvitation?.sentAt
+                                                const respondedAtLabel = invitationDetails
+                                                        ? 'respondedAt' in invitationDetails
+                                                                ? invitationDetails.respondedAt
+                                                                : remoteInvitation?.respondedAt
+                                                        : remoteInvitation?.respondedAt
+                                                const expiresAtLabel = invitationDetails
+                                                        ? 'expiresAt' in invitationDetails
+                                                                ? invitationDetails.expiresAt
+                                                                : remoteInvitation?.expiresAt
+                                                        : remoteInvitation?.expiresAt
+                                                const isPendingInvitation =
+                                                        (invitationStatus ?? '').toUpperCase() === 'PENDING'
+                                                const isInvitingCurrent =
+                                                        inviteMutation.isPending && selectedFreelancer?.id === freelancer.id
+                                                const inviteButtonLabel = invitationStatus
+                                                        ? isPendingInvitation
+                                                                ? 'Invitation pending'
+                                                                : 'Send new invite'
+                                                        : 'Invite to job'
 
                                                 return (
                                                         <article
                                                                 key={freelancer.id}
-                                                                className='rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm transition hover:border-primary/50'
+                                                                className='relative overflow-hidden rounded-3xl border border-base-200 bg-base-100 p-6 shadow-md transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-lg'
                                                         >
-                                                                <div className='flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between'>
-                                                                        <div className='flex flex-1 gap-4'>
-                                                                                <div className='flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 text-lg font-semibold text-primary'>
-                                                                                        {freelancer.avatar ? (
-                                                                                                <img
-                                                                                                        src={freelancer.avatar}
-                                                                                                        alt={freelancer.name}
-                                                                                                        className='h-full w-full rounded-2xl object-cover'
-                                                                                                />
-                                                                                        ) : (
-                                                                                                <span>{initials}</span>
-                                                                                        )}
-                                                                                </div>
-                                                                                <div className='space-y-3'>
-                                                                                        <div>
-                                                                                                <h3 className='text-lg font-semibold text-base-content'>{freelancer.name}</h3>
-                                                                                                {freelancer.title ? (
-                                                                                                        <p className='text-sm text-base-content/70'>{freelancer.title}</p>
-                                                                                                ) : null}
+                                                                <span
+                                                                        className='pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/40 to-primary/0'
+                                                                        aria-hidden='true'
+                                                                />
+                                                                <div className='flex flex-col gap-6'>
+                                                                        <div className='flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between'>
+                                                                                <div className='flex flex-1 gap-4'>
+                                                                                        <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 text-lg font-semibold text-primary shadow-inner'>
+                                                                                                {freelancer.avatar ? (
+                                                                                                        <img
+                                                                                                                src={freelancer.avatar}
+                                                                                                                alt={freelancer.name}
+                                                                                                                className='h-full w-full rounded-2xl object-cover'
+                                                                                                        />
+                                                                                                ) : (
+                                                                                                        <span>{initials}</span>
+                                                                                                )}
                                                                                         </div>
-                                                                                        {freelancer.bio ? (
-                                                                                                <p className='line-clamp-2 text-sm text-base-content/70'>{freelancer.bio}</p>
+                                                                                        <div className='space-y-3'>
+                                                                                                <div>
+                                                                                                        <h3 className='text-lg font-semibold text-base-content'>{freelancer.name}</h3>
+                                                                                                        {freelancer.title ? (
+                                                                                                                <p className='text-sm text-base-content/70'>{freelancer.title}</p>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                                {freelancer.bio ? (
+                                                                                                        <p className='line-clamp-2 text-sm leading-relaxed text-base-content/70'>{freelancer.bio}</p>
+                                                                                                ) : null}
+                                                                                                <div className='flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
+                                                                                                        {freelancer.location ? (
+                                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                        <MapPin className='size-3 text-primary' />
+                                                                                                                        {freelancer.location}
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                        {freelancer.experienceLevel ? (
+                                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                        <Sparkles className='size-3 text-secondary' />
+                                                                                                                        {formatLabel(freelancer.experienceLevel)}
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                        {availabilityDisplay ? (
+                                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                        <BadgeCheck className='size-3 text-emerald-500' />
+                                                                                                                        {availabilityDisplay}
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                        {memberSinceDisplay ? (
+                                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                        Member since {memberSinceDisplay}
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                        {weeklyCapacityDisplay ? (
+                                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                        {weeklyCapacityDisplay}
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                        {completedJobsDisplay ? (
+                                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
+                                                                                                                        {completedJobsDisplay}
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        </div>
+                                                                                </div>
+                                                                                <div className='flex w-full flex-col gap-3 lg:w-80'>
+                                                                                        {invitationMetaInfo ? (
+                                                                                                <div className={`rounded-2xl border px-4 py-3 text-xs shadow-sm ${invitationMetaInfo.className}`}>
+                                                                                                        <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                                {invitationMetaInfo.icon}
+                                                                                                                Invitation status
+                                                                                                        </span>
+                                                                                                        <p className='mt-1 text-sm font-semibold text-base-content'>
+                                                                                                                {invitationMetaInfo.label}
+                                                                                                        </p>
+                                                                                                        <div className='mt-1 space-y-1 text-[11px] text-base-content/60'>
+                                                                                                                {sentAtLabel ? (
+                                                                                                                        <p>
+                                                                                                                                Sent {formatDateTime(sentAtLabel, { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                                                                        </p>
+                                                                                                                ) : null}
+                                                                                                                {respondedAtLabel ? (
+                                                                                                                        <p>
+                                                                                                                                Responded {formatDateTime(respondedAtLabel, { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                                                                        </p>
+                                                                                                                ) : null}
+                                                                                                                {expiresAtLabel ? (
+                                                                                                                        <p>
+                                                                                                                                Expires {formatDateTime(expiresAtLabel, { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                                                                        </p>
+                                                                                                                ) : null}
+                                                                                                        </div>
+                                                                                                </div>
                                                                                         ) : null}
-                                                                                        <div className='flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
-                                                                                                {freelancer.location ? (
-                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
-                                                                                                                <MapPin className='size-3 text-primary' />
-                                                                                                                {freelancer.location}
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                                {freelancer.experienceLevel ? (
-                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
-                                                                                                                <Sparkles className='size-3 text-secondary' />
-                                                                                                                {formatLabel(freelancer.experienceLevel)}
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                                {availabilityDisplay ? (
-                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
-                                                                                                                <BadgeCheck className='size-3 text-emerald-500' />
-                                                                                                                {availabilityDisplay}
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                                {memberSinceDisplay ? (
-                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
-                                                                                                                Member since {memberSinceDisplay}
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                                {weeklyCapacityDisplay ? (
-                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
-                                                                                                                {weeklyCapacityDisplay}
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                                {completedJobsDisplay ? (
-                                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-base-200 px-3 py-1'>
-                                                                                                                {completedJobsDisplay}
-                                                                                                        </span>
-                                                                                                ) : null}
+                                                                                        {stats.length > 0 ? (
+                                                                                                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                                                                                                        {stats.map(stat => (
+                                                                                                                <div
+                                                                                                                        key={`${freelancer.id}-${stat.key}`}
+                                                                                                                        className='rounded-2xl border border-base-200/80 bg-base-100/90 px-4 py-3 text-xs text-base-content/70 shadow-sm'
+                                                                                                                >
+                                                                                                                        <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                                                {stat.icon}
+                                                                                                                                {stat.label}
+                                                                                                                        </span>
+                                                                                                                        <p className='mt-1 text-sm font-medium text-base-content'>{stat.value}</p>
+                                                                                                                </div>
+                                                                                                        ))}
+                                                                                                </div>
+                                                                                        ) : null}
+                                                                                        <div className='flex flex-col gap-2 sm:flex-row sm:justify-end'>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-primary btn-sm gap-2'
+                                                                                                        onClick={() => openInviteDialog(freelancer)}
+                                                                                                        disabled={inviteMutation.isPending || isPendingInvitation}
+                                                                                                >
+                                                                                                        {isInvitingCurrent ? (
+                                                                                                                <Loader2 className='size-4 animate-spin' />
+                                                                                                        ) : (
+                                                                                                                <Send className='size-4' />
+                                                                                                        )}
+                                                                                                        {inviteButtonLabel}
+                                                                                                </button>
+                                                                                                <Link
+                                                                                                        to={routes.comons.freelancerProfile(freelancer.id)}
+                                                                                                        className='btn btn-ghost btn-sm gap-2'
+                                                                                                >
+                                                                                                        View profile
+                                                                                                        <ArrowRight className='size-4' />
+                                                                                                </Link>
                                                                                         </div>
                                                                                 </div>
                                                                         </div>
-                                                                        <div className='flex w-full flex-col gap-3 lg:w-72'>
-                                                                                {stats.length > 0 ? (
-                                                                                        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                                                                                                {stats.map(stat => (
-                                                                                                        <div
-                                                                                                                key={`${freelancer.id}-${stat.key}`}
-                                                                                                                className='rounded-2xl border border-base-200/80 bg-base-100 px-4 py-3 text-xs text-base-content/70'
-                                                                                                        >
-                                                                                                                <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                                                        {stat.icon}
-                                                                                                                        {stat.label}
+
+                                                                        <div className='grid gap-3 md:grid-cols-2 lg:grid-cols-3'>
+                                                                                {specialtyBadges.displayed.length > 0 ? (
+                                                                                        <div className='rounded-2xl border border-base-200/60 bg-base-200/40 px-4 py-3 text-xs text-base-content/70 shadow-sm'>
+                                                                                                <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        <Sparkles className='size-3 text-secondary' /> Specialties
+                                                                                                </span>
+                                                                                                <div className='mt-2 flex flex-wrap gap-1.5'>
+                                                                                                        {specialtyBadges.displayed.map(item => (
+                                                                                                                <span
+                                                                                                                        key={`${freelancer.id}-specialty-${item}`}
+                                                                                                                        className='badge badge-soft badge-xs rounded-full bg-secondary/10 text-secondary leading-tight'
+                                                                                                                >
+                                                                                                                        {item}
                                                                                                                 </span>
-                                                                                                                <p className='mt-1 text-sm font-medium text-base-content'>{stat.value}</p>
-                                                                                                        </div>
-                                                                                                ))}
+                                                                                                        ))}
+                                                                                                        {specialtyBadges.remaining > 0 ? (
+                                                                                                                <span className='badge badge-outline badge-xs rounded-full text-base-content/60 leading-tight'>
+                                                                                                                        +{specialtyBadges.remaining} more
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                </div>
                                                                                         </div>
                                                                                 ) : null}
-                                                                                <div className='flex justify-end'>
-                                                                                        <Link
-                                                                                                to={routes.comons.freelancerProfile(freelancer.id)}
-                                                                                                className='btn btn-ghost btn-sm gap-2'
-                                                                                        >
-                                                                                                View profile
-                                                                                                <ArrowRight className='size-4' />
-                                                                                        </Link>
-                                                                                </div>
+                                                                                {skillBadges.displayed.length > 0 ? (
+                                                                                        <div className='rounded-2xl border border-base-200/60 bg-base-200/40 px-4 py-3 text-xs text-base-content/70 shadow-sm'>
+                                                                                                <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        <BadgeCheck className='size-3 text-primary' /> Top skills
+                                                                                                </span>
+                                                                                                <div className='mt-2 flex flex-wrap gap-1.5'>
+                                                                                                        {skillBadges.displayed.map(item => (
+                                                                                                                <span
+                                                                                                                        key={`${freelancer.id}-skill-${item}`}
+                                                                                                                        className='badge badge-soft badge-xs rounded-full bg-primary/10 text-primary leading-tight'
+                                                                                                                >
+                                                                                                                        {item}
+                                                                                                                </span>
+                                                                                                        ))}
+                                                                                                        {skillBadges.remaining > 0 ? (
+                                                                                                                <span className='badge badge-outline badge-xs rounded-full text-base-content/60 leading-tight'>
+                                                                                                                        +{skillBadges.remaining} more
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        </div>
+                                                                                ) : null}
+                                                                                {languageBadges.displayed.length > 0 ? (
+                                                                                        <div className='rounded-2xl border border-base-200/60 bg-base-200/40 px-4 py-3 text-xs text-base-content/70 shadow-sm'>
+                                                                                                <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        Languages
+                                                                                                </span>
+                                                                                                <div className='mt-2 flex flex-wrap gap-1.5'>
+                                                                                                        {languageBadges.displayed.map(item => (
+                                                                                                                <span
+                                                                                                                        key={`${freelancer.id}-language-${item}`}
+                                                                                                                        className='badge badge-soft badge-xs rounded-full bg-emerald-50 text-emerald-600 leading-tight'
+                                                                                                                >
+                                                                                                                        {item}
+                                                                                                                </span>
+                                                                                                        ))}
+                                                                                                        {languageBadges.remaining > 0 ? (
+                                                                                                                <span className='badge badge-outline badge-xs rounded-full text-base-content/60 leading-tight'>
+                                                                                                                        +{languageBadges.remaining} more
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        </div>
+                                                                                ) : null}
                                                                         </div>
-                                                                </div>
-
-                                                                <div className='mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3'>
-                                                                        {specialtyBadges.displayed.length > 0 ? (
-                                                                                <div className='rounded-2xl border border-base-200/60 bg-base-100 px-4 py-3 text-xs text-base-content/70'>
-                                                                                        <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                                <Sparkles className='size-3 text-secondary' /> Specialties
-                                                                                        </span>
-                                                                                        <div className='mt-2 flex flex-wrap gap-1.5'>
-                                                                                                {specialtyBadges.displayed.map(item => (
-                                                                                                        <span
-                                                                                                                key={`${freelancer.id}-specialty-${item}`}
-                                                                                                                className='badge badge-soft badge-xs rounded-full bg-secondary/10 text-secondary leading-tight'
-                                                                                                        >
-                                                                                                                {item}
-                                                                                                        </span>
-                                                                                                ))}
-                                                                                                {specialtyBadges.remaining > 0 ? (
-                                                                                                        <span className='badge badge-outline badge-xs rounded-full text-base-content/60 leading-tight'>
-                                                                                                                +{specialtyBadges.remaining} more
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                </div>
-                                                                        ) : null}
-                                                                        {skillBadges.displayed.length > 0 ? (
-                                                                                <div className='rounded-2xl border border-base-200/60 bg-base-100 px-4 py-3 text-xs text-base-content/70'>
-                                                                                        <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                                <BadgeCheck className='size-3 text-primary' /> Top skills
-                                                                                        </span>
-                                                                                        <div className='mt-2 flex flex-wrap gap-1.5'>
-                                                                                                {skillBadges.displayed.map(item => (
-                                                                                                        <span
-                                                                                                                key={`${freelancer.id}-skill-${item}`}
-                                                                                                                className='badge badge-soft badge-xs rounded-full bg-primary/10 text-primary leading-tight'
-                                                                                                        >
-                                                                                                                {item}
-                                                                                                        </span>
-                                                                                                ))}
-                                                                                                {skillBadges.remaining > 0 ? (
-                                                                                                        <span className='badge badge-outline badge-xs rounded-full text-base-content/60 leading-tight'>
-                                                                                                                +{skillBadges.remaining} more
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                </div>
-                                                                        ) : null}
-                                                                        {languageBadges.displayed.length > 0 ? (
-                                                                                <div className='rounded-2xl border border-base-200/60 bg-base-100 px-4 py-3 text-xs text-base-content/70'>
-                                                                                        <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                                Languages
-                                                                                        </span>
-                                                                                        <div className='mt-2 flex flex-wrap gap-1.5'>
-                                                                                                {languageBadges.displayed.map(item => (
-                                                                                                        <span
-                                                                                                                key={`${freelancer.id}-language-${item}`}
-                                                                                                                className='badge badge-soft badge-xs rounded-full bg-emerald-50 text-emerald-600 leading-tight'
-                                                                                                        >
-                                                                                                                {item}
-                                                                                                        </span>
-                                                                                                ))}
-                                                                                                {languageBadges.remaining > 0 ? (
-                                                                                                        <span className='badge badge-outline badge-xs rounded-full text-base-content/60 leading-tight'>
-                                                                                                                +{languageBadges.remaining} more
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                </div>
-                                                                        ) : null}
                                                                 </div>
                                                         </article>
                                                 )
@@ -531,6 +730,14 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
                                         </span>
                                 </div>
                         ) : null}
+                        <InviteFreelancerDialog
+                                open={isInviteDialogOpen}
+                                job={job}
+                                freelancer={selectedFreelancer}
+                                isSubmitting={inviteMutation.isPending}
+                                onSubmit={handleSubmitInvitation}
+                                onClose={closeInviteDialog}
+                        />
                 </div>
         )
 }

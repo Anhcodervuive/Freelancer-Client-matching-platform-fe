@@ -175,6 +175,16 @@ export type NormalizedFreelancer = {
         specialties: string[]
         categories: string[]
         languages: Array<{ name: string; proficiency?: string }>
+        latestInvitation?: NormalizedFreelancerInvitation
+}
+
+export type NormalizedFreelancerInvitation = {
+        id?: string
+        jobId?: string
+        status?: string
+        sentAt?: string
+        respondedAt?: string
+        expiresAt?: string
 }
 
 export const normalizeFreelancer = (
@@ -205,8 +215,59 @@ export const normalizeFreelancer = (
                 skills: getFreelancerSkillNames(freelancer),
                 specialties: getFreelancerSpecialtyNames(freelancer),
                 categories: getFreelancerCategoryNames(freelancer),
-                languages: getFreelancerLanguageList(freelancer)
+                languages: getFreelancerLanguageList(freelancer),
+                latestInvitation: getFreelancerLatestInvitation(freelancer)
         }
+}
+
+const extractInvitation = (value: unknown): NormalizedFreelancerInvitation | undefined => {
+        if (!value) return undefined
+        const record = asRecord(value)
+        const id = pickString(record.id)
+        const jobRecord = asRecord(record.job)
+        const jobId = pickString(record.jobId ?? jobRecord.id)
+        const status = pickString(record.status ?? record.state)
+        const sentAt = pickDateString(record.sentAt ?? record.createdAt)
+        const respondedAt = pickDateString(record.respondedAt ?? record.updatedAt)
+        const expiresAt = pickDateString(record.expiresAt ?? record.expiredAt)
+
+        if (!id && !jobId && !status && !sentAt && !respondedAt && !expiresAt) {
+                return undefined
+        }
+
+        return { id, jobId, status: status?.toUpperCase(), sentAt, respondedAt, expiresAt }
+}
+
+export const getFreelancerLatestInvitation = (
+        freelancer: FreelancerLike
+): NormalizedFreelancerInvitation | undefined => {
+        const base = asRecord(freelancer)
+        const candidates: unknown[] = []
+
+        if (base.latestJobInvitation) candidates.push(base.latestJobInvitation)
+        if (base.latestInvitation) candidates.push(base.latestInvitation)
+        if (base.currentInvitation) candidates.push(base.currentInvitation)
+        if (base.jobInvitation) candidates.push(base.jobInvitation)
+        if (base.invitation) candidates.push(base.invitation)
+
+        const jobInvitations = base.jobInvitations
+        if (Array.isArray(jobInvitations)) {
+                candidates.push(...jobInvitations)
+        }
+
+        const invitations = base.invitations
+        if (Array.isArray(invitations)) {
+                candidates.push(...invitations)
+        }
+
+        for (const candidate of candidates) {
+                const invitation = extractInvitation(candidate)
+                if (invitation) {
+                        return invitation
+                }
+        }
+
+        return undefined
 }
 
 export const getFreelancerInitials = (name?: string) => {
