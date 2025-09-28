@@ -702,38 +702,40 @@ export const getFreelancerPortfolioItems = (
                             ? base.portfolio
                             : []) as ClientFreelancerPortfolioItem[]
 
-        return rawItems
-                .map((item, index) => {
-                        if (!item) return null
-                        const record = item as Record<string, unknown>
-                        const id = firstNonEmpty(item.id, `portfolio-${index}`) ?? `portfolio-${index}`
-                        const title = firstNonEmpty(item.title, item.name) ?? 'Portfolio item'
-                        const description = firstNonEmpty(
-                                item.description,
-                                item.summary,
-                                item.caption,
-                                (record.details as string | undefined)
-                        )
-                        const coverRecord = asRecord(item.coverAsset)
-                        const coverUrl = firstNonEmpty(item.coverUrl, item.coverImage, coverRecord.url, coverRecord.secureUrl)
-                        const projectUrl = pickString(item.projectUrl)
-                        const repositoryUrl = pickString(item.repositoryUrl)
-                        const startedAt = firstNonEmpty(item.startedAt, item.startDate)
-                        const completedAt = firstNonEmpty(item.completedAt, item.endDate)
+        const normalizedItems: NormalizedPortfolioItem[] = []
 
-                        return {
-                                id,
-                                title,
-                                description: description ?? undefined,
-                                coverUrl: coverUrl ?? undefined,
-                                projectUrl: projectUrl ?? undefined,
-                                repositoryUrl: repositoryUrl ?? undefined,
-                                startedAt: startedAt ?? undefined,
-                                completedAt: completedAt ?? undefined,
-                                skills: extractNameList(item.skills)
-                        } satisfies NormalizedPortfolioItem
+        rawItems.forEach((item, index) => {
+                if (!item) return
+                const record = item as Record<string, unknown>
+                const id = firstNonEmpty(item.id, `portfolio-${index}`) ?? `portfolio-${index}`
+                const title = firstNonEmpty(item.title, item.name) ?? 'Portfolio item'
+                const description = firstNonEmpty(
+                        item.description,
+                        item.summary,
+                        item.caption,
+                        (record.details as string | undefined)
+                )
+                const coverRecord = asRecord(item.coverAsset)
+                const coverUrl = firstNonEmpty(item.coverUrl, item.coverImage, coverRecord.url, coverRecord.secureUrl)
+                const projectUrl = pickString(item.projectUrl)
+                const repositoryUrl = pickString(item.repositoryUrl)
+                const startedAt = firstNonEmpty(item.startedAt, item.startDate)
+                const completedAt = firstNonEmpty(item.completedAt, item.endDate)
+
+                normalizedItems.push({
+                        id,
+                        title,
+                        description: description ?? undefined,
+                        coverUrl: coverUrl ?? undefined,
+                        projectUrl: projectUrl ?? undefined,
+                        repositoryUrl: repositoryUrl ?? undefined,
+                        startedAt: startedAt ?? undefined,
+                        completedAt: completedAt ?? undefined,
+                        skills: extractNameList(item.skills)
                 })
-                .filter((item): item is NormalizedPortfolioItem => Boolean(item))
+        })
+
+        return normalizedItems
 }
 
 export const formatLabel = (value?: string): string | undefined => {

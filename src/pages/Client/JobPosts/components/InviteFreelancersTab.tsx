@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
 import AsyncSelect from 'react-select/async'
-import Select, { type MultiValue, type SingleValue, type StylesConfig } from 'react-select'
+import Select, { type ActionMeta, type MultiValue, type SingleValue, type StylesConfig } from 'react-select'
 import countryList from 'react-select-country-list'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -1119,17 +1119,17 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 							<div className='grid gap-4 md:grid-cols-2'>
 								<div className='space-y-2'>
 									<span className='font-semibold text-base-content'>Specialty</span>
-									<AsyncSelect
-										cacheOptions
-										defaultOptions
-										loadOptions={loadSpecialtyOptions}
-										value={filterDraft.specialty}
-										onChange={(option: SingleValue<Option>) =>
-											setFilterDraft(previous => ({
-												...previous,
-												specialty: option ? { ...option } : null
-											}))
-										}
+                                                                        <AsyncSelect<Option, false>
+                                                                                cacheOptions
+                                                                                defaultOptions
+                                                                                loadOptions={loadSpecialtyOptions}
+                                                                                value={filterDraft.specialty}
+                                                                                onChange={(option: SingleValue<Option>, _meta: ActionMeta<Option>) =>
+                                                                                        setFilterDraft(previous => ({
+                                                                                                ...previous,
+                                                                                                specialty: option ? { ...option } : null
+                                                                                        }))
+                                                                                }
 										isClearable
 										styles={selectStyles}
 										placeholder='Search specialties'
@@ -1137,15 +1137,15 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 								</div>
 								<div className='space-y-2'>
 									<span className='font-semibold text-base-content'>Country</span>
-									<Select
-										options={countryOptions}
-										value={filterDraft.country}
-										onChange={(option: SingleValue<Option>) =>
-											setFilterDraft(previous => ({
-												...previous,
-												country: option ? { ...option } : null
-											}))
-										}
+                                                                        <Select<Option, false>
+                                                                                options={countryOptions}
+                                                                                value={filterDraft.country}
+                                                                                onChange={(option: SingleValue<Option>, _meta: ActionMeta<Option>) =>
+                                                                                        setFilterDraft(previous => ({
+                                                                                                ...previous,
+                                                                                                country: option ? { ...option } : null
+                                                                                        }))
+                                                                                }
 										isClearable
 										styles={selectStyles}
 										placeholder='Any location'
@@ -1154,18 +1154,18 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 							</div>
 							<div className='space-y-2'>
 								<span className='font-semibold text-base-content'>Skills</span>
-								<AsyncSelect
-									isMulti
-									cacheOptions
-									defaultOptions
+                                                                <AsyncSelect<Option, true>
+                                                                        isMulti
+                                                                        cacheOptions
+                                                                        defaultOptions
 									loadOptions={loadSkillOptions}
 									value={filterDraft.skills}
-									onChange={(options: MultiValue<Option>) =>
-										setFilterDraft(previous => ({
-											...previous,
-											skills: (options as Option[]).map(option => ({ ...option }))
-										}))
-									}
+                                                                        onChange={(options: MultiValue<Option>, _meta: ActionMeta<Option>) =>
+                                                                                setFilterDraft(previous => ({
+                                                                                        ...previous,
+                                                                                        skills: options.map(option => ({ ...option }))
+                                                                                }))
+                                                                        }
 									styles={selectStyles}
 									placeholder='Add skills to focus the list'
 								/>
