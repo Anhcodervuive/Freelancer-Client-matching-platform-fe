@@ -1,7 +1,7 @@
 import { type MouseEvent, useCallback, useMemo, useState, type ReactNode } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AsyncSelect from 'react-select/async'
-import Select, { type SingleValue, type MultiValue, type StylesConfig } from 'react-select'
+import Select, { type SingleValue, type MultiValue, type StylesConfig, type ActionMeta } from 'react-select'
 import countryList from 'react-select-country-list'
 import {
 	Bookmark,
@@ -146,11 +146,11 @@ export default function ClientFreelancerListPage() {
 
 	const queryClient = useQueryClient()
 
-	const { data, isLoading, isFetching, isError, error } = useQuery<PaginatedClientFreelancerResponse>({
-		queryKey,
-		queryFn: () => listClientFreelancers(filters),
-		keepPreviousData: true
-	})
+        const { data, isLoading, isFetching, isError, error } = useQuery<PaginatedClientFreelancerResponse>({
+                queryKey,
+                queryFn: () => listClientFreelancers(filters),
+                placeholderData: keepPreviousData
+        })
 
 	const toggleSaveMutation = useMutation({
 		mutationFn: async ({ id, isSaved }: { id: string; isSaved?: boolean }) => {
@@ -245,20 +245,20 @@ export default function ClientFreelancerListPage() {
 		setPage(1)
 	}
 
-	const handleSpecialtyChange = (option: SingleValue<Option>) => {
-		setSelectedSpecialty(option ?? null)
-		setPage(1)
-	}
+        const handleSpecialtyChange = (option: SingleValue<Option>, _meta: ActionMeta<Option>) => {
+                setSelectedSpecialty(option ?? null)
+                setPage(1)
+        }
 
-	const handleSkillChange = (option: MultiValue<Option>) => {
-		setSelectedSkills(option as Option[])
-		setPage(1)
-	}
+        const handleSkillChange = (option: MultiValue<Option>, _meta: ActionMeta<Option>) => {
+                setSelectedSkills([...option])
+                setPage(1)
+        }
 
-	const handleCountryChange = (option: SingleValue<Option>) => {
-		setSelectedCountry(option ?? null)
-		setPage(1)
-	}
+        const handleCountryChange = (option: SingleValue<Option>, _meta: ActionMeta<Option>) => {
+                setSelectedCountry(option ?? null)
+                setPage(1)
+        }
 
 	const renderSkeletonCard = (index: number) => (
 		<div key={`freelancer-skeleton-${index}`} className='rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
@@ -358,12 +358,12 @@ export default function ClientFreelancerListPage() {
 						<span className='mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
 							<Sparkles className='size-3' /> Specialty
 						</span>
-						<AsyncSelect
-							cacheOptions
-							defaultOptions
-							value={selectedSpecialty}
-							loadOptions={loadSpecialtyOptions}
-							onChange={handleSpecialtyChange}
+                                                <AsyncSelect<Option, false>
+                                                        cacheOptions
+                                                        defaultOptions
+                                                        value={selectedSpecialty}
+                                                        loadOptions={loadSpecialtyOptions}
+                                                        onChange={handleSpecialtyChange}
 							placeholder='Search specialty…'
 							styles={selectStyles}
 							classNamePrefix='freelancer-select'
@@ -373,12 +373,12 @@ export default function ClientFreelancerListPage() {
 						<span className='mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
 							<Sparkles className='size-3 text-secondary' /> Skills
 						</span>
-						<AsyncSelect
-							isMulti
-							cacheOptions
-							defaultOptions
-							value={selectedSkills}
-							loadOptions={loadSkillOptions}
+                                                <AsyncSelect<Option, true>
+                                                        isMulti
+                                                        cacheOptions
+                                                        defaultOptions
+                                                        value={selectedSkills}
+                                                        loadOptions={loadSkillOptions}
 							onChange={handleSkillChange}
 							placeholder='Search skills…'
 							styles={selectStyles}
@@ -389,11 +389,11 @@ export default function ClientFreelancerListPage() {
 						<span className='mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
 							<MapPin className='size-3 text-rose-500' /> Location
 						</span>
-						<Select
-							isClearable
-							value={selectedCountry}
-							onChange={handleCountryChange}
-							options={countryOptions}
+                                                <Select<Option, false>
+                                                        isClearable
+                                                        value={selectedCountry}
+                                                        onChange={handleCountryChange}
+                                                        options={countryOptions}
 							placeholder='Select country…'
 							styles={selectStyles}
 							classNamePrefix='freelancer-select'

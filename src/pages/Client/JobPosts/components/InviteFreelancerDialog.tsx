@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CalendarClock, MessageSquare, Sparkles, X } from 'lucide-react'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 
 import type { JobPostDetail } from '~/types/job-post'
@@ -63,7 +63,7 @@ export default function InviteFreelancerDialog({
         onClose
 }: InviteFreelancerDialogProps) {
         const methods = useForm<InvitationFormValues>({
-                resolver: zodResolver(invitationFormSchema),
+                resolver: zodResolver(invitationFormSchema) as Resolver<InvitationFormValues>,
                 defaultValues: {
                         message: undefined,
                         expiresAt: undefined
