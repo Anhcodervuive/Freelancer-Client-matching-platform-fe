@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { UseQueryResult } from '@tanstack/react-query'
 import {
         CalendarClock,
         CheckCircle2,
@@ -24,23 +23,39 @@ import {
         listFreelancerJobProposals,
         withdrawJobProposal
 } from '~/apis/job-proposal.api'
-import { ACTIVE_PROPOSAL_STATUSES, JOB_PROPOSAL_STATUS_META, SUBMITTED_PROPOSAL_STATUSES } from '~/constants/job-proposal'
+import { JOB_PROPOSAL_STATUS_META } from '~/constants/job-proposal'
 import { JOB_DURATION_COMMITMENTS } from '~/constants/job'
 import { routes } from '~/config/routes'
 import type { JobInvitation, PaginatedJobInvitationResponse } from '~/types/job-invitation'
 import type { JobProposal, PaginatedJobProposalResponse } from '~/types/job-proposal'
+import { JOB_PROPOSAL_STATUSES } from '~/types/job-proposal'
 
 const PAGE_SIZE = 6
 
 const tabs = [
         { key: 'invitations', label: 'Invitations to interview' },
-        { key: 'active', label: 'Active proposals' },
-        { key: 'submitted', label: 'Submitted proposals' }
+        { key: 'proposals', label: 'All proposals' }
 ] as const
 
 type TabKey = (typeof tabs)[number]['key']
 
-type PageState = Record<TabKey, number>
+type SortOption = 'newest' | 'oldest' | 'bid-asc' | 'bid-desc'
+
+type FilterState = {
+        search: string
+        statuses: JobProposal['status'][]
+        sortBy: SortOption
+        submittedFrom: string
+        submittedTo: string
+}
+
+const initialFilterState: FilterState = {
+        search: '',
+        statuses: [],
+        sortBy: 'newest',
+        submittedFrom: '',
+        submittedTo: ''
+}
 
 type InvitationStatusKey =
         | 'SENT'
@@ -117,12 +132,6 @@ const isExpiredInvitation = (invitation?: JobInvitation) => {
         return false
 }
 
-const initialPages: PageState = {
-        invitations: 1,
-        active: 1,
-        submitted: 1
-}
-
 const canEditProposal = (status: JobProposal['status']) =>
         status === 'SUBMITTED' || status === 'SHORTLISTED' || status === 'INTERVIEWING'
 
@@ -133,11 +142,19 @@ export default function JobProposalsPage() {
         const navigate = useNavigate()
         const params = useParams<{ invitationId?: string }>()
         const [searchParams, setSearchParams] = useSearchParams()
-        const [pages, setPages] = useState<PageState>(initialPages)
+        const [invitationPage, setInvitationPage] = useState(1)
+        const [proposalPage, setProposalPage] = useState(1)
+        const [filterInputs, setFilterInputs] = useState<FilterState>({ ...initialFilterState })
+        const [appliedFilters, setAppliedFilters] = useState<FilterState>({ ...initialFilterState })
+        const [filterError, setFilterError] = useState<string | null>(null)
 
         const selectedInvitationId = params.invitationId
         const tabParam = (searchParams.get('tab') ?? '') as TabKey
-        const inferredTab: TabKey = selectedInvitationId ? 'invitations' : tabs.some(tab => tab.key === tabParam) ? tabParam : 'invitations'
+        const inferredTab: TabKey = selectedInvitationId
+                ? 'invitations'
+                : tabs.some(tab => tab.key === tabParam)
+                ? tabParam
+                : 'invitations'
         const [activeTab, setActiveTab] = useState<TabKey>(inferredTab)
 
         useEffect(() => {
@@ -158,20 +175,16 @@ export default function JobProposalsPage() {
         const handleTabChange = (tab: TabKey) => {
                 if (tab === activeTab) return
                 setActiveTab(tab)
-                setPages(previous => ({ ...previous, [tab]: 1 }))
                 if (tab === 'invitations') {
                         navigate(routes.freelancer.jobs.invitations)
                 } else {
                         navigate(`${routes.freelancer.jobs.invitations}?tab=${tab}`)
                 }
-        }
-
-        const invitationPage = pages.invitations
-        const activePage = pages.active
-        const submittedPage = pages.submitted
-
-        const setPage = (tab: TabKey, page: number) => {
-                setPages(previous => ({ ...previous, [tab]: page }))
+                if (tab === 'invitations') {
+                        setInvitationPage(1)
+                } else {
+                        setProposalPage(1)
+                }
         }
 
         const listInvitationQueryKey = useMemo(
@@ -218,33 +231,45 @@ export default function JobProposalsPage() {
                 }
         })
 
-        const proposalsActiveQuery = useQuery<PaginatedJobProposalResponse>({
-                queryKey: ['freelancer-job-proposals', { page: activePage, statuses: ACTIVE_PROPOSAL_STATUSES }],
-                queryFn: () =>
-                        listFreelancerJobProposals({
-                                page: activePage,
-                                limit: PAGE_SIZE,
-                                statuses: ACTIVE_PROPOSAL_STATUSES
-                        })
+        useEffect(() => {
+                if (activeTab === 'proposals') {
+                        setProposalPage(1)
+                }
+        }, [appliedFilters, activeTab])
+
+        const proposalFilters = useMemo(() => {
+                const parseDate = (value: string) => {
+                        if (!value) return undefined
+                        const date = new Date(value)
+                        return Number.isNaN(date.getTime()) ? undefined : date
+                }
+
+                return {
+                        page: proposalPage,
+                        limit: PAGE_SIZE,
+                        search: appliedFilters.search.trim() ? appliedFilters.search.trim() : undefined,
+                        statuses: appliedFilters.statuses.length ? appliedFilters.statuses : undefined,
+                        sortBy: appliedFilters.sortBy,
+                        submittedFrom: parseDate(appliedFilters.submittedFrom),
+                        submittedTo: parseDate(appliedFilters.submittedTo)
+                }
+        }, [appliedFilters, proposalPage])
+
+        const proposalsQuery = useQuery<PaginatedJobProposalResponse>({
+                queryKey: ['freelancer-job-proposals', proposalFilters],
+                queryFn: () => listFreelancerJobProposals(proposalFilters)
         })
 
-        const proposalsSubmittedQuery = useQuery<PaginatedJobProposalResponse>({
-                queryKey: ['freelancer-job-proposals', { page: submittedPage, statuses: SUBMITTED_PROPOSAL_STATUSES }],
-                queryFn: () =>
-                        listFreelancerJobProposals({
-                                page: submittedPage,
-                                limit: PAGE_SIZE,
-                                statuses: SUBMITTED_PROPOSAL_STATUSES
-                        })
-        })
-
-        const activeProposals = proposalsActiveQuery.data?.data ?? []
-        const activeTotal = proposalsActiveQuery.data?.total ?? activeProposals.length
-        const activeTotalPages = Math.max(1, Math.ceil((proposalsActiveQuery.data?.total ?? 0) / PAGE_SIZE))
-
-        const submittedProposals = proposalsSubmittedQuery.data?.data ?? []
-        const submittedTotal = proposalsSubmittedQuery.data?.total ?? submittedProposals.length
-        const submittedTotalPages = Math.max(1, Math.ceil((proposalsSubmittedQuery.data?.total ?? 0) / PAGE_SIZE))
+        const proposals = proposalsQuery.data?.data ?? []
+        const proposalsTotal = proposalsQuery.data?.total ?? proposals.length
+        const proposalTotalPages = Math.max(1, Math.ceil((proposalsQuery.data?.total ?? 0) / PAGE_SIZE))
+        const hasActiveFilters = Boolean(
+                appliedFilters.search.trim() ||
+                        appliedFilters.statuses.length ||
+                        appliedFilters.submittedFrom ||
+                        appliedFilters.submittedTo ||
+                        appliedFilters.sortBy !== 'newest'
+        )
 
         const withdrawMutation = useMutation({
                 mutationFn: (proposalId: string) => withdrawJobProposal(proposalId),
@@ -530,81 +555,8 @@ export default function JobProposalsPage() {
                 )
         }
 
-        const renderProposalSection = (
-                query: UseQueryResult<PaginatedJobProposalResponse>,
-                proposals: JobProposal[],
-                tab: Extract<TabKey, 'active' | 'submitted'>,
-                totalPages: number
-        ) => {
-                if (query.isLoading) {
-                        return (
-                                <div className='flex min-h-[220px] items-center justify-center rounded-3xl border border-base-200 bg-base-100 p-8 text-base-content/60 shadow-sm'>
-                                        <Loader2 className='size-5 animate-spin text-primary' />
-                                </div>
-                        )
-                }
-
-                if (query.isError) {
-                        const message = query.error instanceof Error ? query.error.message : 'Unable to load proposals.'
-                        return (
-                                <div className='rounded-3xl border border-error/40 bg-error/10 p-6 text-sm text-error shadow-sm'>
-                                        {message}
-                                </div>
-                        )
-                }
-
-                if (!proposals.length) {
-                        return (
-                                <div className='rounded-3xl border border-dashed border-base-200 bg-base-100 p-10 text-center text-sm text-base-content/70 shadow-sm'>
-                                        {tab === 'active'
-                                                ? 'You have no active proposals yet. Continue engaging with clients to move proposals forward.'
-                                                : 'You have not submitted any proposals yet. Browse the marketplace and apply to jobs that fit your skills.'}
-                                </div>
-                        )
-                }
-
-                const page = pages[tab]
-                const total = query.data?.total ?? proposals.length
-                const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
-                const endItem = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
-
-                return (
-                        <div className='space-y-5'>
-                                <div className='text-sm text-base-content/60'>
-                                        Showing {startItem} - {endItem} of {total} proposals
-                                </div>
-                                <div className='space-y-4'>
-                                        {proposals.map(proposal => renderProposalCard(proposal))}
-                                </div>
-                                {totalPages > 1 && (
-                                        <div className='flex items-center justify-between rounded-3xl border border-base-200 bg-base-100 p-4 text-sm shadow-sm'>
-                                                <span className='text-base-content/60'>Page {page} of {totalPages}</span>
-                                                <div className='flex gap-2'>
-                                                        <button
-                                                                type='button'
-                                                                className='btn btn-sm btn-ghost'
-                                                                onClick={() => setPage(tab, Math.max(1, page - 1))}
-                                                                disabled={page === 1}
-                                                        >
-                                                                Previous
-                                                        </button>
-                                                        <button
-                                                                type='button'
-                                                                className='btn btn-sm btn-ghost'
-                                                                onClick={() => setPage(tab, Math.min(totalPages, page + 1))}
-                                                                disabled={page === totalPages}
-                                                        >
-                                                                Next
-                                                        </button>
-                                                </div>
-                                        </div>
-                                )}
-                        </div>
-                )
-        }
-
         return (
-                <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
+                <div className='mx-auto w-full max-w-7xl px-4 py-8 lg:px-0'>
                         <div className='flex flex-wrap items-start justify-between gap-4'>
                                 <div>
                                         <p className='text-xs font-semibold uppercase tracking-[0.3em] text-primary/70'>Proposals & offers</p>
@@ -623,12 +575,7 @@ export default function JobProposalsPage() {
 
                         <div className='mt-6 flex flex-wrap gap-2 rounded-3xl border border-base-200 bg-base-100 p-2 shadow-sm'>
                                 {tabs.map(tab => {
-                                        const totalCount =
-                                                tab.key === 'invitations'
-                                                        ? invitationsTotal
-                                                        : tab.key === 'active'
-                                                        ? activeTotal
-                                                        : submittedTotal
+                                        const totalCount = tab.key === 'invitations' ? invitationsTotal : proposalsTotal
                                         const isActive = activeTab === tab.key
                                         return (
                                                 <button
@@ -680,7 +627,7 @@ export default function JobProposalsPage() {
                                                                                                 <button
                                                                                                         type='button'
                                                                                                         className='btn btn-sm btn-ghost'
-                                                                                                        onClick={() => setPage('invitations', Math.max(1, invitationPage - 1))}
+                                                                                                        onClick={() => setInvitationPage(Math.max(1, invitationPage - 1))}
                                                                                                         disabled={invitationPage === 1}
                                                                                                 >
                                                                                                         Previous
@@ -688,7 +635,7 @@ export default function JobProposalsPage() {
                                                                                                 <button
                                                                                                         type='button'
                                                                                                         className='btn btn-sm btn-ghost'
-                                                                                                        onClick={() => setPage('invitations', Math.min(invitationTotalPages, invitationPage + 1))}
+                                                                                                        onClick={() => setInvitationPage(Math.min(invitationTotalPages, invitationPage + 1))}
                                                                                                         disabled={invitationPage === invitationTotalPages}
                                                                                                 >
                                                                                                         Next
@@ -702,10 +649,232 @@ export default function JobProposalsPage() {
                                                 <div>{renderInvitationDetail()}</div>
                                         </div>
                                 )}
-                                {activeTab === 'active' &&
-                                        renderProposalSection(proposalsActiveQuery, activeProposals, 'active', activeTotalPages)}
-                                {activeTab === 'submitted' &&
-                                        renderProposalSection(proposalsSubmittedQuery, submittedProposals, 'submitted', submittedTotalPages)}
+                                {activeTab === 'proposals' && (
+                                        <div className='space-y-6'>
+                                                <form
+                                                        className='space-y-4 rounded-3xl border border-base-200 bg-base-100 p-5 shadow-sm'
+                                                        onSubmit={event => {
+                                                                event.preventDefault()
+                                                                if (
+                                                                        filterInputs.submittedFrom &&
+                                                                        filterInputs.submittedTo &&
+                                                                        new Date(filterInputs.submittedFrom) >
+                                                                                new Date(filterInputs.submittedTo)
+                                                                ) {
+                                                                        setFilterError('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.')
+                                                                        return
+                                                                }
+                                                                setFilterError(null)
+                                                                setAppliedFilters({ ...filterInputs })
+                                                        }}
+                                                >
+                                                        <div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,260px)]'>
+                                                                <label className='flex flex-col gap-2 text-sm text-base-content/70'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content'>Tìm kiếm</span>
+                                                                        <input
+                                                                                type='text'
+                                                                                value={filterInputs.search}
+                                                                                onChange={event =>
+                                                                                        setFilterInputs(current => ({
+                                                                                                ...current,
+                                                                                                search: event.target.value
+                                                                                        }))
+                                                                                }
+                                                                                placeholder='Tìm theo tiêu đề job hoặc khách hàng'
+                                                                                className='input input-bordered input-sm rounded-2xl'
+                                                                        />
+                                                                </label>
+                                                                <label className='flex flex-col gap-2 text-sm text-base-content/70'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content'>Sắp xếp</span>
+                                                                        <select
+                                                                                className='select select-bordered select-sm rounded-2xl'
+                                                                                value={filterInputs.sortBy}
+                                                                                onChange={event => {
+                                                                                        const value = event.target.value as SortOption
+                                                                                        setFilterInputs(current => ({
+                                                                                                ...current,
+                                                                                                sortBy: value
+                                                                                        }))
+                                                                                }}
+                                                                        >
+                                                                                <option value='newest'>Mới nhất</option>
+                                                                                <option value='oldest'>Cũ nhất</option>
+                                                                                <option value='bid-asc'>Bid thấp đến cao</option>
+                                                                                <option value='bid-desc'>Bid cao đến thấp</option>
+                                                                        </select>
+                                                                </label>
+                                                        </div>
+                                                        <div className='grid gap-4 lg:grid-cols-2'>
+                                                                <fieldset className='rounded-2xl border border-base-200 bg-base-100/70 p-4'>
+                                                                        <legend className='px-2 text-xs font-semibold uppercase tracking-wide text-base-content/80'>Trạng thái</legend>
+                                                                        <div className='mt-3 grid gap-2 sm:grid-cols-2'>
+                                                                                {JOB_PROPOSAL_STATUSES.map(status => {
+                                                                                        const meta = JOB_PROPOSAL_STATUS_META[status]
+                                                                                        const checked = filterInputs.statuses.includes(status)
+                                                                                        return (
+                                                                                                <label
+                                                                                                        key={status}
+                                                                                                        className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
+                                                                                                                checked
+                                                                                                                        ? 'border-primary/40 bg-primary/10 text-primary'
+                                                                                                                        : 'border-base-200 text-base-content/70 hover:border-primary/30'
+                                                                                                        }`}
+                                                                                                >
+                                                                                                        <input
+                                                                                                                type='checkbox'
+                                                                                                                className='checkbox checkbox-sm'
+                                                                                                                checked={checked}
+                                                                                                                onChange={() => {
+                                                                                                                        setFilterInputs(current => {
+                                                                                                                                const exists = current.statuses.includes(status)
+                                                                                                                                return {
+                                                                                                                                        ...current,
+                                                                                                                                        statuses: exists
+                                                                                                                                                ? current.statuses.filter(item => item !== status)
+                                                                                                                                                : [...current.statuses, status]
+                                                                                                                                }
+                                                                                                                        })
+                                                                                                                }}
+                                                                                                        />
+                                                                                                        <span className='font-medium'>{meta.label}</span>
+                                                                                                </label>
+                                                                                        )
+                                                                                })}
+                                                                        </div>
+                                                                </fieldset>
+                                                                <div className='grid gap-4 rounded-2xl border border-base-200 bg-base-100/70 p-4 text-sm text-base-content/70 sm:grid-cols-2'>
+                                                                        <label className='flex flex-col gap-2'>
+                                                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/80'>Từ ngày</span>
+                                                                                <input
+                                                                                        type='date'
+                                                                                        value={filterInputs.submittedFrom}
+                                                                                        onChange={event => {
+                                                                                                const value = event.target.value
+                                                                                                setFilterError(null)
+                                                                                                setFilterInputs(current => ({
+                                                                                                        ...current,
+                                                                                                        submittedFrom: value
+                                                                                                }))
+                                                                                        }}
+                                                                                        className='input input-bordered input-sm rounded-2xl'
+                                                                                />
+                                                                        </label>
+                                                                        <label className='flex flex-col gap-2'>
+                                                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/80'>Đến ngày</span>
+                                                                                <input
+                                                                                        type='date'
+                                                                                        value={filterInputs.submittedTo}
+                                                                                        onChange={event => {
+                                                                                                const value = event.target.value
+                                                                                                setFilterError(null)
+                                                                                                setFilterInputs(current => ({
+                                                                                                        ...current,
+                                                                                                        submittedTo: value
+                                                                                                }))
+                                                                                        }}
+                                                                                        className='input input-bordered input-sm rounded-2xl'
+                                                                                />
+                                                                        </label>
+                                                                </div>
+                                                        </div>
+                                                        {filterError && (
+                                                                <div className='rounded-2xl border border-error/30 bg-error/10 p-3 text-sm text-error'>
+                                                                        {filterError}
+                                                                </div>
+                                                        )}
+                                                        <div className='flex flex-wrap justify-end gap-3 pt-2'>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-sm btn-ghost'
+                                                                        onClick={() => {
+                                                                                const reset = { ...initialFilterState }
+                                                                                setFilterError(null)
+                                                                                setFilterInputs(reset)
+                                                                                setAppliedFilters({ ...initialFilterState })
+                                                                                setProposalPage(1)
+                                                                        }}
+                                                                >
+                                                                        Xóa lọc
+                                                                </button>
+                                                                <button type='submit' className='btn btn-sm btn-primary'>
+                                                                        Áp dụng lọc
+                                                                </button>
+                                                        </div>
+                                                </form>
+
+                                                {(() => {
+                                                        if (proposalsQuery.isLoading) {
+                                                                return (
+                                                                        <div className='flex min-h-[220px] items-center justify-center rounded-3xl border border-base-200 bg-base-100 p-8 text-base-content/60 shadow-sm'>
+                                                                                <Loader2 className='size-5 animate-spin text-primary' />
+                                                                        </div>
+                                                                )
+                                                        }
+
+                                                        if (proposalsQuery.isError) {
+                                                                const message =
+                                                                        proposalsQuery.error instanceof Error
+                                                                                ? proposalsQuery.error.message
+                                                                                : 'Unable to load proposals.'
+                                                                return (
+                                                                        <div className='rounded-3xl border border-error/40 bg-error/10 p-6 text-sm text-error shadow-sm'>
+                                                                                {message}
+                                                                        </div>
+                                                                )
+                                                        }
+
+                                                        if (!proposals.length) {
+                                                                return (
+                                                                        <div className='rounded-3xl border border-dashed border-base-200 bg-base-100 p-10 text-center text-sm text-base-content/70 shadow-sm'>
+                                                                                Không có proposal nào khớp với bộ lọc hiện tại.
+                                                                        </div>
+                                                                )
+                                                        }
+
+                                                        const startItem = proposalsTotal === 0 ? 0 : (proposalPage - 1) * PAGE_SIZE + 1
+                                                        const endItem = proposalsTotal === 0 ? 0 : Math.min(proposalPage * PAGE_SIZE, proposalsTotal)
+
+                                                        return (
+                                                                <div className='space-y-5'>
+                                                                        <div className='flex flex-wrap items-center justify-between gap-3 text-sm text-base-content/60'>
+                                                                                <span>
+                                                                                        Hiển thị {startItem} - {endItem} trong tổng số {proposalsTotal} proposal
+                                                                                </span>
+                                                                                <span className='text-xs uppercase tracking-wide text-base-content/60'>
+                                                                                        Lọc đang áp dụng: {hasActiveFilters ? 'Có' : 'Không'}
+                                                                                </span>
+                                                                        </div>
+                                                                        <div className='space-y-4'>
+                                                                                {proposals.map(proposal => renderProposalCard(proposal))}
+                                                                        </div>
+                                                                        {proposalTotalPages > 1 && (
+                                                                                <div className='flex items-center justify-between rounded-3xl border border-base-200 bg-base-100 p-4 text-sm shadow-sm'>
+                                                                                        <span className='text-base-content/60'>Trang {proposalPage} / {proposalTotalPages}</span>
+                                                                                        <div className='flex gap-2'>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-sm btn-ghost'
+                                                                                                        onClick={() => setProposalPage(Math.max(1, proposalPage - 1))}
+                                                                                                        disabled={proposalPage === 1}
+                                                                                                >
+                                                                                                        Trước
+                                                                                                </button>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-sm btn-ghost'
+                                                                                                        onClick={() => setProposalPage(Math.min(proposalTotalPages, proposalPage + 1))}
+                                                                                                        disabled={proposalPage === proposalTotalPages}
+                                                                                                >
+                                                                                                        Sau
+                                                                                                </button>
+                                                                                        </div>
+                                                                                </div>
+                                                                        )}
+                                                                </div>
+                                                        )
+                                                })()}
+                                        </div>
+                                )}
                         </div>
                 </div>
         )
