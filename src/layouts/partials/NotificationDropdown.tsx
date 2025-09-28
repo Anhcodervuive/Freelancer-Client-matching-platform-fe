@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Loader2, MailOpen, Radio } from 'lucide-react'
+import { AlertCircle, Bell, CheckCheck, Loader2, MailOpen, Radio } from 'lucide-react'
 import { NotificationStatus } from '~/types/notification'
 import { useNotificationGateway } from '~/hooks/useNotificationGateway'
 
@@ -37,12 +37,55 @@ export default function NotificationDropdown() {
                 markAsRead,
                 markAllAsRead,
                 isConnected,
-                isConnecting
+                isConnecting,
+                error,
+                reconnect
         } = useNotificationGateway()
 
-        const statusLabel = isConnected ? 'Đang trực tuyến' : isConnecting ? 'Đang kết nối…' : 'Ngoại tuyến'
+        const connectionError = !isConnecting && error ? error : null
 
-        const statusAccent = isConnected ? 'bg-success' : isConnecting ? 'bg-warning' : 'bg-base-300'
+        const errorMessage = (() => {
+                if (!connectionError) return ''
+
+                const tokenMessage =
+                        typeof (connectionError as { data?: { message?: unknown } }).data?.message === 'string'
+                                ? (connectionError as { data: { message: string } }).data.message
+                                : undefined
+
+                if (tokenMessage === 'Token is not validated') {
+                        return 'Phiên đăng nhập đã hết hạn. Vui lòng thử lại.'
+                }
+
+                if (typeof tokenMessage === 'string' && tokenMessage.trim().length > 0) {
+                        return tokenMessage
+                }
+
+                const message = typeof (connectionError as { message?: unknown }).message === 'string'
+                        ? (connectionError as { message: string }).message
+                        : undefined
+
+                if (typeof message === 'string' && message.trim().length > 0) {
+                        return message
+                }
+
+                return 'Không thể kết nối tới máy chủ thông báo.'
+        })()
+
+        const statusLabel = connectionError
+                ? 'Kết nối gặp sự cố'
+                : isConnected
+                  ? 'Đang trực tuyến'
+                  : isConnecting
+                    ? 'Đang kết nối…'
+                    : 'Ngoại tuyến'
+
+        const statusAccent = connectionError
+                ? 'bg-error'
+                : isConnected
+                  ? 'bg-success'
+                  : isConnecting
+                    ? 'bg-warning'
+                    : 'bg-base-300'
 
         const renderTitle = (title?: string | null, event?: string | null, metadataTitle?: string | null) => {
                 if (title) return title
@@ -167,6 +210,21 @@ export default function NotificationDropdown() {
                                         <div className='flex items-center gap-2 border-t border-base-200 px-4 py-2 text-xs text-base-content/60'>
                                                 <Loader2 className='h-3.5 w-3.5 animate-spin' aria-hidden='true' />
                                                 <span>Đang đồng bộ thông báo…</span>
+                                        </div>
+                                )}
+                                {connectionError && (
+                                        <div className='flex items-start gap-3 border-t border-base-200 px-4 py-3 text-xs text-error'>
+                                                <AlertCircle className='h-4 w-4 shrink-0' aria-hidden='true' />
+                                                <div className='flex flex-1 flex-col gap-2'>
+                                                        <p>{errorMessage}</p>
+                                                        <button
+                                                                type='button'
+                                                                onClick={() => reconnect()}
+                                                                className='btn btn-ghost btn-xs w-fit gap-2 text-error hover:bg-error/10'
+                                                        >
+                                                                Thử kết nối lại
+                                                        </button>
+                                                </div>
                                         </div>
                                 )}
                         </div>
