@@ -92,7 +92,7 @@ export const useNotificationGateway = () => {
 
                 const handleCreated = (notification: Notification) => {
                         if (notification) {
-                                setNotifications(prev => mergeNotifications([notification], prev))
+                                setNotifications(prev => mergeNotifications(prev, [notification]))
                         }
                 }
 
@@ -161,23 +161,28 @@ export const useNotificationGateway = () => {
         )
 
         const markAllAsRead = useCallback(() => {
+                const unreadIds: string[] = []
+
                 setNotifications(prev =>
-                        prev.map(notification =>
-                                notification.status === NotificationStatus.READ
-                                        ? notification
-                                        : {
-                                                  ...notification,
-                                                  status: NotificationStatus.READ,
-                                                  readAt: new Date().toISOString()
-                                          }
-                        )
+                        prev.map(notification => {
+                                if (notification.status === NotificationStatus.READ) {
+                                        return notification
+                                }
+
+                                unreadIds.push(notification.id)
+
+                                return {
+                                        ...notification,
+                                        status: NotificationStatus.READ,
+                                        readAt: new Date().toISOString()
+                                }
+                        })
                 )
 
-                const unread = notifications.filter(notification => notification.status !== NotificationStatus.READ)
-                for (const item of unread) {
-                        emitMarkAsRead(item.id)
+                for (const id of unreadIds) {
+                        emitMarkAsRead(id)
                 }
-        }, [emitMarkAsRead, notifications])
+        }, [emitMarkAsRead])
 
         const unreadCount = useMemo(() => {
                 return notifications.filter(notification => notification.status !== NotificationStatus.READ).length
