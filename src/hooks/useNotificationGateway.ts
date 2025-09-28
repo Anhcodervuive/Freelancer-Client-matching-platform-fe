@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import env from '~/config/environment'
+import { io, type Socket } from 'socket.io-client'
 import { useSelector } from 'react-redux'
+import env from '~/config/environment'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type { Notification } from '~/types/notification'
 import { NotificationStatus } from '~/types/notification'
@@ -9,10 +10,17 @@ import {
         NotificationClientEvent,
         NotificationServerEvent
 } from '~/constants/notification'
-import { loadSocketFactory } from '~/utils/socketClient'
-import type { SocketLike } from '~/utils/socketClient'
 
-type NotificationSocket = SocketLike
+type ServerToClientEvents = {
+        [NotificationServerEvent.RECENT]: (_notifications: Notification[]) => void
+        [NotificationServerEvent.CREATED]: (_notification: Notification) => void
+}
+
+type ClientToServerEvents = {
+        [NotificationClientEvent.MARK_AS_READ]: (_payload: { notificationId: string }) => void
+}
+
+type NotificationSocket = Socket<ServerToClientEvents, ClientToServerEvents>
 
 const sortNotifications = (items: Notification[]) => {
         return [...items].sort((a, b) => {
@@ -45,8 +53,10 @@ export const useNotificationGateway = () => {
         const socketRef = useRef<NotificationSocket | null>(null)
 
         const disconnect = useCallback(() => {
-                if (socketRef.current) {
-                        socketRef.current.disconnect()
+                const socket = socketRef.current
+                if (socket) {
+                        socket.removeAllListeners?.()
+                        socket.disconnect()
                         socketRef.current = null
                 }
                 setIsConnected(false)
@@ -60,86 +70,64 @@ export const useNotificationGateway = () => {
                         return
                 }
 
+                if (typeof window === 'undefined') {
+                        return undefined
+                }
+
                 const socketUrl = `${env.SOCKET_URL}${NOTIFICATION_NAMESPACE}`
                 setIsConnecting(true)
 
-                let isActive = true
-                let socket: NotificationSocket | null = null
-                let cleanupListeners: () => void = () => {}
+                const socket = io(socketUrl, {
+                        withCredentials: true,
+                        transports: ['websocket'],
+                        autoConnect: true
+                }) as NotificationSocket
 
-                const initialiseSocket = async () => {
-                        try {
-                                const factory = await loadSocketFactory(env.SOCKET_URL)
-                                if (!isActive) {
-                                        return
-                                }
+                socketRef.current = socket
 
-                                socket = factory(socketUrl, {
-                                        withCredentials: true,
-                                        transports: ['websocket'],
-                                        autoConnect: false
-                                })
+                const handleRecent = (items: Notification[]) => {
+                        setNotifications(prev => mergeNotifications(prev, items))
+                        setIsConnecting(false)
+                }
 
-                                socketRef.current = socket
-
-                                const handleRecentListener = (...args: unknown[]) => {
-                                        const [items] = args as [Notification[] | undefined]
-                                        if (Array.isArray(items)) {
-                                                setNotifications(prev => mergeNotifications(prev, items))
-                                        }
-                                        setIsConnecting(false)
-                                }
-
-                                const handleCreatedListener = (...args: unknown[]) => {
-                                        const [notification] = args as [Notification | undefined]
-                                        if (notification) {
-                                                setNotifications(prev => mergeNotifications([notification], prev))
-                                        }
-                                }
-
-                                const handleConnect = () => {
-                                        setIsConnected(true)
-                                        setIsConnecting(false)
-                                }
-
-                                const handleDisconnect = () => {
-                                        setIsConnected(false)
-                                }
-
-                                const handleConnectError = (error: unknown) => {
-                                        console.error('Socket connection error', error)
-                                        setIsConnecting(false)
-                                }
-
-                                socket.on('connect', handleConnect)
-                                socket.on('disconnect', handleDisconnect)
-                                socket.on('connect_error', handleConnectError)
-                                socket.on(NotificationServerEvent.RECENT, handleRecentListener)
-                                socket.on(NotificationServerEvent.CREATED, handleCreatedListener)
-
-                                socket.connect()
-
-                                cleanupListeners = () => {
-                                        socket?.off('connect', handleConnect)
-                                        socket?.off('disconnect', handleDisconnect)
-                                        socket?.off('connect_error', handleConnectError)
-                                        socket?.off(NotificationServerEvent.RECENT, handleRecentListener)
-                                        socket?.off(NotificationServerEvent.CREATED, handleCreatedListener)
-                                }
-                        } catch (error) {
-                                console.error('Failed to initialise notification socket', error)
-                                if (isActive) {
-                                        setIsConnecting(false)
-                                }
+                const handleCreated = (notification: Notification) => {
+                        if (notification) {
+                                setNotifications(prev => mergeNotifications([notification], prev))
                         }
                 }
 
-                initialiseSocket()
+                const handleConnect = () => {
+                        setIsConnected(true)
+                        setIsConnecting(false)
+                }
+
+                const handleDisconnect = () => {
+                        setIsConnected(false)
+                }
+
+                const handleConnectError = (error: unknown) => {
+                        console.error('Socket connection error', error)
+                        setIsConnecting(false)
+                }
+
+                socket.on('connect', handleConnect)
+                socket.on('disconnect', handleDisconnect)
+                socket.on('connect_error', handleConnectError)
+                socket.on(NotificationServerEvent.RECENT, handleRecent)
+                socket.on(NotificationServerEvent.CREATED, handleCreated)
 
                 return () => {
-                        isActive = false
-                        cleanupListeners()
-                        disconnect()
+                        socket.off('connect', handleConnect)
+                        socket.off('disconnect', handleDisconnect)
+                        socket.off('connect_error', handleConnectError)
+                        socket.off(NotificationServerEvent.RECENT, handleRecent)
+                        socket.off(NotificationServerEvent.CREATED, handleCreated)
+                        if (socketRef.current === socket) {
+                                disconnect()
+                        } else {
+                                socket.removeAllListeners?.()
+                                socket.disconnect()
+                        }
                 }
         }, [currentUserId, disconnect])
 
@@ -172,6 +160,25 @@ export const useNotificationGateway = () => {
                 [emitMarkAsRead]
         )
 
+        const markAllAsRead = useCallback(() => {
+                setNotifications(prev =>
+                        prev.map(notification =>
+                                notification.status === NotificationStatus.READ
+                                        ? notification
+                                        : {
+                                                  ...notification,
+                                                  status: NotificationStatus.READ,
+                                                  readAt: new Date().toISOString()
+                                          }
+                        )
+                )
+
+                const unread = notifications.filter(notification => notification.status !== NotificationStatus.READ)
+                for (const item of unread) {
+                        emitMarkAsRead(item.id)
+                }
+        }, [emitMarkAsRead, notifications])
+
         const unreadCount = useMemo(() => {
                 return notifications.filter(notification => notification.status !== NotificationStatus.READ).length
         }, [notifications])
@@ -180,6 +187,7 @@ export const useNotificationGateway = () => {
                 notifications,
                 unreadCount,
                 markAsRead,
+                markAllAsRead,
                 emitMarkAsRead,
                 emit,
                 isConnected,
