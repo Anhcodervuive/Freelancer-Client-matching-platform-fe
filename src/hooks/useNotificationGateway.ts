@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { io, type Socket } from 'socket.io-client'
 import { useSelector } from 'react-redux'
-import env from '~/config/environment'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type { Notification } from '~/types/notification'
 import { NotificationStatus } from '~/types/notification'
@@ -10,6 +8,7 @@ import {
         NotificationClientEvent,
         NotificationServerEvent
 } from '~/constants/notification'
+import { useCredentialedSocket } from './useCredentialedSocket'
 
 type ServerToClientEvents = {
         [NotificationServerEvent.RECENT]: (_notifications: Notification[]) => void
@@ -19,8 +18,6 @@ type ServerToClientEvents = {
 type ClientToServerEvents = {
         [NotificationClientEvent.MARK_AS_READ]: (_payload: { notificationId: string }) => void
 }
-
-type NotificationSocket = Socket<ServerToClientEvents, ClientToServerEvents>
 
 const sortNotifications = (items: Notification[]) => {
         return [...items].sort((a, b) => {
@@ -48,46 +45,31 @@ export const useNotificationGateway = () => {
         const currentUser = useSelector(selectCurrentUser)
         const currentUserId = currentUser?.id
         const [notifications, setNotifications] = useState<Notification[]>([])
-        const [isConnected, setIsConnected] = useState(false)
-        const [isConnecting, setIsConnecting] = useState(false)
-        const socketRef = useRef<NotificationSocket | null>(null)
+        const previousUserIdRef = useRef<string | undefined>(undefined)
 
-        const disconnect = useCallback(() => {
-                const socket = socketRef.current
-                if (socket) {
-                        socket.removeAllListeners?.()
-                        socket.disconnect()
-                        socketRef.current = null
-                }
-                setIsConnected(false)
-                setIsConnecting(false)
-        }, [])
+        const { socket, isConnected, isConnecting, lastError, connect } = useCredentialedSocket<
+                ServerToClientEvents,
+                ClientToServerEvents
+        >(NOTIFICATION_NAMESPACE, {
+                enabled: Boolean(currentUserId),
+                autoConnect: Boolean(currentUserId),
+                maxAuthRetries: 2
+        })
 
         useEffect(() => {
-                if (!currentUserId) {
-                        disconnect()
+                if (previousUserIdRef.current !== currentUserId) {
                         setNotifications([])
-                        return
+                        previousUserIdRef.current = currentUserId
                 }
+        }, [currentUserId])
 
-                if (typeof window === 'undefined') {
+        useEffect(() => {
+                if (!socket) {
                         return undefined
                 }
 
-                const socketUrl = `${env.SOCKET_URL}${NOTIFICATION_NAMESPACE}`
-                setIsConnecting(true)
-
-                const socket = io(socketUrl, {
-                        withCredentials: true,
-                        transports: ['websocket'],
-                        autoConnect: true
-                }) as NotificationSocket
-
-                socketRef.current = socket
-
                 const handleRecent = (items: Notification[]) => {
                         setNotifications(prev => mergeNotifications(prev, items))
-                        setIsConnecting(false)
                 }
 
                 const handleCreated = (notification: Notification) => {
@@ -96,48 +78,22 @@ export const useNotificationGateway = () => {
                         }
                 }
 
-                const handleConnect = () => {
-                        setIsConnected(true)
-                        setIsConnecting(false)
-                }
-
-                const handleDisconnect = () => {
-                        setIsConnected(false)
-                }
-
-                const handleConnectError = (error: unknown) => {
-                        console.error('Socket connection error', error)
-                        setIsConnecting(false)
-                }
-
-                socket.on('connect', handleConnect)
-                socket.on('disconnect', handleDisconnect)
-                socket.on('connect_error', handleConnectError)
                 socket.on(NotificationServerEvent.RECENT, handleRecent)
                 socket.on(NotificationServerEvent.CREATED, handleCreated)
 
                 return () => {
-                        socket.off('connect', handleConnect)
-                        socket.off('disconnect', handleDisconnect)
-                        socket.off('connect_error', handleConnectError)
                         socket.off(NotificationServerEvent.RECENT, handleRecent)
                         socket.off(NotificationServerEvent.CREATED, handleCreated)
-                        if (socketRef.current === socket) {
-                                disconnect()
-                        } else {
-                                socket.removeAllListeners?.()
-                                socket.disconnect()
-                        }
                 }
-        }, [currentUserId, disconnect])
+        }, [socket])
 
         const emitMarkAsRead = useCallback((notificationId: string) => {
-                socketRef.current?.emit(NotificationClientEvent.MARK_AS_READ, { notificationId })
-        }, [])
+                socket?.emit(NotificationClientEvent.MARK_AS_READ, { notificationId })
+        }, [socket])
 
         const emit = useCallback((event: string, payload?: unknown) => {
-                socketRef.current?.emit(event, payload)
-        }, [])
+                socket?.emit(event, payload)
+        }, [socket])
 
         const markAsRead = useCallback(
                 (notificationId: string, options: { emit?: boolean } = { emit: true }) => {
@@ -196,7 +152,9 @@ export const useNotificationGateway = () => {
                 emitMarkAsRead,
                 emit,
                 isConnected,
-                isConnecting
+                isConnecting,
+                error: lastError,
+                reconnect: connect
         }
 }
 
