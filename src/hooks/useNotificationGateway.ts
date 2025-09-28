@@ -144,6 +144,10 @@ export const useNotificationGateway = () => {
                 return notifications.filter(notification => notification.status !== NotificationStatus.READ).length
         }, [notifications])
 
+        const removeNotification = useCallback((notificationId: string) => {
+                setNotifications(prev => prev.filter(notification => notification.id !== notificationId))
+        }, [])
+
         return {
                 notifications,
                 unreadCount,
@@ -154,7 +158,8 @@ export const useNotificationGateway = () => {
                 isConnected,
                 isConnecting,
                 error: lastError,
-                reconnect: connect
+                reconnect: connect,
+                removeNotification
         }
 }
 

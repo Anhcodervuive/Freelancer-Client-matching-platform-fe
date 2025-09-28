@@ -1,6 +1,9 @@
-import { AlertCircle, Bell, CheckCheck, Loader2, MailOpen, Radio } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { AlertCircle, Bell, CheckCheck, Loader2, MailOpen, Radio, Trash2 } from 'lucide-react'
 import { NotificationEvent, NotificationStatus } from '~/types/notification'
 import { useNotificationGateway } from '~/hooks/useNotificationGateway'
+import { deleteNotificationAPI } from '~/apis/notification.api'
+import { toast } from 'react-toastify'
 
 const formatLabel = (value: string | null | undefined) => {
 	if (!value) return ''
@@ -31,8 +34,43 @@ const formatTimestamp = (value: string | null | undefined) => {
 }
 
 export default function NotificationDropdown() {
-	const { notifications, unreadCount, markAsRead, markAllAsRead, isConnected, isConnecting, error, reconnect } =
-		useNotificationGateway()
+        const {
+                notifications,
+                unreadCount,
+                markAsRead,
+                markAllAsRead,
+                isConnected,
+                isConnecting,
+                error,
+                reconnect,
+                removeNotification
+        } = useNotificationGateway()
+        const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set())
+
+        const handleDeleteNotification = useCallback(
+                async (notificationId: string) => {
+                        setDeletingIds(prev => {
+                                const next = new Set(prev)
+                                next.add(notificationId)
+                                return next
+                        })
+
+                        try {
+                                await deleteNotificationAPI(notificationId)
+                                removeNotification(notificationId)
+                                toast.success('Đã xóa thông báo.')
+                        } catch (error) {
+                                console.error(error)
+                        } finally {
+                                setDeletingIds(prev => {
+                                        const next = new Set(prev)
+                                        next.delete(notificationId)
+                                        return next
+                                })
+                        }
+                },
+                [removeNotification]
+        )
 
 	const connectionError = !isConnecting && error ? error : null
 	const errorMessage = (() => {
@@ -149,15 +187,17 @@ export default function NotificationDropdown() {
 					</div>
 				) : (
 					<ul className='divide-y divide-base-200 max-h-96 overflow-y-auto'>
-						{notifications.map(notification => {
-							const isUnread = notification.status !== NotificationStatus.READ
+                                                {notifications.map(notification => {
+                                                        const isUnread = notification.status !== NotificationStatus.READ
+                                                        const isDeleting = deletingIds.has(notification.id)
 
-							return (
-								<li key={notification.id} className='group'>
-									<button
+                                                        return (
+                                                                <li key={notification.id} className='group'>
+                                                                        <div className='flex items-stretch'>
+                                                                                <button
 										type='button'
 										onClick={() => markAsRead(notification.id)}
-										className='flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-base-200/70 focus:bg-base-200/70 focus:outline-none'>
+										className='flex w-full flex-1 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-base-200/70 focus:bg-base-200/70 focus:outline-none'>
 										<span
 											className={`mt-1 h-2 w-2 rounded-full ${
 												isUnread ? 'bg-primary ring-2 ring-primary/20' : 'bg-base-300'
@@ -186,12 +226,32 @@ export default function NotificationDropdown() {
 														: undefined
 												)}
 											</p>
-											<span className='text-[10px] text-base-content/50'>
-												{formatTimestamp(notification.createdAt)}
-											</span>
-										</span>
-									</button>
-								</li>
+                                                                                <span className='text-[10px] text-base-content/50'>
+                                                                                                {formatTimestamp(notification.createdAt)}
+                                                                                        </span>
+                                                                                </span>
+                                                                        </button>
+                                                                        <button
+                                                                                type='button'
+                                                                                onClick={event => {
+                                                                                        event.stopPropagation()
+                                                                                        event.preventDefault()
+                                                                                        if (!isDeleting) {
+                                                                                                void handleDeleteNotification(notification.id)
+                                                                                        }
+                                                                                }}
+                                                                                className='btn btn-ghost btn-xs shrink-0 self-stretch rounded-none border-l border-base-200 text-error transition-colors hover:bg-error/10 hover:text-error focus-visible:border-base-200 focus-visible:outline-none focus-visible:ring-0 disabled:opacity-50'
+                                                                                disabled={isDeleting}
+                                                                                aria-label='Xóa thông báo'
+                                                                        >
+                                                                                {isDeleting ? (
+                                                                                        <Loader2 className='h-4 w-4 animate-spin' aria-hidden='true' />
+                                                                                ) : (
+                                                                                        <Trash2 className='h-4 w-4' aria-hidden='true' />
+                                                                                )}
+                                                                        </button>
+                                                                </div>
+                                                        </li>
 							)
 						})}
 					</ul>
