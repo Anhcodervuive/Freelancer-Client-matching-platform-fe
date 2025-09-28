@@ -44,29 +44,6 @@ const mergeNotifications = (current: Notification[], incoming: Notification[]) =
         return sortNotifications(Array.from(map.values()))
 }
 
-const ACCESS_TOKEN_COOKIE = 'accessToken'
-
-const getCookie = (name: string) => {
-        if (typeof document === 'undefined') {
-                return undefined
-        }
-
-        const parts = document.cookie.split(';')
-        for (const part of parts) {
-                const [rawKey, ...rawValue] = part.split('=')
-                if (!rawKey || rawValue.length === 0) {
-                        continue
-                }
-
-                const key = rawKey.trim()
-                if (key === name) {
-                        return decodeURIComponent(rawValue.join('=').trim())
-                }
-        }
-
-        return undefined
-}
-
 export const useNotificationGateway = () => {
         const currentUser = useSelector(selectCurrentUser)
         const currentUserId = currentUser?.id
@@ -100,23 +77,13 @@ export const useNotificationGateway = () => {
                 const socketUrl = `${env.SOCKET_URL}${NOTIFICATION_NAMESPACE}`
                 setIsConnecting(true)
 
-                const accessToken = getCookie(ACCESS_TOKEN_COOKIE)
-
                 const socket = io(socketUrl, {
                         withCredentials: true,
                         transports: ['websocket'],
-                        autoConnect: true,
-                        auth: accessToken ? { token: accessToken } : undefined
+                        autoConnect: true
                 }) as NotificationSocket
 
                 socketRef.current = socket
-
-                const handleReconnectAttempt = () => {
-                        const nextToken = getCookie(ACCESS_TOKEN_COOKIE)
-                        if (nextToken) {
-                                socket.auth = { token: nextToken }
-                        }
-                }
 
                 const handleRecent = (items: Notification[]) => {
                         setNotifications(prev => mergeNotifications(prev, items))
@@ -143,7 +110,6 @@ export const useNotificationGateway = () => {
                         setIsConnecting(false)
                 }
 
-                socket.on('reconnect_attempt', handleReconnectAttempt)
                 socket.on('connect', handleConnect)
                 socket.on('disconnect', handleDisconnect)
                 socket.on('connect_error', handleConnectError)
@@ -151,7 +117,6 @@ export const useNotificationGateway = () => {
                 socket.on(NotificationServerEvent.CREATED, handleCreated)
 
                 return () => {
-                        socket.off('reconnect_attempt', handleReconnectAttempt)
                         socket.off('connect', handleConnect)
                         socket.off('disconnect', handleDisconnect)
                         socket.off('connect_error', handleConnectError)
