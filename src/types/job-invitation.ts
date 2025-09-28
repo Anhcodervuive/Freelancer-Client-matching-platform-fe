@@ -74,3 +74,8 @@ export type PaginatedJobInvitationResponse = {
         limit?: number
         message?: string
 }
+
+export type RespondJobInvitationInput = {
+        status: Extract<JobInvitationStatus, 'ACCEPTED' | 'DECLINED'>
+        message?: string
+}

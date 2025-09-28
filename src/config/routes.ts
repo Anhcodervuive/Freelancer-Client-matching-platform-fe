@@ -11,6 +11,9 @@ export const routes = {
         freelancer: {
                 jobs: {
                         list: '/freelancer/jobs',
+                        saved: '/freelancer/jobs/saved',
+                        invitations: '/freelancer/jobs/proposals',
+                        invitationDetail: (id: string = 'id') => `/freelancer/jobs/proposals/${id}`,
                         detail: (id: string = 'id') => `/freelancer/jobs/${id}`
                 }
         },

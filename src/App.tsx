@@ -47,6 +47,8 @@ import PostJobWizard from './pages/Client/PostJob/PostJobWizard'
 import JobPostListPage from './pages/Client/JobPosts/JobPostListPage'
 import JobPostDetailPage from './pages/Client/JobPosts/JobPostDetailPage'
 import JobMarketplacePage from './pages/Freelancer/Jobs/JobMarketplacePage'
+import SavedJobsPage from './pages/Freelancer/Jobs/SavedJobsPage'
+import JobInvitationsPage from './pages/Freelancer/Jobs/JobInvitationsPage'
 import JobMarketplaceDetailPage from './pages/Freelancer/Jobs/JobMarketplaceDetailPage'
 import ClientFreelancerListPage from './pages/Client/Freelancers/ClientFreelancerListPage'
 
@@ -76,16 +78,31 @@ const router = createBrowserRouter([
 				path: routes.comons.home,
 				element: <HomePage />
 			},
-			{
-				path: routes.freelancer.jobs.list,
-				loader: requireAuthenticatedUserOrRedirectHome,
-				element: <JobMarketplacePage />
-			},
-			{
-				path: routes.freelancer.jobs.detail(':jobId'),
-				loader: requireAuthenticatedUserOrRedirectHome,
-				element: <JobMarketplaceDetailPage />
-			},
+                        {
+                                path: routes.freelancer.jobs.list,
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <JobMarketplacePage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.saved,
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <SavedJobsPage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.invitations,
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <JobInvitationsPage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.invitationDetail(':invitationId'),
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <JobInvitationsPage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.detail(':jobId'),
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <JobMarketplaceDetailPage />
+                        },
 			{
 				path: routes.client.freelancers.list,
 				loader: composeLoaders(checkAuthenticatedUser, isClientUser),

@@ -3,10 +3,12 @@ import type {
         CreateJobInvitationInput,
         JobInvitation,
         JobInvitationFilterInput,
-        PaginatedJobInvitationResponse
+        PaginatedJobInvitationResponse,
+        RespondJobInvitationInput
 } from '~/types/job-invitation'
 
 const baseUrl = '/client/job-invitations'
+const freelancerBaseUrl = '/freelancer/job-invitations'
 
 const serializeFilters = (filters: JobInvitationFilterInput = {}) => {
         const params = new URLSearchParams()
@@ -68,5 +70,30 @@ export const getJobInvitationDetail = async (invitationId: string): Promise<JobI
 
 export const deleteJobInvitation = async (invitationId: string) => {
         const response = await authorizeAxiosInstance.delete(`${baseUrl}/${invitationId}`)
+        return response.data
+}
+
+export const listFreelancerJobInvitations = async (
+        filters: JobInvitationFilterInput = {}
+): Promise<PaginatedJobInvitationResponse> => {
+        const response = await authorizeAxiosInstance.get<PaginatedJobInvitationResponse>(
+                `${freelancerBaseUrl}${serializeFilters(filters)}`
+        )
+        return response.data
+}
+
+export const getFreelancerJobInvitationDetail = async (invitationId: string): Promise<JobInvitation> => {
+        const response = await authorizeAxiosInstance.get<JobInvitation>(`${freelancerBaseUrl}/${invitationId}`)
+        return response.data
+}
+
+export const respondToJobInvitation = async (
+        invitationId: string,
+        payload: RespondJobInvitationInput
+) => {
+        const response = await authorizeAxiosInstance.post<JobInvitation>(
+                `${freelancerBaseUrl}/${invitationId}/respond`,
+                payload
+        )
         return response.data
 }

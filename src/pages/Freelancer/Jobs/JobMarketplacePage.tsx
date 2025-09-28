@@ -74,7 +74,12 @@ const toggleFilterValue = (values: string[], value: string): string[] => {
         return [...values, value]
 }
 
-export default function JobMarketplacePage() {
+type JobMarketplacePageProps = {
+        savedOnlyMode?: boolean
+}
+
+export default function JobMarketplacePage({ savedOnlyMode = false }: JobMarketplacePageProps) {
+        const isSavedMode = Boolean(savedOnlyMode)
         const [page, setPage] = useState(1)
         const [search, setSearch] = useState('')
         const [experienceLevels, setExperienceLevels] = useState<string[]>([])
@@ -83,7 +88,7 @@ export default function JobMarketplacePage() {
         const [budgetMin, setBudgetMin] = useState('')
         const [budgetMax, setBudgetMax] = useState('')
         const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest')
-        const [savedOnly, setSavedOnly] = useState(false)
+        const [savedOnly, setSavedOnly] = useState<boolean>(isSavedMode)
 
         const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE)
         const debouncedExperienceLevels = useDebounce(experienceLevels, FILTER_DEBOUNCE)
@@ -191,7 +196,7 @@ export default function JobMarketplacePage() {
                 setBudgetMin('')
                 setBudgetMax('')
                 setSortBy('newest')
-                setSavedOnly(false)
+                setSavedOnly(isSavedMode)
                 setPage(1)
         }
 
@@ -310,10 +315,13 @@ export default function JobMarketplacePage() {
                 <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
                         <div className='flex flex-col gap-2 pb-6'>
                                 <p className='text-sm font-semibold uppercase tracking-wide text-primary/80'>Find work</p>
-                                <h1 className='text-3xl font-semibold text-base-content'>Explore jobs tailored to your expertise</h1>
+                                <h1 className='text-3xl font-semibold text-base-content'>
+                                        {isSavedMode ? 'Your saved opportunities' : 'Explore jobs tailored to your expertise'}
+                                </h1>
                                 <p className='max-w-2xl text-sm text-base-content/70'>
-                                        Browse curated opportunities and use filters to surface the projects that match your skills and
-                                        interests.
+                                        {isSavedMode
+                                                ? 'Quickly revisit the jobs you have bookmarked and decide which proposals to send next.'
+                                                : 'Browse curated opportunities and use filters to surface the projects that match your skills and interests.'}
                                 </p>
                         </div>
 
@@ -449,23 +457,25 @@ export default function JobMarketplacePage() {
                             </div>
                     </div>
 
-                    <div>
-                            <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                    <Bookmark className='size-3' /> Saved jobs
+                    {!isSavedMode && (
+                            <div>
+                                    <div className='mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                            <Bookmark className='size-3' /> Saved jobs
+                                    </div>
+                                    <label className='flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2 hover:border-base-200'>
+                                            <span className='text-sm text-base-content/80'>Show saved jobs only</span>
+                                            <input
+                                                    type='checkbox'
+                                                    className='toggle toggle-sm'
+                                                    checked={savedOnly}
+                                                    onChange={event => {
+                                                            setSavedOnly(event.target.checked)
+                                                            setPage(1)
+                                                    }}
+                                            />
+                                    </label>
                             </div>
-                            <label className='flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2 hover:border-base-200'>
-                                    <span className='text-sm text-base-content/80'>Show saved jobs only</span>
-                                    <input
-                                            type='checkbox'
-                                            className='toggle toggle-sm'
-                                            checked={savedOnly}
-                                            onChange={event => {
-                                                    setSavedOnly(event.target.checked)
-                                                    setPage(1)
-                                            }}
-                                    />
-                            </label>
-                    </div>
+                    )}
             </div>
                     </div>
                                 </aside>
