@@ -48,8 +48,10 @@ import JobPostListPage from './pages/Client/JobPosts/JobPostListPage'
 import JobPostDetailPage from './pages/Client/JobPosts/JobPostDetailPage'
 import JobMarketplacePage from './pages/Freelancer/Jobs/JobMarketplacePage'
 import SavedJobsPage from './pages/Freelancer/Jobs/SavedJobsPage'
-import JobInvitationsPage from './pages/Freelancer/Jobs/JobInvitationsPage'
 import JobMarketplaceDetailPage from './pages/Freelancer/Jobs/JobMarketplaceDetailPage'
+import JobProposalsPage from './pages/Freelancer/Jobs/JobProposalsPage'
+import SubmitJobProposalPage from './pages/Freelancer/Jobs/SubmitJobProposalPage'
+import EditJobProposalPage from './pages/Freelancer/Jobs/EditJobProposalPage'
 import ClientFreelancerListPage from './pages/Client/Freelancers/ClientFreelancerListPage'
 
 const persistor = persistStore(store)
@@ -91,12 +93,22 @@ const router = createBrowserRouter([
                         {
                                 path: routes.freelancer.jobs.invitations,
                                 loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <JobInvitationsPage />
+                                element: <JobProposalsPage />
                         },
                         {
                                 path: routes.freelancer.jobs.invitationDetail(':invitationId'),
                                 loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <JobInvitationsPage />
+                                element: <JobProposalsPage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.proposalEdit(':proposalId'),
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <EditJobProposalPage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.proposalCreate(':jobId'),
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <SubmitJobProposalPage />
                         },
                         {
                                 path: routes.freelancer.jobs.detail(':jobId'),

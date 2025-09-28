@@ -12,6 +12,7 @@ import {
         Globe,
         Loader2,
         MapPin,
+        Send,
         Sparkles,
         Wallet
 } from 'lucide-react'
@@ -189,6 +190,7 @@ export default function JobMarketplaceDetailPage() {
 
         const isTogglingSave = toggleSaveMutation.isPending && toggleSaveMutation.variables?.id === job.id
         const SaveIcon = isTogglingSave ? Loader2 : job.isSaved ? BookmarkCheck : Bookmark
+        const proposalCreateUrl = routes.freelancer.jobs.proposalCreate(job.id)
 
         return (
                 <div className='mx-auto w-full max-w-5xl px-4 py-8 lg:px-0'>
@@ -213,20 +215,29 @@ export default function JobMarketplaceDetailPage() {
                                                                         <span>Attachments: {job.attachmentsCount ?? 0}</span>
                                                                 </div>
                                                         </div>
-                                                        <button
-                                                                type='button'
-                                                                className='btn btn-outline btn-sm gap-2 self-start'
-                                                                onClick={() =>
-                                                                        toggleSaveMutation.mutate({
-                                                                                id: job.id,
-                                                                                isSaved: job.isSaved
-                                                                        })
-                                                                }
-                                                                disabled={isTogglingSave}
-                                                        >
-                                                                <SaveIcon className={`size-4 ${isTogglingSave ? 'animate-spin' : ''}`} />
-                                                                {job.isSaved ? 'Saved job' : 'Save job'}
-                                                        </button>
+                                                        <div className='flex flex-wrap gap-2 self-start'>
+                                                                <Link
+                                                                        to={proposalCreateUrl}
+                                                                        className='btn btn-primary btn-sm gap-2'
+                                                                >
+                                                                        <Send className='size-4' />
+                                                                        Submit proposal
+                                                                </Link>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-outline btn-sm gap-2'
+                                                                        onClick={() =>
+                                                                                toggleSaveMutation.mutate({
+                                                                                        id: job.id,
+                                                                                        isSaved: job.isSaved
+                                                                                })
+                                                                        }
+                                                                        disabled={isTogglingSave}
+                                                                >
+                                                                        <SaveIcon className={`size-4 ${isTogglingSave ? 'animate-spin' : ''}`} />
+                                                                        {job.isSaved ? 'Saved job' : 'Save job'}
+                                                                </button>
+                                                        </div>
                                                 </div>
                                         </header>
 
