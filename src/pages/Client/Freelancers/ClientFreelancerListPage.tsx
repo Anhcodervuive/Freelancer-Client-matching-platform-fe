@@ -1,7 +1,7 @@
 import { type MouseEvent, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AsyncSelect from 'react-select/async'
-import Select, { type SingleValue, type MultiValue, type StylesConfig, type ActionMeta } from 'react-select'
+import Select, { type SingleValue, type MultiValue, type StylesConfig } from 'react-select'
 import countryList from 'react-select-country-list'
 import {
 	Bookmark,
@@ -245,17 +245,17 @@ export default function ClientFreelancerListPage() {
 		setPage(1)
 	}
 
-        const handleSpecialtyChange = (option: SingleValue<Option>, _meta: ActionMeta<Option>) => {
+        const handleSpecialtyChange = (option: SingleValue<Option>) => {
                 setSelectedSpecialty(option ?? null)
                 setPage(1)
         }
 
-        const handleSkillChange = (option: MultiValue<Option>, _meta: ActionMeta<Option>) => {
+        const handleSkillChange = (option: MultiValue<Option>) => {
                 setSelectedSkills([...option])
                 setPage(1)
         }
 
-        const handleCountryChange = (option: SingleValue<Option>, _meta: ActionMeta<Option>) => {
+        const handleCountryChange = (option: SingleValue<Option>) => {
                 setSelectedCountry(option ?? null)
                 setPage(1)
         }
