@@ -46,6 +46,7 @@ import {
 } from '~/utils/jobPost'
 import { formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import InviteFreelancersTab from './components/InviteFreelancersTab'
+import JobProposalsTab from './components/JobProposalsTab'
 
 const jobDetailTabs = [
         {
@@ -440,12 +441,7 @@ export default function JobPostDetailPage() {
                         case 'invite':
                                 return <InviteFreelancersTab job={job} isActive={activeTab === 'invite'} />
                         case 'proposals':
-                                return (
-                                        <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70 shadow-sm'>
-                                                <p className='text-lg font-medium text-base-content'>Proposal review coming soon</p>
-                                                <p className='mt-2'>Track, shortlist, and respond to proposals once freelancers start applying to this job.</p>
-                                        </div>
-                                )
+                                return <JobProposalsTab job={job} isActive={activeTab === 'proposals'} />
                         case 'saved':
                                 return (
                                         <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70 shadow-sm'>
