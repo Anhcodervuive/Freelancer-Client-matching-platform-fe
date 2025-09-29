@@ -53,6 +53,7 @@ import JobProposalsPage from './pages/Freelancer/Jobs/JobProposalsPage'
 import SubmitJobProposalPage from './pages/Freelancer/Jobs/SubmitJobProposalPage'
 import EditJobProposalPage from './pages/Freelancer/Jobs/EditJobProposalPage'
 import ClientFreelancerListPage from './pages/Client/Freelancers/ClientFreelancerListPage'
+import JobChatPage from './pages/Comons/Chat/JobChatPage'
 
 const persistor = persistStore(store)
 
@@ -84,6 +85,11 @@ const router = createBrowserRouter([
                                 path: routes.freelancer.jobs.list,
                                 loader: requireAuthenticatedUserOrRedirectHome,
                                 element: <JobMarketplacePage />
+                        },
+                        {
+                                path: routes.messages.jobs,
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <JobChatPage />
                         },
                         {
                                 path: routes.freelancer.jobs.saved,

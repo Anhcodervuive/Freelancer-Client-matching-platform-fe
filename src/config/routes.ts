@@ -8,6 +8,9 @@ export const routes = {
                         connectAccount: '/policies/connect-account'
                 }
         },
+        messages: {
+                jobs: '/messages/jobs'
+        },
         freelancer: {
                 jobs: {
                         list: '/freelancer/jobs',

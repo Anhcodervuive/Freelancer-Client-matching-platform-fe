@@ -10,6 +10,7 @@ const navItems = [
         { label: 'Talent Marketplace', to: routes.comons.home },
         { label: 'Find Freelancers', to: routes.client.freelancers.list },
         { label: 'My Jobs', to: routes.me.client.jobs.list },
+        { label: 'Job Messages', to: routes.messages.jobs },
         { label: 'Reports', to: routes.me.client.jobs.list }
 ]
 
