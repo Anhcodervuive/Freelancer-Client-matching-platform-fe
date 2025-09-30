@@ -29,13 +29,14 @@ export default function JobSummaryPanel({ thread, milestones, attachments }: Job
                 .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
 
         return (
-                <aside className='flex h-full flex-col gap-6 rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
-                        <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
-                                <div className='flex items-start justify-between gap-3'>
-                                        <div>
-                                                <p className='text-xs font-medium uppercase tracking-wide text-primary/80'>Active contract</p>
-                                                <h2 className='mt-1 text-lg font-semibold text-slate-900'>{thread.jobTitle}</h2>
-                                                <p className='text-sm text-slate-500'>#{thread.jobCode} · {thread.jobCategory}</p>
+                <aside className='flex h-full flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
+                        <div className='flex-1 space-y-6 overflow-y-auto pr-1'>
+                                <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
+                                        <div className='flex items-start justify-between gap-3'>
+                                                <div>
+                                                        <p className='text-xs font-medium uppercase tracking-wide text-primary/80'>Active contract</p>
+                                                        <h2 className='mt-1 text-lg font-semibold text-slate-900'>{thread.jobTitle}</h2>
+                                                        <p className='text-sm text-slate-500'>#{thread.jobCode} · {thread.jobCategory}</p>
                                         </div>
                                         <span className='inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600'>
                                                 <ShieldCheck className='size-4' />
@@ -64,14 +65,14 @@ export default function JobSummaryPanel({ thread, milestones, attachments }: Job
                                                 <p className='text-xs text-slate-500'>Synced to your calendar</p>
                                         </div>
                                 </div>
-                        </section>
+                                </section>
 
-                        <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
-                                <header className='mb-3 flex items-center justify-between text-sm font-semibold text-slate-900'>
-                                        <span>Milestones</span>
-                                        <button type='button' className='text-xs font-medium text-primary transition hover:text-primary/80'>View contract</button>
-                                </header>
-                                <ol className='space-y-3'>
+                                <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
+                                        <header className='mb-3 flex items-center justify-between text-sm font-semibold text-slate-900'>
+                                                <span>Milestones</span>
+                                                <button type='button' className='text-xs font-medium text-primary transition hover:text-primary/80'>View contract</button>
+                                        </header>
+                                        <ol className='space-y-3'>
                                         {milestones.map(milestone => (
                                                 <li
                                                         key={milestone.id}
@@ -99,14 +100,14 @@ export default function JobSummaryPanel({ thread, milestones, attachments }: Job
                                                 </li>
                                         ))}
                                 </ol>
-                        </section>
+                                </section>
 
-                        <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
-                                <header className='mb-3 flex items-center justify-between text-sm font-semibold text-slate-900'>
-                                        <span>Shared reviews</span>
-                                        <span className='text-xs font-medium text-slate-400'>Sorted by newest</span>
-                                </header>
-                                {images.length > 0 ? (
+                                <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
+                                        <header className='mb-3 flex items-center justify-between text-sm font-semibold text-slate-900'>
+                                                <span>Shared reviews</span>
+                                                <span className='text-xs font-medium text-slate-400'>Sorted by newest</span>
+                                        </header>
+                                        {images.length > 0 ? (
                                         <div className='grid grid-cols-2 gap-3'>
                                                 {images.map(image => (
                                                         <a
@@ -129,14 +130,14 @@ export default function JobSummaryPanel({ thread, milestones, attachments }: Job
                                 ) : (
                                         <p className='text-sm text-slate-500'>No design reviews shared yet.</p>
                                 )}
-                        </section>
+                                </section>
 
-                        <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
-                                <header className='mb-3 flex items-center justify-between text-sm font-semibold text-slate-900'>
-                                        <span>Shared files</span>
-                                        <span className='text-xs font-medium text-slate-400'>Sorted by newest</span>
-                                </header>
-                                {files.length > 0 ? (
+                                <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
+                                        <header className='mb-3 flex items-center justify-between text-sm font-semibold text-slate-900'>
+                                                <span>Shared files</span>
+                                                <span className='text-xs font-medium text-slate-400'>Sorted by newest</span>
+                                        </header>
+                                        {files.length > 0 ? (
                                         <ul className='space-y-2 text-sm text-slate-600'>
                                                 {files.map(file => (
                                                         <li key={file.id}>
@@ -159,7 +160,8 @@ export default function JobSummaryPanel({ thread, milestones, attachments }: Job
                                 ) : (
                                         <p className='text-sm text-slate-500'>Files that you send will appear here for easy review.</p>
                                 )}
-                        </section>
+                                </section>
+                        </div>
                 </aside>
         )
 }

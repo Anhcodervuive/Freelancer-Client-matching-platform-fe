@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ChatMessageList from '~/components/chat/ChatMessageList'
 import ChatComposer from '~/components/chat/ChatComposer'
 import JobChatSidebar from '~/components/chat/JobChatSidebar'
@@ -250,6 +250,8 @@ const messagesByThread: Record<string, ChatMessage[]> = {
 }
 
 export default function JobChatPage() {
+        const workspaceRef = useRef<HTMLDivElement | null>(null)
+        const [workspaceHeight, setWorkspaceHeight] = useState<number>(720)
         const [selectedThreadId, setSelectedThreadId] = useState(jobThreads[0]?.id ?? '')
         const [searchTerm, setSearchTerm] = useState('')
 
@@ -283,6 +285,30 @@ export default function JobChatPage() {
                 return prioritisedThreads[0] ?? jobThreads[0]
         }, [filteredThreads, selectedThreadId])
 
+        useEffect(() => {
+                const calculateWorkspaceHeight = () => {
+                        if (!workspaceRef.current) {
+                                return
+                        }
+
+                        const { top } = workspaceRef.current.getBoundingClientRect()
+                        const footerElement = document.querySelector('footer')
+                        const footerHeight = footerElement?.getBoundingClientRect().height ?? 0
+
+                        const availableHeight = window.innerHeight - top - footerHeight - 32
+
+                        const nextHeight = availableHeight > 0 ? availableHeight : 560
+                        setWorkspaceHeight(nextHeight)
+                }
+
+                calculateWorkspaceHeight()
+                window.addEventListener('resize', calculateWorkspaceHeight)
+
+                return () => {
+                        window.removeEventListener('resize', calculateWorkspaceHeight)
+                }
+        }, [])
+
         const messages = useMemo<ChatMessage[]>(() => {
                 if (!activeThread) {
                         return []
@@ -312,7 +338,11 @@ export default function JobChatPage() {
         }
 
         return (
-                <div className='grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px]'>
+                <div
+                        ref={workspaceRef}
+                        style={{ minHeight: workspaceHeight, height: workspaceHeight }}
+                        className='grid w-full gap-6 lg:grid-cols-[280px_minmax(0,_1fr)] xl:grid-cols-[280px_minmax(0,_1.35fr)_320px] 2xl:grid-cols-[300px_minmax(0,_1.6fr)_360px]'
+                >
                         <JobChatSidebar
                                 threads={filteredThreads}
                                 selectedThreadId={activeThread.id}
@@ -321,7 +351,7 @@ export default function JobChatPage() {
                                 onSearchTermChange={setSearchTerm}
                         />
 
-                        <section className='flex min-h-[720px] flex-col gap-4 rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
+                        <section className='flex h-full flex-col gap-4 rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
                                 <JobChatHeader thread={activeThread} />
                                 <div className='flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
                                         <ChatMessageList messages={messages} jobTitle={activeThread.jobTitle} />
