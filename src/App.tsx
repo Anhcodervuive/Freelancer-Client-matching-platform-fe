@@ -24,6 +24,7 @@ import { routes } from './config/routes'
 import NotFoundPage from './pages/Error/NotFoundPage'
 import CommonLayout from './layouts/CommonLayout'
 import AdminLayout from './layouts/AdminLayout'
+import JobChatLayout from './layouts/JobChatLayout'
 import AdminProjects from './pages/Admin/AdminProjects'
 import ProfilePage from './pages/Me/ProfilePage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -85,11 +86,6 @@ const router = createBrowserRouter([
                                 path: routes.freelancer.jobs.list,
                                 loader: requireAuthenticatedUserOrRedirectHome,
                                 element: <JobMarketplacePage />
-                        },
-                        {
-                                path: routes.messages.jobs,
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <JobChatPage />
                         },
                         {
                                 path: routes.freelancer.jobs.saved,
@@ -207,11 +203,23 @@ const router = createBrowserRouter([
 					}
 				]
 			}
-		]
-	},
-	// Admin
-	{
-		path: '/admin',
+                ]
+        },
+        // Job chat workspace (full-width layout)
+        {
+                path: routes.messages.jobs,
+                loader: requireAuthenticatedUserOrRedirectHome,
+                element: <JobChatLayout />,
+                children: [
+                        {
+                                index: true,
+                                element: <JobChatPage />
+                        }
+                ]
+        },
+        // Admin
+        {
+                path: '/admin',
 		loader: composeLoaders(checkAuthenticatedUser, isAdminUser),
 		element: <AdminLayout />,
 		children: [
