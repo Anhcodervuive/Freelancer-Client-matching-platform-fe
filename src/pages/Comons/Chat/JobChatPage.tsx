@@ -4,7 +4,7 @@ import ChatComposer from '~/components/chat/ChatComposer'
 import JobChatSidebar from '~/components/chat/JobChatSidebar'
 import JobSummaryPanel from '~/components/chat/JobSummaryPanel'
 import JobChatHeader from '~/components/chat/JobChatHeader'
-import JobChatLoadingState from '~/components/chat/JobChatLoadingState'
+import ChatLoadingState from '~/components/chat/ChatLoadingState'
 import type { ChatAttachment, ChatMessage, JobMilestone, JobThread } from '~/components/chat/types'
 
 const jobThreads: JobThread[] = [
@@ -17,7 +17,8 @@ const jobThreads: JobThread[] = [
                 freelancerName: 'Tuấn Nguyễn',
                 budget: '$3,200',
                 updatedAt: '2024-09-18T14:32:00Z',
-                lastMessageSnippet: 'Mockups for onboarding are attached below. Let me know which variant fits best so I can finalize the responsive states.',
+                lastMessageSnippet:
+                        'Mockups for onboarding are attached below. Let me know which variant fits best so I can finalize the responsive states.',
                 unreadCount: 2,
                 status: 'Active contract'
         },
@@ -125,7 +126,8 @@ const messagesByThread: Record<string, ChatMessage[]> = {
                         id: 'msg-1',
                         senderRole: 'client',
                         senderName: 'Linh Tran',
-                        content: "Morning Tuấn! We loved the hero exploration from last round. Can you also explore how the pricing block handles 3 plans?",
+                        content:
+                                "Morning Tuấn! We loved the hero exploration from last round. Can you also explore how the pricing block handles 3 plans?",
                         sentAt: '2024-09-18T08:15:00Z',
                         status: 'read'
                 },
@@ -133,7 +135,8 @@ const messagesByThread: Record<string, ChatMessage[]> = {
                         id: 'msg-2',
                         senderRole: 'freelancer',
                         senderName: 'Tuấn Nguyễn',
-                        content: "Absolutely. I've prepared two alternatives for the pricing section and polished the onboarding walkthrough.",
+                        content:
+                                "Absolutely. I've prepared two alternatives for the pricing section and polished the onboarding walkthrough.",
                         sentAt: '2024-09-18T09:02:00Z',
                         status: 'read',
                         attachments: [
@@ -142,7 +145,8 @@ const messagesByThread: Record<string, ChatMessage[]> = {
                                         type: 'image',
                                         name: 'onboarding-step-01.png',
                                         url: 'https://images.unsplash.com/photo-1523475472560-d2df97ec485c?auto=format&fit=crop&w=640&q=80',
-                                        previewUrl: 'https://images.unsplash.com/photo-1523475472560-d2df97ec485c?auto=format&fit=crop&w=640&q=80',
+                                        previewUrl:
+                                                'https://images.unsplash.com/photo-1523475472560-d2df97ec485c?auto=format&fit=crop&w=640&q=80',
                                         size: '1.2 MB',
                                         uploadedAt: '2024-09-18T09:01:00Z'
                                 },
@@ -151,7 +155,8 @@ const messagesByThread: Record<string, ChatMessage[]> = {
                                         type: 'image',
                                         name: 'pricing-variant-a.png',
                                         url: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=640&q=80',
-                                        previewUrl: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=640&q=80',
+                                        previewUrl:
+                                                'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=640&q=80',
                                         size: '980 KB',
                                         uploadedAt: '2024-09-18T09:01:30Z'
                                 }
@@ -161,7 +166,8 @@ const messagesByThread: Record<string, ChatMessage[]> = {
                         id: 'msg-3',
                         senderRole: 'client',
                         senderName: 'Linh Tran',
-                        content: 'Variant A feels closer to what we need. Could you also include a testimonial slider below the plans? We have copy ready.',
+                        content:
+                                'Variant A feels closer to what we need. Could you also include a testimonial slider below the plans? We have copy ready.',
                         sentAt: '2024-09-18T11:24:00Z',
                         status: 'delivered'
                 },
@@ -205,7 +211,8 @@ const messagesByThread: Record<string, ChatMessage[]> = {
                         id: 'msg-6',
                         senderRole: 'freelancer',
                         senderName: 'Lan Phương',
-                        content: 'Got it. Smoke tests are done. Uploading the regression deck + annotated sheet for bug priorities.',
+                        content:
+                                'Got it. Smoke tests are done. Uploading the regression deck + annotated sheet for bug priorities.',
                         sentAt: '2024-09-17T07:30:00Z',
                         status: 'read',
                         attachments: [
@@ -233,7 +240,8 @@ const messagesByThread: Record<string, ChatMessage[]> = {
                         id: 'msg-7',
                         senderRole: 'freelancer',
                         senderName: 'Minh Châu',
-                        content: 'Here is the proposal outlining the audit scope. Let me know if the milestone split aligns with your plan.',
+                        content:
+                                'Here is the proposal outlining the audit scope. Let me know if the milestone split aligns with your plan.',
                         sentAt: '2024-09-15T08:10:00Z',
                         status: 'sent',
                         attachments: [
@@ -317,7 +325,7 @@ export default function JobChatPage() {
         }, [activeThread])
 
         if (isLoading) {
-                return <JobChatLoadingState />
+                return <ChatLoadingState showSummaryPanel />
         }
 
         if (!activeThread) {

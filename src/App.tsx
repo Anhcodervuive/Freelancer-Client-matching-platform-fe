@@ -76,9 +76,9 @@ injectStore(store)
 
 const router = createBrowserRouter([
 	// Common
-	{
-		element: <CommonLayout />,
-		children: [
+        {
+                element: <CommonLayout />,
+                children: [
                         {
                                 path: routes.comons.home,
                                 element: <HomePage />
@@ -206,9 +206,9 @@ const router = createBrowserRouter([
 					{
 						path: 'edit/:id',
 						element: <EditPaymentMethod />
-					}
-				]
-			}
+                                        }
+                                ]
+                        }
                 ]
         },
         // Job chat workspace (full-width layout)

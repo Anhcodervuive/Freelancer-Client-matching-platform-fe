@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MessageSquare, Plus, Search, Send } from 'lucide-react'
+import ChatLoadingState from '~/components/chat/ChatLoadingState'
 
 interface ConversationMessage {
         id: string
@@ -199,11 +200,26 @@ const emptyPlaceholder = (
 
 const ChatPage = () => {
         const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
+        const [isLoading, setIsLoading] = useState(true)
+
+        useEffect(() => {
+                const timer = setTimeout(() => {
+                        setIsLoading(false)
+                }, 850)
+
+                return () => {
+                        clearTimeout(timer)
+                }
+        }, [])
 
         const selectedConversation = useMemo(
                 () => conversations.find(conversation => conversation.id === selectedConversationId) ?? null,
                 [selectedConversationId]
         )
+
+        if (isLoading) {
+                return <ChatLoadingState />
+        }
 
         return (
                 <div className='grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]'>

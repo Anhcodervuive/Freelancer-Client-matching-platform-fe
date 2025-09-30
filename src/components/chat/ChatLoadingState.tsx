@@ -4,7 +4,11 @@ const shimmerBaseClass =
 const shimmerSectionClass =
         'rounded-3xl border border-white/60 bg-white/75 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur'
 
-export default function JobChatLoadingState() {
+type ChatLoadingStateProps = {
+        showSummaryPanel?: boolean
+}
+
+export default function ChatLoadingState({ showSummaryPanel = false }: ChatLoadingStateProps) {
         const renderListPlaceholder = (items: number) =>
                 Array.from({ length: items }).map((_, index) => (
                         <div
@@ -47,8 +51,12 @@ export default function JobChatLoadingState() {
                         </div>
                 ))
 
+        const gridClassName = showSummaryPanel
+                ? 'grid h-full min-h-[640px] w-full gap-6 lg:grid-cols-[260px_minmax(0,_1fr)] xl:grid-cols-[260px_minmax(0,_1.6fr)_300px] 2xl:grid-cols-[280px_minmax(0,_1.9fr)_340px]'
+                : 'grid h-full min-h-[520px] w-full gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]'
+
         return (
-                <div className='grid h-full min-h-[640px] w-full gap-6 lg:grid-cols-[260px_minmax(0,_1fr)] xl:grid-cols-[260px_minmax(0,_1.6fr)_300px] 2xl:grid-cols-[280px_minmax(0,_1.9fr)_340px]'>
+                <div className={gridClassName}>
                         <aside className={`flex min-h-0 flex-col gap-4 p-4 ${shimmerSectionClass}`}>
                                 <div className={`h-12 rounded-2xl bg-white/80 px-4 ${shimmerBaseClass}`}></div>
                                 <div className='flex items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider text-slate-400'>
@@ -85,27 +93,29 @@ export default function JobChatLoadingState() {
                                 </div>
                         </section>
 
-                        <aside className={`hidden min-h-0 flex-col gap-4 p-4 xl:flex ${shimmerSectionClass}`}>
-                                <div className={`rounded-3xl bg-white/85 p-5 shadow ${shimmerBaseClass}`}>
-                                        <div className='flex flex-col gap-3'>
-                                                <div className='h-3.5 w-32 rounded-full bg-slate-200/70'></div>
-                                                <div className='h-3 w-24 rounded-full bg-slate-200/60'></div>
-                                        </div>
-                                </div>
-                                <div className='flex flex-col gap-3'>
-                                        {renderMilestonePlaceholder(3)}
-                                </div>
-                                <div className={`rounded-3xl bg-white/85 p-5 shadow ${shimmerBaseClass}`}>
-                                        <div className='flex flex-col gap-3'>
-                                                <div className='h-3.5 w-36 rounded-full bg-slate-200/70'></div>
-                                                <div className='grid grid-cols-2 gap-3'>
-                                                        <div className='h-16 rounded-2xl bg-slate-200/40'></div>
-                                                        <div className='h-16 rounded-2xl bg-slate-200/40'></div>
-                                                        <div className='col-span-2 h-16 rounded-2xl bg-slate-200/40'></div>
+                        {showSummaryPanel ? (
+                                <aside className={`hidden min-h-0 flex-col gap-4 p-4 xl:flex ${shimmerSectionClass}`}>
+                                        <div className={`rounded-3xl bg-white/85 p-5 shadow ${shimmerBaseClass}`}>
+                                                <div className='flex flex-col gap-3'>
+                                                        <div className='h-3.5 w-32 rounded-full bg-slate-200/70'></div>
+                                                        <div className='h-3 w-24 rounded-full bg-slate-200/60'></div>
                                                 </div>
                                         </div>
-                                </div>
-                        </aside>
+                                        <div className='flex flex-col gap-3'>
+                                                {renderMilestonePlaceholder(3)}
+                                        </div>
+                                        <div className={`rounded-3xl bg-white/85 p-5 shadow ${shimmerBaseClass}`}>
+                                                <div className='flex flex-col gap-3'>
+                                                        <div className='h-3.5 w-36 rounded-full bg-slate-200/70'></div>
+                                                        <div className='grid grid-cols-2 gap-3'>
+                                                                <div className='h-16 rounded-2xl bg-slate-200/40'></div>
+                                                                <div className='h-16 rounded-2xl bg-slate-200/40'></div>
+                                                                <div className='col-span-2 h-16 rounded-2xl bg-slate-200/40'></div>
+                                                        </div>
+                                                </div>
+                                        </div>
+                                </aside>
+                        ) : null}
                 </div>
         )
 }
