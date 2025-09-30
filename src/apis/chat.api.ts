@@ -1,4 +1,5 @@
-import type { ChatThreadType } from '~/types/chat'
+import type { ListResponse } from '~/types/api.response'
+import type { chatThread, ChatThreadType } from '~/types/chat'
 import type { Role } from '~/types/user'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
@@ -24,7 +25,7 @@ export type ChatSearchParam = {
 	includeAttachments: boolean
 }
 
-export const getAllChatThread = async (params: ChatThreadsSearchParam) => {
+export const getAllChatThread = async (params: ChatThreadsSearchParam): Promise<ListResponse<chatThread>> => {
 	const res = await authorizeAxiosInstance.get(`${baseUrl}/threads`, {
 		params
 	})
