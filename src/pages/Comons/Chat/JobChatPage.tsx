@@ -266,10 +266,6 @@ export default function JobChatPage() {
                 }
         }, [])
 
-        if (isLoading) {
-                return <JobChatLoadingState />
-        }
-
         const filteredThreads = useMemo(() => {
                 const term = searchTerm.trim().toLowerCase()
                 return jobThreads
@@ -319,6 +315,10 @@ export default function JobChatPage() {
                 }
                 return milestonesByThread[activeThread.id] ?? []
         }, [activeThread])
+
+        if (isLoading) {
+                return <JobChatLoadingState />
+        }
 
         if (!activeThread) {
                 return (
