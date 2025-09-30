@@ -50,3 +50,14 @@
 		color: rgb(15 118 110);
 	}
 }
+
+@layer utilities {
+        @keyframes shimmer {
+                0% {
+                        transform: translateX(-100%);
+                }
+                100% {
+                        transform: translateX(100%);
+                }
+        }
+}
