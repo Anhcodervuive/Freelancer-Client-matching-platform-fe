@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ChatMessageList from '~/components/chat/ChatMessageList'
 import ChatComposer from '~/components/chat/ChatComposer'
 import JobChatSidebar from '~/components/chat/JobChatSidebar'
 import JobSummaryPanel from '~/components/chat/JobSummaryPanel'
 import JobChatHeader from '~/components/chat/JobChatHeader'
+import JobChatLoadingState from '~/components/chat/JobChatLoadingState'
 import type { ChatAttachment, ChatMessage, JobMilestone, JobThread } from '~/components/chat/types'
 
 const jobThreads: JobThread[] = [
@@ -250,9 +251,24 @@ const messagesByThread: Record<string, ChatMessage[]> = {
 }
 
 export default function JobChatPage() {
+        const [isLoading, setIsLoading] = useState(true)
         const [selectedThreadId, setSelectedThreadId] = useState(jobThreads[0]?.id ?? '')
         const [searchTerm, setSearchTerm] = useState('')
         const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false)
+
+        useEffect(() => {
+                const timer = setTimeout(() => {
+                        setIsLoading(false)
+                }, 850)
+
+                return () => {
+                        clearTimeout(timer)
+                }
+        }, [])
+
+        if (isLoading) {
+                return <JobChatLoadingState />
+        }
 
         const filteredThreads = useMemo(() => {
                 const term = searchTerm.trim().toLowerCase()
