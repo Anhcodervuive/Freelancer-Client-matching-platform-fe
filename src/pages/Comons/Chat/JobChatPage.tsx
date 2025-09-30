@@ -252,6 +252,7 @@ const messagesByThread: Record<string, ChatMessage[]> = {
 export default function JobChatPage() {
         const [selectedThreadId, setSelectedThreadId] = useState(jobThreads[0]?.id ?? '')
         const [searchTerm, setSearchTerm] = useState('')
+        const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false)
 
         const filteredThreads = useMemo(() => {
                 const term = searchTerm.trim().toLowerCase()
@@ -311,8 +312,14 @@ export default function JobChatPage() {
                 )
         }
 
+        const gridClassName = `grid h-full min-h-0 w-full gap-6 lg:grid-cols-[260px_minmax(0,_1fr)] ${
+                isSummaryCollapsed
+                        ? 'xl:grid-cols-[260px_minmax(0,_1.4fr)_88px] 2xl:grid-cols-[280px_minmax(0,_1.6fr)_96px]'
+                        : 'xl:grid-cols-[260px_minmax(0,_1.6fr)_300px] 2xl:grid-cols-[280px_minmax(0,_1.9fr)_340px]'
+        }`
+
         return (
-                <div className='grid h-full min-h-0 w-full gap-6 lg:grid-cols-[260px_minmax(0,_1fr)] xl:grid-cols-[260px_minmax(0,_1.6fr)_300px] 2xl:grid-cols-[280px_minmax(0,_1.9fr)_340px]'>
+                <div className={gridClassName}>
                         <JobChatSidebar
                                 threads={filteredThreads}
                                 selectedThreadId={activeThread.id}
@@ -329,7 +336,13 @@ export default function JobChatPage() {
                                 </div>
                         </section>
 
-                        <JobSummaryPanel thread={activeThread} milestones={milestones} attachments={sharedAttachments} />
+                        <JobSummaryPanel
+                                thread={activeThread}
+                                milestones={milestones}
+                                attachments={sharedAttachments}
+                                isCollapsed={isSummaryCollapsed}
+                                onToggleCollapse={() => setIsSummaryCollapsed(previous => !previous)}
+                        />
                 </div>
         )
 }
