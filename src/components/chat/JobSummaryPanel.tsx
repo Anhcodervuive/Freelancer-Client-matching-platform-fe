@@ -1,10 +1,12 @@
-import { Calendar, FileText, ImageIcon, ShieldCheck, Star } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, FileText, ImageIcon, ShieldCheck, Star } from 'lucide-react'
 import type { ChatAttachment, JobMilestone, JobThread } from './types'
 
 type JobSummaryPanelProps = {
         thread: JobThread
         milestones: JobMilestone[]
         attachments: ChatAttachment[]
+        isCollapsed: boolean
+        onToggleCollapse: () => void
 }
 
 const milestoneStatusStyles: Record<JobMilestone['status'], string> = {
@@ -20,7 +22,13 @@ function formatDate(date: string) {
         }).format(new Date(date))
 }
 
-export default function JobSummaryPanel({ thread, milestones, attachments }: JobSummaryPanelProps) {
+export default function JobSummaryPanel({
+        thread,
+        milestones,
+        attachments,
+        isCollapsed,
+        onToggleCollapse
+}: JobSummaryPanelProps) {
         const images = attachments
                 .filter(attachment => attachment.type === 'image')
                 .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
@@ -28,8 +36,34 @@ export default function JobSummaryPanel({ thread, milestones, attachments }: Job
                 .filter(attachment => attachment.type === 'file')
                 .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
 
+        if (isCollapsed) {
+                return (
+                        <aside className='flex h-full items-center justify-center rounded-3xl border border-white/60 bg-white/60 p-2 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
+                                <button
+                                        type='button'
+                                        onClick={onToggleCollapse}
+                                        className='flex h-full min-h-[180px] flex-col items-center justify-center gap-2 rounded-2xl border border-white/70 bg-white/90 px-3 py-4 text-xs font-semibold text-slate-600 shadow-inner shadow-primary/5 transition hover:border-primary/40 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-white'
+                                >
+                                        <ChevronLeft className='size-4' />
+                                        <span>Expand</span>
+                                </button>
+                        </aside>
+                )
+        }
+
         return (
                 <aside className='flex h-full flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
+                        <div className='mb-3 flex justify-end'>
+                                <button
+                                        type='button'
+                                        onClick={onToggleCollapse}
+                                        className='inline-flex items-center gap-1 rounded-full border border-white/70 bg-white/90 px-3 py-1 text-xs font-semibold text-slate-500 shadow-inner shadow-primary/5 transition hover:border-primary/40 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-white'
+                                >
+                                        <span className='sr-only'>Collapse job summary</span>
+                                        <span aria-hidden className='hidden sm:inline'>Collapse</span>
+                                        <ChevronRight className='size-3' />
+                                </button>
+                        </div>
                         <div className='flex-1 space-y-6 overflow-y-auto pr-1'>
                                 <section className='rounded-2xl border border-white/70 bg-white/90 p-4 shadow-inner shadow-primary/5'>
                                         <div className='flex items-start justify-between gap-3'>
