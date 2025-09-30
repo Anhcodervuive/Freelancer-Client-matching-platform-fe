@@ -2,6 +2,7 @@ export const routes = {
         comons: {
                 home: '/',
                 onboarding: '/onboarding',
+                chat: '/chat',
                 freelancerProfile: (id?: string) => `/freelancer/${id || ''}`,
                 policies: {
                         root: '/policies',

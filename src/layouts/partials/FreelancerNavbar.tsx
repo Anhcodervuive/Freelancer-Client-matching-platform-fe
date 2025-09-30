@@ -8,6 +8,7 @@ import { routes } from '~/config/routes'
 import { ChevronDown } from 'lucide-react'
 
 const secondaryNavItems = [
+        { label: 'Messages', to: routes.comons.chat },
         { label: 'My Profile', to: routes.me.freelancer.profile },
         { label: 'Readiness', to: routes.comons.onboarding }
 ]
