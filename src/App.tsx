@@ -11,6 +11,7 @@ import { persistStore } from 'redux-persist'
 
 import AuthPage from './pages/Auth'
 import HomePage from './pages/Comons/HomePage'
+import ChatPage from './pages/Comons/ChatPage'
 import {
 	checkAuthenticatedUser,
 	checkWhetherUserLoginMiddleware,
@@ -78,10 +79,15 @@ const router = createBrowserRouter([
 	{
 		element: <CommonLayout />,
 		children: [
-			{
-				path: routes.comons.home,
-				element: <HomePage />
-			},
+                        {
+                                path: routes.comons.home,
+                                element: <HomePage />
+                        },
+                        {
+                                path: routes.comons.chat,
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <ChatPage />
+                        },
                         {
                                 path: routes.freelancer.jobs.list,
                                 loader: requireAuthenticatedUserOrRedirectHome,
