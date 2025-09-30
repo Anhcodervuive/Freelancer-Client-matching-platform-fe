@@ -6,7 +6,7 @@ type ChatComposerProps = {
 
 export default function ChatComposer({ onSendMessage }: ChatComposerProps) {
         return (
-                <div className='mt-6 rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_10px_40px_rgba(15,23,42,0.06)] backdrop-blur'>
+                <div className='mt-4 rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_10px_40px_rgba(15,23,42,0.06)] backdrop-blur'>
                         <div className='flex flex-col gap-3'>
                                 <label className='text-sm font-medium text-slate-600' htmlFor='chat-message'>Message</label>
                                 <textarea

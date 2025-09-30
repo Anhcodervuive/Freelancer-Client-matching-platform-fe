@@ -21,7 +21,7 @@ function formatTime(date: string) {
 
 export default function ChatMessageList({ messages, jobTitle }: ChatMessageListProps) {
         return (
-                <div className='flex-1 space-y-6 overflow-y-auto pr-2'>
+                <div className='flex-1 min-h-0 space-y-6 overflow-y-auto pr-2'>
                         <div className='text-center text-xs font-medium uppercase tracking-wide text-slate-400'>
                                 Conversation started for “{jobTitle}”
                         </div>

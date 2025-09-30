@@ -312,7 +312,7 @@ export default function JobChatPage() {
         }
 
         return (
-                <div className='grid h-full min-h-0 w-full gap-6 lg:grid-cols-[280px_minmax(0,_1fr)] xl:grid-cols-[280px_minmax(0,_1.35fr)_320px] 2xl:grid-cols-[300px_minmax(0,_1.6fr)_360px]'>
+                <div className='grid h-full min-h-0 w-full gap-6 lg:grid-cols-[250px_minmax(0,_1fr)] xl:grid-cols-[240px_minmax(0,_1.45fr)_280px] 2xl:grid-cols-[260px_minmax(0,_1.75fr)_300px]'>
                         <JobChatSidebar
                                 threads={filteredThreads}
                                 selectedThreadId={activeThread.id}
@@ -321,9 +321,9 @@ export default function JobChatPage() {
                                 onSearchTermChange={setSearchTerm}
                         />
 
-                        <section className='flex h-full flex-col gap-4 rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
+                        <section className='flex h-full min-h-0 flex-col gap-4 rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
                                 <JobChatHeader thread={activeThread} />
-                                <div className='flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
+                                <div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
                                         <ChatMessageList messages={messages} jobTitle={activeThread.jobTitle} />
                                         <ChatComposer />
                                 </div>
