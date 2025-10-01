@@ -8,13 +8,13 @@ const baseUrl = '/chat'
 export type ChatThreadsSearchParam = {
 	page: number
 	limit: number
-	type: ChatThreadType
-	jobPostId: string
-	contractId: string
-	search: string
-	participantRole: Role
-	includeParticipants: boolean
-	includeLastMessage: boolean
+	type?: ChatThreadType
+	jobPostId?: string
+	contractId?: string
+	search?: string
+	participantRole?: Role
+	includeParticipants?: boolean
+	includeLastMessage?: boolean
 }
 
 export type ChatSearchParam = {

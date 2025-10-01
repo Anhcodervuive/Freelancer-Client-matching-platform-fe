@@ -1,9 +1,29 @@
+import type { Role } from '~/types/user'
+
 export const CHAT_NAMESPACE = '/chat'
 
 export interface CHAT_PRESENCE_REPSONSE {
 	threadId: string
 	userId: string
 	status: 'online' | 'offline'
+}
+
+type ChatThreadParticipantSummary = {
+	id: string
+	userId: string
+	role: Role
+	profile: {
+		firstName: string | null
+		lastName: string | null
+	}
+}
+
+export interface CHAT_PRESENCE_SYNC_REPSPONSE {
+	thread: {
+		threadId: string
+		presence: Record<string, boolean>
+		participants: ChatThreadParticipantSummary[]
+	}
 }
 
 export const ChatServerEvent = {
@@ -18,7 +38,8 @@ export const ChatClientEvent = {
 	CHAT_TYPING: 'chat:typing',
 	CHAT_NEW_MESSAGE: 'chat:message',
 	CHAT_READ: 'chat:read',
-	CHAT_PRESENCE: 'chat:presence'
+	CHAT_PRESENCE: 'chat:presence',
+	CHAT_PRESENCE_SYNC: 'chat:presence-sync'
 }
 
 export type ChatServerEventKey = (typeof ChatServerEvent)[keyof typeof ChatServerEvent]

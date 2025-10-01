@@ -1,6 +1,12 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { getAllChatThread, type ChatThreadsSearchParam } from '~/apis/chat.api'
-import { CHAT_NAMESPACE, type CHAT_PRESENCE_REPSONSE, ChatClientEvent, type ChatServerEvent } from '~/constants/chat'
+import {
+	CHAT_NAMESPACE,
+	type CHAT_PRESENCE_REPSONSE,
+	type CHAT_PRESENCE_SYNC_REPSPONSE,
+	ChatClientEvent,
+	type ChatServerEvent
+} from '~/constants/chat'
 import type { ChatMessage } from '~/types/chat'
 import { useCredentialedSocket } from '../useCredentialedSocket'
 import { useSelector } from 'react-redux'
@@ -13,12 +19,12 @@ type ServerToClientEvents = {
 
 type ClientToServerEvents = {
 	[ChatClientEvent.CHAT_PRESENCE]: (_presence: CHAT_PRESENCE_REPSONSE) => void
+	[ChatClientEvent.CHAT_PRESENCE_SYNC]: (_presences: CHAT_PRESENCE_SYNC_REPSPONSE) => void
 }
 
 export const ThreadChatsQCkey = 'threadChats'
 
 export default function useThreadChats(searchParams: ChatThreadsSearchParam) {
-	const qc = useQueryClient()
 	const currentUser = useSelector(selectCurrentUser)
 	const currentUserId = currentUser?.id
 	const [participantOnline, setParticipantOnline] = useState<CHAT_PRESENCE_REPSONSE[]>([])
@@ -43,13 +49,26 @@ export default function useThreadChats(searchParams: ChatThreadsSearchParam) {
 		}
 
 		const handleUserPresence = (presence: CHAT_PRESENCE_REPSONSE) => {
-			setParticipantOnline(prev => [...prev, presence])
+			console.log(presence)
+			if (presence.status === 'online') {
+				setParticipantOnline(prev => [...prev, presence])
+			} else {
+				setParticipantOnline(prev => prev.filter(p => p.userId !== presence.userId))
+			}
 		}
 
+		const handleUserPresenceSync = (presences: CHAT_PRESENCE_SYNC_REPSPONSE) => {
+			console.log(presences)
+		}
+
+		// Khi người dùng khác trong 1 thread chat mà chúng ta tham gia online
 		socket.on(ChatClientEvent.CHAT_PRESENCE, handleUserPresence)
+		// Khi chúng ta online thì server lấy dang sách thread chứa người dùng online và báo cho người dùng đang online là chúng ta đã online
+		socket.on(ChatClientEvent.CHAT_PRESENCE_SYNC, handleUserPresenceSync)
 
 		return () => {
 			socket.off(ChatClientEvent.CHAT_PRESENCE, handleUserPresence)
+			socket.on(ChatClientEvent.CHAT_PRESENCE_SYNC, handleUserPresenceSync)
 		}
 	}, [socket])
 

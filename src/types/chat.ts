@@ -1,6 +1,6 @@
 import type { Contract } from './contract'
 import type { JobPostListItem } from './job-post'
-import type { Role } from './user'
+import type { Role, User } from './user'
 
 export enum ChatThreadType {
 	'PROJECT',
@@ -33,7 +33,8 @@ export interface chatThread {
 	updatedAt: Date
 	jobPost: JobPostListItem | null
 	contract: Contract | null
-	participant: ChatParticipant[]
+	messages?: ChatMessage[]
+	participants: ChatParticipant[]
 	isHaveParticipantOnline?: boolean
 }
 
@@ -48,6 +49,7 @@ export interface ChatParticipant {
 	lastReadAt: Date | null
 	isMuted: Boolean
 	metadata: object | null
+	user?: User
 }
 
 export interface ChatMessageAttachment {

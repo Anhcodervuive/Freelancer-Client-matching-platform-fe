@@ -11,7 +11,6 @@ import { persistStore } from 'redux-persist'
 
 import AuthPage from './pages/Auth'
 import HomePage from './pages/Comons/HomePage'
-import ChatPage from './pages/Comons/ChatPage'
 import {
 	checkAuthenticatedUser,
 	checkWhetherUserLoginMiddleware,
@@ -76,53 +75,48 @@ injectStore(store)
 
 const router = createBrowserRouter([
 	// Common
-        {
-                element: <CommonLayout />,
-                children: [
-                        {
-                                path: routes.comons.home,
-                                element: <HomePage />
-                        },
-                        {
-                                path: routes.comons.chat,
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <ChatPage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.list,
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <JobMarketplacePage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.saved,
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <SavedJobsPage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.invitations,
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <JobProposalsPage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.invitationDetail(':invitationId'),
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <JobProposalsPage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.proposalEdit(':proposalId'),
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <EditJobProposalPage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.proposalCreate(':jobId'),
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <SubmitJobProposalPage />
-                        },
-                        {
-                                path: routes.freelancer.jobs.detail(':jobId'),
-                                loader: requireAuthenticatedUserOrRedirectHome,
-                                element: <JobMarketplaceDetailPage />
-                        },
+	{
+		element: <CommonLayout />,
+		children: [
+			{
+				path: routes.comons.home,
+				element: <HomePage />
+			},
+			{
+				path: routes.freelancer.jobs.list,
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <JobMarketplacePage />
+			},
+			{
+				path: routes.freelancer.jobs.saved,
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <SavedJobsPage />
+			},
+			{
+				path: routes.freelancer.jobs.invitations,
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <JobProposalsPage />
+			},
+			{
+				path: routes.freelancer.jobs.invitationDetail(':invitationId'),
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <JobProposalsPage />
+			},
+			{
+				path: routes.freelancer.jobs.proposalEdit(':proposalId'),
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <EditJobProposalPage />
+			},
+			{
+				path: routes.freelancer.jobs.proposalCreate(':jobId'),
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <SubmitJobProposalPage />
+			},
+			{
+				path: routes.freelancer.jobs.detail(':jobId'),
+				loader: requireAuthenticatedUserOrRedirectHome,
+				element: <JobMarketplaceDetailPage />
+			},
 			{
 				path: routes.client.freelancers.list,
 				loader: composeLoaders(checkAuthenticatedUser, isClientUser),
@@ -206,26 +200,26 @@ const router = createBrowserRouter([
 					{
 						path: 'edit/:id',
 						element: <EditPaymentMethod />
-                                        }
-                                ]
-                        }
-                ]
-        },
-        // Job chat workspace (full-width layout)
-        {
-                path: routes.messages.jobs,
-                loader: requireAuthenticatedUserOrRedirectHome,
-                element: <JobChatLayout />,
-                children: [
-                        {
-                                index: true,
-                                element: <JobChatPage />
-                        }
-                ]
-        },
-        // Admin
-        {
-                path: '/admin',
+					}
+				]
+			}
+		]
+	},
+	// Job chat workspace (full-width layout)
+	{
+		path: routes.messages.jobs,
+		loader: requireAuthenticatedUserOrRedirectHome,
+		element: <JobChatLayout />,
+		children: [
+			{
+				index: true,
+				element: <JobChatPage />
+			}
+		]
+	},
+	// Admin
+	{
+		path: '/admin',
 		loader: composeLoaders(checkAuthenticatedUser, isAdminUser),
 		element: <AdminLayout />,
 		children: [
