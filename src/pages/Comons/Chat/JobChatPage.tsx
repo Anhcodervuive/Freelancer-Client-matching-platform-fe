@@ -262,7 +262,7 @@ export default function JobChatPage() {
 		threadChats: threadChatsRes,
 		isLoadingThreadChats,
 		threadChatError,
-		participantOnline
+		participantOnlineIds
 	} = useThreadChats({
 		limit: 10,
 		page: 1,
@@ -283,7 +283,8 @@ export default function JobChatPage() {
 
 		return undefined
 	}, [selectedThreadId, threadChatsRes?.data])
-	console.log(selectedThreadId)
+
+	console.log(threadChatsRes)
 
 	useEffect(() => {
 		if (threadChatsRes?.data?.[0].id) {
@@ -319,8 +320,6 @@ export default function JobChatPage() {
 		return <h1>Chat error</h1>
 	}
 
-	console.log(threadChatsRes, participantOnline)
-
 	if (!activeThread) {
 		return (
 			<div className='rounded-3xl border border-white/60 bg-white/80 p-10 text-center text-slate-500 shadow-[0_20px_60px_rgba(15,23,42,0.08)]'>
@@ -340,6 +339,7 @@ export default function JobChatPage() {
 			<JobChatSidebar
 				threads={threadChatsRes?.data}
 				selectedThreadId={activeThread.id}
+				participantOnlineIds={participantOnlineIds}
 				onSelectThread={setSelectedThreadId}
 				searchTerm={searchTerm}
 				onSearchTermChange={setSearchTerm}

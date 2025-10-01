@@ -1,4 +1,4 @@
-import { Briefcase, ChevronDown, MoreHorizontal, Phone, Video } from 'lucide-react'
+import { Briefcase, ChevronDown } from 'lucide-react'
 import type { chatThread } from '~/types/chat'
 
 type JobChatHeaderProps = {
@@ -27,26 +27,6 @@ export default function JobChatHeader({ thread }: JobChatHeaderProps) {
 							You {`· ${thread.participants?.map(p => p.user?.profile.firstName)}`}
 						</p>
 					</div>
-				</div>
-				<div className='flex items-center gap-2'>
-					<button
-						type='button'
-						className='inline-flex items-center gap-2 rounded-2xl border border-white/70 bg-white/90 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-primary/30 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20'>
-						<Phone className='size-4' />
-						Call
-					</button>
-					<button
-						type='button'
-						className='inline-flex items-center gap-2 rounded-2xl border border-white/70 bg-white/90 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-primary/30 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20'>
-						<Video className='size-4' />
-						Video
-					</button>
-					<button
-						type='button'
-						className='inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/70 bg-white/90 text-slate-500 transition hover:border-primary/30 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
-						aria-label='Conversation actions'>
-						<MoreHorizontal className='size-5' />
-					</button>
 				</div>
 			</div>
 		</header>

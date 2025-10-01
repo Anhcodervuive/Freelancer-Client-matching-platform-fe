@@ -55,7 +55,7 @@ import SubmitJobProposalPage from './pages/Freelancer/Jobs/SubmitJobProposalPage
 import EditJobProposalPage from './pages/Freelancer/Jobs/EditJobProposalPage'
 import ClientFreelancerListPage from './pages/Client/Freelancers/ClientFreelancerListPage'
 import JobChatPage from './pages/Comons/Chat/JobChatPage'
-import { ChatSocketProvider } from './contexts/chat-socket'
+import { ChatSocketProvider } from '~/contexts/chat-socket/ChatSocketProvider'
 
 const persistor = persistStore(store)
 
@@ -293,14 +293,14 @@ function App() {
 	return (
 		<div className='min-h-dvh'>
 			<QueryClientProvider client={qc}>
-                                <Provider store={store}>
-                                        <PersistGate persistor={persistor}>
-                                                <ChatSocketProvider>
-                                                        <RouterProvider router={router} />
-                                                </ChatSocketProvider>
-                                        </PersistGate>
-                                        <ToastContainer />
-                                </Provider>
+				<Provider store={store}>
+					<PersistGate persistor={persistor}>
+						<ChatSocketProvider>
+							<RouterProvider router={router} />
+						</ChatSocketProvider>
+					</PersistGate>
+					<ToastContainer />
+				</Provider>
 			</QueryClientProvider>
 		</div>
 	)

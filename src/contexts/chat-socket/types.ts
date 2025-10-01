@@ -1,26 +1,27 @@
 import type { Socket } from 'socket.io-client'
 
 import type {
-        CHAT_PRESENCE_REPSONSE,
-        CHAT_PRESENCE_SYNC_REPSPONSE
+	CHAT_PRESENCE_REPSONSE,
+	CHAT_PRESENCE_SYNC_REPSPONSE,
+	ChatClientEvent,
+	ChatServerEvent
 } from '~/constants/chat'
+import type { ChatMessage } from '~/types/chat'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ServerToClientEvents = Record<string, (...args: any[]) => void>
+export type ServerToClientEvents = {
+	[ChatServerEvent.CHAT_SEND_MESSAGE]: (_message: ChatMessage) => void
+}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ClientToServerEvents = Record<string, (...args: any[]) => void>
-
-export type ThreadPresenceMap = Record<string, Record<string, boolean>>
-export type ThreadParticipantsMap = Record<string, CHAT_PRESENCE_SYNC_REPSPONSE['thread']['participants']>
+export type ClientToServerEvents = {
+	[ChatClientEvent.CHAT_PRESENCE_SYNC]: (_presences: CHAT_PRESENCE_SYNC_REPSPONSE) => void
+	[ChatClientEvent.CHAT_PRESENCE]: (_presence: CHAT_PRESENCE_REPSONSE) => void
+}
 
 export type ChatSocketContextValue = {
-        socket: Socket<ServerToClientEvents, ClientToServerEvents> | null
-        isConnected: boolean
-        isConnecting: boolean
-        participantOnline: CHAT_PRESENCE_REPSONSE[]
-        threadPresenceMap: ThreadPresenceMap
-        threadParticipantsMap: ThreadParticipantsMap
-        disconnect: () => void
-        connect: () => void
+	socket: Socket<ServerToClientEvents, ClientToServerEvents> | null
+	isConnected: boolean
+	isConnecting: boolean
+	participantOnlineIds: string[]
+	disconnect: () => void
+	connect: () => void
 }

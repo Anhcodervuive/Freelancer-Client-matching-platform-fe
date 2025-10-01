@@ -1,12 +1,15 @@
 import { Search } from 'lucide-react'
+import { useSelector } from 'react-redux'
+import { DEFAULT_AVATAR } from '~/constants/image'
+import { selectCurrentUser } from '~/redux/user/userSlice'
 import type { chatThread } from '~/types/chat'
-import { Role } from '~/types/user'
 
 type JobChatSidebarProps = {
 	threads?: chatThread[]
 	selectedThreadId: string
 	onSelectThread: (_threadId: string) => void
 	searchTerm: string
+	participantOnlineIds: string[]
 	onSearchTermChange: (_term: string) => void
 }
 
@@ -15,8 +18,11 @@ export default function JobChatSidebar({
 	selectedThreadId,
 	onSelectThread,
 	searchTerm,
+	participantOnlineIds,
 	onSearchTermChange
 }: JobChatSidebarProps) {
+	const currentUser = useSelector(selectCurrentUser)
+
 	return (
 		<aside className='flex h-full flex-col rounded-3xl border border-white/60 bg-white/80 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
 			<div className='mb-4 flex flex-col gap-3'>
@@ -45,7 +51,6 @@ export default function JobChatSidebar({
 				)}
 				{threads?.map(thread => {
 					const isActive = thread.id === selectedThreadId
-
 					return (
 						<button
 							key={thread.id}
@@ -58,16 +63,33 @@ export default function JobChatSidebar({
 							<div className='flex items-start justify-between gap-3'>
 								<div>
 									<div className='flex items-center gap-2'>
-										<span className='text-sm font-semibold text-slate-900'>{thread.jobPost?.title}</span>
+										<span className='text-sm font-semibold text-slate-900 line-clamp-1'>{thread.jobPost?.title}</span>
 										<span className='rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600'>
 											Active
 										</span>
 									</div>
-									<p className='mt-1 text-xs text-slate-500'>
-										{thread.participants?.find(p => p.role === Role.CLIENT)?.user?.profile.firstName} ·{' '}
-										{thread.participants?.find(p => p.role === Role.FREELANCER)?.user?.profile.firstName}
-									</p>
-									<p className='mt-2 line-clamp-2 text-sm text-slate-600'>{thread?.messages?.[0]?.body}</p>
+									<div className='flex items-start gap-3'>
+										<div
+											className={`avatar ${
+												thread.participants?.some(p => participantOnlineIds.includes(p.userId)) ? 'avatar-online' : ''
+											} `}>
+											<div className='w-12 rounded-full'>
+												<img
+													alt={'avatar'}
+													src={
+														thread.participants?.find(p => p.userId !== currentUser?.id)?.user?.avatar ?? DEFAULT_AVATAR
+													}
+												/>
+											</div>
+										</div>
+										<div>
+											<p className='mt-1 text-base text-slate-900'>
+												{thread.participants?.find(p => p.userId !== currentUser?.id)?.user?.profile.firstName}{' '}
+												{thread.participants?.find(p => p.userId !== currentUser?.id)?.user?.profile.lastName}
+											</p>
+											<p className='mt-2 line-clamp-2 text-sm text-slate-600'>{thread?.messages?.[0]?.body}</p>
+										</div>
+									</div>
 								</div>
 								<div className='flex flex-col items-end gap-2 text-xs text-slate-400'>
 									<span>

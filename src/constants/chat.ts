@@ -19,11 +19,11 @@ type ChatThreadParticipantSummary = {
 }
 
 export interface CHAT_PRESENCE_SYNC_REPSPONSE {
-	thread: {
+	threads: {
 		threadId: string
 		presence: Record<string, boolean>
 		participants: ChatThreadParticipantSummary[]
-	}
+	}[]
 }
 
 export const ChatServerEvent = {

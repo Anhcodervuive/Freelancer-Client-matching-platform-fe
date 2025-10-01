@@ -6,139 +6,92 @@ import { useCredentialedSocket } from '~/hooks/useCredentialedSocket'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 
 import { ChatSocketContext } from './chatSocketContext'
-import type {
-        CHAT_PRESENCE_REPSONSE,
-        CHAT_PRESENCE_SYNC_REPSPONSE
-} from '~/constants/chat'
-import type {
-        ChatSocketContextValue,
-        ClientToServerEvents,
-        ServerToClientEvents,
-        ThreadParticipantsMap,
-        ThreadPresenceMap
-} from './types'
+import type { CHAT_PRESENCE_REPSONSE, CHAT_PRESENCE_SYNC_REPSPONSE } from '~/constants/chat'
+import type { ChatSocketContextValue, ClientToServerEvents, ServerToClientEvents } from './types'
 
 export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
-        const currentUser = useSelector(selectCurrentUser)
-        const currentUserId = currentUser?.id
-        const [participantOnline, setParticipantOnline] = useState<CHAT_PRESENCE_REPSONSE[]>([])
-        const [threadPresenceMap, setThreadPresenceMap] = useState<ThreadPresenceMap>({})
-        const [threadParticipantsMap, setThreadParticipantsMap] = useState<ThreadParticipantsMap>({})
+	const currentUser = useSelector(selectCurrentUser)
+	const currentUserId = currentUser?.id
+	const [participantOnlineIds, setParticipantOnlineIds] = useState<string[]>([])
 
-        const { socket, isConnected, isConnecting, connect, disconnect } =
-                useCredentialedSocket<ServerToClientEvents, ClientToServerEvents>(CHAT_NAMESPACE, {
-                        enabled: Boolean(currentUserId),
-                        autoConnect: true,
-                        maxAuthRetries: 2
-                })
+	const { socket, isConnected, isConnecting, connect, disconnect } = useCredentialedSocket<
+		ServerToClientEvents,
+		ClientToServerEvents
+	>(CHAT_NAMESPACE, {
+		enabled: Boolean(currentUserId),
+		autoConnect: true,
+		maxAuthRetries: 2
+	})
 
-        useEffect(() => {
-                if (!socket) {
-                        return undefined
-                }
+	useEffect(() => {
+		if (!socket) {
+			return undefined
+		}
 
-                const handlePresence = (presence: CHAT_PRESENCE_REPSONSE) => {
-                        setParticipantOnline(prev => {
-                                const others = prev.filter(
-                                        item =>
-                                                !(
-                                                        item.threadId === presence.threadId &&
-                                                        item.userId === presence.userId
-                                                )
-                                )
+		const handlePresence = (presence: CHAT_PRESENCE_REPSONSE) => {
+			console.log(presence)
+			if (presence.userId !== currentUserId && presence.status === 'online')
+				setParticipantOnlineIds(prev => {
+					const setParticipantOnlineIds = new Set([...prev, presence.userId])
+					return Array.from(setParticipantOnlineIds)
+				})
+			else if (presence.userId !== currentUserId && presence.status === 'offline') {
+				setParticipantOnlineIds(prev => {
+					const setParticipantOnlineIds = new Set(prev.filter(p => !p.includes(presence.userId)))
+					return Array.from(setParticipantOnlineIds)
+				})
+			}
+		}
 
-                                if (presence.status === 'online') {
-                                        return [...others, presence]
-                                }
+		const handlePresenceSync = (payload: CHAT_PRESENCE_SYNC_REPSPONSE) => {
+			const hasOnlineParticipantThreads = payload.threads
 
-                                return others
-                        })
+			if (hasOnlineParticipantThreads?.length === 0) return
 
-                        setThreadPresenceMap(prev => {
-                                const previousPresence = prev[presence.threadId] ?? {}
-                                return {
-                                        ...prev,
-                                        [presence.threadId]: {
-                                                ...previousPresence,
-                                                [presence.userId]: presence.status === 'online'
-                                        }
-                                }
-                        })
-                }
+			const onlinePartipantIds = new Set<string>()
+			hasOnlineParticipantThreads?.forEach(t => {
+				Object.keys(t.presence).forEach(userId => {
+					if (t.presence[userId] && userId !== currentUserId) {
+						onlinePartipantIds.add(userId)
+					}
+				})
+			})
 
-                const handlePresenceSync = (payload: CHAT_PRESENCE_SYNC_REPSPONSE) => {
-                        const { thread } = payload
-                        const { threadId, presence, participants } = thread
+			setParticipantOnlineIds(Array.from(onlinePartipantIds.keys()))
+		}
 
-                        setParticipantOnline(prev => {
-                                const withoutThread = prev.filter(item => item.threadId !== threadId)
-                                const onlineEntries = Object.entries(presence)
-                                        .filter(([, isOnline]) => Boolean(isOnline))
-                                        .map(([userId]) => ({
-                                                threadId,
-                                                userId,
-                                                status: 'online' as const
-                                        }))
+		socket.on(ChatClientEvent.CHAT_PRESENCE, handlePresence)
+		socket.on(ChatClientEvent.CHAT_PRESENCE_SYNC, handlePresenceSync)
 
-                                return [...withoutThread, ...onlineEntries]
-                        })
+		return () => {
+			socket.off(ChatClientEvent.CHAT_PRESENCE, handlePresence)
+			socket.off(ChatClientEvent.CHAT_PRESENCE_SYNC, handlePresenceSync)
+		}
+	}, [currentUserId, socket])
 
-                        setThreadPresenceMap(prev => ({
-                                ...prev,
-                                [threadId]: presence
-                        }))
+	useEffect(() => {
+		if (!currentUserId) {
+			setParticipantOnlineIds([])
+		}
+	}, [currentUserId])
 
-                        setThreadParticipantsMap(prev => ({
-                                ...prev,
-                                [threadId]: participants
-                        }))
-                }
+	useEffect(() => {
+		return () => {
+			disconnect()
+		}
+	}, [disconnect])
 
-                socket.on(ChatClientEvent.CHAT_PRESENCE, handlePresence)
-                socket.on(ChatClientEvent.CHAT_PRESENCE_SYNC, handlePresenceSync)
+	const value = useMemo<ChatSocketContextValue>(
+		() => ({
+			socket,
+			isConnected,
+			isConnecting,
+			participantOnlineIds,
+			connect,
+			disconnect
+		}),
+		[socket, isConnected, isConnecting, participantOnlineIds, connect, disconnect]
+	)
 
-                return () => {
-                        socket.off(ChatClientEvent.CHAT_PRESENCE, handlePresence)
-                        socket.off(ChatClientEvent.CHAT_PRESENCE_SYNC, handlePresenceSync)
-                }
-        }, [socket])
-
-        useEffect(() => {
-                if (!currentUserId) {
-                        setParticipantOnline([])
-                        setThreadPresenceMap({})
-                        setThreadParticipantsMap({})
-                }
-        }, [currentUserId])
-
-        useEffect(() => {
-                return () => {
-                        disconnect()
-                }
-        }, [disconnect])
-
-        const value = useMemo<ChatSocketContextValue>(
-                () => ({
-                        socket,
-                        isConnected,
-                        isConnecting,
-                        participantOnline,
-                        threadPresenceMap,
-                        threadParticipantsMap,
-                        connect,
-                        disconnect
-                }),
-                [
-                        socket,
-                        isConnected,
-                        isConnecting,
-                        participantOnline,
-                        threadPresenceMap,
-                        threadParticipantsMap,
-                        connect,
-                        disconnect
-                ]
-        )
-
-        return <ChatSocketContext.Provider value={value}>{children}</ChatSocketContext.Provider>
+	return <ChatSocketContext.Provider value={value}>{children}</ChatSocketContext.Provider>
 }
