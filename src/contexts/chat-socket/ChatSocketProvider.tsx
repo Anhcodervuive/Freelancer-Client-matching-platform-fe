@@ -90,6 +90,7 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 		return () => {
 			socket.off(ChatClientEvent.CHAT_PRESENCE, handlePresence)
 			socket.off(ChatClientEvent.CHAT_PRESENCE_SYNC, handlePresenceSync)
+			socket.off(ChatClientEvent.CHAT_TYPING, handleOtherParticipantTyping)
 		}
 	}, [currentUserId, joinThreadRes, socket])
 

@@ -17,6 +17,7 @@ export type ChatThreadParticipantSummary = {
 	id: string
 	userId: string
 	role: Role
+	avatar: string | null
 	profile: {
 		firstName: string | null
 		lastName: string | null

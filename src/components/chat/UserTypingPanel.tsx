@@ -22,7 +22,7 @@ export function UserTypingPanel({ users }: { users: ChatThreadParticipantSummary
 					{top.map(u => (
 						<div key={u?.id} className='avatar'>
 							<div className='w-7 rounded-full ring ring-base-100'>
-								<img src={'https://i.pravatar.cc/64'} alt={u?.profile.firstName ?? ''} />
+								<img src={u?.avatar ?? 'https://i.pravatar.cc/64'} alt={u?.profile.firstName ?? ''} />
 							</div>
 						</div>
 					))}
