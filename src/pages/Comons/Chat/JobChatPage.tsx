@@ -5,50 +5,9 @@ import JobChatSidebar from '~/components/chat/JobChatSidebar'
 import JobSummaryPanel from '~/components/chat/JobSummaryPanel'
 import JobChatHeader from '~/components/chat/JobChatHeader'
 import ChatLoadingState from '~/components/chat/ChatLoadingState'
-import type { ChatAttachment, ChatMessage, JobMilestone, JobThread } from '~/components/chat/types'
+import type { ChatAttachment, ChatMessage, JobMilestone } from '~/components/chat/types'
 import useThreadChats from '~/hooks/chat/useThreadChats'
 import type { chatThread } from '~/types/chat'
-
-const jobThreads: JobThread[] = [
-	{
-		id: 'thread-1',
-		jobTitle: 'Landing page redesign for SaaS dashboard',
-		jobCode: 'LB-2048',
-		jobCategory: 'UI/UX Design',
-		clientName: 'Linh Tran',
-		freelancerName: 'Tuấn Nguyễn',
-		budget: '$3,200',
-		updatedAt: '2024-09-18T14:32:00Z',
-		lastMessageSnippet:
-			'Mockups for onboarding are attached below. Let me know which variant fits best so I can finalize the responsive states.',
-		unreadCount: 2,
-		status: 'Active contract'
-	},
-	{
-		id: 'thread-2',
-		jobTitle: 'Mobile app QA test cycle',
-		jobCode: 'QA-1184',
-		jobCategory: 'Quality Assurance',
-		clientName: 'Hoàng Phạm',
-		freelancerName: 'Lan Phương',
-		budget: '$1,050',
-		updatedAt: '2024-09-17T08:15:00Z',
-		lastMessageSnippet: 'Uploading the regression report and test cases spreadsheet for sprint 12.',
-		status: 'Active contract'
-	},
-	{
-		id: 'thread-3',
-		jobTitle: 'Shopify store audit & optimisation',
-		jobCode: 'EC-0911',
-		jobCategory: 'E-commerce Development',
-		clientName: 'Nam Bùi',
-		freelancerName: 'Minh Châu',
-		budget: '$750',
-		updatedAt: '2024-09-15T10:45:00Z',
-		lastMessageSnippet: 'Offer sent with recommended milestones. Waiting for your go-ahead.',
-		status: 'Offer sent'
-	}
-]
 
 const milestonesByThread: Record<string, JobMilestone[]> = {
 	'thread-1': [
@@ -257,12 +216,32 @@ const messagesByThread: Record<string, ChatMessage[]> = {
 	]
 }
 
+const shimmerBaseClass =
+	"relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:content-[''] before:pointer-events-none before:animate-[shimmer_1.6s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent"
+
+const renderMessagePlaceholder = (items: number) =>
+	Array.from({ length: items }).map((_, index) => (
+		<div key={`message-skeleton-${index}`} className='flex flex-col gap-3'>
+			<div className={`w-fit max-w-[80%] rounded-3xl bg-white/85 px-6 py-4 shadow ${shimmerBaseClass}`}>
+				<div className='flex flex-col gap-2'>
+					<div className='h-3.5 w-32 rounded-full bg-slate-200/70'></div>
+					<div className='h-3 w-40 rounded-full bg-slate-200/60'></div>
+					<div className='h-3 w-28 rounded-full bg-slate-200/50'></div>
+				</div>
+			</div>
+		</div>
+	))
+
 export default function JobChatPage() {
 	const {
 		threadChats: threadChatsRes,
 		isLoadingThreadChats,
 		threadChatError,
-		participantOnlineIds
+		participantOnlineIds,
+		joinChat,
+		typingMessage,
+		joinThreadRes,
+		typingUserList
 	} = useThreadChats({
 		limit: 10,
 		page: 1,
@@ -284,13 +263,13 @@ export default function JobChatPage() {
 		return undefined
 	}, [selectedThreadId, threadChatsRes?.data])
 
-	console.log(threadChatsRes)
-
 	useEffect(() => {
-		if (threadChatsRes?.data?.[0].id) {
+		if (threadChatsRes && threadChatsRes?.data?.length > 0 && !selectedThreadId) {
 			setSelectedThreadId(threadChatsRes?.data?.[0].id)
+			console.log('threadChatsRes', threadChatsRes)
+			joinChat({ threadId: threadChatsRes?.data[0].id })
 		}
-	}, [threadChatsRes?.data])
+	}, [joinChat, selectedThreadId, threadChatsRes])
 
 	const messages = useMemo<ChatMessage[]>(() => {
 		if (!activeThread) {
@@ -304,6 +283,10 @@ export default function JobChatPage() {
 	const sharedAttachments = useMemo<ChatAttachment[]>(() => {
 		return messages.flatMap(message => message.attachments ?? [])
 	}, [messages])
+
+	const handleTypingMessage = (isTyping: boolean) => {
+		typingMessage({ isTyping, threadId: joinThreadRes?.data?.thread.id ?? '' })
+	}
 
 	const milestones = useMemo<JobMilestone[]>(() => {
 		if (!activeThread) {
@@ -340,17 +323,28 @@ export default function JobChatPage() {
 				threads={threadChatsRes?.data}
 				selectedThreadId={activeThread.id}
 				participantOnlineIds={participantOnlineIds}
-				onSelectThread={setSelectedThreadId}
+				onSelectThread={(selectedThreadId: string) => {
+					setSelectedThreadId(selectedThreadId)
+					joinChat({
+						threadId: selectedThreadId
+					})
+				}}
 				searchTerm={searchTerm}
 				onSearchTermChange={setSearchTerm}
 			/>
 
 			<section className='flex h-full min-h-0 flex-col gap-4 rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
 				<JobChatHeader thread={activeThread} />
-				<div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
-					<ChatMessageList messages={messages} jobTitle={activeThread.jobPost?.title ?? ''} />
-					<ChatComposer />
-				</div>
+				{!joinThreadRes ? (
+					renderMessagePlaceholder(4)
+				) : joinThreadRes.success ? (
+					<div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
+						<ChatMessageList messages={messages} jobTitle={activeThread.jobPost?.title ?? ''} />
+						<ChatComposer onTyping={handleTypingMessage} typingUserList={typingUserList} />
+					</div>
+				) : (
+					<div>Có lỗi xảy ra</div>
+				)}
 			</section>
 
 			<JobSummaryPanel

@@ -6,7 +6,8 @@ import { useChatSocket } from './useChatSocket'
 export const ThreadChatsQCkey = 'threadChats'
 
 export default function useThreadChats(searchParams: ChatThreadsSearchParam) {
-	const { socket, participantOnlineIds } = useChatSocket()
+	const { socket, participantOnlineIds, joinChat, typingMessage, joinThreadRes, leaveChat, typingUserList } =
+		useChatSocket()
 
 	const {
 		data: threadChats,
@@ -22,6 +23,11 @@ export default function useThreadChats(searchParams: ChatThreadsSearchParam) {
 		threadChats,
 		isLoadingThreadChats,
 		threadChatError,
-		participantOnlineIds
+		participantOnlineIds,
+		joinChat,
+		leaveChat,
+		typingMessage,
+		joinThreadRes,
+		typingUserList
 	}
 }
