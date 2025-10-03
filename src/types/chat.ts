@@ -1,5 +1,6 @@
 import type { Contract } from './contract'
 import type { JobPostListItem } from './job-post'
+import type { Profile } from './profile'
 import type { Role, User } from './user'
 
 export enum ChatThreadType {
@@ -20,6 +21,21 @@ export interface ChatMessage {
 	richPayload: object | null
 	sentAt: Date
 	editedAt: Date | null
+	attachments?: ChatMessageAttachment[]
+	sender: {
+		id: string
+		email: string
+		profile?: Profile
+	}
+	receipts: ChatMessageReceipt[]
+}
+
+export interface ChatsReponse {
+	data: ChatMessage[]
+	limit: number
+	direction: 'before' | 'after'
+	hasMore: boolean
+	nextCursor?: string
 }
 
 export interface chatThread {

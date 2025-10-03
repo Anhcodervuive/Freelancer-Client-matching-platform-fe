@@ -241,7 +241,8 @@ export default function JobChatPage() {
 		joinChat,
 		typingMessage,
 		joinThreadRes,
-		typingUserList
+		typingUserList,
+		messageListQuery
 	} = useThreadChats({
 		limit: 10,
 		page: 1,
@@ -335,11 +336,21 @@ export default function JobChatPage() {
 
 			<section className='flex h-full min-h-0 flex-col gap-4 rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
 				<JobChatHeader thread={activeThread} />
-				{!joinThreadRes ? (
+				{!joinThreadRes ||
+				messageListQuery.isError ||
+				messageListQuery.isLoading ||
+				!messageListQuery.data ||
+				messageListQuery.data?.items.length === 0 ? (
 					renderMessagePlaceholder(4)
 				) : joinThreadRes.success ? (
 					<div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
-						<ChatMessageList messages={messages} jobTitle={activeThread.jobPost?.title ?? ''} />
+						<ChatMessageList
+							hasNextPage={messageListQuery.data.hasMore}
+							isFetchingNextPage={messageListQuery.isFetchingNextPage}
+							fetchNextPage={messageListQuery.fetchNextPage}
+							messages={messageListQuery?.data?.items ?? []}
+							jobTitle={activeThread.jobPost?.title ?? ''}
+						/>
 						<ChatComposer onTyping={handleTypingMessage} typingUserList={typingUserList} />
 					</div>
 				) : (

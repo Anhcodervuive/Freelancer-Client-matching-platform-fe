@@ -19,7 +19,7 @@ export type ChatThreadsSearchParam = {
 
 export type ChatSearchParam = {
 	limit: number
-	cursor: string
+	cursor?: string
 	direction: 'before' | 'after'
 	includeReceipts: boolean
 	includeAttachments: boolean
