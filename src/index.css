@@ -60,4 +60,24 @@
                         transform: translateX(100%);
                 }
         }
+
+        .chat-scroll {
+                scrollbar-width: thin;
+                scrollbar-color: rgba(14, 165, 233, 0.35) transparent;
+        }
+
+        .chat-scroll::-webkit-scrollbar {
+                width: 0.5rem;
+        }
+
+        .chat-scroll::-webkit-scrollbar-track {
+                background: transparent;
+        }
+
+        .chat-scroll::-webkit-scrollbar-thumb {
+                background-color: rgba(14, 165, 233, 0.35);
+                border-radius: 9999px;
+                border: 2px solid transparent;
+                background-clip: content-box;
+        }
 }

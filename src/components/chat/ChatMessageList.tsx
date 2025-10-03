@@ -51,9 +51,11 @@ export default function ChatMessageList({
 			})
 		}
 	}, [inView, hasNextPage, isFetchingNextPage, fetchNextPage])
-	console.log(messages)
-	return (
-		<div ref={scrollBoxRef} className='flex-1 max-h-[40vh] space-y-6 overflow-y-auto pr-2 overflow-scroll'>
+        return (
+                <div
+                        ref={scrollBoxRef}
+                        className='chat-scroll flex-1 space-y-6 overflow-y-auto overflow-x-hidden pr-2'
+                >
 			<div className='text-center text-xs font-medium uppercase tracking-wide text-slate-400'>
 				Conversation started for “{jobTitle}”
 			</div>
