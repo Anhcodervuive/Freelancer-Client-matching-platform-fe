@@ -9,6 +9,21 @@ import {
 import { useChatSocket } from './useChatSocket'
 import type { ChatMessage, ChatsReponse } from '~/types/chat'
 
+const sleep = (ms: number, signal?: AbortSignal) =>
+	new Promise<void>((resolve, reject) => {
+		const t = setTimeout(resolve, ms)
+		if (signal) {
+			signal.addEventListener(
+				'abort',
+				() => {
+					clearTimeout(t)
+					reject(new DOMException('Aborted', 'AbortError'))
+				},
+				{ once: true }
+			)
+		}
+	})
+
 export const ThreadChatsQCkey = 'threadChats'
 
 export type ViewModel = {
@@ -39,18 +54,22 @@ export default function useThreadChats(searchParams: ChatThreadsSearchParam) {
 		['thread', string | undefined, 'messages', number], // TQueryKey
 		ChatSearchParam // TPageParam  <-- quan trọng
 	>({
-		queryKey: ['thread', joinThreadRes?.data?.thread.id, 'messages', 20],
+		queryKey: ['thread', joinThreadRes?.data?.thread.id, 'messages', 5],
 		enabled: !!joinThreadRes?.data?.thread.id,
 		// pageParam ban đầu phải đúng ChatSearchParam
 		initialPageParam: {
-			limit: 20,
+			limit: 5,
 			cursor: undefined,
 			direction: 'before',
 			includeReceipts: true,
 			includeAttachments: true
 		},
 
-		queryFn: ({ pageParam }) => getChatThreadMessages(joinThreadRes?.data?.thread?.id ?? '', pageParam),
+		queryFn: async ({ pageParam }) => {
+			const api = getChatThreadMessages(joinThreadRes?.data?.thread?.id ?? '', pageParam)
+			const [page] = await Promise.all([api, sleep(1000)])
+			return page
+		},
 		// trả về pageParam cho lần kế tiếp (giữ nguyên limit & flags, thay cursor)
 		getNextPageParam: (lastPage, _allPages, lastPageParam) =>
 			lastPage.nextCursor ? { ...lastPageParam, cursor: lastPage.nextCursor } : undefined,
