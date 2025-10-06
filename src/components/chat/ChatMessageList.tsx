@@ -1,7 +1,7 @@
-import { CheckCheck, FileText, ImageIcon } from 'lucide-react'
+import { FileText, ImageIcon } from 'lucide-react'
 import { useInView } from 'react-intersection-observer'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ChatMessage } from '~/types/chat'
+import type { ChatMessage, ChatMessageReceipt } from '~/types/chat'
 import type { FetchNextPageOptions, InfiniteQueryObserverResult } from '@tanstack/react-query'
 import type { ViewModel } from '~/hooks/chat/useThreadChats'
 import { useSelector } from 'react-redux'
@@ -22,6 +22,25 @@ function formatTime(date: string) {
 	}).format(new Date(date))
 }
 
+const SeenParticipantList = ({ receipts, messageId }: { receipts: ChatMessageReceipt[]; messageId: string }) => {
+	const currentUser = useSelector(selectCurrentUser)
+	return receipts.map((r: ChatMessageReceipt) => {
+		if (r.participant?.lastReadMessageId === messageId && r.participant.userId !== currentUser?.id) {
+			return (
+				<div key={r.id} className='tooltip tooltip-left' data-tip={`Read at ${formatTime(r.readAt?.toString() ?? '')}`}>
+					<div className='chat-image avatar'>
+						<div className='w-5 rounded-full'>
+							<img src={r.participant.user?.avatar} />
+						</div>
+					</div>
+				</div>
+			)
+		} else {
+			return null
+		}
+	})
+}
+
 export default function ChatMessageList({
 	messages,
 	jobTitle,
@@ -39,6 +58,7 @@ export default function ChatMessageList({
 		threshold: 0,
 		skip: ioPaused
 	})
+	const prevRef = useRef<number | null>(null)
 
 	const userIntentRef = useRef(false)
 	const didJumpOnce = useRef(false)
@@ -80,6 +100,21 @@ export default function ChatMessageList({
 		el.addEventListener('scroll', onScroll, { passive: true })
 		return () => el.removeEventListener('scroll', onScroll)
 	}, [])
+
+	// Khi message từ real-time tới thì độ dài chat thay đổi nhưng k gọi APi fetch dữ liệu nên đặt lại khung nhìn ngay đoạn mesage mới tới
+	// Cách thức so sánh khi tin nhắn mới tới thì độ dài chỉ tăng lên 1, còn khi fetch lại tin nhắn cũ thì độ dài sẽ tăng lên rất nhiều
+	useEffect(() => {
+		const el = scrollBoxRef.current
+		if (!el) return
+		if (!prevRef.current) {
+			prevRef.current = messages.length
+			return
+		}
+		if (messages.length && !isFetchingNextPage && messages.length === prevRef.current + 1) {
+			el.scrollTop = el.scrollHeight - el.clientHeight
+		}
+		prevRef.current = messages.length
+	}, [isFetchingNextPage, messages])
 
 	// Giữ vị trí scroll khi prepend thêm trang cũ
 	const prevHeightRef = useRef<number>(0)
@@ -152,7 +187,7 @@ export default function ChatMessageList({
 							{message.body && <p>{message.body}</p>}
 
 							{attachmentImages.length > 0 && (
-								<div className='mt-3 grid grid-cols-2 gap-3'>
+								<div className={`mt-3 grid gap-3 ${attachmentImages.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
 									{attachmentImages.map(image => (
 										<figure
 											key={image.id}
@@ -198,8 +233,7 @@ export default function ChatMessageList({
 							)}
 						</div>
 						<div className='flex items-center gap-2 text-xs text-slate-400'>
-							<CheckCheck className='size-3' />
-							<span>{formatTime(message.sentAt.toString())}</span>
+							<SeenParticipantList receipts={message.receipts} messageId={message.id} />
 						</div>
 					</div>
 				)

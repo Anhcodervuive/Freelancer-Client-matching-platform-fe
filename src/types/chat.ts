@@ -9,6 +9,8 @@ export enum ChatThreadType {
 	'ADMIN_FREELANCER'
 }
 
+export type ChatMessageType = 'SYSTEM' | 'USER'
+
 export interface ChatMessage {
 	id: string
 	createdAt: Date
@@ -88,4 +90,5 @@ export interface ChatMessageReceipt {
 	readAt: Date | null
 	metadata: object | null
 	createdAt: Date
+	participant?: ChatParticipant
 }

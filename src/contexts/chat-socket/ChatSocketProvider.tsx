@@ -6,19 +6,27 @@ import { useCredentialedSocket } from '~/hooks/useCredentialedSocket'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 
 import { ChatSocketContext } from './chatSocketContext'
-import type { CHAT_PRESENCE_REPSONSE, CHAT_PRESENCE_SYNC_REPSPONSE } from '~/constants/chat'
+import type { CHAT_PRESENCE_REPSONSE, CHAT_PRESENCE_SYNC_REPSPONSE, SendMessagePayload } from '~/constants/chat'
 import type {
 	ChatSocketContextValue,
 	ChatThreadParticipantSummary,
 	ClientToServerEvents,
 	JoinThreadPayload,
 	JoinThreadRes,
+	OurMessageIsReadBySomeOneRes,
+	responsePayloadOfNewMessageReceive,
 	ServerToClientEvents,
+	SubmitIsReadMessagePayload,
 	TypingPayload,
 	TypingResponse
 } from './types'
+import type { UploadedMeta } from '~/utils/directUploader'
+import { toast } from 'react-toastify'
+import { appendRealtimeMessage, UpdateMessageIsReadBySomeOne } from '~/hooks/chat/useThreadChats'
+import { useQueryClient } from '@tanstack/react-query'
 
 export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
+	const qc = useQueryClient()
 	const currentUser = useSelector(selectCurrentUser)
 	const currentUserId = currentUser?.id
 	const [participantOnlineIds, setParticipantOnlineIds] = useState<string[]>([])
@@ -26,6 +34,7 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 	// Join chat
 	const [joinThreadRes, setJoinThreadRes] = useState<JoinThreadRes>()
 	const [typingUserList, setTyingUserList] = useState<ChatThreadParticipantSummary[]>([])
+	const [isSendingMessage, setIsSendingMesaage] = useState(false)
 
 	const { socket, isConnected, isConnecting, connect, disconnect } = useCredentialedSocket<
 		ServerToClientEvents,
@@ -36,13 +45,19 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 		maxAuthRetries: 2
 	})
 
+	const submitMessageIsRead = useCallback(
+		(payload: SubmitIsReadMessagePayload) => {
+			socket?.emit(ChatServerEvent.CHAT_READ, payload)
+		},
+		[socket]
+	)
+
 	useEffect(() => {
 		if (!socket) {
 			return undefined
 		}
 
 		const handlePresence = (presence: CHAT_PRESENCE_REPSONSE) => {
-			console.log(presence)
 			if (presence.userId !== currentUserId && presence.status === 'online')
 				setParticipantOnlineIds(prev => {
 					const setParticipantOnlineIds = new Set([...prev, presence.userId])
@@ -74,7 +89,6 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 		}
 
 		const handleOtherParticipantTyping = (payload: TypingResponse) => {
-			console.log(payload)
 			if (payload.isTyping && payload.threadId === joinThreadRes?.data?.thread.id) {
 				const participant = joinThreadRes.data.thread.participants.find(p => p.userId === payload.userId)
 				setTyingUserList(prev => [...prev.filter(p => p.userId !== payload.userId), participant!])
@@ -83,16 +97,35 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 			}
 		}
 
+		const handleNewMessageReceiveInThread = (payload: responsePayloadOfNewMessageReceive) => {
+			appendRealtimeMessage(qc, payload.message.threadId, payload.message)
+			// Nếu mà mình đang ở trong phòng chat hiện tại thì chắc chắn khi tin nhắn mới sẽ được gửi tới mình
+			// Khi đó mình sẽ bắn 1 event là đã đọc cho tin nhắn hiện tại
+			submitMessageIsRead({
+				threadId: payload.message.threadId,
+				messageId: payload.message.id
+			})
+		}
+
+		const handleMessgeIsReadBySomeOne = (payload: OurMessageIsReadBySomeOneRes) => {
+			console.log(payload)
+			UpdateMessageIsReadBySomeOne(qc, payload.threadId, payload.receipt)
+		}
+
 		socket.on(ChatClientEvent.CHAT_PRESENCE, handlePresence)
 		socket.on(ChatClientEvent.CHAT_PRESENCE_SYNC, handlePresenceSync)
 		socket.on(ChatClientEvent.CHAT_TYPING, handleOtherParticipantTyping)
+		socket.on(ChatClientEvent.CHAT_NEW_MESSAGE, handleNewMessageReceiveInThread)
+		socket.on(ChatClientEvent.CHAT_READ, handleMessgeIsReadBySomeOne)
 
 		return () => {
 			socket.off(ChatClientEvent.CHAT_PRESENCE, handlePresence)
 			socket.off(ChatClientEvent.CHAT_PRESENCE_SYNC, handlePresenceSync)
 			socket.off(ChatClientEvent.CHAT_TYPING, handleOtherParticipantTyping)
+			socket.off(ChatClientEvent.CHAT_NEW_MESSAGE, handleNewMessageReceiveInThread)
+			socket.off(ChatClientEvent.CHAT_READ, handleMessgeIsReadBySomeOne)
 		}
-	}, [currentUserId, joinThreadRes, socket])
+	}, [currentUserId, joinThreadRes, qc, socket, submitMessageIsRead])
 
 	useEffect(() => {
 		if (!currentUserId) {
@@ -108,9 +141,7 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 
 	const leaveChat = useCallback(
 		(payload: JoinThreadPayload) => {
-			socket?.emit(ChatServerEvent.CHAT_LEAVE, payload, (res: { success: boolean; message?: string }) =>
-				console.log('leave chat', res)
-			)
+			socket?.emit(ChatServerEvent.CHAT_LEAVE, payload)
 		},
 		[socket]
 	)
@@ -121,7 +152,6 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 				leaveChat({ threadId: joinThreadRes?.data?.thread.id })
 			}
 			socket?.emit(ChatServerEvent.CHAT_JOIN, payload, (res: JoinThreadRes) => {
-				console.log('join chat', res)
 				setJoinThreadRes(res)
 			})
 		},
@@ -133,6 +163,27 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 			socket?.emit(ChatServerEvent.CHAT_TYPING, payload)
 		},
 		[socket]
+	)
+
+	const sendMessage = useCallback(
+		(message: string, uploadMeta: UploadedMeta[] = []) => {
+			if (!joinThreadRes?.data?.thread.id) return
+
+			const payload: SendMessagePayload = {
+				threadId: joinThreadRes?.data?.thread.id,
+				body: message,
+				type: 'USER',
+				attachments: uploadMeta
+			}
+			setIsSendingMesaage(true)
+			socket?.emit(ChatServerEvent.CHAT_SEND_MESSAGE, payload, (res: { success: boolean }) => {
+				setIsSendingMesaage(false)
+				if (!res.success) {
+					toast.error('Xảy ra lỗi trong quá trình lỗi tin nhắn')
+				}
+			})
+		},
+		[joinThreadRes?.data?.thread.id, socket]
 	)
 
 	const value = useMemo<ChatSocketContextValue>(
@@ -147,7 +198,9 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 			leaveChat,
 			joinThreadRes,
 			typingMessage,
-			typingUserList
+			typingUserList,
+			sendMessage,
+			isSendingMessage
 		}),
 		[
 			socket,
@@ -160,7 +213,9 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 			leaveChat,
 			joinThreadRes,
 			typingMessage,
-			typingUserList
+			typingUserList,
+			sendMessage,
+			isSendingMessage
 		]
 	)
 

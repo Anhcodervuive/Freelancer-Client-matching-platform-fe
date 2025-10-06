@@ -6,8 +6,9 @@ import type {
 	ChatClientEvent,
 	ChatServerEvent
 } from '~/constants/chat'
-import type { ChatMessage, ChatThreadType } from '~/types/chat'
+import type { ChatMessage, ChatMessageReceipt, ChatThreadType } from '~/types/chat'
 import type { Role } from '~/types/user'
+import type { UploadedMeta } from '~/utils/directUploader'
 
 export type JoinThreadPayload = {
 	threadId: string
@@ -53,16 +54,42 @@ export interface TypingResponse {
 	isTyping: boolean
 }
 
+export interface ThreadUnreadRes {
+	threadId: string
+	message: string
+}
+
+export interface responsePayloadOfNewMessageReceive {
+	tempId?: string
+	message: ChatMessage
+}
+
+export interface SubmitIsReadMessagePayload {
+	threadId: string
+	messageId: string
+}
+
+export interface OurMessageIsReadBySomeOneRes {
+	threadId: string
+	messageId: string
+	receipt: ChatMessageReceipt
+}
+
 export type ServerToClientEvents = {
 	[ChatServerEvent.CHAT_SEND_MESSAGE]: (_message: ChatMessage) => void
 	[ChatServerEvent.CHAT_JOIN]: (_joinThreadPayload: JoinThreadPayload) => void
 	[ChatServerEvent.CHAT_TYPING]: () => void
+	[ChatServerEvent.CHAT_READ]: (_payload: SubmitIsReadMessagePayload) => void
 }
 
 export type ClientToServerEvents = {
 	[ChatClientEvent.CHAT_PRESENCE_SYNC]: (_presences: CHAT_PRESENCE_SYNC_REPSPONSE) => void
 	[ChatClientEvent.CHAT_PRESENCE]: (_presence: CHAT_PRESENCE_REPSONSE) => void
-	[ChatServerEvent.CHAT_TYPING]: () => void
+	[ChatClientEvent.CHAT_TYPING]: () => void
+	[ChatClientEvent.CHAT_JOIN]: (_joinThreadPayload: JoinThreadPayload) => void
+	[ChatClientEvent.CHAT_LEAVE]: (_joinThreadPayload: JoinThreadPayload) => void
+	[ChatClientEvent.CHAT_THREAD_UNREAD]: () => void
+	[ChatClientEvent.CHAT_READ]: (_res: ChatMessageReceipt) => void
 }
 
 export type ChatSocketContextValue = {
@@ -77,4 +104,6 @@ export type ChatSocketContextValue = {
 	joinThreadRes: JoinThreadRes | undefined
 	typingMessage: (_typingThreadPayload: TypingPayload) => void
 	typingUserList: ChatThreadParticipantSummary[]
+	sendMessage: (_message: string, _uploadMeta: UploadedMeta[]) => void
+	isSendingMessage: boolean
 }

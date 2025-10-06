@@ -8,6 +8,7 @@ import ChatLoadingState from '~/components/chat/ChatLoadingState'
 import type { ChatAttachment, ChatMessage, JobMilestone } from '~/components/chat/types'
 import useThreadChats from '~/hooks/chat/useThreadChats'
 import type { chatThread } from '~/types/chat'
+import { uploadDirect } from '~/utils/directUploader'
 
 const milestonesByThread: Record<string, JobMilestone[]> = {
 	'thread-1': [
@@ -242,6 +243,8 @@ export default function JobChatPage() {
 		typingMessage,
 		joinThreadRes,
 		typingUserList,
+		sendMessage,
+		isSendingMessage,
 		messageListQuery
 	} = useThreadChats({
 		limit: 10,
@@ -267,7 +270,6 @@ export default function JobChatPage() {
 	useEffect(() => {
 		if (threadChatsRes && threadChatsRes?.data?.length > 0 && !selectedThreadId) {
 			setSelectedThreadId(threadChatsRes?.data?.[0].id)
-			console.log('threadChatsRes', threadChatsRes)
 			joinChat({ threadId: threadChatsRes?.data[0].id })
 		}
 	}, [joinChat, selectedThreadId, threadChatsRes])
@@ -288,6 +290,19 @@ export default function JobChatPage() {
 	const handleTypingMessage = (isTyping: boolean) => {
 		typingMessage({ isTyping, threadId: joinThreadRes?.data?.thread.id ?? '' })
 	}
+
+	const handleSendMessage = async (message: string, files: File[]) => {
+		if (!joinThreadRes?.data?.thread.id) return
+		if (files.length > 0) {
+			const uploadPromise = files.map(file => uploadDirect(file, joinThreadRes?.data?.thread.id ?? ''))
+			const result = await Promise.all(uploadPromise)
+			sendMessage(message, result)
+		} else {
+			sendMessage(message, [])
+		}
+	}
+
+	console.log(messageListQuery.data?.items)
 
 	const milestones = useMemo<JobMilestone[]>(() => {
 		if (!activeThread) {
@@ -336,11 +351,7 @@ export default function JobChatPage() {
 
 			<section className='flex h-full min-h-0 flex-col gap-4 rounded-3xl border border-white/60 bg-white/75 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur'>
 				<JobChatHeader thread={activeThread} />
-				{!joinThreadRes ||
-				messageListQuery.isError ||
-				messageListQuery.isLoading ||
-				!messageListQuery.data ||
-				messageListQuery.data?.items.length === 0 ? (
+				{!joinThreadRes || messageListQuery.isError || messageListQuery.isLoading || !messageListQuery.data ? (
 					renderMessagePlaceholder(4)
 				) : joinThreadRes.success ? (
 					<div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
@@ -351,7 +362,12 @@ export default function JobChatPage() {
 							messages={messageListQuery?.data?.items ?? []}
 							jobTitle={activeThread.jobPost?.title ?? ''}
 						/>
-						<ChatComposer onTyping={handleTypingMessage} typingUserList={typingUserList} />
+						<ChatComposer
+							onTyping={handleTypingMessage}
+							typingUserList={typingUserList}
+							onSendMessage={handleSendMessage}
+							isSendingMessage={isSendingMessage}
+						/>
 					</div>
 				) : (
 					<div>Có lỗi xảy ra</div>
