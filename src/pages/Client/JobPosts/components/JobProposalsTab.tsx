@@ -327,19 +327,19 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                         : 'Unable to load proposals right now.'
 
         const acceptInterviewMutation = useMutation({
-                mutationFn: (proposalId: string) => acceptClientJobProposalInterview(proposalId),
+                mutationFn: (proposalId: string) => acceptClientJobProposalInterview(job.id, proposalId),
                 onSuccess: data => handleMutationSuccess('Interview accepted successfully.', data, 'INTERVIEWING'),
                 onError: error => handleMutationError(error, 'Unable to accept interview.')
         })
 
         const hireMutation = useMutation({
-                mutationFn: (proposalId: string) => hireClientJobProposal(proposalId),
+                mutationFn: (proposalId: string) => hireClientJobProposal(job.id, proposalId),
                 onSuccess: data => handleMutationSuccess('Freelancer hired successfully.', data, 'HIRED'),
                 onError: error => handleMutationError(error, 'Unable to hire this freelancer right now.')
         })
 
         const declineMutation = useMutation({
-                mutationFn: (proposalId: string) => declineClientJobProposal(proposalId),
+                mutationFn: (proposalId: string) => declineClientJobProposal(job.id, proposalId),
                 onSuccess: data => handleMutationSuccess('Proposal declined.', data, 'DECLINED'),
                 onError: error => handleMutationError(error, 'Unable to decline this proposal.')
         })

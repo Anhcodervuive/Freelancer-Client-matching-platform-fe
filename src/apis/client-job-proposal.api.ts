@@ -3,7 +3,6 @@ import type { JobProposalFilterInput } from '~/types/job-proposal'
 import type { ClientJobProposal, PaginatedClientJobProposalResponse } from '~/types/client-job-proposal'
 
 const baseUrl = '/client/job-posts'
-const proposalBaseUrl = '/client/job-proposals'
 
 const serializeFilters = (filters: Partial<JobProposalFilterInput> = {}) => {
         const params = new URLSearchParams()
@@ -53,24 +52,31 @@ export const listClientJobProposals = async (
 }
 
 export const acceptClientJobProposalInterview = async (
+        jobId: string,
         proposalId: string,
 ): Promise<ClientJobProposal> => {
         const response = await authorizeAxiosInstance.post<ClientJobProposal>(
-                `${proposalBaseUrl}/${proposalId}/accept-interview`,
+                `${baseUrl}/${jobId}/proposals/${proposalId}/interview`,
         )
         return response.data
 }
 
-export const hireClientJobProposal = async (proposalId: string): Promise<ClientJobProposal> => {
+export const hireClientJobProposal = async (
+        jobId: string,
+        proposalId: string,
+): Promise<ClientJobProposal> => {
         const response = await authorizeAxiosInstance.post<ClientJobProposal>(
-                `${proposalBaseUrl}/${proposalId}/hire`,
+                `${baseUrl}/${jobId}/proposals/${proposalId}/hire`,
         )
         return response.data
 }
 
-export const declineClientJobProposal = async (proposalId: string): Promise<ClientJobProposal> => {
+export const declineClientJobProposal = async (
+        jobId: string,
+        proposalId: string,
+): Promise<ClientJobProposal> => {
         const response = await authorizeAxiosInstance.post<ClientJobProposal>(
-                `${proposalBaseUrl}/${proposalId}/decline`,
+                `${baseUrl}/${jobId}/proposals/${proposalId}/decline`,
         )
         return response.data
 }
