@@ -1,14 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
-import { CalendarClock, FileEdit, Loader2, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { CalendarClock, Loader2, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 
-import {
-        listFreelancerJobOffers,
-        respondFreelancerJobOffer,
-        updateFreelancerJobOffer
-} from '~/apis/job-offer.api'
-import JobOfferForm, { type JobOfferFormValues } from '~/components/job-offers/JobOfferForm'
+import { listFreelancerJobOffers, respondFreelancerJobOffer } from '~/apis/job-offer.api'
 import type { JobOffer, JobOfferStatus } from '~/types/job-offer'
 import {
         JOB_OFFER_STATUS_META,
@@ -19,16 +14,7 @@ import {
 
 const PAGE_SIZE = 6
 
-const editableStatuses: JobOfferStatus[] = ['SENT']
 const actionableStatuses: JobOfferStatus[] = ['SENT']
-
-type OfferDialogState = {
-        open: boolean
-        offer: JobOffer | null
-        defaults?: Partial<JobOfferFormValues>
-}
-
-const initialDialogState: OfferDialogState = { open: false, offer: null, defaults: undefined }
 
 const computeStatusCounts = (offers: JobOffer[]) => {
         const counts = new Map<JobOfferStatus, number>()
@@ -38,31 +24,8 @@ const computeStatusCounts = (offers: JobOffer[]) => {
         return counts
 }
 
-const transformValuesToPayload = (values: JobOfferFormValues, offer?: JobOffer | null) => {
-        const startDate = values.startDate
-                ? new Date(values.startDate).toISOString()
-                : offer?.startDate
-                ? null
-                : undefined
-        const expireAt = values.expireAt
-                ? new Date(values.expireAt).toISOString()
-                : offer?.expireAt
-                ? null
-                : undefined
-
-        return {
-                title: values.title,
-                message: values.message ?? null,
-                currency: values.currency,
-                fixedPrice: values.fixedPrice,
-                startDate,
-                expireAt
-        }
-}
-
 const FreelancerJobOfferListPage = () => {
         const [page, setPage] = useState(1)
-        const [dialogState, setDialogState] = useState<OfferDialogState>(initialDialogState)
         const queryClient = useQueryClient()
 
         const offerQuery = useQuery({
@@ -76,23 +39,6 @@ const FreelancerJobOfferListPage = () => {
         const limit = offerQuery.data?.limit ?? PAGE_SIZE
         const totalPages = Math.max(1, Math.ceil(total / limit))
         const statusCounts = useMemo(() => computeStatusCounts(offers), [offers])
-
-        const updateMutation = useMutation({
-                mutationFn: async (values: JobOfferFormValues) => {
-                        if (!dialogState.offer) throw new Error('Missing offer reference')
-                        const payload = transformValuesToPayload(values, dialogState.offer)
-                        return updateFreelancerJobOffer(dialogState.offer.id, payload)
-                },
-                onSuccess: async () => {
-                        toast.success('Đã cập nhật offer')
-                        setDialogState(initialDialogState)
-                        await queryClient.invalidateQueries({ queryKey: ['freelancer-job-offers'] })
-                },
-                onError: error => {
-                        const message = error instanceof Error ? error.message : 'Không thể cập nhật offer'
-                        toast.error(message)
-                }
-        })
 
         const respondMutation = useMutation({
                 mutationFn: async ({ offer, status }: { offer: JobOffer; status: JobOfferStatus }) => {
@@ -115,22 +61,6 @@ const FreelancerJobOfferListPage = () => {
                 }
         })
 
-        const handleEdit = (offer: JobOffer) => {
-                const defaults: Partial<JobOfferFormValues> = {
-                        title: offer.title,
-                        message: offer.message ?? undefined,
-                        currency: offer.currency,
-                        fixedPrice: offer.fixedPrice,
-                        startDate: offer.startDate ?? undefined,
-                        expireAt: offer.expireAt ?? undefined
-                }
-                setDialogState({ open: true, offer, defaults })
-        }
-
-        const handleCloseDialog = () => {
-                setDialogState(initialDialogState)
-        }
-
         const handleRespond = (offer: JobOffer, status: JobOfferStatus) => {
                 if (respondMutation.isPending) return
                 respondMutation.mutate({ offer, status })
@@ -142,7 +72,6 @@ const FreelancerJobOfferListPage = () => {
                 const priceLabel = formatJobOfferCurrency(offer.fixedPrice, offer.currency)
                 const startDateLabel = formatJobOfferDate(offer.startDate)
                 const expireAtLabel = formatJobOfferDateTime(offer.expireAt)
-                const canEdit = editableStatuses.includes(offer.status)
                 const canRespond = actionableStatuses.includes(offer.status)
 
                 return (
@@ -186,15 +115,6 @@ const FreelancerJobOfferListPage = () => {
                                 ) : null}
 
                                 <div className='mt-4 flex flex-wrap gap-2'>
-                                        {canEdit ? (
-                                                <button
-                                                        type='button'
-                                                        className='btn btn-sm btn-outline gap-2'
-                                                        onClick={() => handleEdit(offer)}
-                                                >
-                                                        <FileEdit className='size-4' /> Điều chỉnh điều khoản
-                                                </button>
-                                        ) : null}
                                         {canRespond ? (
                                                 <>
                                                         <button
@@ -234,7 +154,7 @@ const FreelancerJobOfferListPage = () => {
                 <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
                         <div className='flex flex-col gap-2'>
                                 <h1 className='text-2xl font-semibold text-base-content'>Job offers từ khách hàng</h1>
-                                <p className='text-sm text-base-content/70'>Xem lại điều khoản, đề xuất điều chỉnh và phản hồi để bắt đầu hợp tác.</p>
+                                <p className='text-sm text-base-content/70'>Xem chi tiết điều khoản và phản hồi để bắt đầu hợp tác.</p>
                         </div>
 
                         <div className='mt-6 grid gap-4 md:grid-cols-3'>
@@ -312,27 +232,6 @@ const FreelancerJobOfferListPage = () => {
                                         </div>
                                 ) : null}
                         </div>
-
-                        <dialog className={`modal ${dialogState.open ? 'modal-open' : ''}`}>
-                                <div className='modal-box max-w-2xl'>
-                                        {dialogState.offer ? (
-                                                <JobOfferForm
-                                                        mode='edit'
-                                                        defaultValues={dialogState.defaults}
-                                                        onCancel={handleCloseDialog}
-                                                        onSubmit={values => updateMutation.mutate(values)}
-                                                        submitLabel={updateMutation.isPending ? 'Đang lưu…' : 'Lưu điều chỉnh'}
-                                                        isSubmitting={updateMutation.isPending}
-                                                        showSendNowToggle={false}
-                                                        title='Điều chỉnh điều khoản'
-                                                        description='Đề xuất thay đổi để thống nhất lịch bắt đầu hoặc nội dung công việc.'
-                                                />
-                                        ) : null}
-                                </div>
-                                <form method='dialog' className='modal-backdrop'>
-                                        <button type='submit' onClick={handleCloseDialog} aria-label='Đóng điều chỉnh offer'>close</button>
-                                </form>
-                        </dialog>
                 </div>
         )
 }
