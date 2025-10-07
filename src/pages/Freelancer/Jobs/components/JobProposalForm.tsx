@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import type { Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { CURRENCY_CODES, JOB_DURATION_COMMITMENTS } from '~/constants/job'
@@ -12,7 +13,7 @@ const BaseProposalSchema = UpdateJobProposalSchema.pick({
         bidAmount: true,
         bidCurrency: true,
         estimatedDuration: true
-})
+}).partial()
 
 export type JobProposalFormValues = z.infer<typeof BaseProposalSchema>
 
@@ -42,7 +43,7 @@ const JobProposalForm = ({
                 reset,
                 watch
         } = useForm<JobProposalFormValues>({
-                resolver: zodResolver(BaseProposalSchema),
+                resolver: zodResolver(BaseProposalSchema) as Resolver<JobProposalFormValues>,
                 defaultValues: {
                         coverLetter: defaultValues?.coverLetter ?? '',
                         bidAmount: defaultValues?.bidAmount ?? undefined,

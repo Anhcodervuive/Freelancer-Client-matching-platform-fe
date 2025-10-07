@@ -3,6 +3,9 @@ import type { JobProposal, JobProposalStatus } from './job-proposal'
 
 export type ClientJobProposal = JobProposal & {
         freelancer?: ClientFreelancerListItem | null
+        chatThreadId?: string | null
+        chatThread?: { id?: string | null } | null
+        metadata?: Record<string, unknown> | null
 }
 
 export type ClientJobProposalStatusAggregate = {

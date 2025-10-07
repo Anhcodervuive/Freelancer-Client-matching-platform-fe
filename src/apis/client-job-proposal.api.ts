@@ -1,10 +1,11 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import type { JobProposalFilterInput } from '~/types/job-proposal'
-import type { PaginatedClientJobProposalResponse } from '~/types/client-job-proposal'
+import type { ClientJobProposal, PaginatedClientJobProposalResponse } from '~/types/client-job-proposal'
 
 const baseUrl = '/client/job-posts'
+const proposalBaseUrl = '/client/job-proposals'
 
-const serializeFilters = (filters: JobProposalFilterInput = {}) => {
+const serializeFilters = (filters: Partial<JobProposalFilterInput> = {}) => {
         const params = new URLSearchParams()
 
         Object.entries(filters).forEach(([key, value]) => {
@@ -43,10 +44,33 @@ const serializeFilters = (filters: JobProposalFilterInput = {}) => {
 
 export const listClientJobProposals = async (
         jobId: string,
-        filters: JobProposalFilterInput = {}
+        filters: Partial<JobProposalFilterInput> = {}
 ): Promise<PaginatedClientJobProposalResponse> => {
         const response = await authorizeAxiosInstance.get<PaginatedClientJobProposalResponse>(
                 `${baseUrl}/${jobId}/proposals${serializeFilters(filters)}`
+        )
+        return response.data
+}
+
+export const acceptClientJobProposalInterview = async (
+        proposalId: string,
+): Promise<ClientJobProposal> => {
+        const response = await authorizeAxiosInstance.post<ClientJobProposal>(
+                `${proposalBaseUrl}/${proposalId}/accept-interview`,
+        )
+        return response.data
+}
+
+export const hireClientJobProposal = async (proposalId: string): Promise<ClientJobProposal> => {
+        const response = await authorizeAxiosInstance.post<ClientJobProposal>(
+                `${proposalBaseUrl}/${proposalId}/hire`,
+        )
+        return response.data
+}
+
+export const declineClientJobProposal = async (proposalId: string): Promise<ClientJobProposal> => {
+        const response = await authorizeAxiosInstance.post<ClientJobProposal>(
+                `${proposalBaseUrl}/${proposalId}/decline`,
         )
         return response.data
 }

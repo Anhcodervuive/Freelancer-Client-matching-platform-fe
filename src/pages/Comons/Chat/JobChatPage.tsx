@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import ChatMessageList from '~/components/chat/ChatMessageList'
 import ChatComposer from '~/components/chat/ChatComposer'
 import JobChatSidebar from '~/components/chat/JobChatSidebar'
@@ -234,26 +235,28 @@ const renderMessagePlaceholder = (items: number) =>
 	))
 
 export default function JobChatPage() {
-	const {
-		threadChats: threadChatsRes,
-		isLoadingThreadChats,
-		threadChatError,
-		participantOnlineIds,
-		joinChat,
-		typingMessage,
-		joinThreadRes,
-		typingUserList,
-		sendMessage,
-		isSendingMessage,
-		messageListQuery
-	} = useThreadChats({
-		limit: 10,
-		page: 1,
-		search: undefined,
-		includeLastMessage: true,
-		includeParticipants: true
-	})
-	const [selectedThreadId, setSelectedThreadId] = useState(threadChatsRes?.data?.[0].id)
+        const {
+                threadChats: threadChatsRes,
+                isLoadingThreadChats,
+                threadChatError,
+                participantOnlineIds,
+                joinChat,
+                typingMessage,
+                joinThreadRes,
+                typingUserList,
+                sendMessage,
+                isSendingMessage,
+                messageListQuery
+        } = useThreadChats({
+                limit: 10,
+                page: 1,
+                search: undefined,
+                includeLastMessage: true,
+                includeParticipants: true
+        })
+        const [searchParams, setSearchParams] = useSearchParams()
+        const threadIdParam = searchParams.get('threadId') ?? undefined
+        const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(threadIdParam ?? undefined)
 	const [searchTerm, setSearchTerm] = useState('')
 	const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false)
 
@@ -267,12 +270,54 @@ export default function JobChatPage() {
 		return undefined
 	}, [selectedThreadId, threadChatsRes?.data])
 
-	useEffect(() => {
-		if (threadChatsRes && threadChatsRes?.data?.length > 0 && !selectedThreadId) {
-			setSelectedThreadId(threadChatsRes?.data?.[0].id)
-			joinChat({ threadId: threadChatsRes?.data[0].id })
-		}
-	}, [joinChat, selectedThreadId, threadChatsRes])
+        useEffect(() => {
+                const threads = threadChatsRes?.data ?? []
+
+                if (!threads.length) {
+                        setSelectedThreadId(undefined)
+                        return
+                }
+
+                if (threadIdParam && threads.some(thread => thread.id === threadIdParam)) {
+                        setSelectedThreadId(prev => (prev === threadIdParam ? prev : threadIdParam))
+                        return
+                }
+
+                setSelectedThreadId(prev => {
+                        if (prev && threads.some(thread => thread.id === prev)) {
+                                return prev
+                        }
+                        return threads[0]?.id
+                })
+        }, [threadChatsRes?.data, threadIdParam])
+
+        useEffect(() => {
+                if (!selectedThreadId) {
+                        if (threadIdParam) {
+                                setSearchParams(prev => {
+                                        const next = new URLSearchParams(prev)
+                                        next.delete('threadId')
+                                        return next
+                                }, { replace: true })
+                        }
+                        return
+                }
+
+                if (threadIdParam === selectedThreadId) {
+                        return
+                }
+
+                setSearchParams(prev => {
+                        const next = new URLSearchParams(prev)
+                        next.set('threadId', selectedThreadId)
+                        return next
+                }, { replace: true })
+        }, [selectedThreadId, threadIdParam, setSearchParams])
+
+        useEffect(() => {
+                if (!selectedThreadId) return
+                joinChat({ threadId: selectedThreadId })
+        }, [joinChat, selectedThreadId])
 
 	const messages = useMemo<ChatMessage[]>(() => {
 		if (!activeThread) {
@@ -337,12 +382,9 @@ export default function JobChatPage() {
 				threads={threadChatsRes?.data}
 				selectedThreadId={activeThread.id}
 				participantOnlineIds={participantOnlineIds}
-				onSelectThread={(selectedThreadId: string) => {
-					setSelectedThreadId(selectedThreadId)
-					joinChat({
-						threadId: selectedThreadId
-					})
-				}}
+                                onSelectThread={(selectedThreadId: string) => {
+                                        setSelectedThreadId(selectedThreadId)
+                                }}
 				searchTerm={searchTerm}
 				onSearchTermChange={setSearchTerm}
 			/>

@@ -1,23 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
         BriefcaseBusiness,
         CheckCircle2,
         CircleDollarSign,
         Clock,
+        Eye,
         ExternalLink,
         Filter,
         Loader2,
         MapPin,
         MessageSquare,
+        CalendarCheck2,
         Search,
         Sparkles,
         Star,
+        UserCheck,
+        UserX,
         Users2
 } from 'lucide-react'
 
-import { listClientJobProposals } from '~/apis/client-job-proposal.api'
+import { toast } from 'react-toastify'
+
+import {
+        acceptClientJobProposalInterview,
+        declineClientJobProposal,
+        hireClientJobProposal,
+        listClientJobProposals
+} from '~/apis/client-job-proposal.api'
 import { routes } from '~/config/routes'
 import {
         JOB_DURATION_COMMITMENTS,
@@ -76,6 +87,51 @@ const proposalStatusOptions = Object.entries(JOB_PROPOSAL_STATUS_META).map(([val
 
 const isProposalStatus = (value: string): value is JobProposalStatus =>
         Object.hasOwn(JOB_PROPOSAL_STATUS_META, value as JobProposalStatus)
+
+const chatThreadIdCandidateKeys = [
+        'chatThreadId',
+        'threadId',
+        'jobChatThreadId',
+        'chatThreadID',
+        'chat_thread_id',
+        'messageThreadId',
+        'conversationId'
+] as const
+
+const extractChatThreadId = (proposal: ClientJobProposal | null): string | null => {
+        if (!proposal) return null
+
+        const proposalRecord = proposal as Record<string, unknown>
+
+        for (const key of chatThreadIdCandidateKeys) {
+                const value = proposalRecord[key]
+                if (typeof value === 'string' && value.trim()) {
+                        return value.trim()
+                }
+        }
+
+        const metadata = proposalRecord.metadata
+        if (metadata && typeof metadata === 'object' && metadata !== null) {
+                const metadataRecord = metadata as Record<string, unknown>
+                for (const key of chatThreadIdCandidateKeys) {
+                        const value = metadataRecord[key]
+                        if (typeof value === 'string' && value.trim()) {
+                                return value.trim()
+                        }
+                }
+        }
+
+        const chatThread = proposalRecord.chatThread
+        if (chatThread && typeof chatThread === 'object' && chatThread !== null) {
+                const threadRecord = chatThread as Record<string, unknown>
+                const id = threadRecord.id
+                if (typeof id === 'string' && id.trim()) {
+                        return id.trim()
+                }
+        }
+
+        return null
+}
 
 const formatBidAmount = (amount?: number | null, currency?: string | null): string | undefined => {
         if (amount === undefined || amount === null) return undefined
@@ -148,10 +204,57 @@ export default function JobProposalsTab({ job, isActive }: Props) {
         const [status, setStatus] = useState<JobProposalStatus | ''>('')
         const [sortBy, setSortBy] = useState<SortOptionValue>('newest')
         const [search, setSearch] = useState('')
+        const [previewProposal, setPreviewProposal] = useState<ClientJobProposal | null>(null)
+
+        const queryClient = useQueryClient()
 
         useEffect(() => {
                 setPage(1)
         }, [job.id])
+
+        useEffect(() => {
+                setPreviewProposal(null)
+        }, [job.id])
+
+        const getErrorMessage = (error: unknown, fallback: string) =>
+                error instanceof Error ? error.message : fallback
+
+        const updatePreviewProposal = (
+                updated: ClientJobProposal | null | undefined,
+                fallbackStatus: JobProposalStatus,
+        ) => {
+                setPreviewProposal(current => {
+                        if (!current) return current
+
+                        if (updated && updated.id === current.id) {
+                                return { ...current, ...updated }
+                        }
+
+                        if (!updated) {
+                                if (current.status === fallbackStatus) return current
+                                return { ...current, status: fallbackStatus }
+                        }
+
+                        return current
+                })
+        }
+
+        const invalidateProposals = () =>
+                queryClient.invalidateQueries({ queryKey: ['client-job-proposals'] })
+
+        const handleMutationSuccess = (
+                message: string,
+                updated: ClientJobProposal | null | undefined,
+                fallbackStatus: JobProposalStatus,
+        ) => {
+                toast.success(message)
+                updatePreviewProposal(updated, fallbackStatus)
+                void invalidateProposals()
+        }
+
+        const handleMutationError = (error: unknown, fallback: string) => {
+                toast.error(getErrorMessage(error, fallback))
+        }
 
         const debouncedSearch = useDebounce(search, 400)
 
@@ -169,10 +272,10 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                 [job.id, page, status, sortBy, debouncedSearch]
         )
 
-        const proposalsQuery = useQuery({
+        const proposalsQuery = useQuery<PaginatedClientJobProposalResponse>({
                 queryKey,
                 enabled: isActive,
-                keepPreviousData: true,
+                placeholderData: previousData => previousData,
                 queryFn: () =>
                         listClientJobProposals(job.id, {
                                 page,
@@ -223,12 +326,35 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                         ? proposalsQuery.error.message
                         : 'Unable to load proposals right now.'
 
+        const acceptInterviewMutation = useMutation({
+                mutationFn: (proposalId: string) => acceptClientJobProposalInterview(proposalId),
+                onSuccess: data => handleMutationSuccess('Interview accepted successfully.', data, 'INTERVIEWING'),
+                onError: error => handleMutationError(error, 'Unable to accept interview.')
+        })
+
+        const hireMutation = useMutation({
+                mutationFn: (proposalId: string) => hireClientJobProposal(proposalId),
+                onSuccess: data => handleMutationSuccess('Freelancer hired successfully.', data, 'HIRED'),
+                onError: error => handleMutationError(error, 'Unable to hire this freelancer right now.')
+        })
+
+        const declineMutation = useMutation({
+                mutationFn: (proposalId: string) => declineClientJobProposal(proposalId),
+                onSuccess: data => handleMutationSuccess('Proposal declined.', data, 'DECLINED'),
+                onError: error => handleMutationError(error, 'Unable to decline this proposal.')
+        })
+
         const resetFilters = () => {
                 setSearch('')
                 setStatus('')
                 setSortBy('newest')
                 setPage(1)
         }
+
+        const previewChatThreadId = extractChatThreadId(previewProposal)
+        const previewMessageLink = previewChatThreadId
+                ? `${routes.messages.jobs}?threadId=${encodeURIComponent(previewChatThreadId)}`
+                : null
 
         const renderProposalCard = (proposal: ClientJobProposal) => {
                 const freelancer = proposal.freelancer ?? null
@@ -346,6 +472,13 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                                         </div>
                                 ) : null}
                                 <div className='mt-4 flex flex-wrap gap-2'>
+                                        <button
+                                                type='button'
+                                                className='btn btn-sm btn-primary gap-2'
+                                                onClick={() => setPreviewProposal(proposal)}
+                                        >
+                                                <Eye className='size-4' /> Preview proposal
+                                        </button>
                                         {profileLink ? (
                                                 <Link to={profileLink} className='btn btn-sm btn-outline gap-2'>
                                                         <ExternalLink className='size-4' /> View profile
@@ -354,6 +487,21 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                                 </div>
                         </div>
                 )
+        }
+
+        const handleAcceptInterview = () => {
+                if (!previewProposal) return
+                acceptInterviewMutation.mutate(previewProposal.id)
+        }
+
+        const handleHireFreelancer = () => {
+                if (!previewProposal) return
+                hireMutation.mutate(previewProposal.id)
+        }
+
+        const handleDeclineProposal = () => {
+                if (!previewProposal) return
+                declineMutation.mutate(previewProposal.id)
         }
 
         return (
@@ -529,6 +677,270 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                                         </div>
                                 </div>
                         ) : null}
+
+                        {previewProposal ? (
+                                <ProposalPreviewDialog
+                                        open={Boolean(previewProposal)}
+                                        proposal={previewProposal}
+                                        jobTitle={job.title ?? 'Job proposal'}
+                                        messageLink={previewMessageLink}
+                                        acceptLoading={acceptInterviewMutation.isPending}
+                                        hireLoading={hireMutation.isPending}
+                                        declineLoading={declineMutation.isPending}
+                                        onAcceptInterview={handleAcceptInterview}
+                                        onHire={handleHireFreelancer}
+                                        onDecline={handleDeclineProposal}
+                                        onClose={() => setPreviewProposal(null)}
+                                />
+                        ) : null}
                 </div>
+        )
+}
+
+type ProposalPreviewDialogProps = {
+        open: boolean
+        proposal: ClientJobProposal
+        jobTitle: string
+        messageLink: string | null
+        acceptLoading: boolean
+        hireLoading: boolean
+        declineLoading: boolean
+        onAcceptInterview: () => void
+        onHire: () => void
+        onDecline: () => void
+        onClose: () => void
+}
+
+function ProposalPreviewDialog({
+        open,
+        proposal,
+        jobTitle,
+        messageLink,
+        acceptLoading,
+        hireLoading,
+        declineLoading,
+        onAcceptInterview,
+        onHire,
+        onDecline,
+        onClose
+}: ProposalPreviewDialogProps) {
+        const freelancer = proposal.freelancer ?? null
+        const freelancerId = getFreelancerId(freelancer)
+        const freelancerName = getFreelancerName(freelancer)
+        const freelancerTitle = getFreelancerTitle(freelancer)
+        const avatarUrl = getFreelancerAvatar(freelancer)
+        const avatarFallback = getFreelancerInitials(freelancerName)
+        const location = getFreelancerLocation(freelancer)
+        const jobSuccess = getFreelancerJobSuccess(freelancer)
+        const rating = getFreelancerRating(freelancer)
+        const totalEarned = getFreelancerTotalEarned(freelancer)
+        const totalHoursWorked = getFreelancerTotalHoursWorked(freelancer)
+        const hourlyMeta = getFreelancerHourlyRate(freelancer)
+        const totalEarnedLabel =
+                totalEarned !== undefined
+                        ? formatFreelancerCurrency(totalEarned, hourlyMeta.currency)
+                        : undefined
+        const hoursLabel =
+                totalHoursWorked !== undefined
+                        ? `${formatNumberValue(totalHoursWorked)} hrs billed`
+                        : undefined
+
+        const statusMeta = JOB_PROPOSAL_STATUS_META[proposal.status]
+        const amountLabel = formatBidAmount(proposal.bidAmount ?? undefined, proposal.bidCurrency ?? undefined)
+        const durationLabel = proposal.estimatedDuration
+                ? durationMap[proposal.estimatedDuration as JobDurationCommitment] ?? proposal.estimatedDuration
+                : undefined
+        const submittedLabel = formatDateTime(proposal.submittedAt ?? proposal.createdAt, {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+        })
+        const coverLetter = proposal.coverLetter?.trim()
+        const profileLink = freelancerId ? routes.comons.freelancerProfile(String(freelancerId)) : undefined
+
+        const canAcceptInterview = proposal.status === 'SUBMITTED' || proposal.status === 'SHORTLISTED'
+        const canHire = proposal.status === 'INTERVIEWING' || proposal.status === 'SHORTLISTED'
+        const canDecline =
+                proposal.status === 'SUBMITTED' || proposal.status === 'SHORTLISTED' || proposal.status === 'INTERVIEWING'
+        const showMessageShortcut = proposal.status === 'INTERVIEWING' || proposal.status === 'HIRED'
+        const isMutating = acceptLoading || hireLoading || declineLoading
+
+        return (
+                <dialog className={`modal ${open ? 'modal-open' : ''}`}>
+                        <div className='modal-box max-w-3xl space-y-6'>
+                                <div className='flex flex-col gap-4'>
+                                        <div className='flex items-start justify-between gap-4'>
+                                                <div className='flex flex-1 items-start gap-3'>
+                                                        <div className='flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary/10 text-lg font-semibold text-primary'>
+                                                                {avatarUrl ? (
+                                                                        <img src={avatarUrl} alt={freelancerName} className='h-full w-full object-cover' />
+                                                                ) : (
+                                                                        <span>{avatarFallback}</span>
+                                                                )}
+                                                        </div>
+                                                        <div className='min-w-0 space-y-1'>
+                                                                <p className='truncate text-lg font-semibold text-base-content'>
+                                                                        {freelancerName || 'Freelancer'}
+                                                                </p>
+                                                                {freelancerTitle ? (
+                                                                        <p className='truncate text-sm text-base-content/70'>{freelancerTitle}</p>
+                                                                ) : null}
+                                                                <p className='text-xs text-base-content/60'>Proposal for: {jobTitle}</p>
+                                                                <div className='mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-base-content/60'>
+                                                                        {location ? (
+                                                                                <span className='inline-flex items-center gap-1 text-base-content/70'>
+                                                                                        <MapPin className='size-3 text-primary/70' /> {location}
+                                                                                </span>
+                                                                        ) : null}
+                                                                        {typeof jobSuccess === 'number' ? (
+                                                                                <span className='inline-flex items-center gap-1 text-emerald-600'>
+                                                                                        <CheckCircle2 className='size-3' /> {jobSuccess}% success
+                                                                                </span>
+                                                                        ) : null}
+                                                                        {typeof rating === 'number' ? (
+                                                                                <span className='inline-flex items-center gap-1 text-amber-600'>
+                                                                                        <Star className='size-3 fill-current' /> {rating.toFixed(1)} rating
+                                                                                </span>
+                                                                        ) : null}
+                                                                        {totalEarnedLabel ? (
+                                                                                <span className='inline-flex items-center gap-1 text-primary/70'>
+                                                                                        <CircleDollarSign className='size-3' /> {totalEarnedLabel} earned
+                                                                                </span>
+                                                                        ) : null}
+                                                                        {hoursLabel ? (
+                                                                                <span className='inline-flex items-center gap-1 text-base-content/70'>
+                                                                                        <Clock className='size-3 text-primary/70' /> {hoursLabel}
+                                                                                </span>
+                                                                        ) : null}
+                                                                </div>
+                                                        </div>
+                                                </div>
+                                                <span className={`badge ${statusMeta.badgeClass}`}>{statusMeta.label}</span>
+                                        </div>
+
+                                        <div className='grid gap-3 sm:grid-cols-2'>
+                                                <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
+                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Bid amount</p>
+                                                        <p className='mt-2 text-base font-semibold text-base-content'>
+                                                                {amountLabel ?? 'Not specified'}
+                                                        </p>
+                                                </div>
+                                                <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
+                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Estimated duration</p>
+                                                        <p className='mt-2 text-base font-semibold text-base-content'>
+                                                                {durationLabel ?? 'Not provided'}
+                                                        </p>
+                                                </div>
+                                                <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
+                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Submitted</p>
+                                                        <p className='mt-2 text-base font-semibold text-base-content'>
+                                                                {submittedLabel ?? 'Not available'}
+                                                        </p>
+                                                </div>
+                                                {profileLink ? (
+                                                        <Link
+                                                                to={profileLink}
+                                                                className='rounded-2xl border border-base-200 bg-base-200/60 p-4 transition hover:border-primary/40 hover:bg-primary/10'
+                                                        >
+                                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Freelancer profile</p>
+                                                                <p className='mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary'>
+                                                                        <ExternalLink className='size-4' /> View profile
+                                                                </p>
+                                                        </Link>
+                                                ) : null}
+                                        </div>
+
+                                        <div className='space-y-3'>
+                                                <div className='flex items-center gap-2 text-sm font-semibold text-base-content'>
+                                                        <MessageSquare className='size-4 text-primary' /> Cover letter
+                                                </div>
+                                                {coverLetter ? (
+                                                        <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4 text-sm leading-relaxed text-base-content/80 whitespace-pre-line'>
+                                                                {coverLetter}
+                                                        </div>
+                                                ) : (
+                                                        <div className='rounded-2xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/60'>
+                                                                No cover letter was included with this proposal.
+                                                        </div>
+                                                )}
+                                        </div>
+                                </div>
+
+                                <div className='modal-action mt-6 flex flex-col gap-4'>
+                                        <div className='flex flex-wrap gap-2'>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-sm btn-primary gap-2'
+                                                        disabled={!canAcceptInterview || isMutating}
+                                                        onClick={onAcceptInterview}
+                                                >
+                                                        {acceptLoading ? (
+                                                                <Loader2 className='size-4 animate-spin' />
+                                                        ) : (
+                                                                <CalendarCheck2 className='size-4' />
+                                                        )}
+                                                        {acceptLoading ? 'Accepting…' : 'Accept interview'}
+                                                </button>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-sm btn-success gap-2'
+                                                        disabled={!canHire || isMutating}
+                                                        onClick={onHire}
+                                                >
+                                                        {hireLoading ? (
+                                                                <Loader2 className='size-4 animate-spin' />
+                                                        ) : (
+                                                                <UserCheck className='size-4' />
+                                                        )}
+                                                        {hireLoading ? 'Hiring…' : 'Hire freelancer'}
+                                                </button>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-sm btn-outline btn-error gap-2'
+                                                        disabled={!canDecline || isMutating}
+                                                        onClick={onDecline}
+                                                >
+                                                        {declineLoading ? (
+                                                                <Loader2 className='size-4 animate-spin' />
+                                                        ) : (
+                                                                <UserX className='size-4' />
+                                                        )}
+                                                        {declineLoading ? 'Declining…' : 'Decline proposal'}
+                                                </button>
+                                        </div>
+
+                                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                <div className='flex flex-wrap gap-2'>
+                                                        {showMessageShortcut ? (
+                                                                messageLink ? (
+                                                                        <Link to={messageLink} className='btn btn-sm btn-secondary gap-2'>
+                                                                                <MessageSquare className='size-4' /> Open chat
+                                                                        </Link>
+                                                                ) : (
+                                                                        <button
+                                                                                type='button'
+                                                                                className='btn btn-sm btn-outline gap-2'
+                                                                                disabled
+                                                                                title='Chat thread will be available once the workspace is ready.'
+                                                                        >
+                                                                                <MessageSquare className='size-4' /> Chat unavailable
+                                                                        </button>
+                                                                )
+                                                        ) : null}
+                                                </div>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-sm btn-ghost'
+                                                        onClick={onClose}
+                                                        disabled={isMutating}
+                                                >
+                                                        Close
+                                                </button>
+                                        </div>
+                                </div>
+                        </div>
+                        <form method='dialog' className='modal-backdrop'>
+                                <button onClick={onClose}>Close</button>
+                        </form>
+                </dialog>
         )
 }
