@@ -372,9 +372,14 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                         if (!offerTarget) {
                                 throw new Error('Missing proposal reference')
                         }
+                        const freelancerId =
+                                offerTarget.freelancerId ?? getFreelancerId(offerTarget.freelancer ?? null)
+                        if (!freelancerId) {
+                                throw new Error('Không tìm thấy freelancerId của proposal này')
+                        }
                         const payload = {
                                 jobId: job.id,
-                                freelancerId: offerTarget.freelancerId,
+                                freelancerId,
                                 proposalId: offerTarget.id,
                                 invitationId: offerTarget.invitationId ?? undefined,
                                 title: values.title,
