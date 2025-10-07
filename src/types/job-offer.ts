@@ -4,8 +4,8 @@ const parseBoolean = (value: unknown) => {
         if (value === undefined || value === null) return undefined
         if (typeof value === 'boolean') return value
         const normalized = String(value).trim().toLowerCase()
-        if (['true', '1', 'yes', 'y'].includes(normalized)) return true
-        if (['false', '0', 'no', 'n'].includes(normalized)) return false
+        if (['true', '1', 'yes'].includes(normalized)) return true
+        if (['false', '0', 'no'].includes(normalized)) return false
         return undefined
 }
 
@@ -38,6 +38,13 @@ export const JOB_OFFER_STATUSES = [
 
 export type JobOfferStatus = (typeof JOB_OFFER_STATUSES)[number]
 
+const OfferStatusParamSchema = z.preprocess(value => {
+        if (typeof value === 'string') {
+                return value.toUpperCase()
+        }
+        return value
+}, z.enum(JOB_OFFER_STATUSES))
+
 export const CreateJobOfferSchema = z
         .object({
                 jobId: z.string().min(1).optional(),
@@ -49,6 +56,7 @@ export const CreateJobOfferSchema = z
                 currency: CurrencySchema,
                 fixedPrice: z.coerce.number().positive('Giá phải lớn hơn 0'),
                 startDate: z.preprocess(coerceDate, z.date().optional()),
+                endDate: z.preprocess(coerceDate, z.date().optional()),
                 expireAt: z.preprocess(coerceDate, z.date().optional()),
                 sendNow: z.preprocess(parseBoolean, z.boolean().optional()).optional()
         })
@@ -69,11 +77,19 @@ export const CreateJobOfferSchema = z
                         })
                 }
 
-                if (data.startDate && data.expireAt && data.startDate > data.expireAt) {
+                if (data.startDate && data.endDate && data.startDate > data.endDate) {
                         ctx.addIssue({
                                 code: z.ZodIssueCode.custom,
-                                message: 'startDate phải trước expireAt',
+                                message: 'startDate phải trước endDate',
                                 path: ['startDate']
+                        })
+                }
+
+                if (data.endDate && !(data.endDate instanceof Date)) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'endDate không hợp lệ',
+                                path: ['endDate']
                         })
                 }
         })
@@ -93,6 +109,7 @@ export const UpdateJobOfferSchema = z
                 currency: CurrencySchema.optional(),
                 fixedPrice: z.coerce.number().positive('Giá phải lớn hơn 0').optional(),
                 startDate: z.preprocess(coerceDate, z.date().nullable().optional()),
+                endDate: z.preprocess(coerceDate, z.date().nullable().optional()),
                 expireAt: z.preprocess(coerceDate, z.date().nullable().optional()),
                 status: z.enum(JOB_OFFER_STATUSES).optional(),
                 sendNow: z.preprocess(parseBoolean, z.boolean().optional()).optional()
@@ -130,15 +147,35 @@ export const UpdateJobOfferSchema = z
                         })
                 }
 
+                if (data.endDate && !(data.endDate instanceof Date) && data.endDate !== null) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'endDate không hợp lệ',
+                                path: ['endDate']
+                        })
+                }
+
                 if (
                         data.startDate instanceof Date &&
-                        data.expireAt instanceof Date &&
-                        data.startDate > data.expireAt
+                        data.endDate instanceof Date &&
+                        data.startDate > data.endDate
                 ) {
                         ctx.addIssue({
                                 code: z.ZodIssueCode.custom,
-                                message: 'startDate phải trước expireAt',
+                                message: 'startDate phải trước endDate',
                                 path: ['startDate']
+                        })
+                }
+
+                if (
+                        data.endDate instanceof Date &&
+                        data.expireAt instanceof Date &&
+                        data.endDate < data.expireAt
+                ) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'Hạn chấp nhận không thể sau ngày kết thúc dự kiến',
+                                path: ['expireAt']
                         })
                 }
         })
@@ -150,13 +187,49 @@ export const JobOfferFilterSchema = z.object({
         limit: z.coerce.number().int().min(1).max(100).default(20),
         jobId: z.string().min(1).optional(),
         freelancerId: z.string().min(1).optional(),
-        status: z.enum(JOB_OFFER_STATUSES).optional(),
+        status: OfferStatusParamSchema.optional(),
         search: z.string().trim().min(1).optional(),
         includeExpired: z.preprocess(parseBoolean, z.boolean().optional()).optional(),
         sortBy: z.enum(['newest', 'oldest', 'price-high', 'price-low']).optional()
 })
 
 export type JobOfferFilterInput = z.infer<typeof JobOfferFilterSchema>
+
+export const FreelancerJobOfferFilterSchema = z.object({
+        page: z.coerce.number().int().min(1).default(1),
+        limit: z.coerce.number().int().min(1).max(100).default(20),
+        jobId: z.string().min(1).optional(),
+        status: OfferStatusParamSchema.optional(),
+        statuses: z
+                .preprocess(value => {
+                        if (Array.isArray(value)) {
+                                return value.map(item =>
+                                        typeof item === 'string' ? item.trim().toUpperCase() : item
+                                )
+                        }
+                        if (typeof value === 'string' && value.length > 0) {
+                                return value
+                                        .split(',')
+                                        .map(item => item.trim())
+                                        .filter(item => item.length > 0)
+                                        .map(item => item.toUpperCase())
+                        }
+                        return value
+                }, z.array(z.enum(JOB_OFFER_STATUSES)).optional())
+                .optional(),
+        includeExpired: z.preprocess(parseBoolean, z.boolean().optional()).optional(),
+        search: z.string().trim().min(1).optional(),
+        sortBy: z.enum(['newest', 'oldest', 'price-high', 'price-low']).optional()
+})
+
+export type FreelancerJobOfferFilterInput = z.infer<typeof FreelancerJobOfferFilterSchema>
+
+export const RespondJobOfferSchema = z.object({
+        action: z.enum(['ACCEPT', 'DECLINE'])
+})
+
+export type RespondJobOfferInput = z.infer<typeof RespondJobOfferSchema>
+export type JobOfferRespondAction = RespondJobOfferInput['action']
 
 export type JobOffer = {
         id: string
@@ -169,6 +242,7 @@ export type JobOffer = {
         currency: string
         fixedPrice: number
         startDate?: string | null
+        endDate?: string | null
         expireAt?: string | null
         status: JobOfferStatus
         sendNow?: boolean | null
@@ -206,7 +280,8 @@ export const JOB_OFFER_STATUS_META: Record<
         SENT: {
                 label: 'Sent',
                 badgeClass: 'badge-info/20 text-info',
-                description: 'Offer has been sent to the freelancer and awaiting response.'
+                description:
+                        'Offer đã được gửi. Freelancer cần chấp nhận trước hạn để bắt đầu hợp tác.'
         },
         WITHDRAWN: {
                 label: 'Withdrawn',
@@ -226,7 +301,7 @@ export const JOB_OFFER_STATUS_META: Record<
         EXPIRED: {
                 label: 'Expired',
                 badgeClass: 'badge-warning/20 text-warning',
-                description: 'Offer expired before a response was received.'
+                description: 'Freelancer không chấp nhận trước hạn nên offer đã hết hiệu lực.'
         }
 }
 

@@ -4,7 +4,7 @@ import { toast } from 'react-toastify'
 import { CalendarClock, Loader2, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 
 import { listFreelancerJobOffers, respondFreelancerJobOffer } from '~/apis/job-offer.api'
-import type { JobOffer, JobOfferStatus } from '~/types/job-offer'
+import type { JobOffer, JobOfferRespondAction, JobOfferStatus } from '~/types/job-offer'
 import {
         JOB_OFFER_STATUS_META,
         formatJobOfferCurrency,
@@ -41,14 +41,14 @@ const FreelancerJobOfferListPage = () => {
         const statusCounts = useMemo(() => computeStatusCounts(offers), [offers])
 
         const respondMutation = useMutation({
-                mutationFn: async ({ offer, status }: { offer: JobOffer; status: JobOfferStatus }) => {
-                        return respondFreelancerJobOffer(offer.id, status)
+                mutationFn: async ({ offer, action }: { offer: JobOffer; action: JobOfferRespondAction }) => {
+                        return respondFreelancerJobOffer(offer.id, action)
                 },
                 onSuccess: async (_, variables) => {
-                        const status = variables.status
-                        if (status === 'ACCEPTED') {
+                        const action = variables.action
+                        if (action === 'ACCEPT') {
                                 toast.success('Bạn đã chấp nhận offer thành công')
-                        } else if (status === 'DECLINED') {
+                        } else if (action === 'DECLINE') {
                                 toast.success('Bạn đã từ chối offer')
                         } else {
                                 toast.success('Đã cập nhật phản hồi')
@@ -61,9 +61,9 @@ const FreelancerJobOfferListPage = () => {
                 }
         })
 
-        const handleRespond = (offer: JobOffer, status: JobOfferStatus) => {
+        const handleRespond = (offer: JobOffer, action: JobOfferRespondAction) => {
                 if (respondMutation.isPending) return
-                respondMutation.mutate({ offer, status })
+                respondMutation.mutate({ offer, action })
         }
 
         const renderOfferCard = (offer: JobOffer) => {
@@ -71,6 +71,7 @@ const FreelancerJobOfferListPage = () => {
                 const statusMeta = JOB_OFFER_STATUS_META[offer.status]
                 const priceLabel = formatJobOfferCurrency(offer.fixedPrice, offer.currency)
                 const startDateLabel = formatJobOfferDate(offer.startDate)
+                const endDateLabel = formatJobOfferDate(offer.endDate)
                 const expireAtLabel = formatJobOfferDateTime(offer.expireAt)
                 const canRespond = actionableStatuses.includes(offer.status)
 
@@ -100,11 +101,19 @@ const FreelancerJobOfferListPage = () => {
                                                 </p>
                                         </div>
                                         <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
-                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Hạn phản hồi</p>
+                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ngày kết thúc</p>
                                                 <p className='mt-2 text-base font-semibold text-base-content'>
-                                                        {expireAtLabel ?? 'Không đặt'}
+                                                        {endDateLabel ?? 'Chưa có'}
                                                 </p>
                                         </div>
+                                </div>
+
+                                <div className='mt-3 rounded-2xl border border-base-200 bg-base-200/60 p-4'>
+                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Hạn chấp nhận offer</p>
+                                        <p className='mt-2 text-base font-semibold text-base-content'>
+                                                {expireAtLabel ?? 'Không đặt'}
+                                        </p>
+                                        <p className='mt-1 text-xs text-base-content/60'>Hãy chấp nhận trước hạn để bắt đầu hợp tác với client.</p>
                                 </div>
 
                                 {offer.message ? (
@@ -121,7 +130,7 @@ const FreelancerJobOfferListPage = () => {
                                                                 type='button'
                                                                 className='btn btn-sm btn-success gap-2'
                                                                 disabled={respondMutation.isPending}
-                                                                onClick={() => handleRespond(offer, 'ACCEPTED')}
+                                                                onClick={() => handleRespond(offer, 'ACCEPT')}
                                                         >
                                                                 {respondMutation.isPending ? (
                                                                         <Loader2 className='size-4 animate-spin' />
@@ -134,7 +143,7 @@ const FreelancerJobOfferListPage = () => {
                                                                 type='button'
                                                                 className='btn btn-sm btn-outline btn-error gap-2'
                                                                 disabled={respondMutation.isPending}
-                                                                onClick={() => handleRespond(offer, 'DECLINED')}
+                                                                onClick={() => handleRespond(offer, 'DECLINE')}
                                                         >
                                                                 <ThumbsDown className='size-4' /> Từ chối
                                                         </button>

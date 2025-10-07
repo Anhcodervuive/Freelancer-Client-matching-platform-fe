@@ -40,6 +40,13 @@ const JobOfferFormSchema = z
                                 return value
                         }, z.string().optional())
                         .optional(),
+                endDate: z
+                        .preprocess(value => {
+                                if (value === undefined || value === null) return undefined
+                                if (typeof value === 'string' && value.trim() === '') return undefined
+                                return value
+                        }, z.string().optional())
+                        .optional(),
                 expireAt: z
                         .preprocess(value => {
                                 if (value === undefined || value === null) return undefined
@@ -51,6 +58,7 @@ const JobOfferFormSchema = z
         })
         .superRefine((data, ctx) => {
                 const startDate = data.startDate ? new Date(data.startDate) : undefined
+                const endDate = data.endDate ? new Date(data.endDate) : undefined
                 const expireAt = data.expireAt ? new Date(data.expireAt) : undefined
 
                 if (expireAt && Number.isNaN(expireAt.getTime())) {
@@ -69,6 +77,14 @@ const JobOfferFormSchema = z
                         })
                 }
 
+                if (endDate && Number.isNaN(endDate.getTime())) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'endDate không hợp lệ',
+                                path: ['endDate']
+                        })
+                }
+
                 if (expireAt && expireAt.getTime() <= Date.now()) {
                         ctx.addIssue({
                                 code: z.ZodIssueCode.custom,
@@ -77,11 +93,19 @@ const JobOfferFormSchema = z
                         })
                 }
 
-                if (startDate && expireAt && startDate > expireAt) {
+                if (startDate && endDate && startDate > endDate) {
                         ctx.addIssue({
                                 code: z.ZodIssueCode.custom,
-                                message: 'startDate phải trước expireAt',
+                                message: 'startDate phải trước endDate',
                                 path: ['startDate']
+                        })
+                }
+
+                if (endDate && expireAt && expireAt > endDate) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'Hạn chấp nhận không thể sau ngày kết thúc dự kiến',
+                                path: ['expireAt']
                         })
                 }
         })
@@ -134,6 +158,7 @@ export const JobOfferForm = ({
                         currency: defaultValues?.currency ?? 'USD',
                         fixedPrice: defaultValues?.fixedPrice ?? undefined,
                         startDate: defaultValues?.startDate ?? undefined,
+                        endDate: defaultValues?.endDate ?? undefined,
                         expireAt: defaultValues?.expireAt ?? undefined,
                         sendNow: defaultValues?.sendNow ?? true
                 }
@@ -146,12 +171,14 @@ export const JobOfferForm = ({
                         currency: defaultValues?.currency ?? 'USD',
                         fixedPrice: defaultValues?.fixedPrice ?? undefined,
                         startDate: defaultValues?.startDate ?? undefined,
+                        endDate: defaultValues?.endDate ?? undefined,
                         expireAt: defaultValues?.expireAt ?? undefined,
                         sendNow: defaultValues?.sendNow ?? true
                 })
         }, [
                 defaultValues?.currency,
                 defaultValues?.expireAt,
+                defaultValues?.endDate,
                 defaultValues?.fixedPrice,
                 defaultValues?.message,
                 defaultValues?.sendNow,
@@ -170,10 +197,10 @@ export const JobOfferForm = ({
                                 <h2 className='text-xl font-semibold text-base-content'>
                                         {heading ?? (mode === 'create' ? 'Tạo job offer' : 'Cập nhật job offer')}
                                 </h2>
-                                <p className='text-sm text-base-content/70'>
-                                        {description ??
-                                                'Điền các điều khoản công việc mà bạn muốn đề xuất. Bạn có thể gửi ngay cho freelancer hoặc lưu lại.'}
-                                </p>
+                                                <p className='text-sm text-base-content/70'>
+                                                        {description ??
+                                                                'Điền các điều khoản công việc mà bạn muốn đề xuất. Chọn thời hạn bắt đầu, kết thúc và hạn chấp nhận offer trước khi gửi cho freelancer.'}
+                                                </p>
                         </div>
 
                         <div className='space-y-2'>
@@ -303,8 +330,31 @@ export const JobOfferForm = ({
                                 </div>
 
                                 <div className='space-y-2'>
+                                        <label className='text-sm font-medium text-base-content' htmlFor='endDate'>
+                                                Ngày kết thúc dự kiến
+                                        </label>
+                                        <Controller
+                                                name='endDate'
+                                                control={control}
+                                                render={({ field }) => (
+                                                        <input
+                                                                {...field}
+                                                                id='endDate'
+                                                                type='datetime-local'
+                                                                value={normalizeDateInput(field.value ?? undefined)}
+                                                                onChange={event => field.onChange(event.target.value)}
+                                                                className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                        />
+                                                )}
+                                        />
+                                        {errors.endDate && <p className='text-xs text-error'>{errors.endDate.message}</p>}
+                                </div>
+                        </div>
+
+                        <div className='grid gap-4 md:grid-cols-2'>
+                                <div className='space-y-2'>
                                         <label className='text-sm font-medium text-base-content' htmlFor='expireAt'>
-                                                Hạn phản hồi
+                                                Hạn chấp nhận offer
                                         </label>
                                         <Controller
                                                 name='expireAt'
@@ -321,6 +371,10 @@ export const JobOfferForm = ({
                                                 )}
                                         />
                                         {errors.expireAt && <p className='text-xs text-error'>{errors.expireAt.message}</p>}
+                                </div>
+                                <div className='rounded-2xl border border-base-200 bg-base-100 p-4 text-xs text-base-content/70'>
+                                        Đây là hạn cuối để freelancer chấp nhận offer và bắt đầu nhận việc. Sau thời hạn
+                                        này offer sẽ tự động hết hiệu lực.
                                 </div>
                         </div>
 

@@ -96,6 +96,11 @@ const transformFormValuesToPayload = (
                 : offer?.startDate
                 ? null
                 : undefined
+        const endDate = values.endDate
+                ? new Date(values.endDate).toISOString()
+                : offer?.endDate
+                ? null
+                : undefined
         const expireAt = values.expireAt
                 ? new Date(values.expireAt).toISOString()
                 : offer?.expireAt
@@ -108,6 +113,7 @@ const transformFormValuesToPayload = (
                 currency: values.currency,
                 fixedPrice: values.fixedPrice,
                 startDate,
+                endDate,
                 expireAt,
                 sendNow: values.sendNow
         }
@@ -167,6 +173,7 @@ const ClientJobOfferListPage = () => {
                         currency: offer.currency ?? createOfferDefaults.currency,
                         fixedPrice: offer.fixedPrice,
                         startDate: offer.startDate ?? undefined,
+                        endDate: offer.endDate ?? undefined,
                         expireAt: offer.expireAt ?? undefined,
                         sendNow: offer.status === 'DRAFT' ? true : false
                 }
@@ -192,6 +199,7 @@ const ClientJobOfferListPage = () => {
                 const statusMeta = JOB_OFFER_STATUS_META[offer.status]
                 const priceLabel = formatJobOfferCurrency(offer.fixedPrice, offer.currency)
                 const startDateLabel = formatJobOfferDate(offer.startDate)
+                const endDateLabel = formatJobOfferDate(offer.endDate)
                 const expireAtLabel = formatJobOfferDateTime(offer.expireAt)
                 const profileLink = getFreelancerProfileLink(offer)
                 const canWithdraw = allowedWithdrawStatuses.includes(offer.status)
@@ -249,7 +257,15 @@ const ClientJobOfferListPage = () => {
                                         </div>
                                         <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
                                                 <div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                        <Sparkles className='size-4 text-primary/70' /> Hạn phản hồi
+                                                        <CalendarClock className='size-4 text-primary/70' /> Ngày kết thúc
+                                                </div>
+                                                <p className='mt-2 text-base font-semibold text-base-content'>
+                                                        {endDateLabel ?? 'Chưa có'}
+                                                </p>
+                                        </div>
+                                        <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
+                                                <div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                        <Sparkles className='size-4 text-primary/70' /> Hạn chấp nhận offer
                                                 </div>
                                                 <p className='mt-2 text-base font-semibold text-base-content'>
                                                         {expireAtLabel ?? 'Không đặt'}

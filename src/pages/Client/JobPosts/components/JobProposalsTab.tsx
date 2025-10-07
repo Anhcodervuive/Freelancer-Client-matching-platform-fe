@@ -387,6 +387,7 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                                 currency: values.currency,
                                 fixedPrice: values.fixedPrice,
                                 startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
+                                endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
                                 expireAt: values.expireAt ? new Date(values.expireAt).toISOString() : undefined,
                                 sendNow: values.sendNow
                         }

@@ -1,9 +1,10 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import type {
         CreateJobOfferInput,
+        FreelancerJobOfferFilterInput,
         JobOffer,
         JobOfferFilterInput,
-        JobOfferStatus,
+        JobOfferRespondAction,
         PaginatedJobOfferResponse,
         UpdateJobOfferInput
 } from '~/types/job-offer'
@@ -81,7 +82,7 @@ export const withdrawClientJobOffer = async (offerId: string) => {
 }
 
 export const listFreelancerJobOffers = async (
-        filters: Partial<JobOfferFilterInput> = { page: 1, limit: 10 }
+        filters: Partial<FreelancerJobOfferFilterInput> = { page: 1, limit: 10 }
 ): Promise<PaginatedJobOfferResponse> => {
         const response = await authorizeAxiosInstance.get<PaginatedJobOfferResponse>(
                 `${freelancerBaseUrl}${serializeFilters(filters)}`
@@ -104,11 +105,11 @@ export const updateFreelancerJobOffer = async (
 
 export const respondFreelancerJobOffer = async (
         offerId: string,
-        status: JobOfferStatus
+        action: JobOfferRespondAction
 ) => {
         const response = await authorizeAxiosInstance.post<JobOffer>(
                 `${freelancerBaseUrl}/${offerId}/respond`,
-                { status }
+                { action }
         )
         return response.data
 }
