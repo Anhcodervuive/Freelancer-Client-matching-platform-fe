@@ -1,4 +1,5 @@
 import { QueryClient, useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query'
+import { cloneDeep } from 'lodash'
 
 import {
 	getAllChatThread,
@@ -7,7 +8,8 @@ import {
 	type ChatThreadsSearchParam
 } from '~/apis/chat.api'
 import { useChatSocket } from './useChatSocket'
-import type { ChatMessage, ChatMessageReceipt, ChatsReponse } from '~/types/chat'
+import type { ChatMessage, ChatMessageReceipt, ChatsReponse, chatThread } from '~/types/chat'
+import type { ListResponse } from '~/types/api.response'
 
 const sleep = (ms: number, signal?: AbortSignal) =>
 	new Promise<void>((resolve, reject) => {
@@ -134,6 +136,51 @@ export function UpdateMessageIsReadBySomeOne(
 			...old,
 			pages: newPages,
 			pageParams: old.pageParams
+		}
+	})
+}
+
+export function MarkThreadChatAsReaAll(qc: QueryClient, threadId: string) {
+	qc.setQueryData<ListResponse<chatThread>>([ThreadChatsQCkey], old => {
+		if (!old) return old
+
+		const newData = cloneDeep(old)
+
+		newData.data.forEach((t, i) => {
+			if (t.id === threadId) {
+				newData.data[i] = {
+					...t,
+					unreadMessagesCount: 0
+				}
+			}
+		})
+
+		return {
+			...newData
+		}
+	})
+}
+
+export function addUnReadMessageToThread(qc: QueryClient, threadId: string, message: ChatMessage) {
+	qc.setQueryData<ListResponse<chatThread>>([ThreadChatsQCkey], old => {
+		if (!old) return old
+		console.log('time 1')
+
+		const newData = cloneDeep(old)
+
+		newData.data.forEach((t, i) => {
+			if (t.id === threadId) {
+				console.log(newData.data[i])
+				newData.data[i] = {
+					...t,
+					messages: [message],
+					unreadMessagesCount: newData.data[i].unreadMessagesCount + 1
+				}
+			}
+		})
+
+		return {
+			...newData
 		}
 	})
 }

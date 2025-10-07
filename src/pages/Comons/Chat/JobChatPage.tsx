@@ -302,8 +302,6 @@ export default function JobChatPage() {
 		}
 	}
 
-	console.log(messageListQuery.data?.items)
-
 	const milestones = useMemo<JobMilestone[]>(() => {
 		if (!activeThread) {
 			return []

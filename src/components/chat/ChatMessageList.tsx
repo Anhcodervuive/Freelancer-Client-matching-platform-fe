@@ -182,7 +182,7 @@ export default function ChatMessageList({
 							className={`max-w-xl rounded-3xl border border-white/70 px-5 py-3 text-sm leading-relaxed shadow-sm shadow-primary/5 backdrop-blur ${
 								isMessageBelongToCurrentUser
 									? 'rounded-br-none bg-primary text-white'
-									: 'rounded-bl-none bg-white/80 text-slate-700'
+									: 'rounded-bl-none bg-gray-300 text-slate-700'
 							}`}>
 							{message.body && <p>{message.body}</p>}
 

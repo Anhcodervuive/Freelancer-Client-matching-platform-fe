@@ -87,7 +87,18 @@ export default function JobChatSidebar({
 												{thread.participants?.find(p => p.userId !== currentUser?.id)?.user?.profile.firstName}{' '}
 												{thread.participants?.find(p => p.userId !== currentUser?.id)?.user?.profile.lastName}
 											</p>
-											<p className='mt-2 line-clamp-2 text-sm text-slate-600'>{thread?.messages?.[0]?.body}</p>
+											<p
+												className={`mt-2 line-clamp-2 text-sm text-slate-600 ${
+													thread?.messages &&
+													thread?.messages?.length > 0 &&
+													thread?.messages[0]?.receipts?.some(
+														r => r.participant?.userId === currentUser?.id && !r.readAt
+													)
+														? 'font-bold'
+														: ''
+												}`}>
+												{thread?.messages?.[0]?.body}
+											</p>
 										</div>
 									</div>
 								</div>
@@ -99,9 +110,11 @@ export default function JobChatSidebar({
 										}).format(new Date(thread.updatedAt))}
 									</span>
 
-									<span className='inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-primary px-2 text-xs font-semibold text-white'>
-										2
-									</span>
+									{thread.unreadMessagesCount > 0 && (
+										<span className='inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-primary px-2 text-xs font-semibold text-white'>
+											{thread.unreadMessagesCount}
+										</span>
+									)}
 								</div>
 							</div>
 						</button>

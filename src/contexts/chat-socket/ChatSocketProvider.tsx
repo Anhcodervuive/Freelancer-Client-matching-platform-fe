@@ -18,11 +18,17 @@ import type {
 	ServerToClientEvents,
 	SubmitIsReadMessagePayload,
 	TypingPayload,
-	TypingResponse
+	TypingResponse,
+	UnReadThreadMessageRes
 } from './types'
 import type { UploadedMeta } from '~/utils/directUploader'
 import { toast } from 'react-toastify'
-import { appendRealtimeMessage, UpdateMessageIsReadBySomeOne } from '~/hooks/chat/useThreadChats'
+import {
+	addUnReadMessageToThread,
+	appendRealtimeMessage,
+	MarkThreadChatAsReaAll,
+	UpdateMessageIsReadBySomeOne
+} from '~/hooks/chat/useThreadChats'
 import { useQueryClient } from '@tanstack/react-query'
 
 export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
@@ -107,6 +113,10 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 			})
 		}
 
+		const handleNewMessageFromVariousThread = (payload: UnReadThreadMessageRes) => {
+			addUnReadMessageToThread(qc, payload.threadId, payload.message)
+		}
+
 		const handleMessgeIsReadBySomeOne = (payload: OurMessageIsReadBySomeOneRes) => {
 			console.log(payload)
 			UpdateMessageIsReadBySomeOne(qc, payload.threadId, payload.receipt)
@@ -117,6 +127,7 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 		socket.on(ChatClientEvent.CHAT_TYPING, handleOtherParticipantTyping)
 		socket.on(ChatClientEvent.CHAT_NEW_MESSAGE, handleNewMessageReceiveInThread)
 		socket.on(ChatClientEvent.CHAT_READ, handleMessgeIsReadBySomeOne)
+		socket.on(ChatClientEvent.CHAT_THREAD_UNREAD, handleNewMessageFromVariousThread)
 
 		return () => {
 			socket.off(ChatClientEvent.CHAT_PRESENCE, handlePresence)
@@ -124,6 +135,7 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 			socket.off(ChatClientEvent.CHAT_TYPING, handleOtherParticipantTyping)
 			socket.off(ChatClientEvent.CHAT_NEW_MESSAGE, handleNewMessageReceiveInThread)
 			socket.off(ChatClientEvent.CHAT_READ, handleMessgeIsReadBySomeOne)
+			socket.off(ChatClientEvent.CHAT_THREAD_UNREAD, handleNewMessageFromVariousThread)
 		}
 	}, [currentUserId, joinThreadRes, qc, socket, submitMessageIsRead])
 
@@ -153,9 +165,10 @@ export const ChatSocketProvider = ({ children }: { children: ReactNode }) => {
 			}
 			socket?.emit(ChatServerEvent.CHAT_JOIN, payload, (res: JoinThreadRes) => {
 				setJoinThreadRes(res)
+				MarkThreadChatAsReaAll(qc, payload.threadId)
 			})
 		},
-		[joinThreadRes?.data?.thread.id, leaveChat, socket]
+		[joinThreadRes?.data?.thread.id, leaveChat, qc, socket]
 	)
 
 	const typingMessage = useCallback(

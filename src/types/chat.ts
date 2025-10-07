@@ -54,6 +54,7 @@ export interface chatThread {
 	messages?: ChatMessage[]
 	participants: ChatParticipant[]
 	isHaveParticipantOnline?: boolean
+	unreadMessagesCount: number
 }
 
 export interface ChatParticipant {

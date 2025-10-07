@@ -75,11 +75,17 @@ export interface OurMessageIsReadBySomeOneRes {
 	receipt: ChatMessageReceipt
 }
 
+export interface UnReadThreadMessageRes {
+	threadId: string
+	message: ChatMessage
+}
+
 export type ServerToClientEvents = {
 	[ChatServerEvent.CHAT_SEND_MESSAGE]: (_message: ChatMessage) => void
 	[ChatServerEvent.CHAT_JOIN]: (_joinThreadPayload: JoinThreadPayload) => void
 	[ChatServerEvent.CHAT_TYPING]: () => void
 	[ChatServerEvent.CHAT_READ]: (_payload: SubmitIsReadMessagePayload) => void
+	[ChatClientEvent.CHAT_THREAD_UNREAD]: (_payload: UnReadThreadMessageRes) => void
 }
 
 export type ClientToServerEvents = {
