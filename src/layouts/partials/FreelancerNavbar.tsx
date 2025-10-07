@@ -14,21 +14,26 @@ const secondaryNavItems = [
 ]
 
 const findWorkMenuItems = [
-	{
-		label: 'Job marketplace',
-		description: 'Browse active projects curated for your skills.',
-		to: routes.freelancer.jobs.list
-	},
-	{
-		label: 'Saved jobs',
-		description: 'Revisit opportunities you have bookmarked.',
-		to: routes.freelancer.jobs.saved
-	},
-	{
-		label: 'Proposals & offers',
-		description: 'Review invitations and respond to clients.',
-		to: routes.freelancer.jobs.invitations
-	}
+        {
+                label: 'Job marketplace',
+                description: 'Browse active projects curated for your skills.',
+                to: routes.freelancer.jobs.list
+        },
+        {
+                label: 'Saved jobs',
+                description: 'Revisit opportunities you have bookmarked.',
+                to: routes.freelancer.jobs.saved
+        },
+        {
+                label: 'Proposals',
+                description: 'Review invitations and proposals you have submitted.',
+                to: routes.freelancer.jobs.invitations
+        },
+        {
+                label: 'Offers',
+                description: 'View offers from clients and respond promptly.',
+                to: routes.freelancer.offers.list
+        }
 ]
 
 export default function FreelancerNavbar() {
@@ -38,9 +43,10 @@ export default function FreelancerNavbar() {
 	const user = useSelector(selectCurrentUser)
 	const location = useLocation()
 
-	const nameParts = [user?.firstName, user?.lastName].filter((part): part is string => Boolean(part && part.trim()))
-	const fullName = nameParts.join(' ') || user?.email || 'Freelancer'
-	const isFindWorkActive = location.pathname.startsWith(routes.freelancer.jobs.list)
+        const nameParts = [user?.firstName, user?.lastName].filter((part): part is string => Boolean(part && part.trim()))
+        const fullName = nameParts.join(' ') || user?.email || 'Freelancer'
+        const findWorkPaths = findWorkMenuItems.map(item => item.to)
+        const isFindWorkActive = findWorkPaths.some(path => location.pathname.startsWith(path))
 
 	useEffect(() => {
 		setFindWorkOpen(false)

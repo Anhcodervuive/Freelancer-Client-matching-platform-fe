@@ -14,10 +14,11 @@ import HomePage from './pages/Comons/HomePage'
 import {
 	checkAuthenticatedUser,
 	checkWhetherUserLoginMiddleware,
-	composeLoaders,
-	isAdminUser,
-	isClientUser,
-	requireAuthenticatedUserOrRedirectHome
+        composeLoaders,
+        isAdminUser,
+        isClientUser,
+        isFreelancerUser,
+        requireAuthenticatedUserOrRedirectHome
 } from './middlewares/auth'
 import { injectStore } from './utils/injectedStore'
 import { routes } from './config/routes'
@@ -55,6 +56,8 @@ import SubmitJobProposalPage from './pages/Freelancer/Jobs/SubmitJobProposalPage
 import EditJobProposalPage from './pages/Freelancer/Jobs/EditJobProposalPage'
 import ClientFreelancerListPage from './pages/Client/Freelancers/ClientFreelancerListPage'
 import JobChatPage from './pages/Comons/Chat/JobChatPage'
+import ClientJobOfferListPage from './pages/Client/JobOffers/ClientJobOfferListPage'
+import FreelancerJobOfferListPage from './pages/Freelancer/Jobs/FreelancerJobOfferListPage'
 import { ChatSocketProvider } from '~/contexts/chat-socket/ChatSocketProvider'
 
 const persistor = persistStore(store)
@@ -117,12 +120,17 @@ const router = createBrowserRouter([
 				path: routes.freelancer.jobs.detail(':jobId'),
 				loader: requireAuthenticatedUserOrRedirectHome,
 				element: <JobMarketplaceDetailPage />
-			},
-			{
-				path: routes.client.freelancers.list,
-				loader: composeLoaders(checkAuthenticatedUser, isClientUser),
-				element: <ClientFreelancerListPage />
-			},
+                        },
+                        {
+                                path: routes.freelancer.offers.list,
+                                loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
+                                element: <FreelancerJobOfferListPage />
+                        },
+                        {
+                                path: routes.client.freelancers.list,
+                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+                                element: <ClientFreelancerListPage />
+                        },
 			{
 				path: routes.me.freelancer.profile,
 				loader: checkAuthenticatedUser,
@@ -137,11 +145,16 @@ const router = createBrowserRouter([
 				path: routes.comons.onboarding,
 				element: <OnboardingWizard />
 			},
-			{
-				path: routes.me.client.jobs.list,
-				loader: composeLoaders(checkAuthenticatedUser, isClientUser),
-				element: <JobPostListPage />
-			},
+                        {
+                                path: routes.me.client.jobs.list,
+                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+                                element: <JobPostListPage />
+                        },
+                        {
+                                path: routes.me.client.offers.list,
+                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+                                element: <ClientJobOfferListPage />
+                        },
 			{
 				path: routes.me.client.jobs.create,
 				loader: composeLoaders(checkAuthenticatedUser, isClientUser),

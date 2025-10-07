@@ -16,7 +16,6 @@ import {
         Search,
         Sparkles,
         Star,
-        UserCheck,
         UserX,
         Users2
 } from 'lucide-react'
@@ -26,9 +25,9 @@ import { toast } from 'react-toastify'
 import {
         acceptClientJobProposalInterview,
         declineClientJobProposal,
-        hireClientJobProposal,
         listClientJobProposals
 } from '~/apis/client-job-proposal.api'
+import { createJobOffer } from '~/apis/job-offer.api'
 import { routes } from '~/config/routes'
 import {
         JOB_DURATION_COMMITMENTS,
@@ -59,6 +58,7 @@ import {
         getFreelancerTotalHoursWorked
 } from '~/pages/Client/Freelancers/utils'
 import { formatDateTime } from '~/utils/format'
+import JobOfferForm, { type JobOfferFormValues } from '~/components/job-offers/JobOfferForm'
 
 const PAGE_SIZE = 6
 
@@ -205,6 +205,9 @@ export default function JobProposalsTab({ job, isActive }: Props) {
         const [sortBy, setSortBy] = useState<SortOptionValue>('newest')
         const [search, setSearch] = useState('')
         const [previewProposal, setPreviewProposal] = useState<ClientJobProposal | null>(null)
+        const [offerDialogOpen, setOfferDialogOpen] = useState(false)
+        const [offerDefaults, setOfferDefaults] = useState<Partial<JobOfferFormValues> | undefined>(undefined)
+        const [offerTarget, setOfferTarget] = useState<ClientJobProposal | null>(null)
 
         const queryClient = useQueryClient()
 
@@ -214,6 +217,9 @@ export default function JobProposalsTab({ job, isActive }: Props) {
 
         useEffect(() => {
                 setPreviewProposal(null)
+                setOfferDialogOpen(false)
+                setOfferDefaults(undefined)
+                setOfferTarget(null)
         }, [job.id])
 
         const getErrorMessage = (error: unknown, fallback: string) =>
@@ -254,6 +260,29 @@ export default function JobProposalsTab({ job, isActive }: Props) {
 
         const handleMutationError = (error: unknown, fallback: string) => {
                 toast.error(getErrorMessage(error, fallback))
+        }
+
+        const buildOfferDefaults = (proposal: ClientJobProposal): Partial<JobOfferFormValues> => {
+                const freelancerName = getFreelancerName(proposal.freelancer ?? null)
+                const baseTitle = job.title ? `${job.title} – Offer` : 'New job offer'
+                const currency = (proposal.bidCurrency ?? job.budgetCurrency ?? 'USD').toUpperCase()
+                const fixedPrice = proposal.bidAmount ?? job.budgetAmount ?? undefined
+                const greetingName = freelancerName || 'bạn'
+                const defaultMessage = `Xin chào ${greetingName},\n\nTôi muốn mời bạn hợp tác cho dự án “${job.title ?? 'dự án này'}”. Vui lòng xem qua offer và phản hồi khi bạn sẵn sàng nhé.`
+
+                return {
+                        title: baseTitle,
+                        message: defaultMessage,
+                        currency,
+                        fixedPrice,
+                        sendNow: true
+                }
+        }
+
+        const handleOfferDialogClose = () => {
+                setOfferDialogOpen(false)
+                setOfferDefaults(undefined)
+                setOfferTarget(null)
         }
 
         const debouncedSearch = useDebounce(search, 400)
@@ -332,16 +361,43 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                 onError: error => handleMutationError(error, 'Unable to accept interview.')
         })
 
-        const hireMutation = useMutation({
-                mutationFn: (proposalId: string) => hireClientJobProposal(job.id, proposalId),
-                onSuccess: data => handleMutationSuccess('Freelancer hired successfully.', data, 'HIRED'),
-                onError: error => handleMutationError(error, 'Unable to hire this freelancer right now.')
-        })
-
         const declineMutation = useMutation({
                 mutationFn: (proposalId: string) => declineClientJobProposal(job.id, proposalId),
                 onSuccess: data => handleMutationSuccess('Proposal declined.', data, 'DECLINED'),
                 onError: error => handleMutationError(error, 'Unable to decline this proposal.')
+        })
+
+        const createOfferMutation = useMutation({
+                mutationFn: async (values: JobOfferFormValues) => {
+                        if (!offerTarget) {
+                                throw new Error('Missing proposal reference')
+                        }
+                        const payload = {
+                                jobId: job.id,
+                                freelancerId: offerTarget.freelancerId,
+                                proposalId: offerTarget.id,
+                                invitationId: offerTarget.invitationId ?? undefined,
+                                title: values.title,
+                                message: values.message ?? undefined,
+                                currency: values.currency,
+                                fixedPrice: values.fixedPrice,
+                                startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
+                                expireAt: values.expireAt ? new Date(values.expireAt).toISOString() : undefined,
+                                sendNow: values.sendNow
+                        }
+                        return createJobOffer(payload)
+                },
+                onSuccess: () => {
+                        toast.success('Offer đã được tạo và gửi tới freelancer.')
+                        handleOfferDialogClose()
+                        setPreviewProposal(null)
+                        void queryClient.invalidateQueries({ queryKey: ['client-job-proposals'] })
+                        void queryClient.invalidateQueries({ queryKey: ['client-job-offers'] })
+                },
+                onError: error => {
+                        const message = error instanceof Error ? error.message : 'Không thể tạo offer ngay lúc này.'
+                        toast.error(message)
+                }
         })
 
         const resetFilters = () => {
@@ -496,13 +552,18 @@ export default function JobProposalsTab({ job, isActive }: Props) {
 
         const handleHireFreelancer = () => {
                 if (!previewProposal) return
-                hireMutation.mutate(previewProposal.id)
+                const defaults = buildOfferDefaults(previewProposal)
+                setOfferDefaults(defaults)
+                setOfferTarget(previewProposal)
+                setOfferDialogOpen(true)
         }
 
         const handleDeclineProposal = () => {
                 if (!previewProposal) return
                 declineMutation.mutate(previewProposal.id)
         }
+
+        const offerFreelancerName = offerTarget ? getFreelancerName(offerTarget.freelancer ?? null) : null
 
         return (
                 <div className='space-y-6'>
@@ -685,14 +746,37 @@ export default function JobProposalsTab({ job, isActive }: Props) {
                                         jobTitle={job.title ?? 'Job proposal'}
                                         messageLink={previewMessageLink}
                                         acceptLoading={acceptInterviewMutation.isPending}
-                                        hireLoading={hireMutation.isPending}
+                                        hireLoading={createOfferMutation.isPending}
                                         declineLoading={declineMutation.isPending}
                                         onAcceptInterview={handleAcceptInterview}
                                         onHire={handleHireFreelancer}
                                         onDecline={handleDeclineProposal}
-                                        onClose={() => setPreviewProposal(null)}
+                                        onClose={() => {
+                                                setPreviewProposal(null)
+                                                handleOfferDialogClose()
+                                        }}
                                 />
                         ) : null}
+
+                        <dialog className={`modal ${offerDialogOpen ? 'modal-open' : ''}`}>
+                                <div className='modal-box max-w-2xl'>
+                                        {offerTarget ? (
+                                                <JobOfferForm
+                                                        mode='create'
+                                                        defaultValues={offerDefaults}
+                                                        onSubmit={values => createOfferMutation.mutate(values)}
+                                                        onCancel={handleOfferDialogClose}
+                                                        isSubmitting={createOfferMutation.isPending}
+                                                        submitLabel={createOfferMutation.isPending ? 'Đang gửi…' : 'Gửi offer'}
+                                                        title='Tạo job offer'
+                                                        description={`Xác nhận điều khoản trước khi gửi tới ${offerFreelancerName ?? 'freelancer'}.`}
+                                                />
+                                        ) : null}
+                                </div>
+                                <form method='dialog' className='modal-backdrop'>
+                                        <button type='submit' onClick={handleOfferDialogClose} aria-label='Đóng tạo offer'>close</button>
+                                </form>
+                        </dialog>
                 </div>
         )
 }
@@ -889,9 +973,9 @@ function ProposalPreviewDialog({
                                                         {hireLoading ? (
                                                                 <Loader2 className='size-4 animate-spin' />
                                                         ) : (
-                                                                <UserCheck className='size-4' />
+                                                                <CircleDollarSign className='size-4' />
                                                         )}
-                                                        {hireLoading ? 'Hiring…' : 'Hire freelancer'}
+                                                        {hireLoading ? 'Sending…' : 'Send offer'}
                                                 </button>
                                                 <button
                                                         type='button'

@@ -7,10 +7,11 @@ import UserMenu from './UserMenu'
 import { routes } from '~/config/routes'
 
 const navItems = [
-	{ label: 'Talent Marketplace', to: routes.comons.home },
-	{ label: 'Find Freelancers', to: routes.client.freelancers.list },
-	{ label: 'Messages', to: routes.messages.jobs },
-	{ label: 'My Jobs', to: routes.me.client.jobs.list }
+        { label: 'Talent Marketplace', to: routes.comons.home },
+        { label: 'Find Freelancers', to: routes.client.freelancers.list },
+        { label: 'Messages', to: routes.messages.jobs },
+        { label: 'My Jobs', to: routes.me.client.jobs.list },
+        { label: 'Offers', to: routes.me.client.offers.list }
 ]
 
 export default function ClientNavbar() {

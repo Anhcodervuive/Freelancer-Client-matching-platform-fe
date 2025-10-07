@@ -21,6 +21,9 @@ export const routes = {
                         proposalEdit: (id: string = 'id') => `/freelancer/jobs/proposals/${id}/edit`,
                         proposalCreate: (jobId: string = 'id') => `/freelancer/jobs/${jobId}/proposal`,
                         detail: (id: string = 'id') => `/freelancer/jobs/${id}`
+                },
+                offers: {
+                        list: '/freelancer/offers'
                 }
         },
         auth: {
@@ -41,6 +44,9 @@ export const routes = {
                                 create: '/me/client/jobs/create',
                                 edit: (id: string = 'id') => `/me/client/jobs/${id}/edit`,
                                 detail: (id: string = 'id') => `/me/client/jobs/${id}`
+                        },
+                        offers: {
+                                list: '/me/client/offers'
                         }
                 },
                 freelancer: {
