@@ -14,7 +14,7 @@ import {
         type JobOfferSortValue,
         type JobOfferStatusFilterValue
 } from '~/components/job-offers/constants'
-import { computeJobOfferStatusCounts } from '~/components/job-offers/utils'
+import { computeJobOfferStatusCounts, getJobOfferFreelancerDisplayName } from '~/components/job-offers/utils'
 import { routes } from '~/config/routes'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import type { JobOffer } from '~/types/job-offer'
@@ -244,6 +244,7 @@ const ClientJobOfferListPage = () => {
 
         const renderOfferCard = (offer: JobOffer) => {
                 const canWithdraw = allowedWithdrawStatuses.includes(offer.status)
+                const canEdit = offer.status !== 'WITHDRAWN'
 
                 return (
                         <JobOfferCard
@@ -251,13 +252,15 @@ const ClientJobOfferListPage = () => {
                                 offer={offer}
                                 actions={
                                         <>
-                                                <button
-                                                        type='button'
-                                                        className='btn btn-sm btn-outline gap-2'
-                                                        onClick={() => handleEditOffer(offer)}
-                                                >
-                                                        <FileEdit className='size-4' /> Chỉnh sửa
-                                                </button>
+                                                {canEdit ? (
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-sm btn-outline gap-2'
+                                                                onClick={() => handleEditOffer(offer)}
+                                                        >
+                                                                <FileEdit className='size-4' /> Chỉnh sửa
+                                                        </button>
+                                                ) : null}
                                                 {canWithdraw ? (
                                                         <button
                                                                 type='button'
@@ -441,7 +444,7 @@ const ClientJobOfferListPage = () => {
                                                         onCancel={handleCloseDialog}
                                                         onSubmit={values => updateMutation.mutate(values)}
                                                         title='Chỉnh sửa job offer'
-                                                        description={`Cập nhật điều khoản trước khi gửi tới ${formatFreelancerName(activeOffer)}.`}
+                                                        description={`Cập nhật điều khoản trước khi gửi tới ${getJobOfferFreelancerDisplayName(activeOffer)}.`}
                                                 />
                                         ) : null}
                                 </div>

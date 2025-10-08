@@ -10,3 +10,13 @@ export const computeJobOfferStatusCounts = (offers: JobOffer[]) => {
 
         return counts
 }
+
+export const getJobOfferFreelancerDisplayName = (offer: JobOffer) => {
+        const name = offer.freelancer?.name?.trim()
+        if (name) return name
+
+        const email = offer.freelancer?.email?.trim()
+        if (email) return email
+
+        return 'Freelancer'
+}

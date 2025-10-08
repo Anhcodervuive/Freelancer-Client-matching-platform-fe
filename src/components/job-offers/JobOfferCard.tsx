@@ -10,19 +10,12 @@ import {
         formatJobOfferDateTime,
         JOB_OFFER_STATUS_META
 } from '~/types/job-offer'
-
-const formatFreelancerName = (offer: JobOffer) => {
-        const name = offer.freelancer?.name?.trim()
-        if (name) return name
-        const email = offer.freelancer?.email?.trim()
-        if (email) return email
-        return 'Freelancer'
-}
+import { getJobOfferFreelancerDisplayName } from './utils'
 
 const getFreelancerAvatar = (offer: JobOffer) => offer.freelancer?.avatar ?? null
 
 const getFreelancerInitials = (offer: JobOffer) => {
-        const name = formatFreelancerName(offer)
+        const name = getJobOfferFreelancerDisplayName(offer)
         const parts = name
                 .split(' ')
                 .map(part => part.trim())
@@ -44,7 +37,7 @@ type JobOfferCardProps = {
 }
 
 const JobOfferCard = ({ offer, actions }: JobOfferCardProps) => {
-        const freelancerName = formatFreelancerName(offer)
+        const freelancerName = getJobOfferFreelancerDisplayName(offer)
         const avatarUrl = getFreelancerAvatar(offer)
         const avatarFallback = getFreelancerInitials(offer)
         const statusMeta = JOB_OFFER_STATUS_META[offer.status]
