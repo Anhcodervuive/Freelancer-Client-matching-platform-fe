@@ -123,6 +123,15 @@ const FreelancerJobOfferListPage = () => {
                                         </div>
                                 ) : null}
 
+                                {offer.status === 'WITHDRAWN' && offer.withdrawReason ? (
+                                        <div className='mt-4 rounded-2xl border border-error/30 bg-error/5 p-4 text-sm text-error'>
+                                                <p className='text-xs font-semibold uppercase tracking-wide text-error/80'>Lý do client rút offer</p>
+                                                <p className='mt-2 whitespace-pre-line leading-relaxed text-error/90'>
+                                                        {offer.withdrawReason}
+                                                </p>
+                                        </div>
+                                ) : null}
+
                                 <div className='mt-4 flex flex-wrap gap-2'>
                                         {canRespond ? (
                                                 <>

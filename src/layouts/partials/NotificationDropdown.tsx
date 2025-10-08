@@ -1,9 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { AlertCircle, Bell, CheckCheck, Loader2, MailOpen, Radio, Trash2 } from 'lucide-react'
-import { NotificationEvent, NotificationStatus } from '~/types/notification'
+import type { Notification } from '~/types/notification'
+import { NotificationEvent, NotificationResource, NotificationStatus } from '~/types/notification'
 import { useNotificationGateway } from '~/hooks/useNotificationGateway'
 import { deleteNotificationAPI } from '~/apis/notification.api'
-import { toast } from 'react-toastify'
 
 const formatLabel = (value: string | null | undefined) => {
 	if (!value) return ''
@@ -23,14 +23,56 @@ const formatEnumLabel = (value: string | null | undefined) => {
 }
 
 const formatTimestamp = (value: string | null | undefined) => {
-	if (!value) return ''
+        if (!value) return ''
 
-	const date = new Date(value)
-	if (Number.isNaN(date.getTime())) {
-		return ''
-	}
+        const date = new Date(value)
+        if (Number.isNaN(date.getTime())) {
+                return ''
+        }
 
-	return date.toLocaleString()
+        return date.toLocaleString()
+}
+
+const formatProfileName = (notificationUser?: { profile: { firstName: string; lastName: string; email: string } }) => {
+        const firstName = notificationUser?.profile.firstName?.trim() ?? ''
+        const lastName = notificationUser?.profile.lastName?.trim() ?? ''
+        const fullName = `${firstName} ${lastName}`.trim()
+
+        if (fullName) return fullName
+
+        const email = notificationUser?.profile.email?.trim()
+        if (email) return email
+
+        return 'Người dùng'
+}
+
+const renderTitle = (notification: Notification) => {
+        if (typeof notification.title === 'string' && notification.title.trim().length > 0) {
+                return notification.title.trim()
+        }
+
+        const actorName = formatProfileName(notification.actor)
+
+        switch (notification.event) {
+                case NotificationEvent.JOB_INVITATION_CREATED:
+                        return `${actorName} đã gửi lời mời làm việc cho bạn`
+                case NotificationEvent.JOB_INVITATION_CANCELLED:
+                        return `${actorName} đã hủy lời mời làm việc`
+                case NotificationEvent.JOB_INVITATION_ACCEPTED:
+                        if (notification.resourceType === NotificationResource.JOB_PROPOSAL) {
+                                return `${actorName} đã chấp nhận job proposal của bạn`
+                        }
+                        return `${actorName} đã chấp nhận lời mời làm việc của bạn`
+                case NotificationEvent.JOB_INVITATION_DECLINED:
+                        if (notification.resourceType === NotificationResource.JOB_PROPOSAL) {
+                                return `${actorName} đã từ chối job proposal của bạn`
+                        }
+                        return `${actorName} đã từ chối lời mời làm việc của bạn`
+                case NotificationEvent.JOB_OFFER_SENT:
+                        return `${actorName} đã gửi job offer cho bạn`
+        }
+
+        return formatEnumLabel(notification.event)
 }
 
 export default function NotificationDropdown() {
@@ -46,6 +88,7 @@ export default function NotificationDropdown() {
                 removeNotification
         } = useNotificationGateway()
         const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set())
+        const dropdownContentRef = useRef<HTMLDivElement>(null)
 
         const handleDeleteNotification = useCallback(
                 async (notificationId: string) => {
@@ -58,7 +101,9 @@ export default function NotificationDropdown() {
                         try {
                                 await deleteNotificationAPI(notificationId)
                                 removeNotification(notificationId)
-                                toast.success('Đã xóa thông báo.')
+                                window.requestAnimationFrame(() => {
+                                        dropdownContentRef.current?.focus({ preventScroll: true })
+                                })
                         } catch (error) {
                                 console.error(error)
                         } finally {
@@ -117,27 +162,11 @@ export default function NotificationDropdown() {
 		? 'bg-warning'
 		: 'bg-base-300'
 
-	const renderTitle = (actorName: string, recipentName: string, event: string) => {
-		if (!event) return 'Notification'
-                switch (event) {
-                        case NotificationEvent.JOB_INVITATION_CREATED:
-                                return `${actorName} sent you a job invitation`
-                        case NotificationEvent.JOB_INVITATION_ACCEPTED:
-                                return `${recipentName} accept your job invitation`
-                        case NotificationEvent.JOB_INVITATION_DECLINED:
-                                return `${recipentName} decline your job invitation`
-                        case NotificationEvent.JOB_OFFER_SENT:
-                                return `${actorName} sent you a job offer`
-                }
-
-                return formatEnumLabel(event)
-        }
-
-	const renderDescription = (
-		message?: string | null,
-		resourceType?: string | null,
-		metadataDescription?: string | null
-	) => {
+        const renderDescription = (
+                message?: string | null,
+                resourceType?: string | null,
+                metadataDescription?: string | null
+        ) => {
 		if (message) return message
 		if (metadataDescription) return metadataDescription
 		if (!resourceType) return ''
@@ -156,9 +185,10 @@ export default function NotificationDropdown() {
 					</span>
 				)}
 			</label>
-			<div
-				tabIndex={0}
-				className='dropdown-content mt-2 w-96 max-w-[min(24rem,90vw)] overflow-hidden rounded-2xl border border-base-200 bg-base-100 shadow-xl'>
+                        <div
+                                tabIndex={0}
+                                ref={dropdownContentRef}
+                                className='dropdown-content mt-2 w-96 max-w-[min(24rem,90vw)] overflow-hidden rounded-2xl border border-base-200 bg-base-100 shadow-xl'>
 				<div className='flex items-center justify-between gap-3 border-b border-base-200 px-4 py-3'>
 					<div>
 						<p className='font-semibold text-base-content'>Thông báo</p>
@@ -208,13 +238,9 @@ export default function NotificationDropdown() {
 										/>
 										<span className='flex min-w-0 flex-1 flex-col gap-1'>
 											<span className='flex items-center justify-between gap-3'>
-												<p className='truncate font-medium text-sm text-base-content'>
-													{renderTitle(
-														`${notification.actor.profile.firstName} ${notification.actor.profile.lastName}`,
-														`${notification.recipient.profile.firstName} ${notification.recipient.profile.lastName}`,
-														notification.event
-													)}
-												</p>
+                                                                                                <p className='truncate font-medium text-sm text-base-content'>
+                                                                                                        {renderTitle(notification)}
+                                                                                                </p>
 												<span className='shrink-0 text-[10px] uppercase tracking-wide text-base-content/50'>
 													{isUnread ? 'Mới' : 'Đã đọc'}
 												</span>

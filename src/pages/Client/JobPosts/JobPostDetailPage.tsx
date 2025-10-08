@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
         ArrowLeft,
+        ArrowUp,
         BookmarkCheck,
         Check,
+        CircleDollarSign,
         Clock,
         Download,
         Eye,
@@ -46,6 +48,7 @@ import {
 } from '~/utils/jobPost'
 import { formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import InviteFreelancersTab from './components/InviteFreelancersTab'
+import JobOffersTab from './components/JobOffersTab'
 import JobProposalsTab from './components/JobProposalsTab'
 
 const jobDetailTabs = [
@@ -66,6 +69,12 @@ const jobDetailTabs = [
                 label: 'Review proposals',
                 description: 'Track interested talent and evaluate proposals.',
                 icon: <Users2 className='size-4 text-emerald-500' />
+        },
+        {
+                key: 'offers',
+                label: 'Job offers',
+                description: 'Theo dõi các offer đã gửi cho job này.',
+                icon: <CircleDollarSign className='size-4 text-amber-500' />
         },
         {
                 key: 'saved',
@@ -135,6 +144,11 @@ export default function JobPostDetailPage() {
         const navigate = useNavigate()
         const { jobId } = useParams<{ jobId: string }>()
         const [activeTab, setActiveTab] = useState<JobDetailTabKey>('overview')
+        const topRef = useRef<HTMLDivElement | null>(null)
+
+        const scrollToTop = () => {
+                topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
 
         const {
                 data: job,
@@ -440,12 +454,14 @@ export default function JobPostDetailPage() {
                                 return overviewContent
                         case 'invite':
                                 return <InviteFreelancersTab job={job} isActive={activeTab === 'invite'} />
-                        case 'proposals':
-                                return <JobProposalsTab job={job} isActive={activeTab === 'proposals'} />
-                        case 'saved':
-                                return (
-                                        <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70 shadow-sm'>
-                                                <p className='text-lg font-medium text-base-content'>No saved freelancers yet</p>
+                case 'proposals':
+                        return <JobProposalsTab job={job} isActive={activeTab === 'proposals'} />
+                case 'offers':
+                        return <JobOffersTab job={job} isActive={activeTab === 'offers'} />
+                case 'saved':
+                        return (
+                                <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70 shadow-sm'>
+                                        <p className='text-lg font-medium text-base-content'>No saved freelancers yet</p>
                                                 <p className='mt-2'>Mark freelancers while browsing to keep them handy for quick invites from this job post.</p>
                                         </div>
                                 )
@@ -455,7 +471,7 @@ export default function JobPostDetailPage() {
         }
 
         return (
-                <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
+                <div ref={topRef} className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
                         <button type='button' className='btn btn-ghost btn-sm gap-2' onClick={() => navigate(routes.me.client.jobs.list)}>
                                 <ArrowLeft className='size-4' /> Back to listings
                         </button>
@@ -498,57 +514,64 @@ export default function JobPostDetailPage() {
                                         </div>
                                 </div>
 
-                                <div className='mt-8 rounded-3xl border border-base-200 bg-base-100 p-4 shadow-sm'>
-                                        <div className='grid gap-3 md:grid-cols-2'>
+                                <div className='mt-6 rounded-2xl border border-base-200 bg-base-100 p-3 shadow-sm'>
+                                        <nav className='flex flex-wrap items-stretch gap-2' aria-label='Điều hướng tab chi tiết job'>
                                                 {jobDetailTabs.map((tab, index) => {
                                                         const isSelected = activeTab === tab.key
-                                                        const status =
-                                                                index === resolvedActiveIndex
-                                                                        ? 'current'
-                                                                        : index < resolvedActiveIndex
-                                                                                ? 'done'
-                                                                                : 'upcoming'
-                                                        const containerClass =
-                                                                status === 'current'
-                                                                        ? 'border-primary bg-primary/10 shadow-md'
-                                                                        : status === 'done'
-                                                                        ? 'border-success/60 bg-success/10'
-                                                                        : 'border-base-200 hover:border-primary/40'
-                                                        const indicatorClass =
-                                                                status === 'done'
-                                                                        ? 'bg-success text-success-content'
-                                                                        : status === 'current'
-                                                                        ? 'bg-primary text-primary-content'
-                                                                        : 'bg-base-200 text-base-content/70'
+                                                        const isCompleted = index < resolvedActiveIndex
+                                                        const isCurrent = index === resolvedActiveIndex
+                                                        const indicatorClass = isCompleted
+                                                                ? 'bg-success/20 text-success'
+                                                                : isCurrent
+                                                                ? 'bg-primary/15 text-primary'
+                                                                : 'bg-base-200 text-base-content/60'
+                                                        const buttonClass = isCurrent
+                                                                ? 'border-primary/60 bg-primary/5 text-base-content'
+                                                                : isCompleted
+                                                                ? 'border-success/40 bg-success/5 text-base-content'
+                                                                : 'border-base-200 bg-base-100 text-base-content/70 hover:border-primary/40 hover:text-base-content'
+
                                                         return (
                                                                 <button
                                                                         key={tab.key}
                                                                         type='button'
                                                                         onClick={() => setActiveTab(tab.key)}
-                                                                        className={`group flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition ${containerClass}`}
+                                                                        className={`group flex items-center gap-3 rounded-full border px-4 py-2 text-left text-sm transition ${buttonClass}`}
                                                                         aria-pressed={isSelected}
+                                                                        title={tab.description}
                                                                 >
-                                                                        <div className='flex items-center gap-3'>
-                                                                                <span
-                                                                                        className={`flex size-10 items-center justify-center rounded-full text-sm font-semibold ${indicatorClass}`}
-                                                                                >
-                                                                                        {status === 'done' ? <Check className='size-4' /> : index + 1}
+                                                                        <span
+                                                                                className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold transition group-hover:scale-105 ${indicatorClass}`}
+                                                                        >
+                                                                                {isCompleted ? <Check className='h-3.5 w-3.5' /> : index + 1}
+                                                                        </span>
+                                                                        <div className='flex flex-col items-start leading-tight'>
+                                                                                <span className='flex items-center gap-2 font-medium text-base-content'>
+                                                                                        {tab.icon}
+                                                                                        {tab.label}
                                                                                 </span>
-                                                                                <div>
-                                                                                        <div className='flex items-center gap-2 text-sm font-semibold text-base-content'>
-                                                                                                {tab.icon}
-                                                                                                {tab.label}
-                                                                                        </div>
-                                                                                        <p className='mt-1 text-xs text-base-content/60'>{tab.description}</p>
-                                                                                </div>
+                                                                                <span className='hidden text-[11px] text-base-content/60 lg:block'>
+                                                                                        {tab.description}
+                                                                                </span>
                                                                         </div>
                                                                 </button>
                                                         )
                                                 })}
-                                        </div>
+                                        </nav>
                                 </div>
 
-                                <div className='mt-6'>{renderTabContent()}</div>
+                                <div className='mt-5 space-y-6'>
+                                        {renderTabContent()}
+                                        <div className='flex justify-end'>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-outline btn-sm gap-2'
+                                                        onClick={scrollToTop}
+                                                >
+                                                        <ArrowUp className='size-4' /> Trở về đầu trang
+                                                </button>
+                                        </div>
+                                </div>
                         </div>
                 </div>
         )
