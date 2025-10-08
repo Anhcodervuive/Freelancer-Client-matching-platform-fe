@@ -30,11 +30,204 @@ const roleFilterOptions = [
 
 type RoleFilterValue = (typeof roleFilterOptions)[number]['value']
 
+type ViewerRole = 'client' | 'freelancer' | 'all'
+
 type ContractCardProps = {
         contract: Contract
+        viewerRole: ViewerRole
 }
 
-const ContractCard = ({ contract }: ContractCardProps) => {
+const ClientContractCard = ({ contract }: { contract: Contract }) => {
+        const title = contract.title?.trim() || contract.jobPost?.title || 'Hợp đồng không tên'
+        const statusMeta = getContractStatusMeta(contract.status)
+        const freelancerName =
+                getParticipantName(contract.freelancer.profile, undefined) || 'Freelancer'
+        const freelancerLocation = getParticipantLocation(contract.freelancer.profile)
+        const startDate = formatDateTime(contract.startDate || contract.offer?.startDate || contract.acceptedAt, {
+                dateStyle: 'medium'
+        })
+        const updatedAt = formatDateTime(contract.updatedAt || contract.createdAt)
+        const budget = getBudgetDisplay(contract)
+        const skills = extractSkillNames(contract).slice(0, 6)
+
+        return (
+                <Link
+                        to={routes.contracts.detail(contract.id)}
+                        className='group flex h-full flex-col justify-between rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_35px_90px_rgba(59,130,246,0.12)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-white'
+                >
+                        <div className='space-y-6'>
+                                <div className='flex flex-wrap items-start gap-3'>
+                                        <div className='flex-1 space-y-1'>
+                                                <h3 className='text-lg font-semibold text-slate-900 transition group-hover:text-primary'>
+                                                        {title}
+                                                </h3>
+                                                <p className='text-sm text-slate-500'>Cập nhật lần cuối {updatedAt ?? '—'}</p>
+                                        </div>
+                                        <span
+                                                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.badge} ${statusMeta.text}`}
+                                        >
+                                                <span className='size-2 rounded-full bg-current'></span>
+                                                {statusMeta.label}
+                                        </span>
+                                </div>
+
+                                <div className='rounded-2xl border border-white/70 bg-white/80 p-5 text-sm text-slate-600 shadow-inner shadow-white/20'>
+                                        <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Freelancer của bạn</p>
+                                        <div className='mt-3 flex items-start gap-3'>
+                                                <Users className='mt-0.5 size-5 text-secondary' />
+                                                <div className='space-y-1'>
+                                                        <p className='text-base font-semibold text-slate-900'>{freelancerName}</p>
+                                                        <p className='text-xs text-slate-500'>{freelancerLocation ?? 'Chưa cập nhật vị trí'}</p>
+                                                        {contract.freelancer.title && (
+                                                                <p>
+                                                                        Chuyên môn:{' '}
+                                                                        <span className='font-medium text-slate-800'>{contract.freelancer.title}</span>
+                                                                </p>
+                                                        )}
+                                                </div>
+                                        </div>
+                                </div>
+
+                                <div className='grid gap-4 rounded-2xl border border-white/70 bg-white/80 p-4 text-xs text-slate-500 shadow-inner shadow-white/20 md:grid-cols-2'>
+                                        <div className='space-y-2'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Tiến độ</p>
+                                                {startDate && (
+                                                        <span className='inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-primary'>
+                                                                <CalendarClock className='size-3.5' /> Bắt đầu {startDate}
+                                                        </span>
+                                                )}
+                                                <p>Milestones, tệp và thanh toán được quản lý trực tiếp trong Workroom.</p>
+                                        </div>
+                                        <div className='space-y-2'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Ngân sách</p>
+                                                {budget && (
+                                                        <span className='inline-flex items-center gap-2 rounded-full border border-secondary/15 bg-secondary/5 px-3 py-1 text-secondary'>
+                                                                <Clock3 className='size-3.5' /> {budget}
+                                                        </span>
+                                                )}
+                                                <p>Kiểm tra và phát hành thanh toán khi mỗi milestone hoàn thành.</p>
+                                        </div>
+                                </div>
+
+                                {skills.length > 0 && (
+                                        <div className='space-y-2'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Kỹ năng chính</p>
+                                                <div className='flex flex-wrap items-center gap-2'>
+                                                        {skills.map(skill => (
+                                                                <span
+                                                                        key={skill}
+                                                                        className='rounded-full border border-white/80 bg-white/90 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm'
+                                                                >
+                                                                        {skill}
+                                                                </span>
+                                                        ))}
+                                                </div>
+                                        </div>
+                                )}
+                        </div>
+
+                        <div className='mt-6 flex items-center justify-between text-sm font-medium text-primary'>
+                                <span className='inline-flex items-center gap-2'>
+                                        Vào Workroom
+                                        <ChevronRight className='size-4 transition group-hover:translate-x-1' />
+                                </span>
+                                <span className='text-xs font-medium text-slate-400'>Quản lý hợp đồng này</span>
+                        </div>
+                </Link>
+        )
+}
+
+const FreelancerContractCard = ({ contract }: { contract: Contract }) => {
+        const title = contract.title?.trim() || contract.jobPost?.title || 'Hợp đồng không tên'
+        const statusMeta = getContractStatusMeta(contract.status)
+        const clientName =
+                getParticipantName(contract.client.profile, contract.client.companyName) || 'Khách hàng'
+        const clientLocation = getParticipantLocation(contract.client.profile)
+        const updatedAt = formatDateTime(contract.updatedAt || contract.createdAt)
+        const startDate = formatDateTime(contract.startDate || contract.offer?.startDate || contract.acceptedAt, {
+                dateStyle: 'medium'
+        })
+        const languages = extractLanguageLabels(contract).slice(0, 3)
+        const budget = getBudgetDisplay(contract)
+        const jobTitle = contract.jobPost?.title ?? contract.jobPost?.specialty?.name ?? undefined
+
+        return (
+                <Link
+                        to={routes.contracts.detail(contract.id)}
+                        className='group flex h-full flex-col justify-between rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:border-secondary/30 hover:shadow-[0_35px_90px_rgba(14,165,233,0.12)] focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:ring-offset-2 focus:ring-offset-white'
+                >
+                        <div className='space-y-6'>
+                                <div className='flex flex-wrap items-start gap-3'>
+                                        <div className='flex-1 space-y-1'>
+                                                <h3 className='text-lg font-semibold text-slate-900 transition group-hover:text-secondary'>
+                                                        {title}
+                                                </h3>
+                                                <p className='text-sm text-slate-500'>Cập nhật lần cuối {updatedAt ?? '—'}</p>
+                                        </div>
+                                        <span
+                                                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.badge} ${statusMeta.text}`}
+                                        >
+                                                <span className='size-2 rounded-full bg-current'></span>
+                                                {statusMeta.label}
+                                        </span>
+                                </div>
+
+                                <div className='rounded-2xl border border-white/70 bg-white/80 p-5 text-sm text-slate-600 shadow-inner shadow-white/20'>
+                                        <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Khách hàng của bạn</p>
+                                        <div className='mt-3 flex items-start gap-3'>
+                                                <Users className='mt-0.5 size-5 text-primary' />
+                                                <div className='space-y-1'>
+                                                        <p className='text-base font-semibold text-slate-900'>{clientName}</p>
+                                                        <p className='text-xs text-slate-500'>{clientLocation ?? 'Chưa cập nhật vị trí'}</p>
+                                                        {contract.client.companyName && (
+                                                                <p>
+                                                                        Công ty:{' '}
+                                                                        <span className='font-medium text-slate-800'>{contract.client.companyName}</span>
+                                                                </p>
+                                                        )}
+                                                </div>
+                                        </div>
+                                </div>
+
+                                <div className='grid gap-4 rounded-2xl border border-white/70 bg-white/80 p-4 text-xs text-slate-500 shadow-inner shadow-white/20 md:grid-cols-2'>
+                                        <div className='space-y-2'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Thông tin công việc</p>
+                                                {jobTitle && <p className='text-sm font-medium text-slate-800'>{jobTitle}</p>}
+                                                {languages.length > 0 && (
+                                                        <span className='inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-600'>
+                                                                <FileText className='size-3.5' /> Ngôn ngữ: {languages.join(', ')}
+                                                        </span>
+                                                )}
+                                        </div>
+                                        <div className='space-y-2'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Lộ trình</p>
+                                                {startDate && (
+                                                        <span className='inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-primary'>
+                                                                <CalendarClock className='size-3.5' /> Bắt đầu {startDate}
+                                                        </span>
+                                                )}
+                                                {budget && (
+                                                        <span className='inline-flex items-center gap-2 rounded-full border border-secondary/15 bg-secondary/5 px-3 py-1 text-secondary'>
+                                                                <Clock3 className='size-3.5' /> {budget}
+                                                        </span>
+                                                )}
+                                                <p>Theo dõi milestones và gửi bàn giao trực tiếp trong Workroom.</p>
+                                        </div>
+                                </div>
+                        </div>
+
+                        <div className='mt-6 flex items-center justify-between text-sm font-medium text-secondary'>
+                                <span className='inline-flex items-center gap-2'>
+                                        Vào Workroom
+                                        <ChevronRight className='size-4 transition group-hover:translate-x-1' />
+                                </span>
+                                <span className='text-xs font-medium text-slate-400'>Xem chi tiết hợp đồng</span>
+                        </div>
+                </Link>
+        )
+}
+
+const CombinedContractCard = ({ contract }: { contract: Contract }) => {
         const title = contract.title?.trim() || contract.jobPost?.title || 'Hợp đồng không tên'
         const statusMeta = getContractStatusMeta(contract.status)
         const clientName =
@@ -144,17 +337,48 @@ const ContractCard = ({ contract }: ContractCardProps) => {
         )
 }
 
-const EmptyState = () => (
-        <div className='flex flex-col items-center justify-center gap-4 rounded-[32px] border border-dashed border-slate-200 bg-white/80 p-12 text-center text-slate-500 shadow-inner shadow-white/40'>
-                <div className='rounded-full bg-primary/10 p-4 text-primary'>
-                        <FileText className='size-8' />
+const ContractCard = ({ contract, viewerRole }: ContractCardProps) => {
+        if (viewerRole === 'client') {
+                return <ClientContractCard contract={contract} />
+        }
+
+        if (viewerRole === 'freelancer') {
+                return <FreelancerContractCard contract={contract} />
+        }
+
+        return <CombinedContractCard contract={contract} />
+}
+
+const EmptyState = ({ viewerRole }: { viewerRole: ViewerRole }) => {
+        const copy = {
+                client: {
+                        title: 'Bạn chưa có hợp đồng nào với freelancer',
+                        body: 'Tạo hợp đồng mới hoặc gửi offer cho freelancer để bắt đầu cộng tác trong Workroom.'
+                },
+                freelancer: {
+                        title: 'Bạn chưa nhận được hợp đồng nào',
+                        body: 'Khi khách hàng gửi offer và bạn chấp nhận, hợp đồng sẽ xuất hiện ở đây để theo dõi tiến độ.'
+                },
+                all: {
+                        title: 'Chưa có hợp đồng nào',
+                        body: 'Khi bạn nhận hoặc tạo hợp đồng, chúng sẽ hiển thị tại đây để bạn quản lý milestones, tệp và thanh toán.'
+                }
+        } satisfies Record<ViewerRole, { title: string; body: string }>
+
+        const { title, body } = copy[viewerRole]
+
+        return (
+                <div className='flex flex-col items-center justify-center gap-4 rounded-[32px] border border-dashed border-slate-200 bg-white/80 p-12 text-center text-slate-500 shadow-inner shadow-white/40'>
+                        <div className='rounded-full bg-primary/10 p-4 text-primary'>
+                                <FileText className='size-8' />
+                        </div>
+                        <div className='space-y-2'>
+                                <h3 className='text-xl font-semibold text-slate-800'>{title}</h3>
+                                <p className='max-w-md text-sm text-slate-500'>{body}</p>
+                        </div>
                 </div>
-                <div className='space-y-2'>
-                        <h3 className='text-xl font-semibold text-slate-800'>Chưa có hợp đồng nào</h3>
-                        <p className='max-w-md text-sm text-slate-500'>Khi bạn nhận hoặc tạo hợp đồng, chúng sẽ hiển thị tại đây để bạn quản lý milestones, tệp và thanh toán.</p>
-                </div>
-        </div>
-)
+        )
+}
 
 const ContractListPage = () => {
         const currentUser = useSelector(selectCurrentUser)
@@ -178,6 +402,56 @@ const ContractListPage = () => {
                 }
         }, [page, roleFilter, debouncedSearch])
 
+        const viewerRole: ViewerRole = useMemo(() => {
+                if (roleFilter === 'all') {
+                        if (currentUser?.role === Role.CLIENT) return 'client'
+                        if (currentUser?.role === Role.FREELANCER) return 'freelancer'
+                        return 'all'
+                }
+                return roleFilter
+        }, [roleFilter, currentUser?.role])
+
+        const heroCopy = {
+                client: {
+                        badge: 'Workroom khách hàng',
+                        title: 'Quản lý hợp đồng và freelancer của bạn',
+                        description:
+                                'Theo dõi tiến độ, milestones và thanh toán cho từng hợp đồng với freelancer một cách rõ ràng.'
+                },
+                freelancer: {
+                        badge: 'Workroom freelancer',
+                        title: 'Theo dõi công việc và bàn giao cho khách hàng',
+                        description:
+                                'Nắm bắt timeline, yêu cầu và trao đổi với khách hàng để giữ tiến độ hợp đồng ổn định.'
+                },
+                all: {
+                        badge: 'Workroom',
+                        title: 'Quản lý hợp đồng & cộng tác theo phong cách Upwork',
+                        description:
+                                'Lọc theo vai trò để xem những hợp đồng mà bạn đang tham gia với tư cách khách hàng hoặc freelancer.'
+                }
+        } satisfies Record<ViewerRole, { badge: string; title: string; description: string }>
+
+        const heroStatsCopy = {
+                client: {
+                        primaryLabel: 'Hợp đồng với freelancer',
+                        secondaryLabel: 'Hoạt động gần đây',
+                        secondaryDescription: 'Theo dõi milestone, bàn giao và thanh toán cho freelancer.'
+                },
+                freelancer: {
+                        primaryLabel: 'Hợp đồng với khách hàng',
+                        secondaryLabel: 'Hoạt động gần đây',
+                        secondaryDescription: 'Giữ tiến độ bàn giao, cập nhật milestones và phản hồi khách hàng.'
+                },
+                all: {
+                        primaryLabel: 'Hợp đồng đang mở',
+                        secondaryLabel: 'Cập nhật gần nhất',
+                        secondaryDescription: 'Theo dõi các mốc và hoạt động mới nhất trong hợp đồng của bạn.'
+                }
+        } satisfies Record<ViewerRole, { primaryLabel: string; secondaryLabel: string; secondaryDescription: string }>
+
+        const heroStats = heroStatsCopy[viewerRole]
+
         const { data, isFetching, isLoading, isError, refetch } = useQuery({
                 queryKey: ['contracts', queryFilters],
                 queryFn: () => listContracts(queryFilters),
@@ -196,9 +470,11 @@ const ContractListPage = () => {
                         <section className='rounded-[38px] border border-white/60 bg-gradient-to-br from-primary/10 via-white to-secondary/20 p-8 shadow-[0_30px_120px_rgba(15,23,42,0.1)] md:p-12'>
                                 <div className='flex flex-col gap-6 md:flex-row md:items-center md:justify-between'>
                                         <div className='space-y-4'>
-                                                <span className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-primary'>Workroom</span>
-                                                <h1 className='text-3xl font-bold text-slate-900 md:text-4xl'>Quản lý hợp đồng &amp; cộng tác theo phong cách Upwork</h1>
-                                                <p className='max-w-2xl text-sm text-slate-600 md:text-base'>Xem nhanh các hợp đồng đang hoạt động, milestones sắp đến hạn và hồ sơ đối tác của bạn. Chọn vai trò để lọc hợp đồng bạn đang làm với tư cách khách hàng hoặc freelancer.</p>
+                                                <span className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-primary'>
+                                                        {heroCopy[viewerRole].badge}
+                                                </span>
+                                                <h1 className='text-3xl font-bold text-slate-900 md:text-4xl'>{heroCopy[viewerRole].title}</h1>
+                                                <p className='max-w-2xl text-sm text-slate-600 md:text-base'>{heroCopy[viewerRole].description}</p>
                                         </div>
                                         <div className='grid gap-3 rounded-3xl border border-white/70 bg-white/80 p-5 text-sm text-slate-600 shadow-inner shadow-white/30'>
                                                 <div className='flex items-center gap-3'>
@@ -206,7 +482,7 @@ const ContractListPage = () => {
                                                                 <Users className='size-5' />
                                                         </div>
                                                         <div>
-                                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Hợp đồng đang mở</p>
+                                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>{heroStats.primaryLabel}</p>
                                                                 <p className='text-lg font-semibold text-slate-900'>{total}</p>
                                                         </div>
                                                 </div>
@@ -215,8 +491,8 @@ const ContractListPage = () => {
                                                                 <CalendarClock className='size-5' />
                                                         </div>
                                                         <div>
-                                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Cập nhật gần nhất</p>
-                                                                <p className='text-sm text-slate-600'>Theo dõi các mốc và hoạt động mới nhất trong hợp đồng của bạn.</p>
+                                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>{heroStats.secondaryLabel}</p>
+                                                                <p className='text-sm text-slate-600'>{heroStats.secondaryDescription}</p>
                                                         </div>
                                                 </div>
                                         </div>
@@ -266,10 +542,10 @@ const ContractListPage = () => {
                                                 </div>
                                         )}
 
-                                        {!isLoading && !contracts.length && <EmptyState />}
+                                        {!isLoading && !contracts.length && <EmptyState viewerRole={viewerRole} />}
 
                                         {contracts.map(contract => (
-                                                <ContractCard key={contract.id} contract={contract} />
+                                                <ContractCard key={contract.id} contract={contract} viewerRole={viewerRole} />
                                         ))}
                                 </div>
 

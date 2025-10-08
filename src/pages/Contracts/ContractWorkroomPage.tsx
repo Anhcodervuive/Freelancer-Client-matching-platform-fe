@@ -40,6 +40,8 @@ const tabs = [
         { id: 'history', label: 'Lịch sử', icon: History }
 ] as const
 
+type ViewerRole = 'client' | 'freelancer' | 'all'
+
 const milestoneStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
         PENDING: { label: 'Chờ bắt đầu', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
         IN_PROGRESS: { label: 'Đang thực hiện', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
@@ -137,6 +139,8 @@ const ContractWorkroomPage = () => {
         const currentUser = useSelector(selectCurrentUser)
         const [activeTab, setActiveTab] = useState<TabId>('overview')
 
+        const viewerRole: ViewerRole = currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
+
         const contractQuery = useQuery({
                 queryKey: ['contract', contractId],
                 queryFn: () => {
@@ -178,6 +182,23 @@ const ContractWorkroomPage = () => {
                         : routes.freelancer.jobs.detail(contract.jobPost.id)
                 : undefined
 
+        const heroBadge =
+                viewerRole === 'client'
+                        ? 'Workroom khách hàng'
+                        : viewerRole === 'freelancer'
+                        ? 'Workroom freelancer'
+                        : 'Workroom'
+        const heroSubtitle =
+                viewerRole === 'client'
+                        ? freelancerName
+                                ? `Làm việc với ${freelancerName}`
+                                : 'Theo dõi hợp đồng với freelancer của bạn'
+                        : viewerRole === 'freelancer'
+                        ? clientName
+                                ? `Cộng tác cùng ${clientName}`
+                                : 'Theo dõi hợp đồng với khách hàng của bạn'
+                        : `${clientName ?? 'Khách hàng'} · ${freelancerName ?? 'Freelancer'}`
+
         const renderOverview = () => (
                 <div className='space-y-8'>
                         <div className='grid gap-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:grid-cols-3 md:p-8'>
@@ -215,33 +236,47 @@ const ContractWorkroomPage = () => {
                                 </div>
                         </div>
 
-                        <div className='grid gap-6 md:grid-cols-2'>
-                                <div className='rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
-                                        <h3 className='text-sm font-semibold text-slate-800'>Thông tin khách hàng</h3>
-                                        <div className='mt-4 flex items-start gap-3'>
-                                                <Users className='mt-1 size-5 text-primary' />
-                                                <div className='space-y-1 text-sm text-slate-600'>
-                                                        <p className='text-base font-semibold text-slate-900'>{clientName ?? 'Khách hàng'}</p>
-                                                        <p>{clientLocation ?? 'Chưa cập nhật vị trí'}</p>
-                                                        {contract?.client?.companyName && (
-                                                                <p>Công ty: <span className='font-medium text-slate-800'>{contract.client.companyName}</span></p>
-                                                        )}
+                        <div className={`grid gap-6 ${viewerRole === 'all' ? 'md:grid-cols-2' : ''}`}>
+                                {viewerRole !== 'client' && (
+                                        <div className='rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                                <h3 className='text-sm font-semibold text-slate-800'>
+                                                        {viewerRole === 'freelancer' ? 'Khách hàng của bạn' : 'Thông tin khách hàng'}
+                                                </h3>
+                                                <div className='mt-4 flex items-start gap-3'>
+                                                        <Users className='mt-1 size-5 text-primary' />
+                                                        <div className='space-y-1 text-sm text-slate-600'>
+                                                                <p className='text-base font-semibold text-slate-900'>{clientName ?? 'Khách hàng'}</p>
+                                                                <p>{clientLocation ?? 'Chưa cập nhật vị trí'}</p>
+                                                                {contract?.client?.companyName && (
+                                                                        <p>
+                                                                                Công ty:{' '}
+                                                                                <span className='font-medium text-slate-800'>{contract.client.companyName}</span>
+                                                                        </p>
+                                                                )}
+                                                        </div>
                                                 </div>
                                         </div>
-                                </div>
-                                <div className='rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
-                                        <h3 className='text-sm font-semibold text-slate-800'>Thông tin freelancer</h3>
-                                        <div className='mt-4 flex items-start gap-3'>
-                                                <Users className='mt-1 size-5 text-secondary' />
-                                                <div className='space-y-1 text-sm text-slate-600'>
-                                                        <p className='text-base font-semibold text-slate-900'>{freelancerName ?? 'Freelancer'}</p>
-                                                        <p>{freelancerLocation ?? 'Chưa cập nhật vị trí'}</p>
-                                                        {contract?.freelancer?.title && (
-                                                                <p>Chuyên môn: <span className='font-medium text-slate-800'>{contract.freelancer.title}</span></p>
-                                                        )}
+                                )}
+                                {viewerRole !== 'freelancer' && (
+                                        <div className='rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                                <h3 className='text-sm font-semibold text-slate-800'>
+                                                        {viewerRole === 'client' ? 'Freelancer của bạn' : 'Thông tin freelancer'}
+                                                </h3>
+                                                <div className='mt-4 flex items-start gap-3'>
+                                                        <Users className='mt-1 size-5 text-secondary' />
+                                                        <div className='space-y-1 text-sm text-slate-600'>
+                                                                <p className='text-base font-semibold text-slate-900'>{freelancerName ?? 'Freelancer'}</p>
+                                                                <p>{freelancerLocation ?? 'Chưa cập nhật vị trí'}</p>
+                                                                {contract?.freelancer?.title && (
+                                                                        <p>
+                                                                                Chuyên môn:{' '}
+                                                                                <span className='font-medium text-slate-800'>{contract.freelancer.title}</span>
+                                                                        </p>
+                                                                )}
+                                                        </div>
                                                 </div>
                                         </div>
-                                </div>
+                                )}
                         </div>
 
                         <div className='rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
@@ -558,12 +593,13 @@ const ContractWorkroomPage = () => {
                                                 <ArrowLeft className='size-4' /> Quay lại
                                         </button>
                                         <div className='space-y-2'>
+                                                <span className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-primary'>
+                                                        {heroBadge}
+                                                </span>
                                                 <h1 className='text-3xl font-bold text-slate-900 md:text-4xl'>
                                                         {contract?.title ?? contract?.jobPost?.title ?? 'Workroom'}
                                                 </h1>
-                                                <p className='text-sm text-slate-600'>
-                                                        {clientName ?? 'Khách hàng'} · {freelancerName ?? 'Freelancer'}
-                                                </p>
+                                                <p className='text-sm text-slate-600'>{heroSubtitle}</p>
                                         </div>
                                         <div className='inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold'>
                                                 <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.badge} ${statusMeta.text}`}>
