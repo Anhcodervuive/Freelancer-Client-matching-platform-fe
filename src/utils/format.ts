@@ -76,3 +76,24 @@ export function formatDateTime(
         if (Number.isNaN(date.getTime())) return undefined
         return date.toLocaleString(undefined, options ?? { dateStyle: 'medium', timeStyle: 'short' })
 }
+
+export function formatCurrency(
+        amount?: number | null,
+        currency?: string | null,
+        options?: Intl.NumberFormatOptions
+): string | undefined {
+        if (amount === undefined || amount === null || Number.isNaN(amount)) return undefined
+        const normalizedCurrency = currency?.toUpperCase() || 'USD'
+        try {
+                return new Intl.NumberFormat(undefined, {
+                        style: 'currency',
+                        currency: normalizedCurrency,
+                        maximumFractionDigits: 2,
+                        minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+                        ...options
+                }).format(amount)
+        } catch (error) {
+                console.warn('Unable to format currency', { amount, currency, error })
+                return `${amount.toLocaleString()} ${normalizedCurrency}`
+        }
+}

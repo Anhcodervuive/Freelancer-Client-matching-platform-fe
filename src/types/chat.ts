@@ -1,4 +1,3 @@
-import type { Contract } from './contract'
 import type { JobPostListItem } from './job-post'
 import type { Profile } from './profile'
 import type { Role, User } from './user'
@@ -50,7 +49,7 @@ export interface chatThread {
 	createdAt: Date
 	updatedAt: Date
 	jobPost: JobPostListItem | null
-	contract: Contract | null
+        contract: import('./contract').Contract | null
 	messages?: ChatMessage[]
 	participants: ChatParticipant[]
 	isHaveParticipantOnline?: boolean

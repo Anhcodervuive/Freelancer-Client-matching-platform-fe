@@ -12,6 +12,10 @@ export const routes = {
         messages: {
                 jobs: '/messages/jobs'
         },
+        contracts: {
+                list: '/contracts',
+                detail: (contractId: string = 'contractId') => `/contracts/${contractId}`
+        },
         freelancer: {
                 jobs: {
                         list: '/freelancer/jobs',

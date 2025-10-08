@@ -59,6 +59,8 @@ import JobChatPage from './pages/Comons/Chat/JobChatPage'
 import ClientJobOfferListPage from './pages/Client/JobOffers/ClientJobOfferListPage'
 import FreelancerJobOfferListPage from './pages/Freelancer/Jobs/FreelancerJobOfferListPage'
 import { ChatSocketProvider } from '~/contexts/chat-socket/ChatSocketProvider'
+import ContractListPage from './pages/Contracts/ContractListPage'
+import ContractWorkroomPage from './pages/Contracts/ContractWorkroomPage'
 
 const persistor = persistStore(store)
 
@@ -85,9 +87,19 @@ const router = createBrowserRouter([
 			{
 				path: routes.comons.home,
 				element: <HomePage />
-			},
-			{
-				path: routes.freelancer.jobs.list,
+                        },
+                        {
+                                path: routes.contracts.list,
+                                loader: checkAuthenticatedUser,
+                                element: <ContractListPage />
+                        },
+                        {
+                                path: routes.contracts.detail(':contractId'),
+                                loader: checkAuthenticatedUser,
+                                element: <ContractWorkroomPage />
+                        },
+                        {
+                                path: routes.freelancer.jobs.list,
 				loader: requireAuthenticatedUserOrRedirectHome,
 				element: <JobMarketplacePage />
 			},
