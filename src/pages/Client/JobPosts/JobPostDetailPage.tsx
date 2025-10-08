@@ -5,6 +5,7 @@ import {
         ArrowLeft,
         BookmarkCheck,
         Check,
+        CircleDollarSign,
         Clock,
         Download,
         Eye,
@@ -46,6 +47,7 @@ import {
 } from '~/utils/jobPost'
 import { formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import InviteFreelancersTab from './components/InviteFreelancersTab'
+import JobOffersTab from './components/JobOffersTab'
 import JobProposalsTab from './components/JobProposalsTab'
 
 const jobDetailTabs = [
@@ -66,6 +68,12 @@ const jobDetailTabs = [
                 label: 'Review proposals',
                 description: 'Track interested talent and evaluate proposals.',
                 icon: <Users2 className='size-4 text-emerald-500' />
+        },
+        {
+                key: 'offers',
+                label: 'Job offers',
+                description: 'Theo dõi các offer đã gửi cho job này.',
+                icon: <CircleDollarSign className='size-4 text-amber-500' />
         },
         {
                 key: 'saved',
@@ -440,12 +448,14 @@ export default function JobPostDetailPage() {
                                 return overviewContent
                         case 'invite':
                                 return <InviteFreelancersTab job={job} isActive={activeTab === 'invite'} />
-                        case 'proposals':
-                                return <JobProposalsTab job={job} isActive={activeTab === 'proposals'} />
-                        case 'saved':
-                                return (
-                                        <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70 shadow-sm'>
-                                                <p className='text-lg font-medium text-base-content'>No saved freelancers yet</p>
+                case 'proposals':
+                        return <JobProposalsTab job={job} isActive={activeTab === 'proposals'} />
+                case 'offers':
+                        return <JobOffersTab job={job} isActive={activeTab === 'offers'} />
+                case 'saved':
+                        return (
+                                <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70 shadow-sm'>
+                                        <p className='text-lg font-medium text-base-content'>No saved freelancers yet</p>
                                                 <p className='mt-2'>Mark freelancers while browsing to keep them handy for quick invites from this job post.</p>
                                         </div>
                                 )

@@ -246,6 +246,7 @@ export type JobOffer = {
         expireAt?: string | null
         status: JobOfferStatus
         sendNow?: boolean | null
+        withdrawReason?: string | null
         createdAt?: string | null
         updatedAt?: string | null
         freelancer?: {

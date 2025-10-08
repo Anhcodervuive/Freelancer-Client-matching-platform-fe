@@ -76,8 +76,14 @@ export const updateClientJobOffer = async (
         return response.data
 }
 
-export const withdrawClientJobOffer = async (offerId: string) => {
-        const response = await authorizeAxiosInstance.delete(`${clientBaseUrl}/${offerId}`)
+export const withdrawClientJobOffer = async (
+        offerId: string,
+        payload: { withdrawReason: string }
+): Promise<JobOffer> => {
+        const response = await authorizeAxiosInstance.patch<JobOffer>(`${clientBaseUrl}/${offerId}`, {
+                status: 'WITHDRAWN',
+                withdrawReason: payload.withdrawReason
+        })
         return response.data
 }
 
