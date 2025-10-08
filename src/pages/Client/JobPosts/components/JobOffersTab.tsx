@@ -65,8 +65,8 @@ const JobOffersTab = ({ job, isActive }: Props) => {
         const statusCounts = useMemo(() => computeJobOfferStatusCounts(offers), [offers])
 
         return (
-                <div className='space-y-6'>
-                        <div className='flex flex-col gap-3 rounded-3xl border border-base-200 bg-base-100 p-5 shadow-sm md:flex-row md:items-center md:justify-between'>
+                <div className='space-y-5'>
+                        <div className='flex flex-col gap-3 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm md:flex-row md:items-center md:justify-between'>
                                 <div>
                                         <h2 className='text-xl font-semibold text-base-content'>Job offers cho công việc này</h2>
                                         <p className='text-sm text-base-content/70'>Xem nhanh các offer đã gửi tới freelancer từ job post này.</p>
@@ -80,7 +80,7 @@ const JobOffersTab = ({ job, isActive }: Props) => {
                                 {statusMetaEntries.map(([status, meta]) => {
                                         const count = statusCounts.get(status as JobOffer['status']) ?? 0
                                         return (
-                                                <div key={status} className='rounded-3xl border border-base-200 bg-base-100 p-4 shadow-sm'>
+                                                <div key={status} className='rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm'>
                                                         <div className='flex items-center justify-between'>
                                                                 <div>
                                                                         <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
@@ -95,7 +95,7 @@ const JobOffersTab = ({ job, isActive }: Props) => {
                                 })}
                         </div>
 
-                        <div className='rounded-3xl border border-base-200 bg-base-100 p-4 shadow-sm'>
+                        <div className='rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm'>
                                 <div className='grid gap-4 md:grid-cols-[minmax(0,2fr)_repeat(2,minmax(0,1fr))] lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]'>
                                         <label className='input input-bordered flex items-center gap-2'>
                                                 <Search className='size-4 text-base-content/50' />
@@ -163,7 +163,7 @@ const JobOffersTab = ({ job, isActive }: Props) => {
 
                         <div className='space-y-4'>
                                 {offerQuery.isLoading ? (
-                                        <div className='flex min-h-[200px] items-center justify-center rounded-3xl border border-base-200 bg-base-100'>
+                                        <div className='flex min-h-[200px] items-center justify-center rounded-2xl border border-base-200 bg-base-100'>
                                                 <div className='flex items-center gap-3 text-base-content/70'>
                                                         <Loader2 className='size-5 animate-spin text-primary' />
                                                         Đang tải danh sách offer…
@@ -172,13 +172,13 @@ const JobOffersTab = ({ job, isActive }: Props) => {
                                 ) : null}
 
                                 {offerQuery.isError ? (
-                                        <div className='rounded-3xl border border-error/30 bg-error/10 px-6 py-4 text-sm text-error'>
+                                        <div className='rounded-2xl border border-error/30 bg-error/10 px-6 py-4 text-sm text-error'>
                                                 Không thể tải danh sách offer. Vui lòng thử lại sau.
                                         </div>
                                 ) : null}
 
                                 {!offerQuery.isLoading && offers.length === 0 ? (
-                                        <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70'>
+                                        <div className='rounded-2xl border border-dashed border-base-300 bg-base-100 px-8 py-14 text-center text-sm text-base-content/70'>
                                                 <p className='text-lg font-medium text-base-content'>Chưa có offer nào cho công việc này</p>
                                                 <p className='mt-2'>Hãy gửi offer tới freelancer từ trang proposal hoặc mời freelancer mới.</p>
                                         </div>
