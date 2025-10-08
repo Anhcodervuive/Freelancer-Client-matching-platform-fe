@@ -119,17 +119,19 @@ export default function NotificationDropdown() {
 
 	const renderTitle = (actorName: string, recipentName: string, event: string) => {
 		if (!event) return 'Notification'
-		switch (event) {
-			case NotificationEvent.JOB_INVITATION_CREATED:
-				return `${actorName} sent you a job invitation`
-			case NotificationEvent.JOB_INVITATION_ACCEPTED:
-				return `${recipentName} accept your job invitation`
-			case NotificationEvent.JOB_INVITATION_DECLINED:
-				return `${recipentName} decline your job invitation`
-		}
+                switch (event) {
+                        case NotificationEvent.JOB_INVITATION_CREATED:
+                                return `${actorName} sent you a job invitation`
+                        case NotificationEvent.JOB_INVITATION_ACCEPTED:
+                                return `${recipentName} accept your job invitation`
+                        case NotificationEvent.JOB_INVITATION_DECLINED:
+                                return `${recipentName} decline your job invitation`
+                        case NotificationEvent.JOB_OFFER_SENT:
+                                return `${actorName} sent you a job offer`
+                }
 
-		return formatEnumLabel(event)
-	}
+                return formatEnumLabel(event)
+        }
 
 	const renderDescription = (
 		message?: string | null,
