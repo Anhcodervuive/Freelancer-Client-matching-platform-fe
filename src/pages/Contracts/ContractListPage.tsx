@@ -22,14 +22,6 @@ import {
 
 const CONTRACT_PAGE_SIZE = 6
 
-const roleFilterOptions = [
-        { value: 'all', label: 'Tất cả hợp đồng' },
-        { value: 'client', label: 'Tôi là khách hàng' },
-        { value: 'freelancer', label: 'Tôi là freelancer' }
-] as const
-
-type RoleFilterValue = (typeof roleFilterOptions)[number]['value']
-
 type ViewerRole = 'client' | 'freelancer' | 'all'
 
 type ContractCardProps = {
@@ -382,34 +374,24 @@ const EmptyState = ({ viewerRole }: { viewerRole: ViewerRole }) => {
 
 const ContractListPage = () => {
         const currentUser = useSelector(selectCurrentUser)
-        const inferredRole: RoleFilterValue = currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
-        const [roleFilter, setRoleFilter] = useState<RoleFilterValue>(inferredRole)
+        const viewerRole: ViewerRole = currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
         const [page, setPage] = useState(1)
         const [searchTerm, setSearchTerm] = useState('')
         const debouncedSearch = useDebounce(searchTerm, 400)
 
         useEffect(() => {
                 setPage(1)
-        }, [roleFilter, debouncedSearch])
+        }, [viewerRole, debouncedSearch])
 
         const queryFilters = useMemo(() => {
                 const trimmedSearch = debouncedSearch.trim()
                 return {
                         page,
                         limit: CONTRACT_PAGE_SIZE,
-                        role: roleFilter === 'all' ? undefined : roleFilter,
+                        role: viewerRole === 'all' ? undefined : viewerRole,
                         search: trimmedSearch ? trimmedSearch : undefined
                 }
-        }, [page, roleFilter, debouncedSearch])
-
-        const viewerRole: ViewerRole = useMemo(() => {
-                if (roleFilter === 'all') {
-                        if (currentUser?.role === Role.CLIENT) return 'client'
-                        if (currentUser?.role === Role.FREELANCER) return 'freelancer'
-                        return 'all'
-                }
-                return roleFilter
-        }, [roleFilter, currentUser?.role])
+        }, [page, viewerRole, debouncedSearch])
 
         const heroCopy = {
                 client: {
@@ -428,7 +410,7 @@ const ContractListPage = () => {
                         badge: 'Workroom',
                         title: 'Quản lý hợp đồng & cộng tác theo phong cách Upwork',
                         description:
-                                'Lọc theo vai trò để xem những hợp đồng mà bạn đang tham gia với tư cách khách hàng hoặc freelancer.'
+                                'Theo dõi hợp đồng, milestones và hoạt động cộng tác trong Workroom của bạn.'
                 }
         } satisfies Record<ViewerRole, { badge: string; title: string; description: string }>
 
@@ -501,21 +483,14 @@ const ContractListPage = () => {
 
                         <section className='space-y-6 rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] md:p-8'>
                                 <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-                                        <div className='flex flex-wrap items-center gap-2 rounded-2xl border border-white/70 bg-white/70 p-1 shadow-inner shadow-white/30'>
-                                                {roleFilterOptions.map(option => (
-                                                        <button
-                                                                key={option.value}
-                                                                type='button'
-                                                                onClick={() => setRoleFilter(option.value)}
-                                                                className={`rounded-xl px-4 py-2 text-xs font-semibold transition md:text-sm ${
-                                                                        roleFilter === option.value
-                                                                                ? 'bg-gradient-to-r from-primary/90 to-secondary/80 text-white shadow-lg shadow-primary/20'
-                                                                                : 'text-slate-500 hover:bg-primary/10 hover:text-primary'
-                                                                }`}
-                                                        >
-                                                                {option.label}
-                                                        </button>
-                                                ))}
+                                        <div className='flex flex-wrap items-center gap-2 rounded-2xl border border-white/70 bg-white/70 p-2 shadow-inner shadow-white/30'>
+                                                <span className='rounded-xl bg-white/90 px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm md:text-sm'>
+                                                        {viewerRole === 'client'
+                                                                ? 'Đang xem với tư cách khách hàng'
+                                                                : viewerRole === 'freelancer'
+                                                                        ? 'Đang xem với tư cách freelancer'
+                                                                        : 'Khám phá Workroom của bạn'}
+                                                </span>
                                         </div>
 
                                         <label className='relative flex w-full max-w-md items-center gap-2 rounded-2xl border border-white/70 bg-white/90 px-4 py-2 text-sm text-slate-500 shadow-inner shadow-white/20 focus-within:border-primary/50 focus-within:text-primary'>
