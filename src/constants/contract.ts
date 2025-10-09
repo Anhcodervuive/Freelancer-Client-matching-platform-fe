@@ -31,6 +31,23 @@ export const CONTRACT_STATUS_META: Record<ContractStatusKey, { label: string; ba
         ARCHIVED: { label: 'Đã lưu trữ', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' }
 }
 
+export const CONTRACT_STATUS_DESCRIPTIONS: Record<ContractStatusKey, string> = {
+        DRAFT: 'Hợp đồng đang được soạn thảo và chưa bắt đầu triển khai.',
+        PENDING: 'Hợp đồng đang chờ các bên xác nhận trước khi bắt đầu.',
+        ACTIVE: 'Hai bên đang cộng tác theo các điều khoản đã thống nhất.',
+        IN_PROGRESS: 'Công việc và milestones đang được thực hiện.',
+        PAUSED: 'Hợp đồng tạm thời dừng lại cho đến khi được mở lại.',
+        ON_HOLD: 'Hợp đồng đang tạm hoãn bởi một trong hai bên.',
+        COMPLETED: 'Hợp đồng đã hoàn tất và chờ các bước kết thúc cuối cùng.',
+        ENDED: 'Hợp đồng đã kết thúc theo kế hoạch.',
+        CANCELLED: 'Hợp đồng đã bị hủy và sẽ không tiếp tục.',
+        CLOSED: 'Hợp đồng đã đóng và không còn hoạt động.',
+        SUSPENDED: 'Hợp đồng bị tạm khóa do vấn đề hoặc tranh chấp.',
+        WITHDRAWN: 'Một bên đã rút khỏi hợp đồng này.',
+        EXPIRED: 'Hợp đồng đã hết hạn hiệu lực.',
+        ARCHIVED: 'Hợp đồng đã được lưu trữ để tham khảo.'
+}
+
 export const getContractStatusMeta = (status?: string | null) => {
         if (!status) {
                 return {
@@ -53,4 +70,13 @@ export const getContractStatusMeta = (status?: string | null) => {
                 badge: 'bg-slate-100 border-slate-200',
                 text: 'text-slate-600'
         }
+}
+
+export const getContractStatusDescription = (status?: string | null) => {
+        if (!status) {
+                return 'Trạng thái hợp đồng chưa được cập nhật.'
+        }
+
+        const normalized = status.toUpperCase() as ContractStatusKey
+        return CONTRACT_STATUS_DESCRIPTIONS[normalized] ?? 'Trạng thái hợp đồng đã được cập nhật.'
 }

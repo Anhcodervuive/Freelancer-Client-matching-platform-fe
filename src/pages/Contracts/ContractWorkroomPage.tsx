@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 
 import { getContractDetail, listContractMilestones } from '~/apis/contract.api'
-import { getContractStatusMeta } from '~/constants/contract'
+import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type { Contract } from '~/types/contract'
@@ -168,7 +168,8 @@ const ContractWorkroomPage = () => {
 	})
 
 	const contract = contractQuery.data as Contract | undefined
-	const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
+        const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
+        const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
 	const clientName = getParticipantName(contract?.client?.profile, contract?.client?.companyName)
 	const freelancerName = getParticipantName(contract?.freelancer?.profile, undefined)
 	const clientLocation = getParticipantLocation(contract?.client?.profile)
@@ -208,18 +209,18 @@ const ContractWorkroomPage = () => {
 			<div className='grid gap-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:grid-cols-3 md:p-8'>
 				<div className='space-y-3'>
 					<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Trạng thái</p>
-					<div
-						className='inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold'
-						style={{
-							boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)'
-						}}>
-						<span
-							className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold ${statusMeta.badge} ${statusMeta.text}`}>
-							<span className='size-2 rounded-full bg-current'></span>
-							{statusMeta.label}
-						</span>
-					</div>
-					<p className='text-sm text-slate-500'>Cập nhật lần cuối {formatDateTime(contract?.updatedAt) ?? '—'}</p>
+                                        <div className='space-y-2'>
+                                                <span
+                                                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold shadow-sm shadow-white/40 ${statusMeta.badge} ${statusMeta.text}`}>
+                                                        <span className='size-2 rounded-full bg-current'></span>
+                                                        {statusMeta.label}
+                                                </span>
+                                                <p className='flex items-start gap-2 text-sm font-medium text-slate-600'>
+                                                        <ShieldCheck className='mt-0.5 size-4 text-primary' />
+                                                        <span className='text-left'>{statusDescription}</span>
+                                                </p>
+                                        </div>
+                                        <p className='text-sm text-slate-500'>Cập nhật lần cuối {formatDateTime(contract?.updatedAt) ?? '—'}</p>
 				</div>
 				<div className='space-y-3'>
 					<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Tài chính</p>
@@ -642,17 +643,22 @@ const ContractWorkroomPage = () => {
 						</h1>
 						<p className='text-sm text-slate-600'>{heroSubtitle}</p>
 					</div>
-					<div className='inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold'>
-						<span
-							className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.badge} ${statusMeta.text}`}>
-							<span className='size-2 rounded-full bg-current'></span>
-							{statusMeta.label}
-						</span>
-						<span className='text-slate-500'>
-							Bắt đầu{' '}
-							{formatDateTime(contract?.startDate || contract?.offer?.startDate, { dateStyle: 'medium' }) ?? '—'}
-						</span>
-					</div>
+                                        <div className='flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600 md:text-sm'>
+                                                <span
+                                                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-semibold shadow-sm shadow-primary/20 ${statusMeta.badge} ${statusMeta.text}`}>
+                                                        <span className='size-2 rounded-full bg-current'></span>
+                                                        {statusMeta.label}
+                                                </span>
+                                                <span className='inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-3 py-1 text-slate-600 shadow-sm shadow-white/40'>
+                                                        <ShieldCheck className='size-3.5 text-primary' />
+                                                        {statusDescription}
+                                                </span>
+                                                <span className='inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/60 px-3 py-1 text-slate-500 shadow-sm shadow-white/30'>
+                                                        <CalendarClock className='size-3.5 text-secondary' />
+                                                        Bắt đầu{' '}
+                                                        {formatDateTime(contract?.startDate || contract?.offer?.startDate, { dateStyle: 'medium' }) ?? '—'}
+                                                </span>
+                                        </div>
 				</div>
 				<div className='flex flex-col items-start gap-3 md:items-end'>
 					<div className='flex flex-wrap items-center gap-3'>
