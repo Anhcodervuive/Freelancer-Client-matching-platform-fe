@@ -812,7 +812,7 @@ const ContractWorkroomPage = () => {
                         </section>
                         <CreateMilestoneDialog
                                 open={isCreateMilestoneOpen}
-                                defaultCurrency={currency}
+                                currency={currency}
                                 isSubmitting={createMilestoneMutation.isPending}
                                 onSubmit={values => createMilestoneMutation.mutateAsync(values)}
                                 onClose={() => setCreateMilestoneOpen(false)}

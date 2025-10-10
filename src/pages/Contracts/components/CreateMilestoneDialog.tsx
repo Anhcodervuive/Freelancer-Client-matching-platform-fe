@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Controller, useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CalendarClock, Flag, Loader2, X } from 'lucide-react'
+import { Flag, Loader2, X } from 'lucide-react'
 
 import type { CreateContractMilestoneInput } from '~/types/contract'
 
@@ -12,20 +12,15 @@ import {
 
 type CreateMilestoneDialogProps = {
         open: boolean
-        defaultCurrency?: string
+        currency?: string
         isSubmitting?: boolean
         onSubmit: (_values: CreateContractMilestoneInput) => Promise<void> | void
         onClose: () => void
 }
 
-const normalizeCurrency = (value?: string) => {
-        if (!value) return ''
-        return value.slice(0, 3).toUpperCase()
-}
-
 const CreateMilestoneDialog = ({
         open,
-        defaultCurrency,
+        currency,
         isSubmitting = false,
         onSubmit,
         onClose
@@ -40,8 +35,7 @@ const CreateMilestoneDialog = ({
                 resolver: zodResolver(CreateContractMilestoneSchema) as Resolver<CreateContractMilestoneFormValues>,
                 defaultValues: {
                         title: '',
-                        amount: undefined as unknown as number,
-                        currency: normalizeCurrency(defaultCurrency) || 'USD'
+                        amount: undefined as unknown as number
                 }
         })
 
@@ -49,10 +43,9 @@ const CreateMilestoneDialog = ({
                 if (!open) return
                 reset({
                         title: '',
-                        amount: undefined as unknown as number,
-                        currency: normalizeCurrency(defaultCurrency) || 'USD'
+                        amount: undefined as unknown as number
                 })
-        }, [defaultCurrency, open, reset])
+        }, [open, reset])
 
         const closeDialog = () => {
                 if (isSubmitting) return
@@ -62,18 +55,17 @@ const CreateMilestoneDialog = ({
         const submit = handleSubmit(async values => {
                 await onSubmit({
                         ...values,
-                        currency: values.currency.toUpperCase()
+                        currency: (currency ?? 'USD').toUpperCase()
                 })
                 reset({
                         title: '',
-                        amount: undefined as unknown as number,
-                        currency: normalizeCurrency(defaultCurrency) || 'USD'
+                        amount: undefined as unknown as number
                 })
         })
 
         const titleError = errors.title?.message
         const amountError = errors.amount?.message
-        const currencyError = errors.currency?.message
+        const displayCurrency = (currency ?? 'USD').toUpperCase()
 
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
@@ -149,29 +141,11 @@ const CreateMilestoneDialog = ({
                                                         )}
                                                 </div>
                                                 <div className='space-y-2'>
-                                                        <label className='flex items-center gap-2 text-sm font-semibold text-base-content'>
-                                                                <CalendarClock className='size-4 text-secondary' /> Tiền tệ
-                                                        </label>
-                                                        <Controller
-                                                                control={control}
-                                                                name='currency'
-                                                                render={({ field }) => (
-                                                                        <input
-                                                                                type='text'
-                                                                                className='input input-bordered w-full uppercase tracking-[0.3em]'
-                                                                                maxLength={3}
-                                                                                placeholder='USD'
-                                                                                value={normalizeCurrency(field.value)}
-                                                                                onChange={event => field.onChange(normalizeCurrency(event.target.value))}
-                                                                                disabled={isSubmitting}
-                                                                        />
-                                                                )}
-                                                        />
-                                                        {currencyError ? (
-                                                                <p className='text-xs text-error'>{currencyError}</p>
-                                                        ) : (
-                                                                <p className='text-xs text-base-content/60'>Sử dụng mã tiền tệ gồm 3 ký tự (ví dụ: USD, VND).</p>
-                                                        )}
+                                                        <label className='text-sm font-semibold text-base-content'>Tiền tệ</label>
+                                                        <div className='flex h-11 items-center justify-between rounded-xl border border-base-300 bg-base-100 px-3 font-semibold uppercase tracking-[0.3em] text-base-content/80'>
+                                                                <span>{displayCurrency}</span>
+                                                        </div>
+                                                        <p className='text-xs text-base-content/60'>Tiền tệ được cố định theo hợp đồng.</p>
                                                 </div>
                                         </div>
 

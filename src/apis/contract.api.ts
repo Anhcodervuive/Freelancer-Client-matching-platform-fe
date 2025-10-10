@@ -60,13 +60,33 @@ export const getContractDetail = async (contractId: string): Promise<Contract> =
         return response.data
 }
 
+const extractMilestones = (value: unknown): ContractMilestone[] | undefined => {
+        if (Array.isArray(value)) {
+                return value as ContractMilestone[]
+        }
+
+        if (!value || typeof value !== 'object') {
+                return undefined
+        }
+
+        const container = value as Record<string, unknown>
+        const candidates = ['data', 'results', 'items', 'milestones'] as const
+
+        for (const key of candidates) {
+                if (!(key in container)) continue
+                const extracted = extractMilestones(container[key])
+                if (extracted !== undefined) {
+                        return extracted
+                }
+        }
+
+        return undefined
+}
+
 export const listContractMilestones = async (contractId: string): Promise<ContractMilestone[]> => {
-        const response = await authorizeAxiosInstance.get<ContractMilestone[] | { data: ContractMilestone[] }>(
-                `${baseUrl}/${contractId}/milestones`
-        )
-        const data = response.data
-        if (Array.isArray(data)) return data
-        return data?.data ?? []
+        const response = await authorizeAxiosInstance.get(`${baseUrl}/${contractId}/milestones`)
+        const extracted = extractMilestones(response.data)
+        return extracted ?? []
 }
 
 export const createContractMilestone = async (
