@@ -110,5 +110,15 @@ export const uploadContractMilestoneAttachments = async (contractId: string, mil
 }
 
 export const deleteContractMilestone = async (contractId: string, milestoneId: string) => {
-	await authorizeAxiosInstance.delete(`${baseUrl}/${contractId}/milestones/${milestoneId}`)
+        await authorizeAxiosInstance.delete(`${baseUrl}/${contractId}/milestones/${milestoneId}`)
+}
+
+export const deleteContractMilestoneResource = async (
+        contractId: string,
+        milestoneId: string,
+        resourceId: string
+) => {
+        await authorizeAxiosInstance.delete(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/resources/${resourceId}`
+        )
 }

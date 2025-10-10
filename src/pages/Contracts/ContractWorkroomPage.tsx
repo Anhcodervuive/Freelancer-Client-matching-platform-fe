@@ -7,11 +7,14 @@ import {
         CalendarClock,
         CheckCircle2,
         CreditCard,
+        Download,
+        Eye,
         Flag,
         FolderOpen,
         History,
         LayoutDashboard,
         Loader2,
+        Paperclip,
         ShieldCheck,
         Trash2,
         Users
@@ -21,6 +24,7 @@ import { toast } from 'react-toastify'
 import {
         createContractMilestone,
         deleteContractMilestone,
+        deleteContractMilestoneResource,
         getContractDetail,
         listContractMilestones,
         uploadContractMilestoneAttachments
@@ -28,7 +32,12 @@ import {
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
-import type { Contract, ContractMilestone, CreateContractMilestoneInput } from '~/types/contract'
+import type {
+        Contract,
+        ContractMilestone,
+        ContractMilestoneResource,
+        CreateContractMilestoneInput
+} from '~/types/contract'
 import { Role } from '~/types/user'
 import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
@@ -198,7 +207,28 @@ const ContractWorkroomPage = () => {
                 }
         })
 
-	const contract = contractQuery.data as Contract | undefined
+        const deleteMilestoneResourceMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; resourceId: string; resourceName?: string }
+        >({
+                mutationFn: async ({ milestoneId, resourceId }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await deleteContractMilestoneResource(contractId, milestoneId, resourceId)
+                },
+                onSuccess: (_data, variables) => {
+                        const message = variables.resourceName
+                                ? `Đã xóa tệp "${variables.resourceName}"`
+                                : 'Đã xóa tệp đính kèm'
+                        toast.success(message)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể xóa tệp đính kèm. Vui lòng thử lại.')
+                }
+        })
+
+        const contract = contractQuery.data as Contract | undefined
         const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
         const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
 	const clientName = getParticipantName(contract?.client?.profile, contract?.client?.companyName)
@@ -225,6 +255,25 @@ const ContractWorkroomPage = () => {
                 deleteMilestoneMutation.mutate({
                         milestoneId: milestone.id,
                         milestoneTitle: milestone.title
+                })
+        }
+
+        const handleDeleteMilestoneResource = (
+                milestone: ContractMilestone,
+                resourceId: string,
+                resourceLabel: string
+        ) => {
+                if (deleteMilestoneResourceMutation.isPending) return
+
+                const sanitizedLabel = resourceLabel?.trim()
+                const confirmLabel = sanitizedLabel ? `tệp "${sanitizedLabel}"` : 'tệp đính kèm này'
+                const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa ${confirmLabel}?`)
+                if (!confirmed) return
+
+                deleteMilestoneResourceMutation.mutate({
+                        milestoneId: milestone.id,
+                        resourceId,
+                        resourceName: sanitizedLabel || undefined
                 })
         }
 
@@ -544,6 +593,15 @@ const ContractWorkroomPage = () => {
                                                 const isDeleting =
                                                         deleteMilestoneMutation.isPending &&
                                                         deleteMilestoneMutation.variables?.milestoneId === milestone.id
+                                                const resourceMap = new Map<string, ContractMilestoneResource>()
+                                                milestone.resources
+                                                        ?.filter((resource): resource is ContractMilestoneResource => Boolean(resource))
+                                                        .forEach(resource => {
+                                                                if (resource.id) {
+                                                                        resourceMap.set(resource.id, resource)
+                                                                }
+                                                        })
+                                                const milestoneAttachments = normalizeAttachments(milestone.resources ?? [])
 
                                                 return (
                                                         <div
@@ -576,13 +634,13 @@ const ContractWorkroomPage = () => {
                                                                                         )}
                                                                                 </div>
                                                                         </div>
-								<ul className='space-y-2 text-sm text-slate-600'>
-									<li>
-										<CalendarClock className='mr-2 inline size-4 text-primary' /> Hạn hoàn thành:{' '}
-										<span className='font-semibold text-slate-800'>
-											{formatDateTime(milestone.dueDate, { dateStyle: 'medium' }) ?? '—'}
-										</span>
-									</li>
+                                                                <ul className='space-y-2 text-sm text-slate-600'>
+                                                                        <li>
+                                                                                <CalendarClock className='mr-2 inline size-4 text-primary' /> Hạn hoàn thành:{' '}
+                                                                                <span className='font-semibold text-slate-800'>
+                                                                                        {formatDateTime(milestone.dueDate, { dateStyle: 'medium' }) ?? '—'}
+                                                                                </span>
+                                                                        </li>
 									<li>
 										<CreditCard className='mr-2 inline size-4 text-secondary' /> Giá trị:{' '}
 										<span className='font-semibold text-slate-800'>{amount ?? '—'}</span>
@@ -602,13 +660,140 @@ const ContractWorkroomPage = () => {
 												{formatDateTime(milestone.releasedAt, { dateStyle: 'medium' })}
 											</span>
 										</li>
-									)}
-								</ul>
-							</div>
-							<div className='mt-4 text-xs text-slate-400'>
-								Tạo ngày {formatDateTime(milestone.createdAt, { dateStyle: 'medium', timeStyle: 'short' }) ?? '—'}
-							</div>
-						</div>
+                                                                        )}
+                                                                </ul>
+                                                                <div className='rounded-2xl border border-white/70 bg-white/70 p-4'>
+                                                                        <div className='flex items-center justify-between gap-3'>
+                                                                                <div className='inline-flex items-center gap-2 text-sm font-semibold text-slate-800'>
+                                                                                        <Paperclip className='size-4 text-primary' /> Tệp đính kèm
+                                                                                </div>
+                                                                                {milestoneAttachments.length ? (
+                                                                                        <span className='text-xs font-medium text-slate-500'>
+                                                                                                {milestoneAttachments.length} tệp
+                                                                                        </span>
+                                                                                ) : null}
+                                                                        </div>
+                                                                        {milestoneAttachments.length ? (
+                                                                                <ul className='mt-3 space-y-3'>
+                                                                                        {milestoneAttachments.map(attachment => {
+                                                                                                const resource = attachment.id ? resourceMap.get(attachment.id) : undefined
+                                                                                                const resourceId = resource?.id ?? attachment.id
+                                                                                                const sizeLabel =
+                                                                                                        formatFileSize(
+                                                                                                                attachment.size ??
+                                                                                                                        (resource?.size as number | undefined)
+                                                                                                        )
+                                                                                                const typeLabel =
+                                                                                                        formatFileType({
+                                                                                                                mimeType:
+                                                                                                                        attachment.mimeType ??
+                                                                                                                        (resource?.mimeType as string | undefined),
+                                                                                                                extension: attachment.extension
+                                                                                                        })
+                                                                                                const uploadedLabelSource =
+                                                                                                        attachment.createdAt ??
+                                                                                                        (resource?.createdAt as string | undefined)
+                                                                                                const uploadedLabel = uploadedLabelSource
+                                                                                                        ? formatDateTime(uploadedLabelSource, {
+                                                                                                                  dateStyle: 'medium',
+                                                                                                                  timeStyle: 'short'
+                                                                                                          })
+                                                                                                        : undefined
+                                                                                                const metadata = [
+                                                                                                        sizeLabel,
+                                                                                                        typeLabel,
+                                                                                                        uploadedLabel ? `Tải lên ${uploadedLabel}` : undefined
+                                                                                                ].filter((value): value is string => Boolean(value))
+                                                                                                const canDeleteResource = Boolean(resourceId) && viewerRole === 'client'
+                                                                                                const isDeletingResource =
+                                                                                                        deleteMilestoneResourceMutation.isPending &&
+                                                                                                        deleteMilestoneResourceMutation.variables?.resourceId === resourceId
+                                                                                                const attachmentLabel =
+                                                                                                        attachment.label ??
+                                                                                                        attachment.fileName ??
+                                                                                                        (resource?.name as string | undefined) ??
+                                                                                                        resourceId ??
+                                                                                                        'Tệp đính kèm'
+
+                                                                                                return (
+                                                                                                        <li
+                                                                                                                key={attachment.id ?? attachmentLabel}
+                                                                                                                className='flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white/60 p-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between'
+                                                                                                        >
+                                                                                                                <div className='flex min-w-0 items-start gap-3'>
+                                                                                                                        <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
+                                                                                                                                {attachment.extension ?? 'FILE'}
+                                                                                                                        </div>
+                                                                                                                        <div className='min-w-0'>
+                                                                                                                                <p className='truncate font-medium text-slate-800'>{attachmentLabel}</p>
+                                                                                                                                {metadata.length ? (
+                                                                                                                                        <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500'>
+                                                                                                                                                {metadata.map((value, index) => (
+                                                                                                                                                        <span key={`${value}-${index}`}>{value}</span>
+                                                                                                                                                ))}
+                                                                                                                                        </div>
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                </div>
+                                                                                                                <div className='flex flex-shrink-0 flex-wrap items-center gap-2'>
+                                                                                                                        {attachment.url ? (
+                                                                                                                                <>
+                                                                                                                                        <a
+                                                                                                                                                href={attachment.url}
+                                                                                                                                                target='_blank'
+                                                                                                                                                rel='noopener noreferrer'
+                                                                                                                                                className='btn btn-ghost btn-xs gap-2'
+                                                                                                                                        >
+                                                                                                                                                <Eye className='size-4' /> Xem
+                                                                                                                                        </a>
+                                                                                                                                        <a
+                                                                                                                                                href={attachment.url}
+                                                                                                                                                download={attachment.fileName ?? attachmentLabel}
+                                                                                                                                                className='btn btn-outline btn-xs gap-2'
+                                                                                                                                        >
+                                                                                                                                                <Download className='size-4' /> Tải xuống
+                                                                                                                                        </a>
+                                                                                                                                </>
+                                                                                                                        ) : (
+                                                                                                                                <span className='text-xs text-slate-400'>Không có liên kết</span>
+                                                                                                                        )}
+                                                                                                                        {canDeleteResource && resourceId ? (
+                                                                                                                                <button
+                                                                                                                                        type='button'
+                                                                                                                                        className='btn btn-ghost btn-xs text-error'
+                                                                                                                                        onClick={() =>
+                                                                                                                                                handleDeleteMilestoneResource(
+                                                                                                                                                        milestone,
+                                                                                                                                                        resourceId,
+                                                                                                                                                        attachmentLabel
+                                                                                                                                                )
+                                                                                                                                        }
+                                                                                                                                        disabled={deleteMilestoneResourceMutation.isPending}
+                                                                                                                                        aria-label={`Xóa tệp ${attachmentLabel}`}
+                                                                                                                                >
+                                                                                                                                        {isDeletingResource ? (
+                                                                                                                                                <Loader2 className='size-4 animate-spin' />
+                                                                                                                                        ) : (
+                                                                                                                                                <Trash2 className='size-4' />
+                                                                                                                                        )}
+                                                                                                                                </button>
+                                                                                                                        ) : null}
+                                                                                                                </div>
+                                                                                                        </li>
+                                                                                                )
+                                                                                        })}
+                                                                                </ul>
+                                                                        ) : (
+                                                                                <div className='mt-3 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-3 text-xs text-slate-400'>
+                                                                                        Chưa có tệp đính kèm cho milestone này.
+                                                                                </div>
+                                                                        )}
+                                                                </div>
+                                                        </div>
+                                                        <div className='mt-4 text-xs text-slate-400'>
+                                                                Tạo ngày {formatDateTime(milestone.createdAt, { dateStyle: 'medium', timeStyle: 'short' }) ?? '—'}
+                                                        </div>
+                                                </div>
 					)
                                         })}
                                 </div>
