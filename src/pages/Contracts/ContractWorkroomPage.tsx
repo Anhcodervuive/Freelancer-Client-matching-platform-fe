@@ -11,6 +11,7 @@ import {
         Eye,
         Flag,
         FolderOpen,
+        ChevronDown,
         History,
         LayoutDashboard,
         Loader2,
@@ -50,6 +51,7 @@ import {
         getParticipantName
 } from './utils'
 import CreateMilestoneDialog from './components/CreateMilestoneDialog'
+import ConfirmDelete from '~/components/ConfirmDelete'
 
 const tabs = [
 	{ id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
@@ -129,6 +131,13 @@ const ContractWorkroomPage = () => {
 	const currentUser = useSelector(selectCurrentUser)
         const [activeTab, setActiveTab] = useState<TabId>('overview')
         const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
+        const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
+        const [resourceToDelete, setResourceToDelete] = useState<{
+                milestone: ContractMilestone
+                resourceId: string
+                resourceLabel?: string
+        } | null>(null)
+        const [expandedMilestoneAttachments, setExpandedMilestoneAttachments] = useState<Record<string, boolean>>({})
 
         const viewerRole: ViewerRole =
                 currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
@@ -246,19 +255,22 @@ const ContractWorkroomPage = () => {
         const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
         const attachments = useMemo(() => buildAttachmentList(contract), [contract])
 
-        const handleDeleteMilestone = (milestone: ContractMilestone) => {
+        const requestDeleteMilestone = (milestone: ContractMilestone) => {
                 if (deleteMilestoneMutation.isPending) return
 
-                const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa milestone "${milestone.title}"?`)
-                if (!confirmed) return
+                setMilestoneToDelete(milestone)
+        }
 
-                deleteMilestoneMutation.mutate({
-                        milestoneId: milestone.id,
-                        milestoneTitle: milestone.title
+        const confirmDeleteMilestone = async () => {
+                if (!milestoneToDelete) return
+
+                await deleteMilestoneMutation.mutateAsync({
+                        milestoneId: milestoneToDelete.id,
+                        milestoneTitle: milestoneToDelete.title
                 })
         }
 
-        const handleDeleteMilestoneResource = (
+        const requestDeleteMilestoneResource = (
                 milestone: ContractMilestone,
                 resourceId: string,
                 resourceLabel: string
@@ -266,15 +278,29 @@ const ContractWorkroomPage = () => {
                 if (deleteMilestoneResourceMutation.isPending) return
 
                 const sanitizedLabel = resourceLabel?.trim()
-                const confirmLabel = sanitizedLabel ? `tệp "${sanitizedLabel}"` : 'tệp đính kèm này'
-                const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa ${confirmLabel}?`)
-                if (!confirmed) return
 
-                deleteMilestoneResourceMutation.mutate({
-                        milestoneId: milestone.id,
+                setResourceToDelete({
+                        milestone,
                         resourceId,
-                        resourceName: sanitizedLabel || undefined
+                        resourceLabel: sanitizedLabel || undefined
                 })
+        }
+
+        const confirmDeleteMilestoneResource = async () => {
+                if (!resourceToDelete) return
+
+                await deleteMilestoneResourceMutation.mutateAsync({
+                        milestoneId: resourceToDelete.milestone.id,
+                        resourceId: resourceToDelete.resourceId,
+                        resourceName: resourceToDelete.resourceLabel
+                })
+        }
+
+        const toggleMilestoneAttachments = (milestoneId: string) => {
+                setExpandedMilestoneAttachments(prev => ({
+                        ...prev,
+                        [milestoneId]: !prev[milestoneId]
+                }))
         }
 
         const jobPostLink = contract?.jobPost?.id
@@ -602,6 +628,8 @@ const ContractWorkroomPage = () => {
                                                                 }
                                                         })
                                                 const milestoneAttachments = normalizeAttachments(milestone.resources ?? [])
+                                                const isAttachmentsExpanded =
+                                                        expandedMilestoneAttachments[milestone.id] ?? false
 
                                                 return (
                                                         <div
@@ -625,7 +653,7 @@ const ContractWorkroomPage = () => {
                                                                                                 <button
                                                                                                         type='button'
                                                                                                         className='btn btn-ghost btn-xs text-error'
-                                                                                                        onClick={() => handleDeleteMilestone(milestone)}
+                                                                                                onClick={() => requestDeleteMilestone(milestone)}
                                                                                                         disabled={deleteMilestoneMutation.isPending}
                                                                                                         aria-label={`Xóa milestone ${milestone.title}`}
                                                                                                 >
@@ -663,19 +691,31 @@ const ContractWorkroomPage = () => {
                                                                         )}
                                                                 </ul>
                                                                 <div className='rounded-2xl border border-white/70 bg-white/70 p-4'>
-                                                                        <div className='flex items-center justify-between gap-3'>
+                                                                        <button
+                                                                                type='button'
+                                                                                className='flex w-full items-center justify-between gap-3 text-left'
+                                                                                aria-expanded={isAttachmentsExpanded}
+                                                                                onClick={() => toggleMilestoneAttachments(milestone.id)}
+                                                                                disabled={!milestoneAttachments.length}
+                                                                        >
                                                                                 <div className='inline-flex items-center gap-2 text-sm font-semibold text-slate-800'>
                                                                                         <Paperclip className='size-4 text-primary' /> Tệp đính kèm
+                                                                                        {milestoneAttachments.length ? (
+                                                                                                <span className='rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500'>
+                                                                                                        {milestoneAttachments.length} tệp
+                                                                                                </span>
+                                                                                        ) : null}
                                                                                 </div>
-                                                                                {milestoneAttachments.length ? (
-                                                                                        <span className='text-xs font-medium text-slate-500'>
-                                                                                                {milestoneAttachments.length} tệp
-                                                                                        </span>
-                                                                                ) : null}
-                                                                        </div>
+                                                                                <ChevronDown
+                                                                                        className={`size-4 text-slate-400 transition-transform ${
+                                                                                                isAttachmentsExpanded ? 'rotate-180' : ''
+                                                                                        } ${milestoneAttachments.length ? 'opacity-100' : 'opacity-40'}`}
+                                                                                />
+                                                                        </button>
                                                                         {milestoneAttachments.length ? (
-                                                                                <ul className='mt-3 space-y-3'>
-                                                                                        {milestoneAttachments.map(attachment => {
+                                                                                isAttachmentsExpanded ? (
+                                                                                        <ul className='mt-4 space-y-3'>
+                                                                                                {milestoneAttachments.map(attachment => {
                                                                                                 const resource = attachment.id ? resourceMap.get(attachment.id) : undefined
                                                                                                 const resourceId = resource?.id ?? attachment.id
                                                                                                 const sizeLabel =
@@ -762,7 +802,7 @@ const ContractWorkroomPage = () => {
                                                                                                                                         type='button'
                                                                                                                                         className='btn btn-ghost btn-xs text-error'
                                                                                                                                         onClick={() =>
-                                                                                                                                                handleDeleteMilestoneResource(
+                                                                                                                                                requestDeleteMilestoneResource(
                                                                                                                                                         milestone,
                                                                                                                                                         resourceId,
                                                                                                                                                         attachmentLabel
@@ -783,6 +823,9 @@ const ContractWorkroomPage = () => {
                                                                                                 )
                                                                                         })}
                                                                                 </ul>
+                                                                                ) : (
+                                                                                        <p className='mt-3 text-xs text-slate-500'>Nhấn để xem tệp đính kèm.</p>
+                                                                                )
                                                                         ) : (
                                                                                 <div className='mt-3 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-3 text-xs text-slate-400'>
                                                                                         Chưa có tệp đính kèm cho milestone này.
@@ -1083,6 +1126,48 @@ const ContractWorkroomPage = () => {
                                         createMilestoneMutation.mutateAsync({ values, attachments })
                                 }
                                 onClose={() => setCreateMilestoneOpen(false)}
+                        />
+                        <ConfirmDelete
+                                open={Boolean(milestoneToDelete)}
+                                onClose={() => setMilestoneToDelete(null)}
+                                onConfirm={confirmDeleteMilestone}
+                                name={milestoneToDelete?.title}
+                                title='Xóa milestone'
+                                description={
+                                        <p>
+                                                Bạn có chắc chắn muốn xóa milestone{' '}
+                                                <span className='font-semibold text-base-content'>
+                                                        {milestoneToDelete?.title}
+                                                </span>
+                                                ? Hành động này không thể hoàn tác.
+                                        </p>
+                                }
+                                confirmLabel='Xóa'
+                                cancelLabel='Hủy'
+                                isProcessing={deleteMilestoneMutation.isPending}
+                        />
+                        <ConfirmDelete
+                                open={Boolean(resourceToDelete)}
+                                onClose={() => setResourceToDelete(null)}
+                                onConfirm={confirmDeleteMilestoneResource}
+                                name={resourceToDelete?.resourceLabel}
+                                title='Xóa tệp đính kèm'
+                                description={
+                                        <p>
+                                                Tệp{' '}
+                                                <span className='font-semibold text-base-content'>
+                                                        {resourceToDelete?.resourceLabel ?? 'đính kèm này'}
+                                                </span>{' '}
+                                                sẽ được gỡ khỏi milestone{' '}
+                                                <span className='font-semibold text-base-content'>
+                                                        {resourceToDelete?.milestone.title}
+                                                </span>
+                                                . Hành động này không thể hoàn tác.
+                                        </p>
+                                }
+                                confirmLabel='Xóa'
+                                cancelLabel='Hủy'
+                                isProcessing={deleteMilestoneResourceMutation.isPending}
                         />
                 </div>
         )
