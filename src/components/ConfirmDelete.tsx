@@ -49,8 +49,12 @@ export default function ConfirmDelete({
                                                 className='btn btn-error'
                                                 disabled={isProcessing}
                                                 onClick={async () => {
-                                                        await onConfirm()
-                                                        onClose()
+                                                        try {
+                                                                await onConfirm()
+                                                                onClose()
+                                                        } catch (error) {
+                                                                console.error('Confirm delete failed', error)
+                                                        }
                                                 }}>
                                                 {isProcessing ? 'Deleting…' : confirmLabel}
                                         </button>

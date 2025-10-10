@@ -52,20 +52,45 @@ export type ContractJobLanguage = {
 }
 
 export type ContractJobAttachment = {
-	id?: string
-	name?: string | null
-	fileName?: string | null
-	url?: string | null
+        id?: string
+        name?: string | null
+        fileName?: string | null
+        url?: string | null
 	fileUrl?: string | null
 	size?: number | null
 	mimeType?: string | null
 	[key: string]: unknown
 }
 
+export type ContractMilestoneResourceAsset = {
+        id?: string
+        kind?: string | null
+        url?: string | null
+        mimeType?: string | null
+        bytes?: number | null
+        size?: number | null
+        status?: string | null
+        [key: string]: unknown
+}
+
+export type ContractMilestoneResource = {
+        id?: string
+        milestoneId?: string | null
+        assetId?: string | null
+        name?: string | null
+        url?: string | null
+        mimeType?: string | null
+        size?: number | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        asset?: ContractMilestoneResourceAsset | null
+        [key: string]: unknown
+}
+
 export type ContractJobPost = {
-	id: string
-	title: string
-	description?: string | null
+        id: string
+        title: string
+        description?: string | null
 	specialty?: ContractJobSpecialty | null
 	requiredSkills?: ContractJobSkill[]
 	languages?: ContractJobLanguage[]
@@ -132,13 +157,14 @@ export type ContractMilestone = {
         description?: string | null
         amount?: number | null
         currency?: string | null
-	dueDate?: string | null
-	releasedAt?: string | null
-	approvedAt?: string | null
-	submittedAt?: string | null
-	status?: string | null
-	createdAt?: string | null
+        dueDate?: string | null
+        releasedAt?: string | null
+        approvedAt?: string | null
+        submittedAt?: string | null
+        status?: string | null
+        createdAt?: string | null
         updatedAt?: string | null
+        resources?: ContractMilestoneResource[]
         [key: string]: unknown
 }
 
