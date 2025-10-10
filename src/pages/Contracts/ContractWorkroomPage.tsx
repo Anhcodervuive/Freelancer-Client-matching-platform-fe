@@ -3,17 +3,17 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import {
-	ArrowLeft,
-	CalendarClock,
-	CheckCircle2,
-	CreditCard,
-	Flag,
-	FolderOpen,
-	History,
-	LayoutDashboard,
-	Loader2,
-	ShieldCheck,
-	Users
+        ArrowLeft,
+        CalendarClock,
+        CheckCircle2,
+        CreditCard,
+        Flag,
+        FolderOpen,
+        History,
+        LayoutDashboard,
+        Loader2,
+        ShieldCheck,
+        Users
 } from 'lucide-react'
 
 import { getContractDetail, listContractMilestones } from '~/apis/contract.api'
@@ -22,7 +22,8 @@ import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type { Contract } from '~/types/contract'
 import { Role } from '~/types/user'
-import { formatCurrency, formatDateTime, formatFileSize } from '~/utils/format'
+import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
+import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
 import {
 	extractLanguageLabels,
 	extractSkillNames,
@@ -72,18 +73,10 @@ const getMilestoneStatusMeta = (status?: string | null) => {
 
 type TabId = (typeof tabs)[number]['id']
 
-type ProcessedAttachment = {
-	id: string
-	name: string
-	url: string | undefined
-	size: number | undefined
-	mimeType: string | undefined
-}
-
 const buildTimeline = (contract?: Contract | null) => {
-	if (!contract) return [] as Array<{ id: string; date?: string | null; label: string; description?: string }>
+        if (!contract) return [] as Array<{ id: string; date?: string | null; label: string; description?: string }>
 
-	const events: Array<{ id: string; date?: string | null; label: string; description?: string }> = []
+        const events: Array<{ id: string; date?: string | null; label: string; description?: string }> = []
 
 	if (contract.createdAt) events.push({ id: 'created', date: contract.createdAt, label: 'Hợp đồng được tạo' })
 	if (contract.proposal?.submittedAt)
@@ -100,44 +93,16 @@ const buildTimeline = (contract?: Contract | null) => {
 	return events.filter(event => Boolean(event.date))
 }
 
-const buildAttachmentList = (contract?: Contract | null) => {
-	const attachments: (string | Record<string, unknown> | null)[] | undefined = contract?.jobPost?.attachments
-	if (!attachments || !Array.isArray(attachments))
-		return [] as Array<{
-			id: string
-			name: string
-			url?: string
-			size?: number
-			mimeType?: string
-		}>
+const buildAttachmentList = (contract?: Contract | null): NormalizedAttachment[] =>
+        normalizeAttachments(contract?.jobPost?.attachments)
 
-	return attachments
-		.map((attachment): ProcessedAttachment | null => {
-			if (!attachment) return null
-			if (typeof attachment === 'string') {
-				return {
-					id: attachment,
-					name: attachment.split('/').pop() || attachment,
-					url: attachment,
-					size: undefined,
-					mimeType: undefined
-				}
-			}
-			const record = attachment as Record<string, unknown>
-			const randomId =
-				typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-					? crypto.randomUUID()
-					: `attachment-${Math.random().toString(36).slice(2, 11)}`
-			const id = (record.id as string) || (record.fileName as string) || (record.name as string) || randomId
-			const name =
-				typeof record.name === 'string' ? record.name : typeof record.fileName === 'string' ? record.fileName : id
-			const url =
-				typeof record.url === 'string' ? record.url : typeof record.fileUrl === 'string' ? record.fileUrl : undefined
-			const size = typeof record.size === 'number' ? record.size : undefined
-			const mimeType = typeof record.mimeType === 'string' ? record.mimeType : undefined
-			return { id, name, url, size, mimeType }
-		})
-		.filter((item): item is ProcessedAttachment => Boolean(item))
+const imageExtensions = new Set(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'heic', 'heif'])
+
+const isImageAttachment = (attachment: NormalizedAttachment) => {
+        const mime = attachment.mimeType?.toLowerCase()
+        if (mime?.startsWith('image/')) return true
+        const extension = attachment.extension?.toLowerCase()
+        return extension ? imageExtensions.has(extension) : false
 }
 
 const ContractWorkroomPage = () => {
@@ -364,25 +329,75 @@ const ContractWorkroomPage = () => {
 						)}
 					</div>
 				</div>
+                                {attachments.length > 0 && (
+                                        <div className='mt-6 space-y-3'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Tệp đính kèm</p>
+                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                        {attachments.slice(0, 4).map(attachment => {
+                                                                const isImage = isImageAttachment(attachment)
+                                                                const sizeLabel = formatFileSize(attachment.size)
+                                                                const typeLabel = formatFileType({
+                                                                        mimeType: attachment.mimeType,
+                                                                        extension: attachment.extension
+                                                                })
+                                                                const metadata = [sizeLabel, typeLabel].filter((value): value is string => Boolean(value))
 
-				{attachments.length > 0 && (
-					<div className='mt-6 space-y-2'>
-						<p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Tệp đính kèm</p>
-						<div className='grid gap-3 md:grid-cols-2'>
-							{attachments.slice(0, 4).map(attachment => (
-								<a
-									key={attachment.id}
-									href={attachment.url}
-									target='_blank'
-									rel='noreferrer'
-									className='flex items-center justify-between rounded-2xl border border-white/70 bg-white/90 px-4 py-3 text-sm text-slate-600 shadow-sm transition hover:border-primary/30 hover:text-primary'>
-									<span className='truncate font-medium'>{attachment.name}</span>
-									<span className='text-xs text-slate-400'>{formatFileSize(attachment.size) ?? ''}</span>
-								</a>
-							))}
-						</div>
-					</div>
-				)}
+                                                                const content = isImage ? (
+                                                                        <div className='group relative flex h-48 w-full overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-sm transition hover:shadow-lg'>
+                                                                                {attachment.url ? (
+                                                                                        <img
+                                                                                                src={attachment.url}
+                                                                                                alt={attachment.label}
+                                                                                                className='h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]'
+                                                                                                loading='lazy'
+                                                                                        />
+                                                                                ) : (
+                                                                                        <div className='flex h-full w-full items-center justify-center bg-slate-100 text-sm text-slate-500'>Không có xem trước</div>
+                                                                                )}
+                                                                                <div className='pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent p-4 text-white'>
+                                                                                        <p className='truncate text-sm font-medium'>{attachment.label}</p>
+                                                                                        {metadata.length > 0 && (
+                                                                                                <p className='mt-1 text-xs text-white/80'>{metadata.join(' • ')}</p>
+                                                                                        )}
+                                                                                </div>
+                                                                        </div>
+                                                                ) : (
+                                                                        <div className='flex items-center gap-3 rounded-2xl border border-white/70 bg-white/90 p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md'>
+                                                                                <div className='flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
+                                                                                        {attachment.extension ?? 'FILE'}
+                                                                                </div>
+                                                                                <div className='min-w-0 flex-1'>
+                                                                                        <p className='truncate text-sm font-medium text-slate-900'>{attachment.label}</p>
+                                                                                        {metadata.length > 0 && (
+                                                                                                <p className='mt-1 text-xs text-slate-500'>{metadata.join(' • ')}</p>
+                                                                                        )}
+                                                                                </div>
+                                                                        </div>
+                                                                )
+
+                                                                if (attachment.url) {
+                                                                        return (
+                                                                                <a
+                                                                                        key={attachment.id}
+                                                                                        href={attachment.url}
+                                                                                        target='_blank'
+                                                                                        rel='noreferrer'
+                                                                                        className='block focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white'
+                                                                                >
+                                                                                        {content}
+                                                                                </a>
+                                                                        )
+                                                                }
+
+                                                                return (
+                                                                        <div key={attachment.id} className='block opacity-80'>
+                                                                                {content}
+                                                                        </div>
+                                                                )
+                                                        })}
+                                                </div>
+                                        </div>
+                                )}
 			</div>
 		</div>
 	)
@@ -495,19 +510,52 @@ const ContractWorkroomPage = () => {
 						{attachments.map(attachment => (
 							<tr key={attachment.id} className='border-t border-white/70 last:border-b-0'>
 								<td className='py-3 pr-4'>
-									<span className='font-medium text-slate-800'>{attachment.name}</span>
+									<div className='flex items-center gap-3'>
+										{isImageAttachment(attachment) ? (
+											attachment.url ? (
+												<img
+													src={attachment.url}
+													alt={attachment.label}
+													className='h-12 w-12 rounded-lg object-cover shadow-sm'
+													loading='lazy'
+												/>
+											) : (
+												<div className='flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase text-slate-400'>IMG</div>
+											)
+										) : (
+											<div className='flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
+												{attachment.extension ?? 'FILE'}
+											</div>
+										)}
+										<span className='font-medium text-slate-800'>{attachment.label}</span>
+									</div>
 								</td>
 								<td className='py-3 pr-4'>{formatFileSize(attachment.size) ?? '—'}</td>
-								<td className='py-3 pr-4'>{attachment.mimeType ?? '—'}</td>
+								<td className='py-3 pr-4'>
+									{formatFileType({
+										mimeType: attachment.mimeType,
+										extension: attachment.extension
+									}) ?? 'Không xác định'}
+								</td>
 								<td className='py-3 text-right'>
 									{attachment.url ? (
-										<a
-											href={attachment.url}
-											target='_blank'
-											rel='noreferrer'
-											className='inline-flex items-center gap-2 rounded-full border border-primary/30 px-3 py-1 text-xs font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/10'>
-											Tải xuống
-										</a>
+										<div className='flex flex-wrap items-center justify-end gap-2'>
+											<a
+												href={attachment.url}
+												target='_blank'
+												rel='noreferrer'
+												className='inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-primary/40 hover:text-primary'
+											>
+												Xem
+											</a>
+											<a
+												href={attachment.url}
+												download={attachment.fileName ?? attachment.label}
+												className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+											>
+												Tải xuống
+											</a>
+										</div>
 									) : (
 										<span className='text-xs text-slate-400'>Không có liên kết</span>
 									)}
