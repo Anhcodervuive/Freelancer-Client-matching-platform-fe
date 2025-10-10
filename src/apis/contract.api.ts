@@ -103,7 +103,7 @@ export const uploadContractMilestoneAttachments = async (contractId: string, mil
 	const formData = new FormData()
 
 	files.forEach(file => {
-		formData.append('attachmentFiles', file)
+		formData.append('files', file)
 	})
 
 	await authorizeAxiosInstance.post(`${baseUrl}/${contractId}/milestones/${milestoneId}/resources`, formData)
