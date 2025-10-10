@@ -17,11 +17,16 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
-import { createContractMilestone, getContractDetail, listContractMilestones } from '~/apis/contract.api'
+import {
+        createContractMilestone,
+        getContractDetail,
+        listContractMilestones,
+        uploadContractMilestoneAttachments
+} from '~/apis/contract.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
-import type { Contract, CreateContractMilestoneInput } from '~/types/contract'
+import type { Contract, ContractMilestone, CreateContractMilestoneInput } from '~/types/contract'
 import { Role } from '~/types/user'
 import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
@@ -137,15 +142,42 @@ const ContractWorkroomPage = () => {
                 enabled: Boolean(contractId) && activeTab === 'milestones'
         })
 
-        const createMilestoneMutation = useMutation({
-                mutationFn: (values: CreateContractMilestoneInput) => {
+        const createMilestoneMutation = useMutation<
+                { milestone: ContractMilestone; attachmentError: unknown },
+                unknown,
+                { values: CreateContractMilestoneInput; attachments: File[] }
+        >({
+                mutationFn: async ({ values, attachments }) => {
                         if (!contractId) throw new Error('Missing contract ID')
-                        return createContractMilestone(contractId, values)
+
+                        const milestone = await createContractMilestone(contractId, values)
+
+                        let attachmentError: unknown
+
+                        if (attachments.length) {
+                                try {
+                                        await uploadContractMilestoneAttachments(contractId, milestone.id, attachments)
+                                } catch (error) {
+                                        attachmentError = error
+                                }
+                        }
+
+                        return { milestone, attachmentError }
                 },
-                onSuccess: () => {
-                        toast.success('Đã tạo milestone mới')
+                onSuccess: ({ attachmentError }) => {
+                        if (attachmentError) {
+                                toast.warning('Milestone được tạo nhưng tải tệp đính kèm không thành công. Vui lòng thử lại trong tab Files.')
+                                console.error('Upload milestone attachments failed', attachmentError)
+                        } else {
+                                toast.success('Đã tạo milestone mới')
+                        }
+
                         setCreateMilestoneOpen(false)
                         queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể tạo milestone. Vui lòng thử lại.')
                 }
         })
 
@@ -814,7 +846,9 @@ const ContractWorkroomPage = () => {
                                 open={isCreateMilestoneOpen}
                                 currency={currency}
                                 isSubmitting={createMilestoneMutation.isPending}
-                                onSubmit={values => createMilestoneMutation.mutateAsync(values)}
+                                onSubmit={(values, attachments) =>
+                                        createMilestoneMutation.mutateAsync({ values, attachments })
+                                }
                                 onClose={() => setCreateMilestoneOpen(false)}
                         />
                 </div>

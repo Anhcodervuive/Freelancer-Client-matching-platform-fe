@@ -99,3 +99,27 @@ export const createContractMilestone = async (
         )
         return response.data
 }
+
+export const uploadContractMilestoneAttachments = async (
+        contractId: string,
+        milestoneId: string,
+        files: File[]
+) => {
+        if (!files.length) {
+                return
+        }
+
+        const formData = new FormData()
+
+        files.forEach(file => {
+                formData.append('attachmentFiles', file)
+        })
+
+        await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/attachments`,
+                formData,
+                {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                }
+        )
+}

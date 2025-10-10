@@ -1,9 +1,17 @@
-import { useEffect } from 'react'
+import {
+        useEffect,
+        useMemo,
+        useRef,
+        useState,
+        type ChangeEventHandler,
+        type DragEventHandler
+} from 'react'
 import { Controller, useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Flag, Loader2, X } from 'lucide-react'
+import { FileText, Flag, Image, Loader2, Trash2, UploadCloud, Video, X } from 'lucide-react'
 
 import type { CreateContractMilestoneInput } from '~/types/contract'
+import { formatFileSize } from '~/utils/format'
 
 import {
         CreateContractMilestoneSchema,
@@ -14,7 +22,7 @@ type CreateMilestoneDialogProps = {
         open: boolean
         currency?: string
         isSubmitting?: boolean
-        onSubmit: (_values: CreateContractMilestoneInput) => Promise<void> | void
+        onSubmit: (_values: CreateContractMilestoneInput, _attachments: File[]) => Promise<void> | void
         onClose: () => void
 }
 
@@ -25,6 +33,9 @@ const CreateMilestoneDialog = ({
         onSubmit,
         onClose
 }: CreateMilestoneDialogProps) => {
+        const [attachments, setAttachments] = useState<File[]>([])
+        const fileInputRef = useRef<HTMLInputElement | null>(null)
+
         const {
                 control,
                 handleSubmit,
@@ -45,6 +56,7 @@ const CreateMilestoneDialog = ({
                         title: '',
                         amount: undefined as unknown as number
                 })
+                setAttachments([])
         }, [open, reset])
 
         const closeDialog = () => {
@@ -52,20 +64,74 @@ const CreateMilestoneDialog = ({
                 onClose()
         }
 
+        const mergeFiles = (incoming: FileList | null) => {
+                if (!incoming || !incoming.length) return
+
+                setAttachments(prev => {
+                        const existingSignatures = new Set(prev.map(file => `${file.name}-${file.size}-${file.lastModified}`))
+                        const additions: File[] = []
+
+                        Array.from(incoming).forEach(file => {
+                                const signature = `${file.name}-${file.size}-${file.lastModified}`
+                                if (existingSignatures.has(signature)) return
+                                existingSignatures.add(signature)
+                                additions.push(file)
+                        })
+
+                        return [...prev, ...additions]
+                })
+        }
+
+        const handleFileInputChange: ChangeEventHandler<HTMLInputElement> = event => {
+                mergeFiles(event.target.files)
+                event.target.value = ''
+        }
+
+        const handleDrop: DragEventHandler<HTMLLabelElement> = event => {
+                event.preventDefault()
+                if (isSubmitting) return
+                mergeFiles(event.dataTransfer.files)
+        }
+
+        const handleDragOver: DragEventHandler<HTMLLabelElement> = event => {
+                event.preventDefault()
+        }
+
+        const removeAttachment = (index: number) => {
+                setAttachments(prev => prev.filter((_, idx) => idx !== index))
+        }
+
+        const attachmentSummary = useMemo(() => {
+                if (!attachments.length) return 'Chưa chọn tệp nào'
+                const totalSize = attachments.reduce((sum, file) => sum + file.size, 0)
+                return `${attachments.length} tệp · ${formatFileSize(totalSize) ?? ''}`.trim()
+        }, [attachments])
+
         const submit = handleSubmit(async values => {
                 await onSubmit({
                         ...values,
                         currency: (currency ?? 'USD').toUpperCase()
-                })
+                }, attachments)
                 reset({
                         title: '',
                         amount: undefined as unknown as number
                 })
+                setAttachments([])
         })
 
         const titleError = errors.title?.message
         const amountError = errors.amount?.message
         const displayCurrency = (currency ?? 'USD').toUpperCase()
+
+        const renderAttachmentIcon = (file: File) => {
+                if (file.type.startsWith('image/')) {
+                        return <Image className='size-4 text-primary' />
+                }
+                if (file.type.startsWith('video/')) {
+                        return <Video className='size-4 text-secondary' />
+                }
+                return <FileText className='size-4 text-base-content/70' />
+        }
 
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
@@ -147,6 +213,74 @@ const CreateMilestoneDialog = ({
                                                         </div>
                                                         <p className='text-xs text-base-content/60'>Tiền tệ được cố định theo hợp đồng.</p>
                                                 </div>
+                                        </div>
+
+                                        <div className='space-y-3'>
+                                                <div className='flex items-center justify-between gap-2'>
+                                                        <label className='text-sm font-semibold text-base-content'>Tệp đính kèm (tùy chọn)</label>
+                                                        <span className='text-xs text-base-content/60'>{attachmentSummary}</span>
+                                                </div>
+                                                <label
+                                                        htmlFor='milestone-attachments'
+                                                        onDrop={handleDrop}
+                                                        onDragOver={handleDragOver}
+                                                        aria-disabled={isSubmitting}
+                                                        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-base-300 bg-base-100/70 px-6 py-8 text-center transition hover:border-primary/40 hover:bg-primary/5 ${
+                                                                isSubmitting ? 'pointer-events-none opacity-60' : ''
+                                                        }`}
+                                                >
+                                                        <UploadCloud className='size-8 text-primary/80' />
+                                                        <div className='space-y-1'>
+                                                                <p className='text-sm font-semibold text-base-content'>Kéo thả tệp vào đây</p>
+                                                                <p className='text-xs text-base-content/60'>hoặc nhấn để chọn từ thiết bị của bạn</p>
+                                                        </div>
+                                                        <span className='btn btn-sm btn-outline mt-2 inline-flex items-center gap-2'>
+                                                                <UploadCloud className='size-4 text-primary/80' /> Chọn tệp
+                                                        </span>
+                                                </label>
+                                                <p className='text-xs text-base-content/50'>Hỗ trợ nhiều tệp cùng lúc, mỗi tệp tối đa 25MB.</p>
+                                                <input
+                                                        id='milestone-attachments'
+                                                        ref={fileInputRef}
+                                                        type='file'
+                                                        multiple
+                                                        className='hidden'
+                                                        onChange={handleFileInputChange}
+                                                        disabled={isSubmitting}
+                                                />
+
+                                                {attachments.length > 0 && (
+                                                        <ul className='space-y-2 rounded-2xl border border-base-200 bg-base-100/60 p-3'>
+                                                                {attachments.map((file, index) => {
+                                                                        const sizeLabel = formatFileSize(file.size) ?? ''
+                                                                        return (
+                                                                                <li
+                                                                                        key={`${file.name}-${file.lastModified}-${index}`}
+                                                                                        className='flex items-center justify-between gap-3 rounded-xl bg-base-100 px-3 py-2 shadow-sm'
+                                                                                >
+                                                                                        <div className='flex min-w-0 items-center gap-3'>
+                                                                                                <div className='flex size-10 items-center justify-center rounded-lg bg-base-200'>
+                                                                                                        {renderAttachmentIcon(file)}
+                                                                                                </div>
+                                                                                                <div className='min-w-0'>
+                                                                                                        <p className='truncate text-sm font-medium text-base-content'>{file.name}</p>
+                                                                                                        <p className='text-xs text-base-content/60'>{sizeLabel}</p>
+                                                                                                </div>
+                                                                                        </div>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-ghost btn-xs text-error'
+                                                                                                onClick={() => removeAttachment(index)}
+                                                                                                disabled={isSubmitting}
+                                                                                                aria-label={`Xóa tệp ${file.name}`}
+                                                                                        >
+                                                                                                <Trash2 className='size-4' />
+                                                                                        </button>
+                                                                                </li>
+                                                                        )
+                                                                })}
+                                                        </ul>
+                                                )}
                                         </div>
 
                                         <div className='rounded-2xl border border-base-200 bg-base-100/80 p-4 text-sm text-base-content/70'>
