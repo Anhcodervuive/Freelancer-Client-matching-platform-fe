@@ -13,12 +13,14 @@ import {
         LayoutDashboard,
         Loader2,
         ShieldCheck,
+        Trash2,
         Users
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import {
         createContractMilestone,
+        deleteContractMilestone,
         getContractDetail,
         listContractMilestones,
         uploadContractMilestoneAttachments
@@ -181,6 +183,21 @@ const ContractWorkroomPage = () => {
                 }
         })
 
+        const deleteMilestoneMutation = useMutation<void, unknown, { milestoneId: string; milestoneTitle: string }>({
+                mutationFn: async ({ milestoneId }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await deleteContractMilestone(contractId, milestoneId)
+                },
+                onSuccess: (_data, variables) => {
+                        toast.success(`Đã xóa milestone "${variables.milestoneTitle}"`)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể xóa milestone. Vui lòng thử lại.')
+                }
+        })
+
 	const contract = contractQuery.data as Contract | undefined
         const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
         const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
@@ -196,13 +213,25 @@ const ContractWorkroomPage = () => {
 	const outstanding = formatCurrency(contract?.outstandingBalance ?? undefined, currency)
 	const hourlyRate = formatCurrency(contract?.hourlyRate ?? undefined, contract?.hourlyRateCurrency ?? currency)
 	const fixedPrice = formatCurrency(contract?.fixedPrice ?? undefined, contract?.fixedPriceCurrency ?? currency)
-	const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
-	const attachments = useMemo(() => buildAttachmentList(contract), [contract])
+        const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
+        const attachments = useMemo(() => buildAttachmentList(contract), [contract])
 
-	const jobPostLink = contract?.jobPost?.id
-		? currentUser?.role === Role.CLIENT
-			? routes.me.client.jobs.detail(contract.jobPost.id)
-			: routes.freelancer.jobs.detail(contract.jobPost.id)
+        const handleDeleteMilestone = (milestone: ContractMilestone) => {
+                if (deleteMilestoneMutation.isPending) return
+
+                const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa milestone "${milestone.title}"?`)
+                if (!confirmed) return
+
+                deleteMilestoneMutation.mutate({
+                        milestoneId: milestone.id,
+                        milestoneTitle: milestone.title
+                })
+        }
+
+        const jobPostLink = contract?.jobPost?.id
+                ? currentUser?.role === Role.CLIENT
+                        ? routes.me.client.jobs.detail(contract.jobPost.id)
+                        : routes.freelancer.jobs.detail(contract.jobPost.id)
 		: undefined
 
 	const heroBadge =
@@ -512,22 +541,41 @@ const ContractWorkroomPage = () => {
                                         {milestones.map(milestone => {
                                                 const meta = getMilestoneStatusMeta(milestone.status)
                                                 const amount = formatCurrency(milestone.amount ?? undefined, milestone.currency ?? currency)
+                                                const isDeleting =
+                                                        deleteMilestoneMutation.isPending &&
+                                                        deleteMilestoneMutation.variables?.milestoneId === milestone.id
+
                                                 return (
                                                         <div
-							key={milestone.id}
-							className='flex h-full flex-col justify-between rounded-[26px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
-							<div className='space-y-4'>
-								<div className='flex items-start justify-between gap-3'>
-									<div>
-										<h3 className='text-base font-semibold text-slate-900'>{milestone.title}</h3>
-										<p className='mt-1 text-sm text-slate-500'>{milestone.description ?? 'Không có mô tả chi tiết.'}</p>
-									</div>
-									<span
-										className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge} ${meta.text}`}>
-										<span className='size-2 rounded-full bg-current'></span>
-										{meta.label}
-									</span>
-								</div>
+                                                                key={milestone.id}
+                                                                className='flex h-full flex-col justify-between rounded-[26px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                                                <div className='space-y-4'>
+                                                                        <div className='flex items-start justify-between gap-3'>
+                                                                                <div>
+                                                                                        <h3 className='text-base font-semibold text-slate-900'>{milestone.title}</h3>
+                                                                                        <p className='mt-1 text-sm text-slate-500'>
+                                                                                                {milestone.description ?? 'Không có mô tả chi tiết.'}
+                                                                                        </p>
+                                                                                </div>
+                                                                                <div className='flex items-center gap-2'>
+                                                                                        <span
+                                                                                                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge} ${meta.text}`}>
+                                                                                                <span className='size-2 rounded-full bg-current'></span>
+                                                                                                {meta.label}
+                                                                                        </span>
+                                                                                        {viewerRole === 'client' && (
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-ghost btn-xs text-error'
+                                                                                                        onClick={() => handleDeleteMilestone(milestone)}
+                                                                                                        disabled={deleteMilestoneMutation.isPending}
+                                                                                                        aria-label={`Xóa milestone ${milestone.title}`}
+                                                                                                >
+                                                                                                        {isDeleting ? <Loader2 className='size-4 animate-spin' /> : <Trash2 className='size-4' />}
+                                                                                                </button>
+                                                                                        )}
+                                                                                </div>
+                                                                        </div>
 								<ul className='space-y-2 text-sm text-slate-600'>
 									<li>
 										<CalendarClock className='mr-2 inline size-4 text-primary' /> Hạn hoàn thành:{' '}

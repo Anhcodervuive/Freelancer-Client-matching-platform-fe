@@ -123,3 +123,7 @@ export const uploadContractMilestoneAttachments = async (
                 }
         )
 }
+
+export const deleteContractMilestone = async (contractId: string, milestoneId: string) => {
+        await authorizeAxiosInstance.delete(`${baseUrl}/${contractId}/milestones/${milestoneId}`)
+}
