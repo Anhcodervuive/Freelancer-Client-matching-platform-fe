@@ -3,6 +3,7 @@ import type {
         Contract,
         ContractListFilterInput,
         ContractMilestone,
+        CreateContractMilestoneInput,
         PaginatedContractResponse
 } from '~/types/contract'
 
@@ -66,4 +67,15 @@ export const listContractMilestones = async (contractId: string): Promise<Contra
         const data = response.data
         if (Array.isArray(data)) return data
         return data?.data ?? []
+}
+
+export const createContractMilestone = async (
+        contractId: string,
+        payload: CreateContractMilestoneInput
+): Promise<ContractMilestone> => {
+        const response = await authorizeAxiosInstance.post<ContractMilestone>(
+                `${baseUrl}/${contractId}/milestones`,
+                payload
+        )
+        return response.data
 }

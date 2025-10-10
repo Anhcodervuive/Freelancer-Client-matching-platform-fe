@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import {
         ArrowLeft,
@@ -15,23 +15,25 @@ import {
         ShieldCheck,
         Users
 } from 'lucide-react'
+import { toast } from 'react-toastify'
 
-import { getContractDetail, listContractMilestones } from '~/apis/contract.api'
+import { createContractMilestone, getContractDetail, listContractMilestones } from '~/apis/contract.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
-import type { Contract } from '~/types/contract'
+import type { Contract, CreateContractMilestoneInput } from '~/types/contract'
 import { Role } from '~/types/user'
 import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
 import {
-	extractLanguageLabels,
-	extractSkillNames,
-	getBudgetDisplay,
-	getCurrency,
-	getParticipantLocation,
-	getParticipantName
+        extractLanguageLabels,
+        extractSkillNames,
+        getBudgetDisplay,
+        getCurrency,
+        getParticipantLocation,
+        getParticipantName
 } from './utils'
+import CreateMilestoneDialog from './components/CreateMilestoneDialog'
 
 const tabs = [
 	{ id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
@@ -109,16 +111,19 @@ const ContractWorkroomPage = () => {
 	const { contractId } = useParams<{ contractId: string }>()
 	const navigate = useNavigate()
 	const currentUser = useSelector(selectCurrentUser)
-	const [activeTab, setActiveTab] = useState<TabId>('overview')
+        const [activeTab, setActiveTab] = useState<TabId>('overview')
+        const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
 
-	const viewerRole: ViewerRole =
-		currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
+        const viewerRole: ViewerRole =
+                currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
 
-	const contractQuery = useQuery({
-		queryKey: ['contract', contractId],
-		queryFn: () => {
-			if (!contractId) throw new Error('Missing contract id')
-			return getContractDetail(contractId)
+        const queryClient = useQueryClient()
+
+        const contractQuery = useQuery({
+                queryKey: ['contract', contractId],
+                queryFn: () => {
+                        if (!contractId) throw new Error('Missing contract id')
+                        return getContractDetail(contractId)
 		},
 		enabled: Boolean(contractId)
 	})
@@ -129,8 +134,20 @@ const ContractWorkroomPage = () => {
 			if (!contractId) throw new Error('Missing contract ID')
 			return listContractMilestones(contractId as string)
 		},
-		enabled: Boolean(contractId) && activeTab === 'milestones'
-	})
+                enabled: Boolean(contractId) && activeTab === 'milestones'
+        })
+
+        const createMilestoneMutation = useMutation({
+                mutationFn: (values: CreateContractMilestoneInput) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        return createContractMilestone(contractId, values)
+                },
+                onSuccess: () => {
+                        toast.success('Đã tạo milestone mới')
+                        setCreateMilestoneOpen(false)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                }
+        })
 
 	const contract = contractQuery.data as Contract | undefined
         const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
@@ -402,33 +419,69 @@ const ContractWorkroomPage = () => {
 		</div>
 	)
 
-	const renderMilestones = () => {
-		if (milestoneQuery.isLoading) {
-			return (
-				<div className='flex justify-center py-12 text-slate-500'>
-					<Loader2 className='size-6 animate-spin' />
-				</div>
-			)
-		}
+        const renderMilestones = () => {
+                if (milestoneQuery.isLoading) {
+                        return (
+                                <div className='flex justify-center py-12 text-slate-500'>
+                                        <Loader2 className='size-6 animate-spin' />
+                                </div>
+                        )
+                }
 
-		const milestones = milestoneQuery.data ?? []
-		if (!milestones.length) {
-			return (
-				<div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
-					<Flag className='mx-auto mb-3 size-8 text-primary' />
-					<p className='text-base font-semibold text-slate-700'>Chưa có milestone nào</p>
-					<p className='mt-2 text-sm text-slate-500'>Tạo milestones để chia nhỏ công việc và giải ngân theo tiến độ.</p>
-				</div>
-			)
-		}
+                const milestones = milestoneQuery.data ?? []
+                if (!milestones.length) {
+                        return (
+                                <div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
+                                        <Flag className='mx-auto mb-3 size-8 text-primary' />
+                                        <p className='text-base font-semibold text-slate-700'>Chưa có milestone nào</p>
+                                        <p className='mt-2 text-sm text-slate-500'>Tạo milestones để chia nhỏ công việc và giải ngân theo tiến độ.</p>
+                                        {viewerRole === 'client' && (
+                                                <button
+                                                        type='button'
+                                                        onClick={() => setCreateMilestoneOpen(true)}
+                                                        className='mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+                                                        disabled={createMilestoneMutation.isPending}
+                                                >
+                                                        <Flag className='size-4' /> Tạo milestone
+                                                </button>
+                                        )}
+                                </div>
+                        )
+                }
 
-		return (
-			<div className='grid gap-4 md:grid-cols-2'>
-				{milestones.map(milestone => {
-					const meta = getMilestoneStatusMeta(milestone.status)
-					const amount = formatCurrency(milestone.amount ?? undefined, milestone.currency ?? currency)
-					return (
-						<div
+                return (
+                        <div className='space-y-6'>
+                                {viewerRole === 'client' && (
+                                        <div className='flex flex-col items-stretch justify-between gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 md:flex-row md:items-center'>
+                                                <div className='text-left text-slate-600'>
+                                                        <p className='font-semibold text-slate-800'>Quản lý milestones</p>
+                                                        <p className='text-xs text-slate-500'>Tạo milestone mới để lên kế hoạch bàn giao và giải ngân.</p>
+                                                </div>
+                                                <button
+                                                        type='button'
+                                                        onClick={() => setCreateMilestoneOpen(true)}
+                                                        className='inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+                                                        disabled={createMilestoneMutation.isPending}
+                                                >
+                                                        {createMilestoneMutation.isPending ? (
+                                                                <>
+                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                        Đang tạo...
+                                                                </>
+                                                        ) : (
+                                                                <>
+                                                                        <Flag className='size-4' /> Tạo milestone
+                                                                </>
+                                                        )}
+                                                </button>
+                                        </div>
+                                )}
+                                <div className='grid gap-4 md:grid-cols-2'>
+                                        {milestones.map(milestone => {
+                                                const meta = getMilestoneStatusMeta(milestone.status)
+                                                const amount = formatCurrency(milestone.amount ?? undefined, milestone.currency ?? currency)
+                                                return (
+                                                        <div
 							key={milestone.id}
 							className='flex h-full flex-col justify-between rounded-[26px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
 							<div className='space-y-4'>
@@ -477,10 +530,11 @@ const ContractWorkroomPage = () => {
 							</div>
 						</div>
 					)
-				})}
-			</div>
-		)
-	}
+                                        })}
+                                </div>
+                        </div>
+                )
+        }
 
 	const renderFiles = () => {
 		if (!attachments.length) {
@@ -749,15 +803,22 @@ const ContractWorkroomPage = () => {
 				})}
 			</nav>
 
-			<section className='rounded-[34px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] md:p-8'>
-				{activeTab === 'overview' && renderOverview()}
-				{activeTab === 'milestones' && renderMilestones()}
-				{activeTab === 'files' && renderFiles()}
-				{activeTab === 'payments' && renderPayments()}
-				{activeTab === 'history' && renderHistory()}
-			</section>
-		</div>
-	)
+                        <section className='rounded-[34px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] md:p-8'>
+                                {activeTab === 'overview' && renderOverview()}
+                                {activeTab === 'milestones' && renderMilestones()}
+                                {activeTab === 'files' && renderFiles()}
+                                {activeTab === 'payments' && renderPayments()}
+                                {activeTab === 'history' && renderHistory()}
+                        </section>
+                        <CreateMilestoneDialog
+                                open={isCreateMilestoneOpen}
+                                defaultCurrency={currency}
+                                isSubmitting={createMilestoneMutation.isPending}
+                                onSubmit={values => createMilestoneMutation.mutateAsync(values)}
+                                onClose={() => setCreateMilestoneOpen(false)}
+                        />
+                </div>
+        )
 }
 
 export default ContractWorkroomPage

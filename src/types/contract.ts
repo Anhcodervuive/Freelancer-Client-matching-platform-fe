@@ -127,26 +127,32 @@ export type Contract = {
 }
 
 export type ContractMilestone = {
-	id: string
-	title: string
-	description?: string | null
-	amount?: number | null
-	currency?: string | null
+        id: string
+        title: string
+        description?: string | null
+        amount?: number | null
+        currency?: string | null
 	dueDate?: string | null
 	releasedAt?: string | null
 	approvedAt?: string | null
 	submittedAt?: string | null
 	status?: string | null
 	createdAt?: string | null
-	updatedAt?: string | null
-	[key: string]: unknown
+        updatedAt?: string | null
+        [key: string]: unknown
+}
+
+export type CreateContractMilestoneInput = {
+        title: string
+        amount: number
+        currency: string
 }
 
 export type ContractListFilterInput = {
-	page?: number
-	limit?: number
-	role?: ContractRole
-	search?: string
+        page?: number
+        limit?: number
+        role?: ContractRole
+        search?: string
 }
 
 export type PaginatedContractResponse = {
