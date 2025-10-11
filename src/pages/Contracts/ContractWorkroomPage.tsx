@@ -845,6 +845,9 @@ const ContractWorkroomPage = () => {
                                                 const pendingSubmission = submissions.find(submission =>
                                                         (submission.status ?? '').toUpperCase() === 'SUBMITTED'
                                                 )
+                                                const hasApprovedSubmission = submissions.some(submission =>
+                                                        (submission.status ?? '').toUpperCase() === 'APPROVED'
+                                                )
                                                 const isMilestoneReleased =
                                                         normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
                                                 const canSubmitWork =
@@ -856,31 +859,55 @@ const ContractWorkroomPage = () => {
                                                 const canFundMilestone =
                                                         viewerRole === 'client' &&
                                                         !isMilestoneReleased &&
-                                                        ['APPROVED', 'COMPLETED'].includes(normalizedMilestoneStatus)
+                                                        ([
+                                                                'APPROVED',
+                                                                'COMPLETED',
+                                                                'SUBMITTED'
+                                                        ].includes(normalizedMilestoneStatus) || hasApprovedSubmission)
+                                                const showMilestoneActions = canSubmitWork || canRequestReview
 
                                                 return (
                                                         <div
                                                                 key={milestone.id}
                                                                 className='flex h-full flex-col justify-between rounded-[26px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
                                                                 <div className='space-y-4'>
-                                                                        <div className='flex items-start justify-between gap-3'>
+                                                                        <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6'>
                                                                                 <div>
                                                                                         <h3 className='text-base font-semibold text-slate-900'>{milestone.title}</h3>
                                                                                         <p className='mt-1 text-sm text-slate-500'>
                                                                                                 {milestone.description ?? 'Không có mô tả chi tiết.'}
                                                                                         </p>
                                                                                 </div>
-                                                                                <div className='flex items-center gap-2'>
-                                                                                        <span
-                                                                                                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge} ${meta.text}`}>
+                                                                                <div className='flex flex-wrap items-center justify-end gap-2'>
+                                                                                        <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge} ${meta.text}`}>
                                                                                                 <span className='size-2 rounded-full bg-current'></span>
                                                                                                 {meta.label}
                                                                                         </span>
+                                                                                        {canFundMilestone && (
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-primary btn-xs gap-2 shadow-sm'
+                                                                                                        onClick={() => setMilestoneToFund(milestone)}
+                                                                                                        disabled={isFundingMilestone}
+                                                                                                >
+                                                                                                        {isFundingMilestone && milestoneToFund?.id === milestone.id ? (
+                                                                                                                <>
+                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                        Đang xử lý...
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <CreditCard className='size-3.5' />
+                                                                                                                        Giải ngân milestone
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </button>
+                                                                                        )}
                                                                                         {viewerRole === 'client' && (
                                                                                                 <button
                                                                                                         type='button'
                                                                                                         className='btn btn-ghost btn-xs text-error'
-                                                                                                onClick={() => requestDeleteMilestone(milestone)}
+                                                                                                        onClick={() => requestDeleteMilestone(milestone)}
                                                                                                         disabled={deleteMilestoneMutation.isPending}
                                                                                                         aria-label={`Xóa milestone ${milestone.title}`}
                                                                                                 >
@@ -917,7 +944,7 @@ const ContractWorkroomPage = () => {
                                                                                 </li>
                                                                         )}
                                                                 </ul>
-                                                                {(canSubmitWork || canRequestReview || canFundMilestone) && (
+                                                                {showMilestoneActions && (
                                                                         <div className='flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50/70 p-3 text-sm'>
                                                                                 {canSubmitWork && (
                                                                                         <button
@@ -990,26 +1017,6 @@ const ContractWorkroomPage = () => {
                                                                                                         )}
                                                                                                 </button>
                                                                                         </>
-                                                                                )}
-                                                                                {canFundMilestone && (
-                                                                                        <button
-                                                                                                type='button'
-                                                                                                className='btn btn-primary btn-xs gap-2'
-                                                                                                onClick={() => setMilestoneToFund(milestone)}
-                                                                                                disabled={isFundingMilestone}
-                                                                                        >
-                                                                                                {isFundingMilestone && milestoneToFund?.id === milestone.id ? (
-                                                                                                        <>
-                                                                                                                <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                Đang xử lý...
-                                                                                                        </>
-                                                                                                ) : (
-                                                                                                        <>
-                                                                                                                <CreditCard className='size-3.5' />
-                                                                                                                Giải ngân milestone
-                                                                                                        </>
-                                                                                                )}
-                                                                                        </button>
                                                                                 )}
                                                                         </div>
                                                                 )}
