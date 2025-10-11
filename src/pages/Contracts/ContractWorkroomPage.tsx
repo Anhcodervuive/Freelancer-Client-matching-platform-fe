@@ -772,54 +772,56 @@ const ContractWorkroomPage = () => {
                                                                         </button>
                                                                         {isAttachmentsExpanded ? (
                                                                                 <div className='mt-4 space-y-4'>
-                                                                                        <div className='space-y-2 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-center'>
-                                                                                                <input
-                                                                                                        id={`milestone-upload-${milestone.id}`}
-                                                                                                        type='file'
-                                                                                                        multiple
-                                                                                                        className='hidden'
-                                                                                                        onChange={event =>
-                                                                                                                handleMilestoneAttachmentFileChange(
-                                                                                                                        milestone.id,
-                                                                                                                        event
-                                                                                                                )
-                                                                                                        }
-                                                                                                        disabled={uploadMilestoneAttachmentsMutation.isPending}
-                                                                                                />
-                                                                                                <label
-                                                                                                        htmlFor={`milestone-upload-${milestone.id}`}
-                                                                                                        onDrop={event =>
-                                                                                                                handleMilestoneAttachmentDrop(
-                                                                                                                        milestone.id,
-                                                                                                                        event
-                                                                                                                )
-                                                                                                        }
-                                                                                                        onDragOver={handleMilestoneAttachmentDragOver}
-                                                                                                        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300/80 bg-white/70 px-4 py-6 transition hover:border-primary/40 hover:bg-primary/5 ${
-                                                                                                                uploadMilestoneAttachmentsMutation.isPending
-                                                                                                                        ? 'pointer-events-none opacity-60'
-                                                                                                                        : ''
-                                                                                                        }`}
-                                                                                                >
-                                                                                                        {uploadMilestoneAttachmentsMutation.isPending &&
-                                                                                                        uploadMilestoneAttachmentsMutation.variables?.milestoneId ===
-                                                                                                                milestone.id ? (
-                                                                                                                <>
-                                                                                                                        <Loader2 className='size-6 animate-spin text-primary' />
-                                                                                                                        <p className='text-sm font-medium text-slate-600'>Đang tải lên tệp...</p>
-                                                                                                                </>
-                                                                                                        ) : (
-                                                                                                                <>
-                                                                                                                        <UploadCloud className='size-6 text-primary/80' />
-                                                                                                                        <div className='space-y-1'>
-                                                                                                                                <p className='text-sm font-semibold text-slate-700'>Kéo thả tệp vào đây</p>
-                                                                                                                                <p className='text-xs text-slate-500'>hoặc nhấn để chọn từ thiết bị của bạn</p>
-                                                                                                                        </div>
-                                                                                                                </>
-                                                                                                        )}
-                                                                                                </label>
-                                                                                                <p className='text-xs text-slate-400'>Hỗ trợ nhiều tệp cùng lúc, mỗi tệp tối đa 25MB.</p>
-                                                                                        </div>
+                                                                                        {viewerRole === 'client' && (
+                                                                                                <div className='space-y-2 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-center'>
+                                                                                                        <input
+                                                                                                                id={`milestone-upload-${milestone.id}`}
+                                                                                                                type='file'
+                                                                                                                multiple
+                                                                                                                className='hidden'
+                                                                                                                onChange={event =>
+                                                                                                                        handleMilestoneAttachmentFileChange(
+                                                                                                                                milestone.id,
+                                                                                                                                event
+                                                                                                                        )
+                                                                                                                }
+                                                                                                                disabled={uploadMilestoneAttachmentsMutation.isPending}
+                                                                                                        />
+                                                                                                        <label
+                                                                                                                htmlFor={`milestone-upload-${milestone.id}`}
+                                                                                                                onDrop={event =>
+                                                                                                                        handleMilestoneAttachmentDrop(
+                                                                                                                                milestone.id,
+                                                                                                                                event
+                                                                                                                        )
+                                                                                                                }
+                                                                                                                onDragOver={handleMilestoneAttachmentDragOver}
+                                                                                                                className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300/80 bg-white/70 px-4 py-6 transition hover:border-primary/40 hover:bg-primary/5 ${
+                                                                                                                        uploadMilestoneAttachmentsMutation.isPending
+                                                                                                                                ? 'pointer-events-none opacity-60'
+                                                                                                                                : ''
+                                                                                                                }`}
+                                                                                                        >
+                                                                                                                {uploadMilestoneAttachmentsMutation.isPending &&
+                                                                                                                uploadMilestoneAttachmentsMutation.variables?.milestoneId ===
+                                                                                                                        milestone.id ? (
+                                                                                                                        <>
+                                                                                                                                <Loader2 className='size-6 animate-spin text-primary' />
+                                                                                                                                <p className='text-sm font-medium text-slate-600'>Đang tải lên tệp...</p>
+                                                                                                                        </>
+                                                                                                                ) : (
+                                                                                                                        <>
+                                                                                                                                <UploadCloud className='size-6 text-primary/80' />
+                                                                                                                                <div className='space-y-1'>
+                                                                                                                                        <p className='text-sm font-semibold text-slate-700'>Kéo thả tệp vào đây</p>
+                                                                                                                                        <p className='text-xs text-slate-500'>hoặc nhấn để chọn từ thiết bị của bạn</p>
+                                                                                                                                </div>
+                                                                                                                        </>
+                                                                                                                )}
+                                                                                                        </label>
+                                                                                                        <p className='text-xs text-slate-400'>Hỗ trợ nhiều tệp cùng lúc, mỗi tệp tối đa 25MB.</p>
+                                                                                                </div>
+                                                                                        )}
 
                                                                                         {milestoneAttachments.length ? (
                                                                                                 <ul className='space-y-3'>
