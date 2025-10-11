@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
@@ -16,6 +16,7 @@ import {
         LayoutDashboard,
         Loader2,
         Paperclip,
+        UploadCloud,
         ShieldCheck,
         Trash2,
         Users
@@ -237,6 +238,31 @@ const ContractWorkroomPage = () => {
                 }
         })
 
+        const uploadMilestoneAttachmentsMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; files: File[] }
+        >({
+                mutationFn: async ({ milestoneId, files }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        if (!files.length) return
+
+                        await uploadContractMilestoneAttachments(contractId, milestoneId, files)
+                },
+                onSuccess: (_data, variables) => {
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+
+                        if (variables.files.length > 1) {
+                                toast.success('Đã tải lên các tệp đính kèm mới')
+                        } else {
+                                toast.success('Đã tải lên tệp đính kèm mới')
+                        }
+                },
+                onError: () => {
+                        toast.error('Không thể tải tệp đính kèm. Vui lòng thử lại.')
+                }
+        })
+
         const contract = contractQuery.data as Contract | undefined
         const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
         const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
@@ -301,6 +327,39 @@ const ContractWorkroomPage = () => {
                         ...prev,
                         [milestoneId]: !prev[milestoneId]
                 }))
+        }
+
+        const handleMilestoneAttachmentUpload = (milestoneId: string, files: FileList | File[]) => {
+                if (!files || uploadMilestoneAttachmentsMutation.isPending) return
+
+                const normalizedFiles = Array.from(files).filter((file): file is File => file instanceof File)
+
+                if (!normalizedFiles.length) return
+
+                uploadMilestoneAttachmentsMutation.mutate({
+                        milestoneId,
+                        files: normalizedFiles
+                })
+        }
+
+        const handleMilestoneAttachmentFileChange = (
+                milestoneId: string,
+                event: ChangeEvent<HTMLInputElement>
+        ) => {
+                handleMilestoneAttachmentUpload(milestoneId, event.target.files ?? [])
+                event.target.value = ''
+        }
+
+        const handleMilestoneAttachmentDrop = (milestoneId: string, event: DragEvent<HTMLLabelElement>) => {
+                event.preventDefault()
+                if (uploadMilestoneAttachmentsMutation.isPending) return
+
+                handleMilestoneAttachmentUpload(milestoneId, event.dataTransfer.files ?? [])
+        }
+
+        const handleMilestoneAttachmentDragOver = (event: DragEvent<HTMLLabelElement>) => {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'copy'
         }
 
         const jobPostLink = contract?.jobPost?.id
@@ -696,7 +755,6 @@ const ContractWorkroomPage = () => {
                                                                                 className='flex w-full items-center justify-between gap-3 text-left'
                                                                                 aria-expanded={isAttachmentsExpanded}
                                                                                 onClick={() => toggleMilestoneAttachments(milestone.id)}
-                                                                                disabled={!milestoneAttachments.length}
                                                                         >
                                                                                 <div className='inline-flex items-center gap-2 text-sm font-semibold text-slate-800'>
                                                                                         <Paperclip className='size-4 text-primary' /> Tệp đính kèm
@@ -712,12 +770,62 @@ const ContractWorkroomPage = () => {
                                                                                         } ${milestoneAttachments.length ? 'opacity-100' : 'opacity-40'}`}
                                                                                 />
                                                                         </button>
-                                                                        {milestoneAttachments.length ? (
-                                                                                isAttachmentsExpanded ? (
-                                                                                        <ul className='mt-4 space-y-3'>
+                                                                        {isAttachmentsExpanded ? (
+                                                                                <div className='mt-4 space-y-4'>
+                                                                                        <div className='space-y-2 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-center'>
+                                                                                                <input
+                                                                                                        id={`milestone-upload-${milestone.id}`}
+                                                                                                        type='file'
+                                                                                                        multiple
+                                                                                                        className='hidden'
+                                                                                                        onChange={event =>
+                                                                                                                handleMilestoneAttachmentFileChange(
+                                                                                                                        milestone.id,
+                                                                                                                        event
+                                                                                                                )
+                                                                                                        }
+                                                                                                        disabled={uploadMilestoneAttachmentsMutation.isPending}
+                                                                                                />
+                                                                                                <label
+                                                                                                        htmlFor={`milestone-upload-${milestone.id}`}
+                                                                                                        onDrop={event =>
+                                                                                                                handleMilestoneAttachmentDrop(
+                                                                                                                        milestone.id,
+                                                                                                                        event
+                                                                                                                )
+                                                                                                        }
+                                                                                                        onDragOver={handleMilestoneAttachmentDragOver}
+                                                                                                        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300/80 bg-white/70 px-4 py-6 transition hover:border-primary/40 hover:bg-primary/5 ${
+                                                                                                                uploadMilestoneAttachmentsMutation.isPending
+                                                                                                                        ? 'pointer-events-none opacity-60'
+                                                                                                                        : ''
+                                                                                                        }`}
+                                                                                                >
+                                                                                                        {uploadMilestoneAttachmentsMutation.isPending &&
+                                                                                                        uploadMilestoneAttachmentsMutation.variables?.milestoneId ===
+                                                                                                                milestone.id ? (
+                                                                                                                <>
+                                                                                                                        <Loader2 className='size-6 animate-spin text-primary' />
+                                                                                                                        <p className='text-sm font-medium text-slate-600'>Đang tải lên tệp...</p>
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <UploadCloud className='size-6 text-primary/80' />
+                                                                                                                        <div className='space-y-1'>
+                                                                                                                                <p className='text-sm font-semibold text-slate-700'>Kéo thả tệp vào đây</p>
+                                                                                                                                <p className='text-xs text-slate-500'>hoặc nhấn để chọn từ thiết bị của bạn</p>
+                                                                                                                        </div>
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </label>
+                                                                                                <p className='text-xs text-slate-400'>Hỗ trợ nhiều tệp cùng lúc, mỗi tệp tối đa 25MB.</p>
+                                                                                        </div>
+
+                                                                                        {milestoneAttachments.length ? (
+                                                                                                <ul className='space-y-3'>
                                                                                                 {milestoneAttachments.map(attachment => {
-                                                                                                const resource = attachment.id ? resourceMap.get(attachment.id) : undefined
-                                                                                                const resourceId = resource?.id ?? attachment.id
+                                                                                                        const resource = attachment.id ? resourceMap.get(attachment.id) : undefined
+                                                                                                        const resourceId = resource?.id ?? attachment.id
                                                                                                 const sizeLabel =
                                                                                                         formatFileSize(
                                                                                                                 attachment.size ??
@@ -821,15 +929,16 @@ const ContractWorkroomPage = () => {
                                                                                                                 </div>
                                                                                                         </li>
                                                                                                 )
-                                                                                        })}
-                                                                                </ul>
+                                                                                                })}
+                                                                                        </ul>
                                                                                 ) : (
-                                                                                        <p className='mt-3 text-xs text-slate-500'>Nhấn để xem tệp đính kèm.</p>
-                                                                                )
-                                                                        ) : (
-                                                                                <div className='mt-3 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-3 text-xs text-slate-400'>
-                                                                                        Chưa có tệp đính kèm cho milestone này.
+                                                                                                <div className='rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-3 text-xs text-slate-400'>
+                                                                                                        Chưa có tệp đính kèm cho milestone này.
+                                                                                                </div>
+                                                                                        )}
                                                                                 </div>
+                                                                        ) : (
+                                                                                <p className='mt-3 text-xs text-slate-500'>Nhấn để quản lý tệp đính kèm.</p>
                                                                         )}
                                                                 </div>
                                                         </div>
