@@ -17,6 +17,7 @@ import {
         Loader2,
         Paperclip,
         UploadCloud,
+        XCircle,
         ShieldCheck,
         Trash2,
         Users
@@ -29,17 +30,24 @@ import {
         deleteContractMilestoneResource,
         getContractDetail,
         listContractMilestones,
-        uploadContractMilestoneAttachments
+        uploadContractMilestoneAttachments,
+        submitMilestoneWork,
+        approveMilestoneSubmission,
+        declineMilestoneSubmission,
+        payMilestone
 } from '~/apis/contract.api'
+import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type {
         Contract,
         ContractMilestone,
+        ContractMilestoneSubmission,
         ContractMilestoneResource,
         CreateContractMilestoneInput
 } from '~/types/contract'
+import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
 import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
@@ -52,6 +60,9 @@ import {
         getParticipantName
 } from './utils'
 import CreateMilestoneDialog from './components/CreateMilestoneDialog'
+import SubmitMilestoneWorkDialog from './components/SubmitMilestoneWorkDialog'
+import ReviewMilestoneSubmissionDialog from './components/ReviewMilestoneSubmissionDialog'
+import FundMilestoneDialog from './components/FundMilestoneDialog'
 import ConfirmDelete from '~/components/ConfirmDelete'
 
 const tabs = [
@@ -65,13 +76,13 @@ const tabs = [
 type ViewerRole = 'client' | 'freelancer' | 'all'
 
 const milestoneStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
-	PENDING: { label: 'Chờ bắt đầu', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
-	IN_PROGRESS: { label: 'Đang thực hiện', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-	SUBMITTED: { label: 'Đã gửi duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	APPROVED: { label: 'Đã duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	RELEASED: { label: 'Đã thanh toán', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-	COMPLETED: { label: 'Hoàn thành', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-	CANCELLED: { label: 'Đã hủy', badge: 'bg-rose-50 border-rose-200', text: 'text-rose-700' }
+        PENDING: { label: 'Chờ bắt đầu', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
+        IN_PROGRESS: { label: 'Đang thực hiện', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+        SUBMITTED: { label: 'Đã gửi duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        APPROVED: { label: 'Đã duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        RELEASED: { label: 'Đã thanh toán', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+        COMPLETED: { label: 'Hoàn thành', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+        CANCELLED: { label: 'Đã hủy', badge: 'bg-rose-50 border-rose-200', text: 'text-rose-700' }
 }
 
 const getMilestoneStatusMeta = (status?: string | null) => {
@@ -90,6 +101,31 @@ const getMilestoneStatusMeta = (status?: string | null) => {
 			text: 'text-slate-600'
 		}
 	)
+}
+
+const submissionStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
+        SUBMITTED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        APPROVED: { label: 'Đã duyệt', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+        DECLINED: { label: 'Yêu cầu chỉnh sửa', badge: 'bg-amber-50 border-amber-200', text: 'text-amber-700' },
+        REVISED: { label: 'Đã cập nhật', badge: 'bg-secondary/10 border-secondary/40', text: 'text-secondary' }
+}
+
+const getSubmissionStatusMeta = (status?: string | null) => {
+        if (!status) {
+                return { label: 'Không xác định', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' }
+        }
+        const normalized = status.toUpperCase()
+        return (
+                submissionStatusMeta[normalized] || {
+                        label: status
+                                .toLowerCase()
+                                .split(/[_\s]+/)
+                                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                                .join(' '),
+                        badge: 'bg-slate-100 border-slate-200',
+                        text: 'text-slate-600'
+                }
+        )
 }
 
 type TabId = (typeof tabs)[number]['id']
@@ -139,6 +175,13 @@ const ContractWorkroomPage = () => {
                 resourceLabel?: string
         } | null>(null)
         const [expandedMilestoneAttachments, setExpandedMilestoneAttachments] = useState<Record<string, boolean>>({})
+        const [milestoneToSubmit, setMilestoneToSubmit] = useState<ContractMilestone | null>(null)
+        const [milestoneReviewState, setMilestoneReviewState] = useState<{
+                milestone: ContractMilestone
+                submission: ContractMilestoneSubmission
+                mode: 'approve' | 'decline'
+        } | null>(null)
+        const [milestoneToFund, setMilestoneToFund] = useState<ContractMilestone | null>(null)
 
         const viewerRole: ViewerRole =
                 currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
@@ -154,13 +197,19 @@ const ContractWorkroomPage = () => {
 		enabled: Boolean(contractId)
 	})
 
-	const milestoneQuery = useQuery({
-		queryKey: ['contract-milestones', contractId],
-		queryFn: () => {
-			if (!contractId) throw new Error('Missing contract ID')
-			return listContractMilestones(contractId as string)
-		},
+        const milestoneQuery = useQuery({
+                queryKey: ['contract-milestones', contractId],
+                queryFn: () => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        return listContractMilestones(contractId as string)
+                },
                 enabled: Boolean(contractId) && activeTab === 'milestones'
+        })
+
+        const paymentMethodsQuery = useQuery({
+                queryKey: ['payment-methods'],
+                queryFn: () => getAllPaymentMethod() as Promise<PaymentMethod[]>,
+                enabled: viewerRole === 'client'
         })
 
         const createMilestoneMutation = useMutation<
@@ -260,6 +309,90 @@ const ContractWorkroomPage = () => {
                 },
                 onError: () => {
                         toast.error('Không thể tải tệp đính kèm. Vui lòng thử lại.')
+                }
+        })
+
+        const submitMilestoneWorkMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; message: string; note?: string; files: File[] }
+        >({
+                mutationFn: async ({ milestoneId, message, note, files }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await submitMilestoneWork(contractId, milestoneId, {
+                                message,
+                                note,
+                                files
+                        })
+                },
+                onSuccess: () => {
+                        toast.success('Đã gửi bàn giao milestone tới khách hàng')
+                        setMilestoneToSubmit(null)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể gửi bàn giao milestone. Vui lòng thử lại.')
+                }
+        })
+
+        const approveMilestoneSubmissionMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; submissionId: string; note?: string }
+        >({
+                mutationFn: async ({ milestoneId, submissionId, note }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await approveMilestoneSubmission(contractId, milestoneId, submissionId, { note })
+                },
+                onSuccess: () => {
+                        toast.success('Đã chấp nhận bàn giao milestone')
+                        setMilestoneReviewState(null)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể chấp nhận bàn giao. Vui lòng thử lại.')
+                }
+        })
+
+        const declineMilestoneSubmissionMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; submissionId: string; reason: string }
+        >({
+                mutationFn: async ({ milestoneId, submissionId, reason }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await declineMilestoneSubmission(contractId, milestoneId, submissionId, { reason })
+                },
+                onSuccess: () => {
+                        toast.success('Đã gửi yêu cầu chỉnh sửa milestone')
+                        setMilestoneReviewState(null)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể gửi yêu cầu chỉnh sửa. Vui lòng thử lại.')
+                }
+        })
+
+        const payMilestoneMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; paymentMethodId: string; note?: string }
+        >({
+                mutationFn: async ({ milestoneId, paymentMethodId, note }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await payMilestone(contractId, milestoneId, { paymentMethodId, note })
+                },
+                onSuccess: () => {
+                        toast.success('Đã giải ngân milestone thành công')
+                        setMilestoneToFund(null)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể giải ngân milestone. Vui lòng thử lại.')
                 }
         })
 
@@ -624,6 +757,11 @@ const ContractWorkroomPage = () => {
                 }
 
                 const milestones = milestoneQuery.data ?? []
+                const isSubmittingWork = submitMilestoneWorkMutation.isPending
+                const isReviewingSubmission =
+                        approveMilestoneSubmissionMutation.isPending ||
+                        declineMilestoneSubmissionMutation.isPending
+                const isFundingMilestone = payMilestoneMutation.isPending
                 if (!milestones.length) {
                         return (
                                 <div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
@@ -689,6 +827,36 @@ const ContractWorkroomPage = () => {
                                                 const milestoneAttachments = normalizeAttachments(milestone.resources ?? [])
                                                 const isAttachmentsExpanded =
                                                         expandedMilestoneAttachments[milestone.id] ?? false
+                                                const normalizedMilestoneStatus = (milestone.status ?? '').toUpperCase()
+                                                const submissions = (milestone.submissions ?? [])
+                                                        .filter((submission): submission is ContractMilestoneSubmission =>
+                                                                Boolean(submission)
+                                                        )
+                                                        .slice()
+                                                        .sort((a, b) => {
+                                                                const aTime = a.submittedAt
+                                                                        ? new Date(a.submittedAt).getTime()
+                                                                        : 0
+                                                                const bTime = b.submittedAt
+                                                                        ? new Date(b.submittedAt).getTime()
+                                                                        : 0
+                                                                return bTime - aTime
+                                                        })
+                                                const pendingSubmission = submissions.find(submission =>
+                                                        (submission.status ?? '').toUpperCase() === 'SUBMITTED'
+                                                )
+                                                const isMilestoneReleased =
+                                                        normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
+                                                const canSubmitWork =
+                                                        viewerRole === 'freelancer' &&
+                                                        !isMilestoneReleased &&
+                                                        normalizedMilestoneStatus !== 'CANCELLED' &&
+                                                        !pendingSubmission
+                                                const canRequestReview = viewerRole === 'client' && Boolean(pendingSubmission)
+                                                const canFundMilestone =
+                                                        viewerRole === 'client' &&
+                                                        !isMilestoneReleased &&
+                                                        ['APPROVED', 'COMPLETED'].includes(normalizedMilestoneStatus)
 
                                                 return (
                                                         <div
@@ -728,27 +896,223 @@ const ContractWorkroomPage = () => {
                                                                                         {formatDateTime(milestone.dueDate, { dateStyle: 'medium' }) ?? '—'}
                                                                                 </span>
                                                                         </li>
-									<li>
-										<CreditCard className='mr-2 inline size-4 text-secondary' /> Giá trị:{' '}
-										<span className='font-semibold text-slate-800'>{amount ?? '—'}</span>
-									</li>
-									{milestone.approvedAt && (
-										<li>
-											<CheckCircle2 className='mr-2 inline size-4 text-emerald-500' /> Duyệt ngày:{' '}
-											<span className='font-semibold text-slate-800'>
-												{formatDateTime(milestone.approvedAt, { dateStyle: 'medium' })}
-											</span>
-										</li>
-									)}
-									{milestone.releasedAt && (
-										<li>
-											<ShieldCheck className='mr-2 inline size-4 text-primary' /> Giải ngân:{' '}
-											<span className='font-semibold text-slate-800'>
-												{formatDateTime(milestone.releasedAt, { dateStyle: 'medium' })}
-											</span>
-										</li>
+                                                                        <li>
+                                                                                <CreditCard className='mr-2 inline size-4 text-secondary' /> Giá trị:{' '}
+                                                                                <span className='font-semibold text-slate-800'>{amount ?? '—'}</span>
+                                                                        </li>
+                                                                        {milestone.approvedAt && (
+                                                                                <li>
+                                                                                        <CheckCircle2 className='mr-2 inline size-4 text-emerald-500' /> Duyệt ngày:{' '}
+                                                                                        <span className='font-semibold text-slate-800'>
+                                                                                                {formatDateTime(milestone.approvedAt, { dateStyle: 'medium' })}
+                                                                                        </span>
+                                                                                </li>
+                                                                        )}
+                                                                        {milestone.releasedAt && (
+                                                                                <li>
+                                                                                        <ShieldCheck className='mr-2 inline size-4 text-primary' /> Giải ngân:{' '}
+                                                                                        <span className='font-semibold text-slate-800'>
+                                                                                                {formatDateTime(milestone.releasedAt, { dateStyle: 'medium' })}
+                                                                                        </span>
+                                                                                </li>
                                                                         )}
                                                                 </ul>
+                                                                {(canSubmitWork || canRequestReview || canFundMilestone) && (
+                                                                        <div className='flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50/70 p-3 text-sm'>
+                                                                                {canSubmitWork && (
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-secondary btn-xs gap-2'
+                                                                                                onClick={() => setMilestoneToSubmit(milestone)}
+                                                                                                disabled={isSubmittingWork}
+                                                                                        >
+                                                                                                {isSubmittingWork && milestoneToSubmit?.id === milestone.id ? (
+                                                                                                        <>
+                                                                                                                <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                Đang gửi...
+                                                                                                        </>
+                                                                                                ) : (
+                                                                                                        <>
+                                                                                                                <UploadCloud className='size-3.5' />
+                                                                                                                Gửi bàn giao
+                                                                                                        </>
+                                                                                                )}
+                                                                                        </button>
+                                                                                )}
+                                                                                {canRequestReview && pendingSubmission && (
+                                                                                        <>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-success btn-xs gap-2'
+                                                                                                        onClick={() =>
+                                                                                                                setMilestoneReviewState({
+                                                                                                                        milestone,
+                                                                                                                        submission: pendingSubmission,
+                                                                                                                        mode: 'approve'
+                                                                                                                })
+                                                                                                        }
+                                                                                                        disabled={isReviewingSubmission}
+                                                                                                >
+                                                                                                        {isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id ? (
+                                                                                                                <>
+                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                        Đang xử lý...
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <CheckCircle2 className='size-3.5' />
+                                                                                                                        Chấp nhận
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </button>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-warning btn-xs gap-2'
+                                                                                                        onClick={() =>
+                                                                                                                setMilestoneReviewState({
+                                                                                                                        milestone,
+                                                                                                                        submission: pendingSubmission,
+                                                                                                                        mode: 'decline'
+                                                                                                                })
+                                                                                                        }
+                                                                                                        disabled={isReviewingSubmission}
+                                                                                                >
+                                                                                                        {isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id ? (
+                                                                                                                <>
+                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                        Đang xử lý...
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <XCircle className='size-3.5' />
+                                                                                                                        Yêu cầu chỉnh sửa
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </button>
+                                                                                        </>
+                                                                                )}
+                                                                                {canFundMilestone && (
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-primary btn-xs gap-2'
+                                                                                                onClick={() => setMilestoneToFund(milestone)}
+                                                                                                disabled={isFundingMilestone}
+                                                                                        >
+                                                                                                {isFundingMilestone && milestoneToFund?.id === milestone.id ? (
+                                                                                                        <>
+                                                                                                                <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                Đang xử lý...
+                                                                                                        </>
+                                                                                                ) : (
+                                                                                                        <>
+                                                                                                                <CreditCard className='size-3.5' />
+                                                                                                                Giải ngân milestone
+                                                                                                        </>
+                                                                                                )}
+                                                                                        </button>
+                                                                                )}
+                                                                        </div>
+                                                                )}
+                                                                <div className='space-y-3'>
+                                                                        <div className='flex items-center justify-between'>
+                                                                                <p className='text-sm font-semibold text-slate-800'>Bàn giao milestone</p>
+                                                                                {submissions.length > 1 && (
+                                                                                        <span className='text-xs text-slate-400'>{submissions.length} lần bàn giao</span>
+                                                                                )}
+                                                                        </div>
+                                                                        {submissions.length ? (
+                                                                                <ul className='space-y-3'>
+                                                                                        {submissions.map(submission => {
+                                                                                                const submissionMeta = getSubmissionStatusMeta(submission.status)
+                                                                                                const submittedAt = formatDateTime(submission.submittedAt, {
+                                                                                                        dateStyle: 'medium',
+                                                                                                        timeStyle: 'short'
+                                                                                                })
+                                                                                                const reviewNote =
+                                                                                                        submission.note ??
+                                                                                                        submission.reviewerNote ??
+                                                                                                        submission.reason ??
+                                                                                                        undefined
+                                                                                                const reviewAt = formatDateTime(
+                                                                                                        submission.reviewedAt ??
+                                                                                                                submission.approvedAt ??
+                                                                                                                submission.declinedAt,
+                                                                                                        { dateStyle: 'medium', timeStyle: 'short' }
+                                                                                                )
+                                                                                                const submissionAttachments = normalizeAttachments(
+                                                                                                        submission.resources ?? []
+                                                                                                )
+
+                                                                                                return (
+                                                                                                        <li
+                                                                                                                key={submission.id}
+                                                                                                                className='space-y-2 rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-sm text-slate-600'
+                                                                                                        >
+                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                                        <span
+                                                                                                                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${submissionMeta.badge} ${submissionMeta.text}`}
+                                                                                                                        >
+                                                                                                                                <span className='size-2 rounded-full bg-current'></span>
+                                                                                                                                {submissionMeta.label}
+                                                                                                                        </span>
+                                                                                                                        {submittedAt && (
+                                                                                                                                <span className='text-xs text-slate-400'>Gửi {submittedAt}</span>
+                                                                                                                        )}
+                                                                                                                </div>
+                                                                                                                <p className='whitespace-pre-line text-sm text-slate-700'>
+                                                                                                                        {submission.message ?? 'Không có mô tả chi tiết.'}
+                                                                                                                </p>
+                                                                                                                {submissionAttachments.length ? (
+                                                                                                                        <ul className='space-y-2'>
+                                                                                                                                {submissionAttachments.map(attachment => (
+                                                                                                                                        <li
+                                                                                                                                                key={`${submission.id}-${attachment.id}`}
+                                                                                                                                                className='flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs'
+                                                                                                                                        >
+                                                                                                                                                <span className='font-medium text-slate-700'>{attachment.label}</span>
+                                                                                                                                                {attachment.url ? (
+                                                                                                                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                                                                                                                <a
+                                                                                                                                                                        href={attachment.url}
+                                                                                                                                                                        target='_blank'
+                                                                                                                                                                        rel='noopener noreferrer'
+                                                                                                                                                                        className='btn btn-ghost btn-xs'
+                                                                                                                                                                >
+                                                                                                                                                                        <Eye className='size-3.5' /> Xem
+                                                                                                                                                                </a>
+                                                                                                                                                                <a
+                                                                                                                                                                        href={attachment.url}
+                                                                                                                                                                        download={attachment.fileName ?? attachment.label}
+                                                                                                                                                                        className='btn btn-outline btn-xs'
+                                                                                                                                                                >
+                                                                                                                                                                        <Download className='size-3.5' /> Tải xuống
+                                                                                                                                                                </a>
+                                                                                                                                                        </div>
+                                                                                                                                                ) : (
+                                                                                                                                                        <span className='text-slate-400'>Không có liên kết</span>
+                                                                                                                                                )}
+                                                                                                                                        </li>
+                                                                                                                                ))}
+                                                                                                                        </ul>
+                                                                                                                ) : null}
+                                                                                                                {reviewNote && (
+                                                                                                                        <p className='text-xs text-slate-500'>Phản hồi: {reviewNote}</p>
+                                                                                                                )}
+                                                                                                                {reviewAt && (
+                                                                                                                        <p className='text-[11px] uppercase tracking-wide text-slate-400'>Cập nhật {reviewAt}</p>
+                                                                                                                )}
+                                                                                                        </li>
+                                                                                                )
+                                                                                        })}
+                                                                                </ul>
+                                                                        ) : (
+                                                                                <div className='rounded-2xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-xs text-slate-500'>
+                                                                                        {viewerRole === 'freelancer'
+                                                                                                ? 'Bạn chưa gửi bàn giao cho milestone này. Hoàn thành công việc và nhấn “Gửi bàn giao” để khách hàng duyệt.'
+                                                                                                : 'Freelancer chưa gửi bàn giao cho milestone này.'}
+                                                                                </div>
+                                                                        )}
+                                                                </div>
                                                                 <div className='rounded-2xl border border-white/70 bg-white/70 p-4'>
                                                                         <button
                                                                                 type='button'
@@ -1237,6 +1601,69 @@ const ContractWorkroomPage = () => {
                                         createMilestoneMutation.mutateAsync({ values, attachments })
                                 }
                                 onClose={() => setCreateMilestoneOpen(false)}
+                        />
+                        <SubmitMilestoneWorkDialog
+                                open={Boolean(milestoneToSubmit)}
+                                milestoneTitle={milestoneToSubmit?.title}
+                                isSubmitting={submitMilestoneWorkMutation.isPending}
+                                onSubmit={async (values, files) => {
+                                        if (!milestoneToSubmit) return
+                                        await submitMilestoneWorkMutation.mutateAsync({
+                                                milestoneId: milestoneToSubmit.id,
+                                                message: values.message,
+                                                note: values.note,
+                                                files
+                                        })
+                                }}
+                                onClose={() => setMilestoneToSubmit(null)}
+                        />
+                        <ReviewMilestoneSubmissionDialog
+                                open={Boolean(milestoneReviewState)}
+                                mode={milestoneReviewState?.mode ?? 'approve'}
+                                milestoneTitle={milestoneReviewState?.milestone.title}
+                                submissionMessage={milestoneReviewState?.submission.message ?? undefined}
+                                isSubmitting={
+                                        approveMilestoneSubmissionMutation.isPending ||
+                                        declineMilestoneSubmissionMutation.isPending
+                                }
+                                onSubmit={async values => {
+                                        if (!milestoneReviewState) return
+                                        if (milestoneReviewState.mode === 'approve') {
+                                                await approveMilestoneSubmissionMutation.mutateAsync({
+                                                        milestoneId: milestoneReviewState.milestone.id,
+                                                        submissionId: milestoneReviewState.submission.id,
+                                                        note: (values as { note?: string }).note
+                                                })
+                                        } else {
+                                                await declineMilestoneSubmissionMutation.mutateAsync({
+                                                        milestoneId: milestoneReviewState.milestone.id,
+                                                        submissionId: milestoneReviewState.submission.id,
+                                                        reason: (values as { reason: string }).reason
+                                                })
+                                        }
+                                }}
+                                onClose={() => setMilestoneReviewState(null)}
+                        />
+                        <FundMilestoneDialog
+                                open={Boolean(milestoneToFund)}
+                                milestoneTitle={milestoneToFund?.title}
+                                amountLabel={formatCurrency(
+                                        milestoneToFund?.amount ?? undefined,
+                                        milestoneToFund?.currency ?? currency
+                                )}
+                                paymentMethods={(paymentMethodsQuery.data as PaymentMethod[] | undefined) ?? []}
+                                isLoadingPaymentMethods={paymentMethodsQuery.isFetching}
+                                isSubmitting={payMilestoneMutation.isPending}
+                                onRefreshPaymentMethods={() => paymentMethodsQuery.refetch()}
+                                onSubmit={async values => {
+                                        if (!milestoneToFund) return
+                                        await payMilestoneMutation.mutateAsync({
+                                                milestoneId: milestoneToFund.id,
+                                                paymentMethodId: values.paymentMethodId,
+                                                note: values.note
+                                        })
+                                }}
+                                onClose={() => setMilestoneToFund(null)}
                         />
                         <ConfirmDelete
                                 open={Boolean(milestoneToDelete)}

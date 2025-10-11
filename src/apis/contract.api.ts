@@ -1,10 +1,14 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import type {
-	Contract,
-	ContractListFilterInput,
-	ContractMilestone,
-	CreateContractMilestoneInput,
-	PaginatedContractResponse
+        ApproveMilestoneSubmissionInput,
+        Contract,
+        ContractListFilterInput,
+        ContractMilestone,
+        CreateContractMilestoneInput,
+        DeclineMilestoneSubmissionInput,
+        PaginatedContractResponse,
+        PayContractMilestoneInput,
+        SubmitMilestoneWorkInput
 } from '~/types/contract'
 
 const baseUrl = '/contracts'
@@ -121,4 +125,69 @@ export const deleteContractMilestoneResource = async (
         await authorizeAxiosInstance.delete(
                 `${baseUrl}/${contractId}/milestones/${milestoneId}/resources/${resourceId}`
         )
+}
+
+export const submitMilestoneWork = async (
+        contractId: string,
+        milestoneId: string,
+        payload: SubmitMilestoneWorkInput
+) => {
+        const formData = new FormData()
+        formData.set('message', payload.message)
+
+        if (payload.note) {
+                formData.set('note', payload.note)
+        }
+
+        payload.files?.forEach(file => {
+                formData.append('files', file)
+        })
+
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/submissions`,
+                formData
+        )
+
+        return response.data
+}
+
+export const approveMilestoneSubmission = async (
+        contractId: string,
+        milestoneId: string,
+        submissionId: string,
+        payload: ApproveMilestoneSubmissionInput = {}
+) => {
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/submissions/${submissionId}/approve`,
+                payload
+        )
+
+        return response.data
+}
+
+export const declineMilestoneSubmission = async (
+        contractId: string,
+        milestoneId: string,
+        submissionId: string,
+        payload: DeclineMilestoneSubmissionInput
+) => {
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/submissions/${submissionId}/decline`,
+                payload
+        )
+
+        return response.data
+}
+
+export const payMilestone = async (
+        contractId: string,
+        milestoneId: string,
+        payload: PayContractMilestoneInput
+) => {
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/pay`,
+                payload
+        )
+
+        return response.data
 }

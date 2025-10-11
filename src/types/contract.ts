@@ -165,6 +165,25 @@ export type ContractMilestone = {
         createdAt?: string | null
         updatedAt?: string | null
         resources?: ContractMilestoneResource[]
+        submissions?: ContractMilestoneSubmission[]
+        [key: string]: unknown
+}
+
+export type ContractMilestoneSubmission = {
+        id: string
+        milestoneId?: string | null
+        status?: string | null
+        message?: string | null
+        note?: string | null
+        reason?: string | null
+        reviewerNote?: string | null
+        submittedAt?: string | null
+        reviewedAt?: string | null
+        approvedAt?: string | null
+        declinedAt?: string | null
+        submittedById?: string | null
+        reviewerId?: string | null
+        resources?: ContractMilestoneResource[]
         [key: string]: unknown
 }
 
@@ -172,6 +191,25 @@ export type CreateContractMilestoneInput = {
         title: string
         amount: number
         currency: string
+}
+
+export type SubmitMilestoneWorkInput = {
+        message: string
+        note?: string
+        files?: File[]
+}
+
+export type ApproveMilestoneSubmissionInput = {
+        note?: string
+}
+
+export type DeclineMilestoneSubmissionInput = {
+        reason: string
+}
+
+export type PayContractMilestoneInput = {
+        paymentMethodId: string
+        note?: string
 }
 
 export type ContractListFilterInput = {
