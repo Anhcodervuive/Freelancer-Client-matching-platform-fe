@@ -20,6 +20,7 @@ import {
         XCircle,
         ShieldCheck,
         Trash2,
+        Wallet2,
         Users
 } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -845,11 +846,9 @@ const ContractWorkroomPage = () => {
                                                 const pendingSubmission = submissions.find(submission =>
                                                         (submission.status ?? '').toUpperCase() === 'SUBMITTED'
                                                 )
-                                                const hasApprovedSubmission = submissions.some(submission =>
-                                                        (submission.status ?? '').toUpperCase() === 'APPROVED'
-                                                )
                                                 const isMilestoneReleased =
                                                         normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
+                                                const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED'
                                                 const canSubmitWork =
                                                         viewerRole === 'freelancer' &&
                                                         !isMilestoneReleased &&
@@ -859,11 +858,8 @@ const ContractWorkroomPage = () => {
                                                 const canFundMilestone =
                                                         viewerRole === 'client' &&
                                                         !isMilestoneReleased &&
-                                                        ([
-                                                                'APPROVED',
-                                                                'COMPLETED',
-                                                                'SUBMITTED'
-                                                        ].includes(normalizedMilestoneStatus) || hasApprovedSubmission)
+                                                        !isMilestoneCancelled &&
+                                                        (milestone.amount ?? 0) > 0
                                                 const showMilestoneActions = canSubmitWork || canRequestReview
 
                                                 return (
@@ -935,12 +931,24 @@ const ContractWorkroomPage = () => {
                                                                                         </span>
                                                                                 </li>
                                                                         )}
-                                                                        {milestone.releasedAt && (
+                                                                        {isMilestoneReleased ? (
                                                                                 <li>
                                                                                         <ShieldCheck className='mr-2 inline size-4 text-primary' /> Giải ngân:{' '}
                                                                                         <span className='font-semibold text-slate-800'>
-                                                                                                {formatDateTime(milestone.releasedAt, { dateStyle: 'medium' })}
+                                                                                                {formatDateTime(milestone.releasedAt ?? milestone.approvedAt, {
+                                                                                                        dateStyle: 'medium'
+                                                                                                })}
                                                                                         </span>
+                                                                                </li>
+                                                                        ) : (
+                                                                                <li className='space-y-1'>
+                                                                                        <div className='flex items-center text-slate-600'>
+                                                                                                <Wallet2 className='mr-2 inline size-4 text-amber-500' /> Trạng thái giải ngân:{' '}
+                                                                                                <span className='ml-1 font-semibold text-slate-800'>Chưa giải ngân</span>
+                                                                                        </div>
+                                                                                        {viewerRole === 'client' && (
+                                                                                                <p className='pl-6 text-xs text-slate-500'>Giải ngân milestone để chuyển tiền vào tài khoản đảm bảo trước khi freelancer tiếp tục.</p>
+                                                                                        )}
                                                                                 </li>
                                                                         )}
                                                                 </ul>
