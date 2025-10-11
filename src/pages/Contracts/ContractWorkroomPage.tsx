@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import {
+        AlertTriangle,
         ArrowLeft,
         CalendarClock,
         CheckCircle2,
@@ -23,6 +24,7 @@ import {
         Wallet2,
         Users
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import {
@@ -127,6 +129,151 @@ const getSubmissionStatusMeta = (status?: string | null) => {
                         text: 'text-slate-600'
                 }
         )
+}
+
+type EscrowStatusMeta = {
+        status: string
+        label: string
+        icon: LucideIcon
+        iconClass: string
+        textClass: string
+        chip?: string
+        caption?: string
+        captionClass?: string
+        spinner?: boolean
+}
+
+const toSentenceCase = (value: string) =>
+        value
+                .toLowerCase()
+                .split(/[_\s]+/)
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ')
+
+const buildEscrowStatusMeta = (
+        status: string,
+        milestone: ContractMilestone,
+        viewerRole: ViewerRole
+): EscrowStatusMeta => {
+        const normalizedStatus = status || 'UNFUNDED'
+        const escrowCurrency = milestone.escrow?.currency ?? milestone.currency
+        const milestoneBudget = formatCurrency(milestone.amount, milestone.currency)
+        const fundedAmount = formatCurrency(milestone.escrow?.amountFunded, escrowCurrency)
+        const releasedAmount = formatCurrency(milestone.escrow?.amountReleased ?? milestone.amount, escrowCurrency)
+        const refundedAmount = formatCurrency(milestone.escrow?.amountRefunded, escrowCurrency)
+
+        if (normalizedStatus === 'FUNDED') {
+                const updatedAtText =
+                        formatDateTime(milestone.escrow?.updatedAt ?? milestone.escrow?.createdAt, {
+                                dateStyle: 'medium'
+                        }) ?? undefined
+                const captionParts = [] as string[]
+                if (fundedAmount) {
+                        captionParts.push(`${fundedAmount} đang được giữ an toàn trong tài khoản đảm bảo.`)
+                } else {
+                        captionParts.push('Tài khoản đảm bảo đã được nạp tiền.')
+                }
+                if (updatedAtText) {
+                        captionParts.push(`Cập nhật ngày ${updatedAtText}.`)
+                }
+                return {
+                        status: normalizedStatus,
+                        label: 'Đã giải ngân',
+                        icon: ShieldCheck,
+                        iconClass: 'text-emerald-500',
+                        textClass: 'text-emerald-700',
+                        chip: fundedAmount ?? undefined,
+                        caption: captionParts.join(' '),
+                        captionClass: 'text-emerald-600'
+                }
+        }
+
+        if (normalizedStatus === 'PENDING') {
+                const caption = 'Khoản tiền đang được xử lý. Vui lòng kiểm tra lại sau ít phút.'
+                return {
+                        status: normalizedStatus,
+                        label: 'Đang xử lý giải ngân',
+                        icon: Loader2,
+                        iconClass: 'text-sky-500',
+                        textClass: 'text-sky-700',
+                        chip: fundedAmount ?? milestoneBudget ?? undefined,
+                        caption,
+                        captionClass: 'text-sky-600',
+                        spinner: true
+                }
+        }
+
+        if (normalizedStatus === 'RELEASED') {
+                const releaseDateText =
+                        formatDateTime(milestone.releasedAt ?? milestone.escrow?.updatedAt ?? milestone.approvedAt, {
+                                dateStyle: 'medium'
+                        }) ?? undefined
+                const captionParts = [] as string[]
+                if (releaseDateText) {
+                        captionParts.push(`Thanh toán ngày ${releaseDateText}.`)
+                }
+                if (releasedAmount) {
+                        captionParts.push(`${releasedAmount} đã được chuyển tới freelancer.`)
+                }
+                return {
+                        status: normalizedStatus,
+                        label: 'Đã thanh toán',
+                        icon: CheckCircle2,
+                        iconClass: 'text-emerald-500',
+                        textClass: 'text-emerald-700',
+                        chip: releasedAmount ?? undefined,
+                        caption: captionParts.join(' '),
+                        captionClass: 'text-emerald-600'
+                }
+        }
+
+        if (normalizedStatus === 'REFUNDED') {
+                const caption =
+                        viewerRole === 'client'
+                                ? 'Khoản tiền đã được hoàn về phương thức thanh toán của bạn.'
+                                : 'Milestone đã được hoàn tiền. Hãy trao đổi thêm với client để biết chi tiết tiếp theo.'
+                return {
+                        status: normalizedStatus,
+                        label: 'Đã hoàn tiền',
+                        icon: Wallet2,
+                        iconClass: 'text-slate-500',
+                        textClass: 'text-slate-700',
+                        chip: refundedAmount ?? undefined,
+                        caption,
+                        captionClass: 'text-slate-500'
+                }
+        }
+
+        if (normalizedStatus === 'UNFUNDED') {
+                const caption =
+                        viewerRole === 'client'
+                                ? 'Giải ngân milestone để chuyển tiền vào tài khoản đảm bảo trước khi freelancer tiếp tục.'
+                                : 'Client chưa giải ngân milestone này. Bạn có thể trao đổi thêm trước khi bàn giao để tránh rủi ro thanh toán.'
+                return {
+                        status: normalizedStatus,
+                        label: 'Chưa giải ngân',
+                        icon: Wallet2,
+                        iconClass: 'text-amber-500',
+                        textClass: 'text-amber-700',
+                        chip: milestoneBudget ?? undefined,
+                        caption,
+                        captionClass: viewerRole === 'client' ? 'text-slate-500' : 'text-amber-600'
+                }
+        }
+
+        return {
+                status: normalizedStatus,
+                label: toSentenceCase(normalizedStatus),
+                icon: Wallet2,
+                iconClass: 'text-slate-500',
+                textClass: 'text-slate-700',
+                chip: fundedAmount ?? milestoneBudget ?? undefined,
+                caption:
+                        viewerRole === 'client'
+                                ? 'Trạng thái giải ngân sẽ được cập nhật khi có thay đổi.'
+                                : undefined,
+                captionClass: 'text-slate-500'
+        }
 }
 
 type TabId = (typeof tabs)[number]['id']
@@ -849,6 +996,15 @@ const ContractWorkroomPage = () => {
                                                 const isMilestoneReleased =
                                                         normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
                                                 const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED'
+                                                const normalizedEscrowStatus =
+                                                        (milestone.escrow?.status ?? (isMilestoneReleased ? 'RELEASED' : null))
+                                                                ?.toUpperCase() ?? 'UNFUNDED'
+                                                const escrowMeta = buildEscrowStatusMeta(
+                                                        normalizedEscrowStatus,
+                                                        milestone,
+                                                        viewerRole
+                                                )
+                                                const EscrowIcon = escrowMeta.icon
                                                 const canSubmitWork =
                                                         viewerRole === 'freelancer' &&
                                                         !isMilestoneReleased &&
@@ -859,7 +1015,10 @@ const ContractWorkroomPage = () => {
                                                         viewerRole === 'client' &&
                                                         !isMilestoneReleased &&
                                                         !isMilestoneCancelled &&
-                                                        (milestone.amount ?? 0) > 0
+                                                        (milestone.amount ?? 0) > 0 &&
+                                                        !['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus)
+                                                const shouldWarnUnfunded =
+                                                        viewerRole === 'freelancer' && escrowMeta.status === 'UNFUNDED'
                                                 const showMilestoneActions = canSubmitWork || canRequestReview
 
                                                 return (
@@ -931,27 +1090,39 @@ const ContractWorkroomPage = () => {
                                                                                         </span>
                                                                                 </li>
                                                                         )}
-                                                                        {isMilestoneReleased ? (
-                                                                                <li>
-                                                                                        <ShieldCheck className='mr-2 inline size-4 text-primary' /> Giải ngân:{' '}
-                                                                                        <span className='font-semibold text-slate-800'>
-                                                                                                {formatDateTime(milestone.releasedAt ?? milestone.approvedAt, {
-                                                                                                        dateStyle: 'medium'
-                                                                                                })}
+                                                                        <li className='space-y-1'>
+                                                                                <div className='flex flex-wrap items-center gap-2 text-sm text-slate-600'>
+                                                                                        <span className='font-medium text-slate-600'>Trạng thái giải ngân:</span>
+                                                                                        <span className={`inline-flex items-center gap-1 font-semibold ${escrowMeta.textClass}`}>
+                                                                                                <EscrowIcon
+                                                                                                        className={`size-4 ${escrowMeta.iconClass} ${escrowMeta.spinner ? 'animate-spin' : ''}`}
+                                                                                                />
+                                                                                                {escrowMeta.label}
                                                                                         </span>
-                                                                                </li>
-                                                                        ) : (
-                                                                                <li className='space-y-1'>
-                                                                                        <div className='flex items-center text-slate-600'>
-                                                                                                <Wallet2 className='mr-2 inline size-4 text-amber-500' /> Trạng thái giải ngân:{' '}
-                                                                                                <span className='ml-1 font-semibold text-slate-800'>Chưa giải ngân</span>
-                                                                                        </div>
-                                                                                        {viewerRole === 'client' && (
-                                                                                                <p className='pl-6 text-xs text-slate-500'>Giải ngân milestone để chuyển tiền vào tài khoản đảm bảo trước khi freelancer tiếp tục.</p>
+                                                                                        {escrowMeta.chip && (
+                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600'>
+                                                                                                        {escrowMeta.chip}
+                                                                                                </span>
                                                                                         )}
-                                                                                </li>
-                                                                        )}
+                                                                                </div>
+                                                                                {escrowMeta.caption && (
+                                                                                        <p className={`pl-6 text-xs ${escrowMeta.captionClass ?? 'text-slate-500'}`}>
+                                                                                                {escrowMeta.caption}
+                                                                                        </p>
+                                                                                )}
+                                                                        </li>
                                                                 </ul>
+                                                                {shouldWarnUnfunded && (
+                                                                        <div className='mt-3 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-3 text-xs leading-relaxed text-amber-700'>
+                                                                                <AlertTriangle className='mt-0.5 size-4 flex-shrink-0 text-amber-500' />
+                                                                                <div>
+                                                                                        <p className='font-semibold text-amber-800'>Milestone chưa được giải ngân</p>
+                                                                                        <p className='mt-1'>
+                                                                                                Client vẫn chưa giải ngân milestone này. Bạn có thể tiếp tục gửi bàn giao, tuy nhiên nên trao đổi trước để đảm bảo thanh toán an toàn.
+                                                                                        </p>
+                                                                                </div>
+                                                                        </div>
+                                                                )}
                                                                 {showMilestoneActions && (
                                                                         <div className='flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50/70 p-3 text-sm'>
                                                                                 {canSubmitWork && (

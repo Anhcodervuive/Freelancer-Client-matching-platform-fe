@@ -151,6 +151,18 @@ export type Contract = {
 	[key: string]: unknown
 }
 
+export type ContractMilestoneEscrow = {
+        id?: string
+        status?: string | null
+        currency?: string | null
+        amountFunded?: number | null
+        amountReleased?: number | null
+        amountRefunded?: number | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        [key: string]: unknown
+}
+
 export type ContractMilestone = {
         id: string
         title: string
@@ -160,12 +172,15 @@ export type ContractMilestone = {
         dueDate?: string | null
         releasedAt?: string | null
         approvedAt?: string | null
+        approvedSubmissionId?: string | null
+        approvedSubmission?: ContractMilestoneSubmission | null
         submittedAt?: string | null
         status?: string | null
         createdAt?: string | null
         updatedAt?: string | null
         resources?: ContractMilestoneResource[]
         submissions?: ContractMilestoneSubmission[]
+        escrow?: ContractMilestoneEscrow | null
         [key: string]: unknown
 }
 
