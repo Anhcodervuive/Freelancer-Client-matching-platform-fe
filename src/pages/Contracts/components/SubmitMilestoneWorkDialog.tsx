@@ -4,7 +4,8 @@ import {
         useRef,
         useState,
         type ChangeEventHandler,
-        type DragEventHandler
+        type DragEventHandler,
+        type KeyboardEventHandler
 } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -81,15 +82,27 @@ const SubmitMilestoneWorkDialog = ({
                 event.target.value = ''
         }
 
-        const handleDrop: DragEventHandler<HTMLLabelElement> = event => {
+        const openFilePicker = () => {
+                if (isSubmitting) return
+                fileInputRef.current?.click()
+        }
+
+        const handleDrop: DragEventHandler<HTMLDivElement> = event => {
                 event.preventDefault()
                 if (isSubmitting) return
                 mergeFiles(event.dataTransfer.files)
         }
 
-        const handleDragOver: DragEventHandler<HTMLLabelElement> = event => {
+        const handleDragOver: DragEventHandler<HTMLDivElement> = event => {
                 event.preventDefault()
                 event.dataTransfer.dropEffect = 'copy'
+        }
+
+        const handleDropzoneKeyDown: KeyboardEventHandler<HTMLDivElement> = event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openFilePicker()
+                }
         }
 
         const removeAttachment = (index: number) => {
@@ -183,13 +196,17 @@ const SubmitMilestoneWorkDialog = ({
                                                                         <label className='text-sm font-semibold text-base-content'>Tệp đính kèm</label>
                                                                         <span className='text-xs text-base-content/60'>{attachmentSummary}</span>
                                                                 </div>
-                                                                <label
-                                                                        htmlFor='milestone-submission-files'
+                                                                <div
+                                                                        role='button'
+                                                                        tabIndex={0}
+                                                                        onClick={openFilePicker}
+                                                                        onKeyDown={handleDropzoneKeyDown}
                                                                         onDrop={handleDrop}
                                                                         onDragOver={handleDragOver}
-                                                                        className={`group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-secondary/30 bg-secondary/5 px-6 py-8 text-center transition ${
-                                                                                isSubmitting ? 'pointer-events-none opacity-60' : 'hover:border-secondary hover:bg-secondary/10'
+                                                                        className={`group relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-secondary/30 bg-secondary/5 px-6 py-8 text-center transition ${
+                                                                                isSubmitting ? 'pointer-events-none opacity-60' : 'cursor-pointer hover:border-secondary hover:bg-secondary/10'
                                                                         }`}
+                                                                        aria-label='Chọn hoặc kéo thả tệp đính kèm'
                                                                 >
                                                                         <UploadCloud className='size-9 text-secondary' />
                                                                         <div className='space-y-1'>
@@ -208,7 +225,7 @@ const SubmitMilestoneWorkDialog = ({
                                                                                 onChange={handleFileInputChange}
                                                                                 disabled={isSubmitting}
                                                                         />
-                                                                </label>
+                                                                </div>
 
                                                                 {attachments.length ? (
                                                                         <ul className='space-y-2 rounded-2xl border border-base-200 bg-base-100/80 p-3'>

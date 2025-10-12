@@ -1010,7 +1010,15 @@ const ContractWorkroomPage = () => {
                                                         !isMilestoneReleased &&
                                                         normalizedMilestoneStatus !== 'CANCELLED' &&
                                                         !pendingSubmission
-                                                const canRequestReview = viewerRole === 'client' && Boolean(pendingSubmission)
+                                                const pendingSubmissionAttachments = pendingSubmission
+                                                        ? normalizeAttachments(pendingSubmission.resources ?? [])
+                                                        : []
+                                                const pendingSubmittedAtText = pendingSubmission?.submittedAt
+                                                        ? formatDateTime(pendingSubmission.submittedAt, {
+                                                                  dateStyle: 'medium',
+                                                                  timeStyle: 'short'
+                                                          })
+                                                        : undefined
                                                 const canFundMilestone =
                                                         viewerRole === 'client' &&
                                                         !isMilestoneReleased &&
@@ -1019,17 +1027,25 @@ const ContractWorkroomPage = () => {
                                                         !['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus)
                                                 const shouldWarnUnfunded =
                                                         viewerRole === 'freelancer' && escrowMeta.status === 'UNFUNDED'
-                                                const showMilestoneActions = canSubmitWork || canRequestReview
+                                                const showMilestoneActions = canSubmitWork
 
                                                 return (
                                                         <div
                                                                 key={milestone.id}
-                                                                className='flex h-full flex-col justify-between rounded-[26px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
-                                                                <div className='space-y-4'>
+                                                                className='flex h-full flex-col justify-between rounded-[26px] border border-white/70 bg-white/85 p-5 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                                                <div className='space-y-3'>
                                                                         <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6'>
                                                                                 <div>
                                                                                         <h3 className='text-base font-semibold text-slate-900'>{milestone.title}</h3>
-                                                                                        <p className='mt-1 text-sm text-slate-500'>
+                                                                                        <p
+                                                                                                className='mt-1 text-sm leading-relaxed text-slate-500'
+                                                                                                style={{
+                                                                                                        display: '-webkit-box',
+                                                                                                        WebkitBoxOrient: 'vertical',
+                                                                                                        WebkitLineClamp: 3,
+                                                                                                        overflow: 'hidden'
+                                                                                                }}
+                                                                                        >
                                                                                                 {milestone.description ?? 'Không có mô tả chi tiết.'}
                                                                                         </p>
                                                                                 </div>
@@ -1090,8 +1106,11 @@ const ContractWorkroomPage = () => {
                                                                                         </span>
                                                                                 </li>
                                                                         )}
-                                                                        <li className='space-y-1'>
-                                                                                <div className='flex flex-wrap items-center gap-2 text-sm text-slate-600'>
+                                                                        <li>
+                                                                                <div
+                                                                                        className='flex flex-wrap items-center gap-2 text-sm text-slate-600'
+                                                                                        title={escrowMeta.caption ?? undefined}
+                                                                                >
                                                                                         <span className='font-medium text-slate-600'>Trạng thái giải ngân:</span>
                                                                                         <span className={`inline-flex items-center gap-1 font-semibold ${escrowMeta.textClass}`}>
                                                                                                 <EscrowIcon
@@ -1105,98 +1124,136 @@ const ContractWorkroomPage = () => {
                                                                                                 </span>
                                                                                         )}
                                                                                 </div>
-                                                                                {escrowMeta.caption && (
-                                                                                        <p className={`pl-6 text-xs ${escrowMeta.captionClass ?? 'text-slate-500'}`}>
-                                                                                                {escrowMeta.caption}
-                                                                                        </p>
-                                                                                )}
                                                                         </li>
                                                                 </ul>
                                                                 {shouldWarnUnfunded && (
-                                                                        <div className='mt-3 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-3 text-xs leading-relaxed text-amber-700'>
+                                                                        <div className='mt-3 flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-700'>
                                                                                 <AlertTriangle className='mt-0.5 size-4 flex-shrink-0 text-amber-500' />
-                                                                                <div>
-                                                                                        <p className='font-semibold text-amber-800'>Milestone chưa được giải ngân</p>
-                                                                                        <p className='mt-1'>
-                                                                                                Client vẫn chưa giải ngân milestone này. Bạn có thể tiếp tục gửi bàn giao, tuy nhiên nên trao đổi trước để đảm bảo thanh toán an toàn.
-                                                                                        </p>
-                                                                                </div>
+                                                                                <span>Milestone chưa được giải ngân. Nên xác nhận với khách hàng trước khi tiếp tục bàn giao.</span>
                                                                         </div>
                                                                 )}
-                                                                {showMilestoneActions && (
-                                                                        <div className='flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50/70 p-3 text-sm'>
-                                                                                {canSubmitWork && (
+                                                                {viewerRole === 'client' && pendingSubmission ? (
+                                                                        <div className='space-y-3 rounded-2xl border border-sky-200 bg-sky-50/70 p-4'>
+                                                                                <div className='flex flex-col gap-2 md:flex-row md:items-start md:justify-between'>
+                                                                                        <div>
+                                                                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-sky-600'>Bàn giao chờ duyệt</p>
+                                                                                                <p className='mt-2 whitespace-pre-line text-sm text-slate-700'>
+                                                                                                        {pendingSubmission.message ?? 'Không có mô tả chi tiết.'}
+                                                                                                </p>
+                                                                                                {pendingSubmission.note ? (
+                                                                                                        <p className='mt-2 text-xs text-slate-500'>Ghi chú: {pendingSubmission.note}</p>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        {pendingSubmittedAtText && (
+                                                                                                <span className='text-xs text-slate-500 md:text-right'>Gửi {pendingSubmittedAtText}</span>
+                                                                                        )}
+                                                                                </div>
+                                                                                {pendingSubmissionAttachments.length ? (
+                                                                                        <ul className='space-y-2'>
+                                                                                                {pendingSubmissionAttachments.map(attachment => (
+                                                                                                        <li
+                                                                                                                key={`${pendingSubmission.id}-${attachment.id ?? attachment.label}`}
+                                                                                                                className='flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-600'
+                                                                                                        >
+                                                                                                                <span className='font-medium text-slate-700'>{attachment.label}</span>
+                                                                                                                {attachment.url ? (
+                                                                                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                                                                                <a
+                                                                                                                                        href={attachment.url}
+                                                                                                                                        target='_blank'
+                                                                                                                                        rel='noopener noreferrer'
+                                                                                                                                        className='btn btn-ghost btn-xs gap-1'
+                                                                                                                                >
+                                                                                                                                        <Eye className='size-3.5' /> Xem
+                                                                                                                                </a>
+                                                                                                                                <a
+                                                                                                                                        href={attachment.url}
+                                                                                                                                        download={attachment.fileName ?? attachment.label}
+                                                                                                                                        className='btn btn-outline btn-xs gap-1'
+                                                                                                                                >
+                                                                                                                                        <Download className='size-3.5' /> Tải xuống
+                                                                                                                                </a>
+                                                                                                                        </div>
+                                                                                                                ) : (
+                                                                                                                        <span className='text-slate-400'>Không có liên kết</span>
+                                                                                                                )}
+                                                                                                        </li>
+                                                                                                ))}
+                                                                                        </ul>
+                                                                                ) : null}
+                                                                                <div className='flex flex-wrap justify-end gap-2'>
                                                                                         <button
                                                                                                 type='button'
-                                                                                                className='btn btn-secondary btn-xs gap-2'
-                                                                                                onClick={() => setMilestoneToSubmit(milestone)}
-                                                                                                disabled={isSubmittingWork}
+                                                                                                className='btn btn-success btn-xs gap-2'
+                                                                                                onClick={() =>
+                                                                                                        setMilestoneReviewState({
+                                                                                                                milestone,
+                                                                                                                submission: pendingSubmission,
+                                                                                                                mode: 'approve'
+                                                                                                        })
+                                                                                                }
+                                                                                                disabled={isReviewingSubmission}
                                                                                         >
-                                                                                                {isSubmittingWork && milestoneToSubmit?.id === milestone.id ? (
+                                                                                                {isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id ? (
                                                                                                         <>
                                                                                                                 <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                Đang gửi...
+                                                                                                                Đang xử lý...
                                                                                                         </>
                                                                                                 ) : (
                                                                                                         <>
-                                                                                                                <UploadCloud className='size-3.5' />
-                                                                                                                Gửi bàn giao
+                                                                                                                <CheckCircle2 className='size-3.5' />
+                                                                                                                Chấp nhận
                                                                                                         </>
                                                                                                 )}
                                                                                         </button>
-                                                                                )}
-                                                                                {canRequestReview && pendingSubmission && (
-                                                                                        <>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-success btn-xs gap-2'
-                                                                                                        onClick={() =>
-                                                                                                                setMilestoneReviewState({
-                                                                                                                        milestone,
-                                                                                                                        submission: pendingSubmission,
-                                                                                                                        mode: 'approve'
-                                                                                                                })
-                                                                                                        }
-                                                                                                        disabled={isReviewingSubmission}
-                                                                                                >
-                                                                                                        {isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id ? (
-                                                                                                                <>
-                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                        Đang xử lý...
-                                                                                                                </>
-                                                                                                        ) : (
-                                                                                                                <>
-                                                                                                                        <CheckCircle2 className='size-3.5' />
-                                                                                                                        Chấp nhận
-                                                                                                                </>
-                                                                                                        )}
-                                                                                                </button>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-warning btn-xs gap-2'
-                                                                                                        onClick={() =>
-                                                                                                                setMilestoneReviewState({
-                                                                                                                        milestone,
-                                                                                                                        submission: pendingSubmission,
-                                                                                                                        mode: 'decline'
-                                                                                                                })
-                                                                                                        }
-                                                                                                        disabled={isReviewingSubmission}
-                                                                                                >
-                                                                                                        {isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id ? (
-                                                                                                                <>
-                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                        Đang xử lý...
-                                                                                                                </>
-                                                                                                        ) : (
-                                                                                                                <>
-                                                                                                                        <XCircle className='size-3.5' />
-                                                                                                                        Yêu cầu chỉnh sửa
-                                                                                                                </>
-                                                                                                        )}
-                                                                                                </button>
-                                                                                        </>
-                                                                                )}
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-warning btn-xs gap-2'
+                                                                                                onClick={() =>
+                                                                                                        setMilestoneReviewState({
+                                                                                                                milestone,
+                                                                                                                submission: pendingSubmission,
+                                                                                                                mode: 'decline'
+                                                                                                        })
+                                                                                                }
+                                                                                                disabled={isReviewingSubmission}
+                                                                                        >
+                                                                                                {isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id ? (
+                                                                                                        <>
+                                                                                                                <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                Đang xử lý...
+                                                                                                        </>
+                                                                                                ) : (
+                                                                                                        <>
+                                                                                                                <XCircle className='size-3.5' />
+                                                                                                                Yêu cầu chỉnh sửa
+                                                                                                        </>
+                                                                                                )}
+                                                                                        </button>
+                                                                                </div>
+                                                                        </div>
+                                                                ) : null}
+                                                                {showMilestoneActions && (
+                                                                        <div className='flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-3 text-sm text-slate-600'>
+                                                                                <span>Hoàn thành công việc? Gửi bàn giao để khách hàng duyệt.</span>
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-secondary btn-xs gap-2'
+                                                                                        onClick={() => setMilestoneToSubmit(milestone)}
+                                                                                        disabled={isSubmittingWork}
+                                                                                >
+                                                                                        {isSubmittingWork && milestoneToSubmit?.id === milestone.id ? (
+                                                                                                <>
+                                                                                                        <Loader2 className='size-3.5 animate-spin' />
+                                                                                                        Đang gửi...
+                                                                                                </>
+                                                                                        ) : (
+                                                                                                <>
+                                                                                                        <UploadCloud className='size-3.5' />
+                                                                                                        Gửi bàn giao
+                                                                                                </>
+                                                                                        )}
+                                                                                </button>
                                                                         </div>
                                                                 )}
                                                                 <div className='space-y-3'>
