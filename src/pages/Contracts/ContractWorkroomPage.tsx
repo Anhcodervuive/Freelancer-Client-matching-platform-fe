@@ -114,6 +114,10 @@ const getMilestoneStatusMeta = (status?: string | null) => {
 
 const submissionStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
         SUBMITTED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        PENDING: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        SUBMITED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        AWAITING_REVIEW: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        AWAITING_APPROVAL: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
         APPROVED: { label: 'Đã duyệt', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
         DECLINED: { label: 'Yêu cầu chỉnh sửa', badge: 'bg-amber-50 border-amber-200', text: 'text-amber-700' },
         REVISED: { label: 'Đã cập nhật', badge: 'bg-secondary/10 border-secondary/40', text: 'text-secondary' }
@@ -135,6 +139,19 @@ const getSubmissionStatusMeta = (status?: string | null) => {
                         text: 'text-slate-600'
                 }
         )
+}
+
+const pendingReviewStatuses = new Set([
+        'SUBMITTED',
+        'PENDING',
+        'SUBMITED',
+        'AWAITING_REVIEW',
+        'AWAITING_APPROVAL'
+])
+
+const isSubmissionAwaitingReview = (status?: string | null) => {
+        if (!status) return false
+        return pendingReviewStatuses.has(status.toUpperCase())
 }
 
 type EscrowStatusMeta = {
@@ -360,6 +377,29 @@ const ContractWorkroomPage = () => {
                 },
                 enabled: Boolean(contractId) && activeTab === 'milestones'
         })
+
+        const pendingReviewMilestones = useMemo(() => {
+                if (viewerRole !== 'client') return [] as Array<{
+                        milestone: ContractMilestone
+                        submission: ContractMilestoneSubmission
+                }>
+
+                const milestones = milestoneQuery.data ?? []
+
+                return milestones
+                        .map(milestone => {
+                                const pendingSubmission = (milestone.submissions ?? [])
+                                        .filter((submission): submission is ContractMilestoneSubmission => Boolean(submission))
+                                        .find(submission => isSubmissionAwaitingReview(submission.status))
+
+                                if (!pendingSubmission) return null
+
+                                return { milestone, submission: pendingSubmission }
+                        })
+                        .filter((item): item is { milestone: ContractMilestone; submission: ContractMilestoneSubmission } =>
+                                Boolean(item)
+                        )
+        }, [viewerRole, milestoneQuery.data])
 
         useEffect(() => {
                 const totalMilestones = milestoneQuery.data?.length ?? 0
@@ -964,6 +1004,119 @@ const ContractWorkroomPage = () => {
 
                 return (
                         <div className='space-y-6'>
+                                {viewerRole === 'client' && pendingReviewMilestones.length > 0 && (
+                                        <div className='space-y-4 rounded-[24px] border border-sky-200/80 bg-sky-50/80 p-5 shadow-inner shadow-white/60'>
+                                                <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+                                                        <div>
+                                                                <p className='text-[11px] font-semibold uppercase tracking-[0.35em] text-sky-500'>Bàn giao đang chờ duyệt</p>
+                                                                <h3 className='text-base font-semibold text-slate-900'>
+                                                                        {pendingReviewMilestones.length === 1
+                                                                                ? 'Có 1 bàn giao cần bạn xử lý'
+                                                                                : `Có ${pendingReviewMilestones.length} bàn giao cần bạn xử lý`}
+                                                                </h3>
+                                                                <p className='text-xs text-slate-500'>Xem nhanh các bàn giao mới nhất bên dưới hoặc duyệt ngay tại từng milestone.</p>
+                                                        </div>
+                                                </div>
+                                                <ul className='space-y-3'>
+                                                        {pendingReviewMilestones.slice(0, 3).map(({ milestone, submission }) => {
+                                                                const submittedAtText = submission.submittedAt
+                                                                        ? formatDateTime(submission.submittedAt, {
+                                                                                  dateStyle: 'medium',
+                                                                                  timeStyle: 'short'
+                                                                          })
+                                                                        : undefined
+                                                                const isCurrentReviewTarget =
+                                                                        milestoneReviewState?.milestone.id === milestone.id && isReviewingSubmission
+                                                                const reviewingMode = milestoneReviewState?.mode
+
+                                                                return (
+                                                                        <li
+                                                                                key={`${milestone.id}-${submission.id}`}
+                                                                                className='space-y-3 rounded-2xl border border-sky-200 bg-white/80 p-4 text-sm text-slate-600 shadow-sm'
+                                                                        >
+                                                                                <div className='flex flex-wrap items-start justify-between gap-3'>
+                                                                                        <div className='min-w-0 flex-1'>
+                                                                                                <p className='text-sm font-semibold text-slate-800'>{milestone.title}</p>
+                                                                                                {submittedAtText ? (
+                                                                                                        <p className='text-xs text-slate-400'>Gửi {submittedAtText}</p>
+                                                                                                ) : null}
+                                                                                                {submission.message ? (
+                                                                                                        <p
+                                                                                                                className='mt-1 text-xs text-slate-500'
+                                                                                                                style={{
+                                                                                                                        display: '-webkit-box',
+                                                                                                                        WebkitBoxOrient: 'vertical',
+                                                                                                                        WebkitLineClamp: 2,
+                                                                                                                        overflow: 'hidden'
+                                                                                                                }}
+                                                                                                        >
+                                                                                                                {submission.message}
+                                                                                                        </p>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
+                                                                                                Đang chờ duyệt
+                                                                                        </span>
+                                                                                </div>
+                                                                                <div className='flex flex-wrap items-center justify-end gap-2'>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-success btn-xs gap-2'
+                                                                                                onClick={() =>
+                                                                                                        setMilestoneReviewState({
+                                                                                                                milestone,
+                                                                                                                submission,
+                                                                                                                mode: 'approve'
+                                                                                                        })
+                                                                                                }
+                                                                                                disabled={isReviewingSubmission}
+                                                                                        >
+                                                                                                {isCurrentReviewTarget && reviewingMode === 'approve' ? (
+                                                                                                        <>
+                                                                                                                <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                Đang xử lý...
+                                                                                                        </>
+                                                                                                ) : (
+                                                                                                        <>
+                                                                                                                <CheckCircle2 className='size-3.5' />
+                                                                                                                Chấp nhận
+                                                                                                        </>
+                                                                                                )}
+                                                                                        </button>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-warning btn-xs gap-2'
+                                                                                                onClick={() =>
+                                                                                                        setMilestoneReviewState({
+                                                                                                                milestone,
+                                                                                                                submission,
+                                                                                                                mode: 'decline'
+                                                                                                        })
+                                                                                                }
+                                                                                                disabled={isReviewingSubmission}
+                                                                                        >
+                                                                                                {isCurrentReviewTarget && reviewingMode === 'decline' ? (
+                                                                                                        <>
+                                                                                                                <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                Đang xử lý...
+                                                                                                        </>
+                                                                                                ) : (
+                                                                                                        <>
+                                                                                                                <XCircle className='size-3.5' />
+                                                                                                                Yêu cầu chỉnh sửa
+                                                                                                        </>
+                                                                                                )}
+                                                                                        </button>
+                                                                                </div>
+                                                                        </li>
+                                                                )
+                                                        })}
+                                                </ul>
+                                                {pendingReviewMilestones.length > 3 ? (
+                                                        <p className='text-xs text-slate-500'>Các bàn giao còn lại được hiển thị trong danh sách milestone bên dưới.</p>
+                                                ) : null}
+                                        </div>
+                                )}
                                 <div className='flex flex-col items-stretch justify-between gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 md:flex-row md:items-center'>
                                         <div className='text-left text-slate-600'>
                                                 <p className='font-semibold text-slate-800'>Quản lý milestones</p>
@@ -1032,7 +1185,7 @@ const ContractWorkroomPage = () => {
                                                                 return bTime - aTime
                                                         })
                                                 const pendingSubmission = submissions.find(submission =>
-                                                        (submission.status ?? '').toUpperCase() === 'SUBMITTED'
+                                                        isSubmissionAwaitingReview(submission.status)
                                                 )
                                                 const isMilestoneReleased =
                                                         normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
