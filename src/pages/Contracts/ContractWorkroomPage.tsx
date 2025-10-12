@@ -62,6 +62,10 @@ import {
         getParticipantLocation,
         getParticipantName
 } from './utils'
+import type {
+        ApproveMilestoneSubmissionFormValues,
+        DeclineMilestoneSubmissionFormValues
+} from './schemas'
 import CreateMilestoneDialog from './components/CreateMilestoneDialog'
 import SubmitMilestoneWorkDialog from './components/SubmitMilestoneWorkDialog'
 import ReviewMilestoneSubmissionDialog from './components/ReviewMilestoneSubmissionDialog'
@@ -1871,17 +1875,22 @@ const ContractWorkroomPage = () => {
                                 }
                                 onSubmit={async values => {
                                         if (!milestoneReviewState) return
+
                                         if (milestoneReviewState.mode === 'approve') {
+                                                const { note } = values as ApproveMilestoneSubmissionFormValues
+
                                                 await approveMilestoneSubmissionMutation.mutateAsync({
                                                         milestoneId: milestoneReviewState.milestone.id,
                                                         submissionId: milestoneReviewState.submission.id,
-                                                        note: (values as { note?: string }).note
+                                                        note
                                                 })
                                         } else {
+                                                const { reason } = values as DeclineMilestoneSubmissionFormValues
+
                                                 await declineMilestoneSubmissionMutation.mutateAsync({
                                                         milestoneId: milestoneReviewState.milestone.id,
                                                         submissionId: milestoneReviewState.submission.id,
-                                                        reason: (values as { reason: string }).reason
+                                                        reason
                                                 })
                                         }
                                 }}

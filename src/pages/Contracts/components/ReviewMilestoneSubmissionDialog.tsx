@@ -65,7 +65,8 @@ const ReviewMilestoneSubmissionDialog = ({
                 register,
                 handleSubmit,
                 reset,
-                formState: { errors }
+                watch,
+                formState: { errors, isSubmitting: isFormSubmitting }
         } = useForm<
                 ApproveMilestoneSubmissionFormValues | DeclineMilestoneSubmissionFormValues
         >({
@@ -82,11 +83,30 @@ const ReviewMilestoneSubmissionDialog = ({
         }, [open, mode, reset])
 
         const submit = handleSubmit(async values => {
-                await onSubmit(values)
+                const sanitizedValues =
+                        mode === 'approve'
+                                ? {
+                                          note: values.note?.trim() ? values.note.trim() : undefined
+                                  }
+                                : {
+                                          reason: values.reason.trim()
+                                  }
+
+                await onSubmit(
+                        sanitizedValues as
+                                | ApproveMilestoneSubmissionFormValues
+                                | DeclineMilestoneSubmissionFormValues
+                )
                 reset(mode === 'approve' ? { note: '' } : { reason: '' })
         })
 
         const errorMessage = mode === 'approve' ? errors?.note?.message : errors?.reason?.message
+        const declineReason = watch('reason')
+        const trimmedReason =
+                typeof declineReason === 'string' ? declineReason.trim() : undefined
+        const isExternalSubmitting = isSubmitting || isFormSubmitting
+        const isSubmitDisabled =
+                isExternalSubmitting || (mode === 'decline' && !trimmedReason?.length)
 
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
@@ -105,11 +125,11 @@ const ReviewMilestoneSubmissionDialog = ({
                                                 type='button'
                                                 className='btn btn-ghost btn-sm rounded-full'
                                                 onClick={() => {
-                                                        if (isSubmitting) return
+                                                        if (isExternalSubmitting) return
                                                         onClose()
                                                 }}
                                                 aria-label='Đóng đánh giá bàn giao'
-                                                disabled={isSubmitting}
+                                                disabled={isExternalSubmitting}
                                         >
                                                 <X className='size-4' />
                                         </button>
@@ -137,7 +157,7 @@ const ReviewMilestoneSubmissionDialog = ({
                                                                         ? 'Ví dụ: Cảm ơn bạn! Hãy chuẩn bị triển khai bước tiếp theo.'
                                                                         : 'Ví dụ: Cần bổ sung trạng thái loading và cập nhật tài liệu hướng dẫn.'
                                                         }
-                                                        disabled={isSubmitting}
+                                                        disabled={isExternalSubmitting}
                                                 />
                                                 {errorMessage ? (
                                                         <p className='text-xs text-error'>{errorMessage}</p>
@@ -157,19 +177,19 @@ const ReviewMilestoneSubmissionDialog = ({
                                                                 type='button'
                                                                 className='btn btn-ghost btn-sm'
                                                                 onClick={() => {
-                                                                        if (isSubmitting) return
+                                                                        if (isExternalSubmitting) return
                                                                         onClose()
                                                                 }}
-                                                                disabled={isSubmitting}
+                                                                disabled={isExternalSubmitting}
                                                         >
                                                                 Hủy
                                                         </button>
                                                         <button
                                                                 type='submit'
                                                                 className={`btn btn-sm gap-2 ${mode === 'approve' ? 'btn-success' : 'btn-warning'}`}
-                                                                disabled={isSubmitting}
+                                                                disabled={isSubmitDisabled}
                                                         >
-                                                                {isSubmitting ? (
+                                                                {isExternalSubmitting ? (
                                                                         <>
                                                                                 <Loader2 className='size-4 animate-spin' />
                                                                                 Đang gửi...
