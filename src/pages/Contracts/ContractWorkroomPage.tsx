@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
@@ -81,6 +81,8 @@ const tabs = [
 ] as const
 
 type ViewerRole = 'client' | 'freelancer' | 'all'
+
+const MILESTONES_PER_PAGE = 4
 
 const milestoneStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
         PENDING: { label: 'Chờ bắt đầu', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
@@ -319,6 +321,7 @@ const ContractWorkroomPage = () => {
 	const navigate = useNavigate()
 	const currentUser = useSelector(selectCurrentUser)
         const [activeTab, setActiveTab] = useState<TabId>('overview')
+        const [milestonePage, setMilestonePage] = useState(1)
         const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
         const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
         const [resourceToDelete, setResourceToDelete] = useState<{
@@ -357,6 +360,23 @@ const ContractWorkroomPage = () => {
                 },
                 enabled: Boolean(contractId) && activeTab === 'milestones'
         })
+
+        useEffect(() => {
+                const totalMilestones = milestoneQuery.data?.length ?? 0
+
+                if (!totalMilestones) {
+                        if (milestonePage !== 1) {
+                                setMilestonePage(1)
+                        }
+                        return
+                }
+
+                const totalPages = Math.max(1, Math.ceil(totalMilestones / MILESTONES_PER_PAGE))
+
+                if (milestonePage > totalPages) {
+                        setMilestonePage(totalPages)
+                }
+        }, [milestonePage, milestoneQuery.data])
 
         const paymentMethodsQuery = useQuery({
                 queryKey: ['payment-methods'],
@@ -914,6 +934,14 @@ const ContractWorkroomPage = () => {
                         approveMilestoneSubmissionMutation.isPending ||
                         declineMilestoneSubmissionMutation.isPending
                 const isFundingMilestone = payMilestoneMutation.isPending
+                const totalMilestones = milestones.length
+                const totalPages = Math.max(1, Math.ceil(totalMilestones / MILESTONES_PER_PAGE))
+                const currentPage = Math.min(milestonePage, totalPages)
+                const pageStart = (currentPage - 1) * MILESTONES_PER_PAGE
+                const pageEnd = Math.min(pageStart + MILESTONES_PER_PAGE, totalMilestones)
+                const visibleMilestones = milestones.slice(pageStart, pageEnd)
+                const displayStart = totalMilestones ? pageStart + 1 : 0
+                const displayEnd = pageEnd
                 if (!milestones.length) {
                         return (
                                 <div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
@@ -936,33 +964,42 @@ const ContractWorkroomPage = () => {
 
                 return (
                         <div className='space-y-6'>
-                                {viewerRole === 'client' && (
-                                        <div className='flex flex-col items-stretch justify-between gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 md:flex-row md:items-center'>
-                                                <div className='text-left text-slate-600'>
-                                                        <p className='font-semibold text-slate-800'>Quản lý milestones</p>
-                                                        <p className='text-xs text-slate-500'>Tạo milestone mới để lên kế hoạch bàn giao và giải ngân.</p>
-                                                </div>
-                                                <button
-                                                        type='button'
-                                                        onClick={() => setCreateMilestoneOpen(true)}
-                                                        className='inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-                                                        disabled={createMilestoneMutation.isPending}
-                                                >
-                                                        {createMilestoneMutation.isPending ? (
-                                                                <>
-                                                                        <Loader2 className='size-4 animate-spin' />
-                                                                        Đang tạo...
-                                                                </>
-                                                        ) : (
-                                                                <>
-                                                                        <Flag className='size-4' /> Tạo milestone
-                                                                </>
-                                                        )}
-                                                </button>
+                                <div className='flex flex-col items-stretch justify-between gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 md:flex-row md:items-center'>
+                                        <div className='text-left text-slate-600'>
+                                                <p className='font-semibold text-slate-800'>Quản lý milestones</p>
+                                                <p className='text-xs text-slate-500'>
+                                                        {totalMilestones
+                                                                ? `Hiển thị ${displayStart}-${displayEnd} trên tổng ${totalMilestones} milestone${totalMilestones > 1 ? 's' : ''}.`
+                                                                : 'Không có milestone nào trong hợp đồng này.'}
+                                                </p>
                                         </div>
-                                )}
-                                <div className='grid gap-4 md:grid-cols-2'>
-                                        {milestones.map(milestone => {
+                                        <div className='flex flex-wrap items-center gap-2'>
+                                                {totalPages > 1 && (
+                                                        <span className='text-xs text-slate-500'>Trang {currentPage}/{totalPages}</span>
+                                                )}
+                                                {viewerRole === 'client' && (
+                                                        <button
+                                                                type='button'
+                                                                onClick={() => setCreateMilestoneOpen(true)}
+                                                                className='inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+                                                                disabled={createMilestoneMutation.isPending}
+                                                        >
+                                                                {createMilestoneMutation.isPending ? (
+                                                                        <>
+                                                                                <Loader2 className='size-4 animate-spin' />
+                                                                                Đang tạo...
+                                                                        </>
+                                                                ) : (
+                                                                        <>
+                                                                                <Flag className='size-4' /> Tạo milestone
+                                                                        </>
+                                                                )}
+                                                        </button>
+                                                )}
+                                        </div>
+                                </div>
+                                <div className='space-y-4'>
+                                        {visibleMilestones.map(milestone => {
                                                 const meta = getMilestoneStatusMeta(milestone.status)
                                                 const amount = formatCurrency(milestone.amount ?? undefined, milestone.currency ?? currency)
                                                 const isDeleting =
@@ -1032,11 +1069,15 @@ const ContractWorkroomPage = () => {
                                                 const shouldWarnUnfunded =
                                                         viewerRole === 'freelancer' && escrowMeta.status === 'UNFUNDED'
                                                 const showMilestoneActions = canSubmitWork
+                                                const hasPendingSubmission = Boolean(pendingSubmission)
+                                                const isReviewingCurrentMilestone =
+                                                        isReviewingSubmission &&
+                                                        milestoneReviewState?.milestone.id === milestone.id
 
                                                 return (
                                                         <div
                                                                 key={milestone.id}
-                                                                className='flex h-full flex-col justify-between rounded-[26px] border border-white/70 bg-white/85 p-5 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                                                className='flex h-full flex-col justify-between rounded-[26px] border border-slate-200/80 bg-white/95 p-5 shadow-sm transition-shadow hover:shadow-md'>
                                                                 <div className='space-y-3'>
                                                                         <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6'>
                                                                                 <div>
@@ -1058,6 +1099,11 @@ const ContractWorkroomPage = () => {
                                                                                                 <span className='size-2 rounded-full bg-current'></span>
                                                                                                 {meta.label}
                                                                                         </span>
+                                                                                        {hasPendingSubmission && (
+                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
+                                                                                                        Đang chờ duyệt
+                                                                                                </span>
+                                                                                        )}
                                                                                         {canFundMilestone && (
                                                                                                 <button
                                                                                                         type='button'
@@ -1137,20 +1183,70 @@ const ContractWorkroomPage = () => {
                                                                         </div>
                                                                 )}
                                                                 {viewerRole === 'client' && pendingSubmission ? (
-                                                                        <div className='space-y-3 rounded-2xl border border-sky-200 bg-sky-50/70 p-4'>
-                                                                                <div className='flex flex-col gap-2 md:flex-row md:items-start md:justify-between'>
-                                                                                        <div>
+                                                                        <div className='space-y-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4'>
+                                                                                <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
+                                                                                        <div className='min-w-0 flex-1 space-y-2'>
                                                                                                 <p className='text-xs font-semibold uppercase tracking-[0.25em] text-sky-600'>Bàn giao chờ duyệt</p>
-                                                                                                <p className='mt-2 whitespace-pre-line text-sm text-slate-700'>
+                                                                                                <p className='whitespace-pre-line text-sm text-slate-700'>
                                                                                                         {pendingSubmission.message ?? 'Không có mô tả chi tiết.'}
                                                                                                 </p>
                                                                                                 {pendingSubmission.note ? (
-                                                                                                        <p className='mt-2 text-xs text-slate-500'>Ghi chú: {pendingSubmission.note}</p>
+                                                                                                        <p className='text-xs text-slate-500'>Ghi chú: {pendingSubmission.note}</p>
                                                                                                 ) : null}
+                                                                                                {pendingSubmittedAtText && (
+                                                                                                        <span className='text-xs text-slate-400'>Gửi {pendingSubmittedAtText}</span>
+                                                                                                )}
                                                                                         </div>
-                                                                                        {pendingSubmittedAtText && (
-                                                                                                <span className='text-xs text-slate-500 md:text-right'>Gửi {pendingSubmittedAtText}</span>
-                                                                                        )}
+                                                                                        <div className='flex flex-shrink-0 flex-wrap items-center justify-end gap-2'>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-success btn-sm gap-2'
+                                                                                                        onClick={() =>
+                                                                                                                setMilestoneReviewState({
+                                                                                                                        milestone,
+                                                                                                                        submission: pendingSubmission,
+                                                                                                                        mode: 'approve'
+                                                                                                                })
+                                                                                                        }
+                                                                                                        disabled={isReviewingSubmission}
+                                                                                                >
+                                                                                                        {isReviewingCurrentMilestone && milestoneReviewState?.mode === 'approve' ? (
+                                                                                                                <>
+                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                        Đang xử lý...
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <CheckCircle2 className='size-3.5' />
+                                                                                                                        Chấp nhận
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </button>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-warning btn-sm gap-2'
+                                                                                                        onClick={() =>
+                                                                                                                setMilestoneReviewState({
+                                                                                                                        milestone,
+                                                                                                                        submission: pendingSubmission,
+                                                                                                                        mode: 'decline'
+                                                                                                                })
+                                                                                                        }
+                                                                                                        disabled={isReviewingSubmission}
+                                                                                                >
+                                                                                                        {isReviewingCurrentMilestone && milestoneReviewState?.mode === 'decline' ? (
+                                                                                                                <>
+                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                        Đang xử lý...
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <XCircle className='size-3.5' />
+                                                                                                                        Yêu cầu chỉnh sửa
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </button>
+                                                                                        </div>
                                                                                 </div>
                                                                                 {pendingSubmissionAttachments.length ? (
                                                                                         <ul className='space-y-2'>
@@ -1185,56 +1281,6 @@ const ContractWorkroomPage = () => {
                                                                                                 ))}
                                                                                         </ul>
                                                                                 ) : null}
-                                                                                <div className='flex flex-wrap justify-end gap-2'>
-                                                                                        <button
-                                                                                                type='button'
-                                                                                                className='btn btn-success btn-xs gap-2'
-                                                                                                onClick={() =>
-                                                                                                        setMilestoneReviewState({
-                                                                                                                milestone,
-                                                                                                                submission: pendingSubmission,
-                                                                                                                mode: 'approve'
-                                                                                                        })
-                                                                                                }
-                                                                                                disabled={isReviewingSubmission}
-                                                                                        >
-                                                                                                {isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id ? (
-                                                                                                        <>
-                                                                                                                <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                Đang xử lý...
-                                                                                                        </>
-                                                                                                ) : (
-                                                                                                        <>
-                                                                                                                <CheckCircle2 className='size-3.5' />
-                                                                                                                Chấp nhận
-                                                                                                        </>
-                                                                                                )}
-                                                                                        </button>
-                                                                                        <button
-                                                                                                type='button'
-                                                                                                className='btn btn-warning btn-xs gap-2'
-                                                                                                onClick={() =>
-                                                                                                        setMilestoneReviewState({
-                                                                                                                milestone,
-                                                                                                                submission: pendingSubmission,
-                                                                                                                mode: 'decline'
-                                                                                                        })
-                                                                                                }
-                                                                                                disabled={isReviewingSubmission}
-                                                                                        >
-                                                                                                {isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id ? (
-                                                                                                        <>
-                                                                                                                <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                Đang xử lý...
-                                                                                                        </>
-                                                                                                ) : (
-                                                                                                        <>
-                                                                                                                <XCircle className='size-3.5' />
-                                                                                                                Yêu cầu chỉnh sửa
-                                                                                                        </>
-                                                                                                )}
-                                                                                        </button>
-                                                                                </div>
                                                                         </div>
                                                                 ) : null}
                                                                 {showMilestoneActions && (
@@ -1562,6 +1608,40 @@ const ContractWorkroomPage = () => {
 					)
                                         })}
                                 </div>
+                                {totalPages > 1 && (
+                                        <div className='flex flex-col gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 sm:flex-row sm:items-center sm:justify-between'>
+                                                <span className='text-xs text-slate-500'>Trang {currentPage}/{totalPages}</span>
+                                                <div className='flex flex-wrap items-center gap-2'>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-ghost btn-sm'
+                                                                onClick={() => setMilestonePage(page => Math.max(1, page - 1))}
+                                                                disabled={currentPage === 1}
+                                                        >
+                                                                Trước
+                                                        </button>
+                                                        <select
+                                                                className='select select-bordered select-sm w-auto min-w-[80px]'
+                                                                value={currentPage}
+                                                                onChange={event => setMilestonePage(Number(event.target.value))}
+                                                        >
+                                                                {Array.from({ length: totalPages }, (_, index) => index + 1).map(pageNumber => (
+                                                                        <option key={pageNumber} value={pageNumber}>
+                                                                                Trang {pageNumber}
+                                                                        </option>
+                                                                ))}
+                                                        </select>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-ghost btn-sm'
+                                                                onClick={() => setMilestonePage(page => Math.min(totalPages, page + 1))}
+                                                                disabled={currentPage === totalPages}
+                                                        >
+                                                                Sau
+                                                        </button>
+                                                </div>
+                                        </div>
+                                )}
                         </div>
                 )
         }
