@@ -169,6 +169,8 @@ export type ContractMilestone = {
         description?: string | null
         amount?: number | null
         currency?: string | null
+        startDate?: string | null
+        endDate?: string | null
         dueDate?: string | null
         releasedAt?: string | null
         approvedAt?: string | null
@@ -206,6 +208,8 @@ export type CreateContractMilestoneInput = {
         title: string
         amount: number
         currency: string
+        startDate?: string | null
+        endDate?: string | null
 }
 
 export type SubmitMilestoneWorkInput = {

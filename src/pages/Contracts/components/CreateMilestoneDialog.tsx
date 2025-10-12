@@ -36,17 +36,23 @@ const CreateMilestoneDialog = ({
         const [attachments, setAttachments] = useState<File[]>([])
         const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+        const normalizedCurrency = useMemo(() => (currency ?? 'USD').toUpperCase(), [currency])
+
         const {
                 control,
                 handleSubmit,
                 register,
                 reset,
+                setValue,
                 formState: { errors }
         } = useForm<CreateContractMilestoneFormValues>({
                 resolver: zodResolver(CreateContractMilestoneSchema) as Resolver<CreateContractMilestoneFormValues>,
                 defaultValues: {
                         title: '',
-                        amount: undefined as unknown as number
+                        amount: undefined as unknown as number,
+                        currency: normalizedCurrency,
+                        startDate: undefined,
+                        endDate: undefined
                 }
         })
 
@@ -54,10 +60,17 @@ const CreateMilestoneDialog = ({
                 if (!open) return
                 reset({
                         title: '',
-                        amount: undefined as unknown as number
+                        amount: undefined as unknown as number,
+                        currency: normalizedCurrency,
+                        startDate: undefined,
+                        endDate: undefined
                 })
                 setAttachments([])
-        }, [open, reset])
+        }, [open, reset, normalizedCurrency])
+
+        useEffect(() => {
+                setValue('currency', normalizedCurrency)
+        }, [normalizedCurrency, setValue])
 
         const closeDialog = () => {
                 if (isSubmitting) return
@@ -107,21 +120,37 @@ const CreateMilestoneDialog = ({
                 return `${attachments.length} tệp · ${formatFileSize(totalSize) ?? ''}`.trim()
         }, [attachments])
 
-        const submit = handleSubmit(async values => {
-                await onSubmit({
-                        ...values,
-                        currency: (currency ?? 'USD').toUpperCase()
-                }, attachments)
+        const submit = handleSubmit(async ({
+                startDate,
+                endDate,
+                currency: formCurrency,
+                ...rest
+        }) => {
+                const resolvedCurrency = (currency ?? formCurrency ?? 'USD').toUpperCase()
+
+                await onSubmit(
+                        {
+                                ...rest,
+                                currency: resolvedCurrency,
+                                startDate: startDate ? startDate.toISOString() : undefined,
+                                endDate: endDate ? endDate.toISOString() : undefined
+                        },
+                        attachments
+                )
                 reset({
                         title: '',
-                        amount: undefined as unknown as number
+                        amount: undefined as unknown as number,
+                        currency: resolvedCurrency,
+                        startDate: undefined,
+                        endDate: undefined
                 })
                 setAttachments([])
         })
 
         const titleError = errors.title?.message
         const amountError = errors.amount?.message
-        const displayCurrency = (currency ?? 'USD').toUpperCase()
+        const startDateError = errors.startDate?.message
+        const endDateError = errors.endDate?.message
 
         const renderAttachmentIcon = (file: File) => {
                 if (file.type.startsWith('image/')) {
@@ -210,9 +239,79 @@ const CreateMilestoneDialog = ({
                                                         <div className='space-y-2'>
                                                                 <label className='text-sm font-semibold text-base-content'>Tiền tệ</label>
                                                                 <div className='flex h-11 items-center justify-between rounded-xl border border-base-300 bg-base-100 px-3 font-semibold uppercase tracking-[0.3em] text-base-content/80'>
-                                                                        <span>{displayCurrency}</span>
+                                                                        <span>{normalizedCurrency}</span>
                                                                 </div>
                                                                 <p className='text-xs text-base-content/60'>Tiền tệ được cố định theo hợp đồng.</p>
+                                                                <input type='hidden' {...register('currency')} />
+                                                        </div>
+                                                </div>
+
+                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                        <div className='space-y-2'>
+                                                                <label className='text-sm font-semibold text-base-content'>Ngày bắt đầu (tùy chọn)</label>
+                                                                <Controller
+                                                                        control={control}
+                                                                        name='startDate'
+                                                                        render={({ field }) => (
+                                                                                <input
+                                                                                        type='date'
+                                                                                        className='input input-bordered w-full'
+                                                                                        value={
+                                                                                                field.value instanceof Date
+                                                                                                        ? field.value.toISOString().slice(0, 10)
+                                                                                                        : ''
+                                                                                        }
+                                                                                        onChange={event => {
+                                                                                                const { value } = event.target
+                                                                                                if (!value) {
+                                                                                                        field.onChange(undefined)
+                                                                                                        return
+                                                                                                }
+                                                                                                const parsed = new Date(value)
+                                                                                                field.onChange(Number.isNaN(parsed.getTime()) ? field.value : parsed)
+                                                                                        }}
+                                                                                        disabled={isSubmitting}
+                                                                                />
+                                                                        )}
+                                                                />
+                                                                {startDateError ? (
+                                                                        <p className='text-xs text-error'>{startDateError}</p>
+                                                                ) : (
+                                                                        <p className='text-xs text-base-content/60'>Chọn ngày dự kiến bắt đầu milestone.</p>
+                                                                )}
+                                                        </div>
+                                                        <div className='space-y-2'>
+                                                                <label className='text-sm font-semibold text-base-content'>Ngày kết thúc (tùy chọn)</label>
+                                                                <Controller
+                                                                        control={control}
+                                                                        name='endDate'
+                                                                        render={({ field }) => (
+                                                                                <input
+                                                                                        type='date'
+                                                                                        className='input input-bordered w-full'
+                                                                                        value={
+                                                                                                field.value instanceof Date
+                                                                                                        ? field.value.toISOString().slice(0, 10)
+                                                                                                        : ''
+                                                                                        }
+                                                                                        onChange={event => {
+                                                                                                const { value } = event.target
+                                                                                                if (!value) {
+                                                                                                        field.onChange(undefined)
+                                                                                                        return
+                                                                                                }
+                                                                                                const parsed = new Date(value)
+                                                                                                field.onChange(Number.isNaN(parsed.getTime()) ? field.value : parsed)
+                                                                                        }}
+                                                                                        disabled={isSubmitting}
+                                                                                />
+                                                                        )}
+                                                                />
+                                                                {endDateError ? (
+                                                                        <p className='text-xs text-error'>{endDateError}</p>
+                                                                ) : (
+                                                                        <p className='text-xs text-base-content/60'>Thiết lập hạn hoàn thành để theo dõi tiến độ.</p>
+                                                                )}
                                                         </div>
                                                 </div>
 

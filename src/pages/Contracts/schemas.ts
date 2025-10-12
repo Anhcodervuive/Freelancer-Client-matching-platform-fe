@@ -1,13 +1,47 @@
 import { z } from 'zod'
 
-export const CreateContractMilestoneSchema = z.object({
-        title: z
-                .string()
-                .trim()
-                .min(1, 'Vui lòng nhập tiêu đề milestone')
-                .max(255, 'Tiêu đề tối đa 255 ký tự'),
-        amount: z.coerce.number().positive('Số tiền phải lớn hơn 0')
-})
+const coerceDate = (value: unknown) => {
+        if (value === undefined || value === null || value instanceof Date) return value
+        if (typeof value === 'string' && value.trim() === '') return undefined
+        const parsed = new Date(value as string | number)
+        return Number.isNaN(parsed.getTime()) ? value : parsed
+}
+
+const CurrencySchema = z
+        .string()
+        .trim()
+        .min(3, 'Currency phải có tối thiểu 3 ký tự')
+        .max(3, 'Currency phải có tối đa 3 ký tự')
+
+export const CreateContractMilestoneSchema = z
+        .object({
+                title: z
+                        .string()
+                        .trim()
+                        .min(1, 'Vui lòng nhập tiêu đề milestone')
+                        .max(255, 'Tiêu đề tối đa 255 ký tự'),
+                amount: z.coerce.number().positive('Số tiền phải lớn hơn 0'),
+                currency: CurrencySchema,
+                startDate: z.preprocess(coerceDate, z.date().nullable().optional()),
+                endDate: z.preprocess(coerceDate, z.date().nullable().optional())
+        })
+        .superRefine((data, ctx) => {
+                if (data.startDate && data.endDate && data.startDate > data.endDate) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'startDate phải trước hoặc bằng endDate',
+                                path: ['startDate']
+                        })
+                }
+
+                if (data.endDate && !(data.endDate instanceof Date)) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'endDate không hợp lệ',
+                                path: ['endDate']
+                        })
+                }
+        })
 
 export type CreateContractMilestoneFormValues = z.infer<typeof CreateContractMilestoneSchema>
 
