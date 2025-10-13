@@ -233,6 +233,20 @@ export type DeclineMilestoneSubmissionInput = {
 export type PayContractMilestoneInput = {
         paymentMethodId: string
         note?: string
+        idempotencyKey?: string
+}
+
+export type PayContractMilestoneResponse = {
+        status?: string
+        paymentStatus?: string
+        requiresAction?: boolean
+        clientSecret?: string
+        client_secret?: string
+        idempotencyKey?: string
+        idemKey?: string
+        paymentIntentId?: string
+        payment_intent_id?: string
+        [key: string]: unknown
 }
 
 export type ContractListFilterInput = {

@@ -1,14 +1,15 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import type {
-	ApproveMilestoneSubmissionInput,
-	Contract,
-	ContractListFilterInput,
-	ContractMilestone,
-	CreateContractMilestoneInput,
-	DeclineMilestoneSubmissionInput,
-	PaginatedContractResponse,
-	PayContractMilestoneInput,
-	SubmitMilestoneWorkInput
+        ApproveMilestoneSubmissionInput,
+        Contract,
+        ContractListFilterInput,
+        ContractMilestone,
+        CreateContractMilestoneInput,
+        DeclineMilestoneSubmissionInput,
+        PaginatedContractResponse,
+        PayContractMilestoneInput,
+        PayContractMilestoneResponse,
+        SubmitMilestoneWorkInput
 } from '~/types/contract'
 
 const baseUrl = '/contracts'
@@ -173,11 +174,18 @@ export const declineMilestoneSubmission = async (
 	return response.data
 }
 
-export const payMilestone = async (contractId: string, milestoneId: string, payload: PayContractMilestoneInput) => {
-	const response = await authorizeAxiosInstance.post(`${baseUrl}/${contractId}/milestones/${milestoneId}/pay`, {
-		...payload,
-		paymentMethodRefId: payload.paymentMethodId
-	})
+export const payMilestone = async (
+        contractId: string,
+        milestoneId: string,
+        payload: PayContractMilestoneInput
+): Promise<PayContractMilestoneResponse> => {
+        const response = await authorizeAxiosInstance.post<PayContractMilestoneResponse>(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/pay`,
+                {
+                        ...payload,
+                        paymentMethodRefId: payload.paymentMethodId
+                }
+        )
 
-	return response.data
+        return response.data ?? {}
 }

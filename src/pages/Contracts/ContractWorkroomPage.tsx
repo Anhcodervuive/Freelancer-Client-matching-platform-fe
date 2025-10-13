@@ -49,12 +49,15 @@ import type {
         ContractMilestone,
         ContractMilestoneSubmission,
         ContractMilestoneResource,
-        CreateContractMilestoneInput
+        CreateContractMilestoneInput,
+        PayContractMilestoneInput,
+        PayContractMilestoneResponse
 } from '~/types/contract'
 import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
 import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
+import { getStripe } from '~/utils/stripe'
 import {
         extractLanguageLabels,
         extractSkillNames,
@@ -153,6 +156,103 @@ const pendingReviewStatuses = new Set([
 const isSubmissionAwaitingReview = (status?: string | null) => {
         if (!status) return false
         return pendingReviewStatuses.has(status.toUpperCase())
+}
+
+const paymentResponseKeys = [
+        'status',
+        'paymentStatus',
+        'payment_status',
+        'requiresAction',
+        'requires_action',
+        'clientSecret',
+        'client_secret',
+        'idempotencyKey',
+        'idemKey',
+        'idempotency_key',
+        'paymentIntentId',
+        'payment_intent_id',
+        'payment_intent'
+] as const
+
+type PaymentResponseRecord = Record<string, unknown>
+
+const pickString = (source: PaymentResponseRecord, keys: readonly string[]) => {
+        for (const key of keys) {
+                const value = source[key]
+                if (typeof value === 'string' && value.trim()) {
+                        return value.trim()
+                }
+        }
+
+        return undefined
+}
+
+const findPaymentResponse = (
+        payload: unknown,
+        visited = new Set<PaymentResponseRecord>()
+): PaymentResponseRecord | null => {
+        if (!payload || typeof payload !== 'object') {
+                return null
+        }
+
+        const record = payload as PaymentResponseRecord
+
+        if (visited.has(record)) {
+                return null
+        }
+
+        visited.add(record)
+
+        if (paymentResponseKeys.some(key => key in record)) {
+                return record
+        }
+
+        for (const value of Object.values(record)) {
+                const nested = findPaymentResponse(value, visited)
+                if (nested) {
+                        return nested
+                }
+        }
+
+        return null
+}
+
+const extractPaymentMeta = (
+        payload?: PayContractMilestoneResponse | null
+): {
+        status?: string
+        clientSecret?: string
+        idempotencyKey?: string
+        paymentIntentId?: string
+        requiresAction: boolean
+} => {
+        if (!payload || typeof payload !== 'object') {
+                return {
+                        status: undefined,
+                        clientSecret: undefined,
+                        idempotencyKey: undefined,
+                        paymentIntentId: undefined,
+                        requiresAction: false
+                }
+        }
+
+        const container = findPaymentResponse(payload) ?? (payload as PaymentResponseRecord)
+        const status = pickString(container, ['status', 'paymentStatus', 'payment_status'])
+        const clientSecret = pickString(container, ['clientSecret', 'client_secret'])
+        const idempotencyKey = pickString(container, ['idempotencyKey', 'idemKey', 'idempotency_key'])
+        const paymentIntentId = pickString(container, ['paymentIntentId', 'payment_intent_id', 'payment_intent'])
+        const requiresAction =
+                container.requiresAction === true ||
+                container['requires_action'] === true ||
+                (typeof status === 'string' && status.toUpperCase() === 'REQUIRES_ACTION')
+
+        return {
+                status,
+                clientSecret,
+                idempotencyKey,
+                paymentIntentId,
+                requiresAction
+        }
 }
 
 type EscrowStatusMeta = {
@@ -612,7 +712,63 @@ const ContractWorkroomPage = () => {
         >({
                 mutationFn: async ({ milestoneId, paymentMethodId, note }) => {
                         if (!contractId) throw new Error('Missing contract ID')
-                        await payMilestone(contractId, milestoneId, { paymentMethodId, note })
+
+                        const performPayment = async (idempotencyKey?: string) => {
+                                const payload: PayContractMilestoneInput = {
+                                        paymentMethodId
+                                }
+
+                                if (typeof note === 'string' && note.trim().length > 0) {
+                                        payload.note = note
+                                }
+
+                                if (idempotencyKey) {
+                                        payload.idempotencyKey = idempotencyKey
+                                }
+
+                                return await payMilestone(contractId, milestoneId, payload)
+                        }
+
+                        const initialResponse = await performPayment()
+                        const initialMeta = extractPaymentMeta(initialResponse)
+
+                        if (!initialMeta.requiresAction) {
+                                return
+                        }
+
+                        if (!initialMeta.clientSecret) {
+                                throw new Error('Thiếu client secret để xác thực 3-D Secure.')
+                        }
+
+                        const stripe = await getStripe()
+                        const confirmation = await stripe.confirmCardPayment(initialMeta.clientSecret, {
+                                payment_method: paymentMethodId
+                        })
+
+                        if (confirmation.error) {
+                                throw new Error(
+                                        confirmation.error.message || 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
+                                )
+                        }
+
+                        const normalizedIdempotencyKey =
+                                initialMeta.idempotencyKey ||
+                                initialMeta.paymentIntentId ||
+                                confirmation.paymentIntent?.id ||
+                                undefined
+
+                        if (!normalizedIdempotencyKey) {
+                                throw new Error('Không tìm thấy idempotency key để hoàn tất thanh toán.')
+                        }
+
+                        const finalResponse = await performPayment(normalizedIdempotencyKey)
+                        const finalMeta = extractPaymentMeta(finalResponse)
+
+                        if (finalMeta.requiresAction) {
+                                throw new Error(
+                                        'Thanh toán vẫn cần xác thực bổ sung. Vui lòng kiểm tra lại trạng thái 3-D Secure.'
+                                )
+                        }
                 },
                 onSuccess: () => {
                         toast.success('Đã giải ngân milestone thành công')
@@ -620,8 +776,15 @@ const ContractWorkroomPage = () => {
                         queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
                         queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
                 },
-                onError: () => {
-                        toast.error('Không thể giải ngân milestone. Vui lòng thử lại.')
+                onError: error => {
+                        const message =
+                                error instanceof Error
+                                        ? error.message
+                                        : typeof error === 'string'
+                                              ? error
+                                              : 'Không thể giải ngân milestone. Vui lòng thử lại.'
+
+                        toast.error(message)
                 }
         })
 
