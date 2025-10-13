@@ -27,6 +27,7 @@ type FundMilestoneDialogProps = {
         onRefreshPaymentMethods?: () => void
         onSubmit: (_values: PayMilestoneFormValues) => Promise<void> | void
         onClose: () => void
+        pendingIdempotencyKey?: string
 }
 
 const formatPaymentMethodLabel = (method: PaymentMethod) => {
@@ -52,12 +53,14 @@ const FundMilestoneDialog = ({
         isSubmitting = false,
         onRefreshPaymentMethods,
         onSubmit,
-        onClose
+        onClose,
+        pendingIdempotencyKey
 }: FundMilestoneDialogProps) => {
         const {
                 register,
                 handleSubmit,
                 reset,
+                setValue,
                 formState: { errors }
         } = useForm<PayMilestoneFormValues>({
                 resolver: zodResolver(PayMilestoneSchema) as Resolver<PayMilestoneFormValues>,

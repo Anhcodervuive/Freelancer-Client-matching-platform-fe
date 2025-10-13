@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
@@ -502,6 +502,9 @@ const ContractWorkroomPage = () => {
                 mode: 'approve' | 'decline'
         } | null>(null)
         const [milestoneToFund, setMilestoneToFund] = useState<ContractMilestone | null>(null)
+        const pendingPaymentMetaRef = useRef<
+                Record<string, { idempotencyKey?: string; clientSecret?: string }>
+        >({})
 
         const viewerRole: ViewerRole =
                 currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
@@ -755,9 +758,9 @@ const ContractWorkroomPage = () => {
         const payMilestoneMutation = useMutation<
                 void,
                 unknown,
-                { milestoneId: string; paymentMethodId: string; note?: string }
+                { milestoneId: string; paymentMethodId: string; note?: string; idempotencyKey?: string }
         >({
-                mutationFn: async ({ milestoneId, paymentMethodId, note }) => {
+                mutationFn: async ({ milestoneId, paymentMethodId, note, idempotencyKey }) => {
                         if (!contractId) throw new Error('Missing contract ID')
 
                         const performPayment = async (idempotencyKey?: string) => {
@@ -876,6 +879,9 @@ const ContractWorkroomPage = () => {
                         toast.error(message)
                 }
         })
+
+        const pendingIdempotencyKey =
+                milestoneToFund?.id ? pendingPaymentMetaRef.current[milestoneToFund.id]?.idempotencyKey : undefined
 
         const contract = contractQuery.data as Contract | undefined
         const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
@@ -2449,10 +2455,12 @@ const ContractWorkroomPage = () => {
                                         await payMilestoneMutation.mutateAsync({
                                                 milestoneId: milestoneToFund.id,
                                                 paymentMethodId: values.paymentMethodId,
-                                                note: values.note
+                                                note: values.note,
+                                                idempotencyKey: values.idempotencyKey
                                         })
                                 }}
                                 onClose={() => setMilestoneToFund(null)}
+                                pendingIdempotencyKey={pendingIdempotencyKey}
                         />
                         <ConfirmDelete
                                 open={Boolean(milestoneToDelete)}
