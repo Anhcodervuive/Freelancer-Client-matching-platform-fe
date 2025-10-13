@@ -177,159 +177,15 @@ const paymentResponseKeys = [
 
 type PaymentResponseRecord = Record<string, unknown>
 
-const normalizeKeyName = (value: string) => value.replace(/[-_\s]+/g, '').toLowerCase()
-const valueFieldKeys = ['value', 'val', 'data', 'content', 'message'] as const
-
-const deepPickString = (source: PaymentResponseRecord, keys: readonly string[]) => {
-        const visited = new Set<PaymentResponseRecord>()
-        const queue: PaymentResponseRecord[] = [source]
-
-        while (queue.length > 0) {
-                const current = queue.shift()
-
-                if (!current || visited.has(current)) {
-                        continue
-                }
-
-                visited.add(current)
-
-                for (const key of keys) {
-                        const value = current[key]
-
-                        if (typeof value === 'string') {
-                                const trimmed = value.trim()
-
-                                if (trimmed) {
-                                        return trimmed
-                                }
-                        }
-                }
-
-                const keyCandidate =
-                        typeof current.key === 'string'
-                                ? current.key
-                                : typeof current.name === 'string'
-                                ? current.name
-                                : undefined
-
-                if (keyCandidate) {
-                        const normalizedCandidate = normalizeKeyName(keyCandidate)
-
-                        for (const targetKey of keys) {
-                                if (normalizedCandidate !== normalizeKeyName(targetKey)) {
-                                        continue
-                                }
-
-                                for (const field of valueFieldKeys) {
-                                        const candidate = current[field]
-
-                                        if (typeof candidate === 'string') {
-                                                const trimmed = candidate.trim()
-
-                                                if (trimmed) {
-                                                        return trimmed
-                                                }
-                                        }
-                                }
-                        }
-                }
-
-                for (const value of Object.values(current)) {
-                        if (!value || typeof value !== 'object') {
-                                continue
-                        }
-
-                        queue.push(value as PaymentResponseRecord)
+const pickString = (source: PaymentResponseRecord, keys: readonly string[]) => {
+        for (const key of keys) {
+                const value = source[key]
+                if (typeof value === 'string' && value.trim()) {
+                        return value.trim()
                 }
         }
 
         return undefined
-}
-
-const normalizeBoolean = (value: unknown): boolean => {
-        if (value === true) {
-                return true
-        }
-
-        if (typeof value === 'number') {
-                return value === 1
-        }
-
-        if (typeof value === 'string') {
-                const trimmed = value.trim()
-
-                if (!trimmed) {
-                        return false
-                }
-
-                const normalized = trimmed.toLowerCase()
-
-                if (['true', '1', 'yes', 'y'].includes(normalized)) {
-                        return true
-                }
-
-                const condensed = normalized.replace(/[-\s]+/g, '_')
-
-                if (condensed === 'requires_action' || condensed === 'requires_authentication') {
-                        return true
-                }
-        }
-
-        return false
-}
-
-const deepPickBoolean = (source: PaymentResponseRecord, keys: readonly string[]) => {
-        const visited = new Set<PaymentResponseRecord>()
-        const queue: PaymentResponseRecord[] = [source]
-
-        while (queue.length > 0) {
-                const current = queue.shift()
-
-                if (!current || visited.has(current)) {
-                        continue
-                }
-
-                visited.add(current)
-
-                for (const key of keys) {
-                        if (normalizeBoolean(current[key])) {
-                                return true
-                        }
-                }
-
-                const keyCandidate =
-                        typeof current.key === 'string'
-                                ? current.key
-                                : typeof current.name === 'string'
-                                ? current.name
-                                : undefined
-
-                if (keyCandidate) {
-                        const normalizedCandidate = normalizeKeyName(keyCandidate)
-
-                        for (const targetKey of keys) {
-                                if (normalizedCandidate !== normalizeKeyName(targetKey)) {
-                                        continue
-                                }
-
-                                for (const field of valueFieldKeys) {
-                                        if (normalizeBoolean(current[field])) {
-                                                return true
-                                        }
-                                }
-                        }
-                }
-
-                for (const value of Object.values(current)) {
-                        if (!value || typeof value !== 'object') {
-                                continue
-                        }
-
-                        queue.push(value as PaymentResponseRecord)
-                }
-        }
-
-        return false
 }
 
 const findPaymentResponse = (
@@ -363,25 +219,7 @@ const findPaymentResponse = (
 }
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
-        if (!value) {
-                return null
-        }
-
-        if (typeof value === 'string') {
-                const trimmed = value.trim()
-
-                if (!trimmed) {
-                        return null
-                }
-
-                try {
-                        return asRecord(JSON.parse(trimmed))
-                } catch {
-                        return null
-                }
-        }
-
-        if (typeof value !== 'object') {
+        if (!value || typeof value !== 'object') {
                 return null
         }
 
@@ -435,7 +273,7 @@ const extractPaymentMeta = (
         paymentIntentId?: string
         requiresAction: boolean
 } => {
-        if (!payload) {
+        if (!payload || typeof payload !== 'object') {
                 return {
                         status: undefined,
                         clientSecret: undefined,
@@ -445,18 +283,15 @@ const extractPaymentMeta = (
                 }
         }
 
-        const container: PaymentResponseRecord =
-                ((typeof payload === 'object' && payload !== null ? findPaymentResponse(payload) : null) ??
-                        asRecord(payload) ??
-                        {}) as PaymentResponseRecord
-
-        const status = deepPickString(container, ['status', 'paymentStatus', 'payment_status'])
-        const clientSecret = deepPickString(container, ['clientSecret', 'client_secret'])
-        const idempotencyKey = deepPickString(container, ['idempotencyKey', 'idemKey', 'idempotency_key'])
-        const paymentIntentId = deepPickString(container, ['paymentIntentId', 'payment_intent_id', 'payment_intent'])
+        const container = findPaymentResponse(payload) ?? (payload as PaymentResponseRecord)
+        const status = pickString(container, ['status', 'paymentStatus', 'payment_status'])
+        const clientSecret = pickString(container, ['clientSecret', 'client_secret'])
+        const idempotencyKey = pickString(container, ['idempotencyKey', 'idemKey', 'idempotency_key'])
+        const paymentIntentId = pickString(container, ['paymentIntentId', 'payment_intent_id', 'payment_intent'])
         const requiresAction =
-                deepPickBoolean(container, ['requiresAction', 'requires_action']) ||
-                (typeof status === 'string' && status.replace(/[-\s]+/g, '_').toUpperCase() === 'REQUIRES_ACTION')
+                container.requiresAction === true ||
+                container['requires_action'] === true ||
+                (typeof status === 'string' && status.toUpperCase() === 'REQUIRES_ACTION')
 
         return {
                 status,
