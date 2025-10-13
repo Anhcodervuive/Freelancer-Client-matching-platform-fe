@@ -59,22 +59,31 @@ export const SubmitMilestoneWorkSchema = z.object({
 
 export type SubmitMilestoneWorkFormValues = z.infer<typeof SubmitMilestoneWorkSchema>
 
+const ReviewRatingSchema = z
+        .coerce
+        .number()
+        .int({ message: 'Điểm đánh giá phải là số nguyên' })
+        .min(1, 'Điểm đánh giá tối thiểu là 1')
+        .max(5, 'Điểm đánh giá tối đa là 5')
+
 export const ApproveMilestoneSubmissionSchema = z.object({
-        note: z
+        reviewNote: z
                 .string()
                 .trim()
                 .max(2000, 'Ghi chú tối đa 2000 ký tự')
-                .optional()
+                .optional(),
+        reviewRating: ReviewRatingSchema
 })
 
 export type ApproveMilestoneSubmissionFormValues = z.infer<typeof ApproveMilestoneSubmissionSchema>
 
 export const DeclineMilestoneSubmissionSchema = z.object({
-        reason: z
+        reviewNote: z
                 .string()
                 .trim()
                 .min(1, 'Vui lòng mô tả yêu cầu chỉnh sửa')
-                .max(2000, 'Lý do tối đa 2000 ký tự')
+                .max(2000, 'Lý do tối đa 2000 ký tự'),
+        reviewRating: ReviewRatingSchema.optional()
 })
 
 export type DeclineMilestoneSubmissionFormValues = z.infer<typeof DeclineMilestoneSubmissionSchema>

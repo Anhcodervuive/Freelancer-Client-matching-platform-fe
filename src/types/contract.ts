@@ -194,6 +194,8 @@ export type ContractMilestoneSubmission = {
         note?: string | null
         reason?: string | null
         reviewerNote?: string | null
+        reviewNote?: string | null
+        reviewRating?: number | null
         submittedAt?: string | null
         reviewedAt?: string | null
         approvedAt?: string | null
@@ -219,11 +221,13 @@ export type SubmitMilestoneWorkInput = {
 }
 
 export type ApproveMilestoneSubmissionInput = {
-        note?: string
+        reviewNote?: string
+        reviewRating: number
 }
 
 export type DeclineMilestoneSubmissionInput = {
-        reason: string
+        reviewNote: string
+        reviewRating?: number
 }
 
 export type PayContractMilestoneInput = {

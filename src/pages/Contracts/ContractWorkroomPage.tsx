@@ -22,7 +22,8 @@ import {
         ShieldCheck,
         Trash2,
         Wallet2,
-        Users
+        Users,
+        Star
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -551,11 +552,19 @@ const ContractWorkroomPage = () => {
         const approveMilestoneSubmissionMutation = useMutation<
                 void,
                 unknown,
-                { milestoneId: string; submissionId: string; note?: string }
+                {
+                        milestoneId: string
+                        submissionId: string
+                        reviewNote?: string
+                        reviewRating: number
+                }
         >({
-                mutationFn: async ({ milestoneId, submissionId, note }) => {
+                mutationFn: async ({ milestoneId, submissionId, reviewNote, reviewRating }) => {
                         if (!contractId) throw new Error('Missing contract ID')
-                        await approveMilestoneSubmission(contractId, milestoneId, submissionId, { note })
+                        await approveMilestoneSubmission(contractId, milestoneId, submissionId, {
+                                reviewNote,
+                                reviewRating
+                        })
                 },
                 onSuccess: () => {
                         toast.success('Đã chấp nhận bàn giao milestone')
@@ -571,11 +580,19 @@ const ContractWorkroomPage = () => {
         const declineMilestoneSubmissionMutation = useMutation<
                 void,
                 unknown,
-                { milestoneId: string; submissionId: string; reason: string }
+                {
+                        milestoneId: string
+                        submissionId: string
+                        reviewNote: string
+                        reviewRating?: number
+                }
         >({
-                mutationFn: async ({ milestoneId, submissionId, reason }) => {
+                mutationFn: async ({ milestoneId, submissionId, reviewNote, reviewRating }) => {
                         if (!contractId) throw new Error('Missing contract ID')
-                        await declineMilestoneSubmission(contractId, milestoneId, submissionId, { reason })
+                        await declineMilestoneSubmission(contractId, milestoneId, submissionId, {
+                                reviewNote,
+                                reviewRating
+                        })
                 },
                 onSuccess: () => {
                         toast.success('Đã gửi yêu cầu chỉnh sửa milestone')
@@ -1475,10 +1492,17 @@ const ContractWorkroomPage = () => {
                                                                                                         timeStyle: 'short'
                                                                                                 })
                                                                                                 const reviewNote =
-                                                                                                        submission.note ??
+                                                                                                        submission.reviewNote ??
                                                                                                         submission.reviewerNote ??
                                                                                                         submission.reason ??
+                                                                                                        submission.note ??
                                                                                                         undefined
+                                                                                                const reviewRating =
+                                                                                                        typeof submission.reviewRating === 'number' &&
+                                                                                                        submission.reviewRating >= 1 &&
+                                                                                                        submission.reviewRating <= 5
+                                                                                                                ? submission.reviewRating
+                                                                                                                : undefined
                                                                                                 const reviewAt = formatDateTime(
                                                                                                         submission.reviewedAt ??
                                                                                                                 submission.approvedAt ??
@@ -1502,9 +1526,22 @@ const ContractWorkroomPage = () => {
                                                                                                                                 {submissionMeta.label}
                                                                                                                         </span>
                                                                                                                         {submittedAt && (
-                                                                                                                                <span className='text-xs text-slate-400'>Gửi {submittedAt}</span>
-                                                                                                                        )}
-                                                                                                                </div>
+                                                                                                                               <span className='text-xs text-slate-400'>Gửi {submittedAt}</span>
+                                                                                                                       )}
+                                                                                                                        {typeof reviewRating === 'number' ? (
+                                                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-600'>
+                                                                                                                                        {[1, 2, 3, 4, 5].map(value => (
+                                                                                                                                                <Star
+                                                                                                                                                        key={`${submission.id}-rating-${value}`}
+                                                                                                                                                        className='size-3'
+                                                                                                                                                        strokeWidth={1.5}
+                                                                                                                                                        fill={value <= reviewRating ? 'currentColor' : 'none'}
+                                                                                                                                                />
+                                                                                                                                        ))}
+                                                                                                                                        <span>{reviewRating}/5</span>
+                                                                                                                                </span>
+                                                                                                                        ) : null}
+                                                                                                               </div>
                                                                                                                 <p className='whitespace-pre-line text-sm text-slate-700'>
                                                                                                                         {submission.message ?? 'Không có mô tả chi tiết.'}
                                                                                                                 </p>
@@ -2102,6 +2139,17 @@ const ContractWorkroomPage = () => {
                                 mode={milestoneReviewState?.mode ?? 'approve'}
                                 milestoneTitle={milestoneReviewState?.milestone.title}
                                 submissionMessage={milestoneReviewState?.submission.message ?? undefined}
+                                submissionReviewNote={
+                                        milestoneReviewState?.submission.reviewNote ??
+                                        milestoneReviewState?.submission.reviewerNote ??
+                                        milestoneReviewState?.submission.reason ??
+                                        null
+                                }
+                                submissionReviewRating={
+                                        typeof milestoneReviewState?.submission.reviewRating === 'number'
+                                                ? milestoneReviewState.submission.reviewRating
+                                                : null
+                                }
                                 isSubmitting={
                                         approveMilestoneSubmissionMutation.isPending ||
                                         declineMilestoneSubmissionMutation.isPending
@@ -2110,20 +2158,24 @@ const ContractWorkroomPage = () => {
                                         if (!milestoneReviewState) return
 
                                         if (milestoneReviewState.mode === 'approve') {
-                                                const { note } = values as ApproveMilestoneSubmissionFormValues
+                                                const { reviewNote, reviewRating } =
+                                                        values as ApproveMilestoneSubmissionFormValues
 
                                                 await approveMilestoneSubmissionMutation.mutateAsync({
                                                         milestoneId: milestoneReviewState.milestone.id,
                                                         submissionId: milestoneReviewState.submission.id,
-                                                        note
+                                                        reviewNote,
+                                                        reviewRating
                                                 })
                                         } else {
-                                                const { reason } = values as DeclineMilestoneSubmissionFormValues
+                                                const { reviewNote, reviewRating } =
+                                                        values as DeclineMilestoneSubmissionFormValues
 
                                                 await declineMilestoneSubmissionMutation.mutateAsync({
                                                         milestoneId: milestoneReviewState.milestone.id,
                                                         submissionId: milestoneReviewState.submission.id,
-                                                        reason
+                                                        reviewNote,
+                                                        reviewRating
                                                 })
                                         }
                                 }}

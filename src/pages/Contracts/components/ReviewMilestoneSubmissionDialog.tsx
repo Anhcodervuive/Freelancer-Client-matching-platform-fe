@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
-import { useForm, type Resolver } from 'react-hook-form'
+import { useEffect, useState } from 'react'
+import { Controller, useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CheckCircle2, Loader2, XCircle, X } from 'lucide-react'
+import { CheckCircle2, Loader2, Star, XCircle, X } from 'lucide-react'
 
 import {
         ApproveMilestoneSubmissionSchema,
@@ -36,6 +36,8 @@ type ReviewMilestoneSubmissionDialogProps = {
         mode: ReviewMode
         milestoneTitle?: string
         submissionMessage?: string
+        submissionReviewNote?: string | null
+        submissionReviewRating?: number | null
         isSubmitting?: boolean
         onSubmit: (
                 _values:
@@ -50,6 +52,8 @@ const ReviewMilestoneSubmissionDialog = ({
         mode,
         milestoneTitle,
         submissionMessage,
+        submissionReviewNote,
+        submissionReviewRating,
         isSubmitting = false,
         onSubmit,
         onClose
@@ -61,7 +65,15 @@ const ReviewMilestoneSubmissionDialog = ({
                         ? ApproveMilestoneSubmissionSchema
                         : DeclineMilestoneSubmissionSchema
 
+        const [hoverRating, setHoverRating] = useState<number | null>(null)
+        const normalizedInitialRating =
+                typeof submissionReviewRating === 'number' && submissionReviewRating >= 1 && submissionReviewRating <= 5
+                        ? submissionReviewRating
+                        : undefined
+        const normalizedInitialNote = submissionReviewNote?.trim() ?? ''
+
         const {
+                control,
                 register,
                 handleSubmit,
                 reset,
@@ -73,40 +85,53 @@ const ReviewMilestoneSubmissionDialog = ({
                 resolver: zodResolver(schema) as Resolver<
                         ApproveMilestoneSubmissionFormValues | DeclineMilestoneSubmissionFormValues
                 >,
-                defaultValues: mode === 'approve' ? { note: '' } : { reason: '' }
+                defaultValues: {
+                        reviewNote: normalizedInitialNote,
+                        reviewRating: normalizedInitialRating
+                }
         })
 
         useEffect(() => {
                 if (!open) return
 
-                reset(mode === 'approve' ? { note: '' } : { reason: '' })
-        }, [open, mode, reset])
+                reset({
+                        reviewNote: normalizedInitialNote,
+                        reviewRating: normalizedInitialRating
+                })
+                setHoverRating(null)
+        }, [open, mode, normalizedInitialNote, normalizedInitialRating, reset])
 
         const submit = handleSubmit(async values => {
-                const sanitizedValues =
-                        mode === 'approve'
-                                ? {
-                                          note: values.note?.trim() ? values.note.trim() : undefined
-                                  }
-                                : {
-                                          reason: values.reason.trim()
-                                  }
+                const trimmedNote = values.reviewNote?.trim() ?? ''
 
-                await onSubmit(
-                        sanitizedValues as
-                                | ApproveMilestoneSubmissionFormValues
-                                | DeclineMilestoneSubmissionFormValues
-                )
-                reset(mode === 'approve' ? { note: '' } : { reason: '' })
+                if (mode === 'approve') {
+                        await onSubmit({
+                                reviewRating: values.reviewRating,
+                                reviewNote: trimmedNote ? trimmedNote : undefined
+                        } as ApproveMilestoneSubmissionFormValues)
+                } else {
+                        await onSubmit({
+                                reviewNote: trimmedNote,
+                                ...(typeof values.reviewRating === 'number'
+                                        ? { reviewRating: values.reviewRating }
+                                        : {})
+                        } as DeclineMilestoneSubmissionFormValues)
+                }
+
+                reset({ reviewNote: '', reviewRating: undefined })
         })
 
-        const errorMessage = mode === 'approve' ? errors?.note?.message : errors?.reason?.message
-        const declineReason = watch('reason')
-        const trimmedReason =
-                typeof declineReason === 'string' ? declineReason.trim() : undefined
+        const reviewNoteError = errors?.reviewNote?.message
+        const reviewRatingError = errors?.reviewRating?.message
+        const reviewNoteValue = watch('reviewNote')
+        const reviewRatingValue = watch('reviewRating')
+        const trimmedReviewNote =
+                typeof reviewNoteValue === 'string' ? reviewNoteValue.trim() : ''
         const isExternalSubmitting = isSubmitting || isFormSubmitting
         const isSubmitDisabled =
-                isExternalSubmitting || (mode === 'decline' && !trimmedReason?.length)
+                isExternalSubmitting ||
+                (mode === 'decline' && trimmedReviewNote.length === 0) ||
+                (mode === 'approve' && typeof reviewRatingValue !== 'number')
 
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
@@ -147,10 +172,98 @@ const ReviewMilestoneSubmissionDialog = ({
 
                                         <div className='space-y-2 px-6 py-5'>
                                                 <label className='text-sm font-semibold text-base-content'>
-                                                        {mode === 'approve' ? 'Ghi chú cho freelancer (không bắt buộc)' : 'Lý do yêu cầu chỉnh sửa'}
+                                                        Đánh giá chất lượng bàn giao {mode === 'approve' ? '(bắt buộc)' : '(không bắt buộc)'}
+                                                </label>
+                                                <Controller
+                                                        control={control}
+                                                        name='reviewRating'
+                                                        render={({ field }) => {
+                                                                const selectedRating =
+                                                                        typeof field.value === 'number' ? field.value : undefined
+                                                                const highlightedRating = hoverRating ?? selectedRating ?? 0
+
+                                                                return (
+                                                                        <div className='flex flex-wrap items-center gap-3'>
+                                                                                <div className='flex items-center gap-1'>
+                                                                                        {[1, 2, 3, 4, 5].map(value => {
+                                                                                                const isActive = value <= highlightedRating
+
+                                                                                                return (
+                                                                                                        <button
+                                                                                                                key={value}
+                                                                                                                type='button'
+                                                                                                                className={`rounded-full p-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-amber-400 ${
+                                                                                                                        isActive
+                                                                                                                                ? 'text-amber-500'
+                                                                                                                                : 'text-base-content/30 hover:text-amber-400'
+                                                                                                                } ${
+                                                                                                                        isExternalSubmitting
+                                                                                                                                ? 'cursor-not-allowed opacity-60'
+                                                                                                                                : ''
+                                                                                                                }`}
+                                                                                                                onClick={() => {
+                                                                                                                        if (isExternalSubmitting) return
+                                                                                                                        setHoverRating(null)
+                                                                                                                        field.onChange(value)
+                                                                                                                }}
+                                                                                                                onMouseEnter={() => {
+                                                                                                                        if (isExternalSubmitting) return
+                                                                                                                        setHoverRating(value)
+                                                                                                                }}
+                                                                                                                onMouseLeave={() => {
+                                                                                                                        if (isExternalSubmitting) return
+                                                                                                                        setHoverRating(null)
+                                                                                                                }}
+                                                                                                                aria-label={`Đánh giá ${value} sao`}
+                                                                                                                aria-pressed={selectedRating === value}
+                                                                                                                disabled={isExternalSubmitting}
+                                                                                                        >
+                                                                                                                <Star
+                                                                                                                        className='size-5'
+                                                                                                                        strokeWidth={1.5}
+                                                                                                                        fill={isActive ? 'currentColor' : 'none'}
+                                                                                                                />
+                                                                                                        </button>
+                                                                                                )
+                                                                                        })}
+                                                                                </div>
+                                                                                {mode === 'decline' && typeof selectedRating === 'number' ? (
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-ghost btn-xs'
+                                                                                                onClick={() => {
+                                                                                                        if (isExternalSubmitting) return
+                                                                                                        setHoverRating(null)
+                                                                                                        field.onChange(undefined)
+                                                                                                }}
+                                                                                                disabled={isExternalSubmitting}
+                                                                                        >
+                                                                                                Bỏ đánh giá
+                                                                                        </button>
+                                                                                ) : null}
+                                                                        </div>
+                                                                )
+                                                        }}
+                                                />
+                                                {reviewRatingError ? (
+                                                        <p className='text-xs text-error'>{reviewRatingError}</p>
+                                                ) : (
+                                                        <p className='text-xs text-base-content/60'>
+                                                                {mode === 'approve'
+                                                                        ? 'Hãy chấm điểm để hệ thống ghi nhận mức độ hài lòng của bạn.'
+                                                                        : 'Bạn có thể chấm điểm nếu muốn chia sẻ thêm phản hồi với freelancer.'}
+                                                        </p>
+                                                )}
+                                        </div>
+
+                                        <div className='space-y-2 border-t border-base-200 px-6 py-5'>
+                                                <label className='text-sm font-semibold text-base-content'>
+                                                        {mode === 'approve'
+                                                                ? 'Ghi chú cho freelancer (không bắt buộc)'
+                                                                : 'Lý do yêu cầu chỉnh sửa (bắt buộc)'}
                                                 </label>
                                                 <textarea
-                                                        {...register(mode === 'approve' ? 'note' : 'reason')}
+                                                        {...register('reviewNote')}
                                                         className='textarea textarea-bordered min-h-[120px]'
                                                         placeholder={
                                                                 mode === 'approve'
@@ -159,8 +272,8 @@ const ReviewMilestoneSubmissionDialog = ({
                                                         }
                                                         disabled={isExternalSubmitting}
                                                 />
-                                                {errorMessage ? (
-                                                        <p className='text-xs text-error'>{errorMessage}</p>
+                                                {reviewNoteError ? (
+                                                        <p className='text-xs text-error'>{reviewNoteError}</p>
                                                 ) : (
                                                         <p className='text-xs text-base-content/60'>
                                                                 {mode === 'approve'
