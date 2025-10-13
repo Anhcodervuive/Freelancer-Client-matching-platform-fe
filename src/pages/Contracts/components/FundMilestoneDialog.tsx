@@ -17,6 +17,7 @@ type FundMilestoneDialogProps = {
         onRefreshPaymentMethods?: () => void
         onSubmit: (_values: PayMilestoneFormValues) => Promise<void> | void
         onClose: () => void
+        pendingIdempotencyKey?: string
 }
 
 const formatPaymentMethodLabel = (method: PaymentMethod) => {
@@ -36,26 +37,33 @@ const FundMilestoneDialog = ({
         isSubmitting = false,
         onRefreshPaymentMethods,
         onSubmit,
-        onClose
+        onClose,
+        pendingIdempotencyKey
 }: FundMilestoneDialogProps) => {
         const {
                 register,
                 handleSubmit,
                 reset,
+                setValue,
                 formState: { errors }
         } = useForm<PayMilestoneFormValues>({
                 resolver: zodResolver(PayMilestoneSchema) as Resolver<PayMilestoneFormValues>,
-                defaultValues: { paymentMethodId: '', note: '' }
+                defaultValues: { paymentMethodId: '', note: '', idempotencyKey: pendingIdempotencyKey ?? '' }
         })
 
         useEffect(() => {
                 if (!open) return
-                reset({ paymentMethodId: '', note: '' })
-        }, [open, reset])
+                reset({ paymentMethodId: '', note: '', idempotencyKey: pendingIdempotencyKey ?? '' })
+        }, [open, reset, pendingIdempotencyKey])
+
+        useEffect(() => {
+                if (!open) return
+                setValue('idempotencyKey', pendingIdempotencyKey ?? '')
+        }, [open, pendingIdempotencyKey, setValue])
 
         const submit = handleSubmit(async values => {
                 await onSubmit(values)
-                reset({ paymentMethodId: '', note: '' })
+                reset({ paymentMethodId: '', note: '', idempotencyKey: '' })
         })
 
         const paymentMethodError = errors.paymentMethodId?.message
@@ -93,6 +101,7 @@ const FundMilestoneDialog = ({
                                 </div>
 
                                 <form onSubmit={submit} className='flex flex-col gap-0'>
+                                        <input type='hidden' {...register('idempotencyKey')} />
                                         <div className='space-y-4 px-6 py-6'>
                                                 <div className='flex items-center justify-between'>
                                                         <h4 className='text-sm font-semibold text-base-content'>Phương thức thanh toán</h4>
