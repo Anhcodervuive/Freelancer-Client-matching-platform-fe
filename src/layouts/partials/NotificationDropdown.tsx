@@ -70,6 +70,31 @@ const renderTitle = (notification: Notification) => {
                         return `${actorName} đã từ chối lời mời làm việc của bạn`
                 case NotificationEvent.JOB_OFFER_SENT:
                         return `${actorName} đã gửi job offer cho bạn`
+                case NotificationEvent.JOB_OFFER_WITHDRAWN:
+                        return `${actorName} đã thu hồi job offer`
+                case NotificationEvent.JOB_OFFER_DECLINED:
+                        return `${actorName} đã từ chối job offer`
+                case NotificationEvent.JOB_HIRE:
+                        return `${actorName} đã thuê bạn cho công việc này`
+                case NotificationEvent.PROPOSAL_SUBMITTED:
+                        if (notification.resourceType === NotificationResource.JOB_POST) {
+                                return `${actorName} đã gửi đề xuất cho công việc của bạn`
+                        }
+                        return `${actorName} đã gửi job proposal mới`
+                case NotificationEvent.CONTRACT_MILESTONE_CREATED:
+                        return `${actorName} đã tạo mốc thanh toán mới`
+                case NotificationEvent.CONTRACT_MILESTONE_SUBMITTED:
+                        return `${actorName} đã gửi xác nhận hoàn thành mốc thanh toán`
+                case NotificationEvent.CONTRACT_MILESTONE_APPROVED:
+                        return `${actorName} đã phê duyệt mốc thanh toán`
+                case NotificationEvent.CONTRACT_MILESTONE_DECLINED:
+                        return `${actorName} đã từ chối mốc thanh toán`
+                case NotificationEvent.DISPUTE_CREATED:
+                        return `${actorName} đã tạo tranh chấp mới`
+                case NotificationEvent.DISPUTE_UPDATED:
+                        return `${actorName} đã cập nhật tranh chấp`
+                case NotificationEvent.SYSTEM_MESSAGE:
+                        return 'Thông báo hệ thống'
         }
 
         return formatEnumLabel(notification.event)
