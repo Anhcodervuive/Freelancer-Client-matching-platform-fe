@@ -72,8 +72,25 @@ const FundMilestoneDialog = ({
                 reset(createDefaultPayMilestoneValues())
         }, [open, reset])
 
+        useEffect(() => {
+                if (!open) return
+
+                if (pendingIdempotencyKey && pendingIdempotencyKey.trim().length > 0) {
+                        setValue('idempotencyKey', pendingIdempotencyKey, { shouldDirty: false })
+                }
+        }, [open, pendingIdempotencyKey, setValue])
+
         const submit = handleSubmit(async values => {
-                await onSubmit(values)
+                const normalizedIdempotencyKey = values.idempotencyKey?.trim()
+                const payload: PayMilestoneFormValues = {
+                        ...values,
+                        idempotencyKey:
+                                normalizedIdempotencyKey && normalizedIdempotencyKey.length > 0
+                                        ? normalizedIdempotencyKey
+                                        : generateIdempotencyKey()
+                }
+
+                await onSubmit(payload)
                 reset(createDefaultPayMilestoneValues())
         })
 

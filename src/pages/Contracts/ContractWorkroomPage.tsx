@@ -784,7 +784,7 @@ const ContractWorkroomPage = () => {
 				}
 			}
 
-			const { meta: initialMeta } = await performPayment()
+                        const { meta: initialMeta } = await performPayment(idempotencyKey)
 
 			if (!initialMeta.requiresAction) {
 				return
