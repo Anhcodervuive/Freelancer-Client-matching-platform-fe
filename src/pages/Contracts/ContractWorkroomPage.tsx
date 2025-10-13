@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from '
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
+import { isAxiosError } from 'axios'
 import {
         AlertTriangle,
         ArrowLeft,
@@ -49,12 +50,15 @@ import type {
         ContractMilestone,
         ContractMilestoneSubmission,
         ContractMilestoneResource,
-        CreateContractMilestoneInput
+        CreateContractMilestoneInput,
+        PayContractMilestoneInput,
+        PayContractMilestoneResponse
 } from '~/types/contract'
 import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
 import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
+import { getStripe } from '~/utils/stripe'
 import {
         extractLanguageLabels,
         extractSkillNames,
@@ -153,6 +157,149 @@ const pendingReviewStatuses = new Set([
 const isSubmissionAwaitingReview = (status?: string | null) => {
         if (!status) return false
         return pendingReviewStatuses.has(status.toUpperCase())
+}
+
+const paymentResponseKeys = [
+        'status',
+        'paymentStatus',
+        'payment_status',
+        'requiresAction',
+        'requires_action',
+        'clientSecret',
+        'client_secret',
+        'idempotencyKey',
+        'idemKey',
+        'idempotency_key',
+        'paymentIntentId',
+        'payment_intent_id',
+        'payment_intent'
+] as const
+
+type PaymentResponseRecord = Record<string, unknown>
+
+const pickString = (source: PaymentResponseRecord, keys: readonly string[]) => {
+        for (const key of keys) {
+                const value = source[key]
+                if (typeof value === 'string' && value.trim()) {
+                        return value.trim()
+                }
+        }
+
+        return undefined
+}
+
+const findPaymentResponse = (
+        payload: unknown,
+        visited = new Set<PaymentResponseRecord>()
+): PaymentResponseRecord | null => {
+        if (!payload || typeof payload !== 'object') {
+                return null
+        }
+
+        const record = payload as PaymentResponseRecord
+
+        if (visited.has(record)) {
+                return null
+        }
+
+        visited.add(record)
+
+        if (paymentResponseKeys.some(key => key in record)) {
+                return record
+        }
+
+        for (const value of Object.values(record)) {
+                const nested = findPaymentResponse(value, visited)
+                if (nested) {
+                        return nested
+                }
+        }
+
+        return null
+}
+
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        return value as Record<string, unknown>
+}
+
+const extractErrorMessage = (error: unknown): string | undefined => {
+        if (isAxiosError(error)) {
+                const data = error.response?.data
+
+                if (typeof data === 'string') {
+                        const trimmed = data.trim()
+                        return trimmed || undefined
+                }
+
+                const record = asRecord(data)
+
+                if (record) {
+                        const candidates = ['message', 'error', 'detail', 'title'] as const
+
+                        for (const key of candidates) {
+                                const value = record[key]
+
+                                if (typeof value === 'string' && value.trim()) {
+                                        return value.trim()
+                                }
+                        }
+                }
+
+                return error.message
+        }
+
+        if (error instanceof Error) {
+                return error.message
+        }
+
+        if (typeof error === 'string') {
+                const trimmed = error.trim()
+                return trimmed || undefined
+        }
+
+        return undefined
+}
+
+const extractPaymentMeta = (
+        payload?: PayContractMilestoneResponse | null
+): {
+        status?: string
+        clientSecret?: string
+        idempotencyKey?: string
+        paymentIntentId?: string
+        requiresAction: boolean
+} => {
+        if (!payload || typeof payload !== 'object') {
+                return {
+                        status: undefined,
+                        clientSecret: undefined,
+                        idempotencyKey: undefined,
+                        paymentIntentId: undefined,
+                        requiresAction: false
+                }
+        }
+
+        const container = findPaymentResponse(payload) ?? (payload as PaymentResponseRecord)
+        const status = pickString(container, ['status', 'paymentStatus', 'payment_status'])
+        const clientSecret = pickString(container, ['clientSecret', 'client_secret'])
+        const idempotencyKey = pickString(container, ['idempotencyKey', 'idemKey', 'idempotency_key'])
+        const paymentIntentId = pickString(container, ['paymentIntentId', 'payment_intent_id', 'payment_intent'])
+        const requiresAction =
+                container.requiresAction === true ||
+                container['requires_action'] === true ||
+                (typeof status === 'string' && status.toUpperCase() === 'REQUIRES_ACTION')
+
+        return {
+                status,
+                clientSecret,
+                idempotencyKey,
+                paymentIntentId,
+                requiresAction
+        }
 }
 
 type EscrowStatusMeta = {
@@ -612,7 +759,106 @@ const ContractWorkroomPage = () => {
         >({
                 mutationFn: async ({ milestoneId, paymentMethodId, note }) => {
                         if (!contractId) throw new Error('Missing contract ID')
-                        await payMilestone(contractId, milestoneId, { paymentMethodId, note })
+
+                        const performPayment = async (idempotencyKey?: string) => {
+                                const payload: PayContractMilestoneInput = {
+                                        paymentMethodId
+                                }
+
+                                if (typeof note === 'string' && note.trim().length > 0) {
+                                        payload.note = note
+                                }
+
+                                if (idempotencyKey) {
+                                        payload.idempotencyKey = idempotencyKey
+                                }
+
+                                try {
+                                        const response = await payMilestone(contractId, milestoneId, payload)
+
+                                        return {
+                                                response,
+                                                meta: extractPaymentMeta(response)
+                                        }
+                                } catch (error) {
+                                        if (!isAxiosError(error)) {
+                                                throw error
+                                        }
+
+                                        const rawPayload = asRecord(error.response?.data) ?? {}
+                                        const meta = extractPaymentMeta(rawPayload as PayContractMilestoneResponse)
+
+                                        if (
+                                                meta.requiresAction ||
+                                                meta.clientSecret ||
+                                                meta.idempotencyKey ||
+                                                meta.paymentIntentId
+                                        ) {
+                                                return {
+                                                        response: rawPayload as PayContractMilestoneResponse,
+                                                        meta
+                                                }
+                                        }
+
+                                        throw new Error(
+                                                extractErrorMessage(error) ||
+                                                        'Không thể giải ngân milestone. Vui lòng thử lại.'
+                                        )
+                                }
+                        }
+
+                        const { meta: initialMeta } = await performPayment()
+
+                        if (!initialMeta.requiresAction) {
+                                return
+                        }
+
+                        if (!initialMeta.clientSecret) {
+                                throw new Error('Thiếu client secret để xác thực 3-D Secure.')
+                        }
+
+                        const stripe = await getStripe()
+                        const confirmation = await stripe.confirmCardPayment(initialMeta.clientSecret, {
+                                payment_method: paymentMethodId
+                        })
+
+                        if (confirmation.error) {
+                                const code = confirmation.error.code
+                                const baseMessage =
+                                        confirmation.error.message ||
+                                        (code === 'payment_intent_authentication_failure'
+                                                ? 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
+                                                : undefined)
+
+                                if (confirmation.error.type === 'canceled' || code === 'payment_intent_authentication_failure') {
+                                        throw new Error(
+                                                baseMessage ||
+                                                        'Xác thực 3-D Secure đã bị hủy. Vui lòng thử lại nếu bạn vẫn muốn thanh toán.'
+                                        )
+                                }
+
+                                throw new Error(
+                                        baseMessage || 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
+                                )
+                        }
+
+                        const normalizedIdempotencyKey =
+                                initialMeta.idempotencyKey ||
+                                initialMeta.paymentIntentId ||
+                                confirmation.paymentIntent?.id ||
+                                undefined
+
+                        if (!normalizedIdempotencyKey) {
+                                throw new Error('Không tìm thấy idempotency key để hoàn tất thanh toán.')
+                        }
+
+                        const { meta: finalMeta } = await performPayment(normalizedIdempotencyKey)
+
+                        if (finalMeta.requiresAction) {
+                                throw new Error(
+                                        'Thanh toán vẫn cần xác thực bổ sung. Vui lòng kiểm tra lại trạng thái 3-D Secure.'
+                                )
+                        }
                 },
                 onSuccess: () => {
                         toast.success('Đã giải ngân milestone thành công')
@@ -620,8 +866,14 @@ const ContractWorkroomPage = () => {
                         queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
                         queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
                 },
-                onError: () => {
-                        toast.error('Không thể giải ngân milestone. Vui lòng thử lại.')
+                onError: error => {
+                        const message =
+                                extractErrorMessage(error) ||
+                                (error instanceof Error ? error.message : undefined) ||
+                                (typeof error === 'string' ? error : undefined) ||
+                                'Không thể giải ngân milestone. Vui lòng thử lại.'
+
+                        toast.error(message)
                 }
         })
 
