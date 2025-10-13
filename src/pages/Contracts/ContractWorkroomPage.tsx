@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from '
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
+import { isAxiosError } from 'axios'
 import {
         AlertTriangle,
         ArrowLeft,
@@ -215,6 +216,52 @@ const findPaymentResponse = (
         }
 
         return null
+}
+
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        return value as Record<string, unknown>
+}
+
+const extractErrorMessage = (error: unknown): string | undefined => {
+        if (isAxiosError(error)) {
+                const data = error.response?.data
+
+                if (typeof data === 'string') {
+                        const trimmed = data.trim()
+                        return trimmed || undefined
+                }
+
+                const record = asRecord(data)
+
+                if (record) {
+                        const candidates = ['message', 'error', 'detail', 'title'] as const
+
+                        for (const key of candidates) {
+                                const value = record[key]
+
+                                if (typeof value === 'string' && value.trim()) {
+                                        return value.trim()
+                                }
+                        }
+                }
+
+                return error.message
+        }
+
+        if (error instanceof Error) {
+                return error.message
+        }
+
+        if (typeof error === 'string') {
+                const trimmed = error.trim()
+                return trimmed || undefined
+        }
+
+        return undefined
 }
 
 const extractPaymentMeta = (
@@ -726,11 +773,41 @@ const ContractWorkroomPage = () => {
                                         payload.idempotencyKey = idempotencyKey
                                 }
 
-                                return await payMilestone(contractId, milestoneId, payload)
+                                try {
+                                        const response = await payMilestone(contractId, milestoneId, payload)
+
+                                        return {
+                                                response,
+                                                meta: extractPaymentMeta(response)
+                                        }
+                                } catch (error) {
+                                        if (!isAxiosError(error)) {
+                                                throw error
+                                        }
+
+                                        const rawPayload = asRecord(error.response?.data) ?? {}
+                                        const meta = extractPaymentMeta(rawPayload as PayContractMilestoneResponse)
+
+                                        if (
+                                                meta.requiresAction ||
+                                                meta.clientSecret ||
+                                                meta.idempotencyKey ||
+                                                meta.paymentIntentId
+                                        ) {
+                                                return {
+                                                        response: rawPayload as PayContractMilestoneResponse,
+                                                        meta
+                                                }
+                                        }
+
+                                        throw new Error(
+                                                extractErrorMessage(error) ||
+                                                        'Không thể giải ngân milestone. Vui lòng thử lại.'
+                                        )
+                                }
                         }
 
-                        const initialResponse = await performPayment()
-                        const initialMeta = extractPaymentMeta(initialResponse)
+                        const { meta: initialMeta } = await performPayment()
 
                         if (!initialMeta.requiresAction) {
                                 return
@@ -746,8 +823,22 @@ const ContractWorkroomPage = () => {
                         })
 
                         if (confirmation.error) {
+                                const code = confirmation.error.code
+                                const baseMessage =
+                                        confirmation.error.message ||
+                                        (code === 'payment_intent_authentication_failure'
+                                                ? 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
+                                                : undefined)
+
+                                if (confirmation.error.type === 'canceled' || code === 'payment_intent_authentication_failure') {
+                                        throw new Error(
+                                                baseMessage ||
+                                                        'Xác thực 3-D Secure đã bị hủy. Vui lòng thử lại nếu bạn vẫn muốn thanh toán.'
+                                        )
+                                }
+
                                 throw new Error(
-                                        confirmation.error.message || 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
+                                        baseMessage || 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
                                 )
                         }
 
@@ -761,8 +852,7 @@ const ContractWorkroomPage = () => {
                                 throw new Error('Không tìm thấy idempotency key để hoàn tất thanh toán.')
                         }
 
-                        const finalResponse = await performPayment(normalizedIdempotencyKey)
-                        const finalMeta = extractPaymentMeta(finalResponse)
+                        const { meta: finalMeta } = await performPayment(normalizedIdempotencyKey)
 
                         if (finalMeta.requiresAction) {
                                 throw new Error(
@@ -778,11 +868,10 @@ const ContractWorkroomPage = () => {
                 },
                 onError: error => {
                         const message =
-                                error instanceof Error
-                                        ? error.message
-                                        : typeof error === 'string'
-                                              ? error
-                                              : 'Không thể giải ngân milestone. Vui lòng thử lại.'
+                                extractErrorMessage(error) ||
+                                (error instanceof Error ? error.message : undefined) ||
+                                (typeof error === 'string' ? error : undefined) ||
+                                'Không thể giải ngân milestone. Vui lòng thử lại.'
 
                         toast.error(message)
                 }
