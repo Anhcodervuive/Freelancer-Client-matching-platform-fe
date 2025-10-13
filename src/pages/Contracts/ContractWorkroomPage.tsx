@@ -4,55 +4,55 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import { isAxiosError } from 'axios'
 import {
-        AlertTriangle,
-        ArrowLeft,
-        CalendarClock,
-        CheckCircle2,
-        CreditCard,
-        Download,
-        Eye,
-        Flag,
-        FolderOpen,
-        ChevronDown,
-        History,
-        LayoutDashboard,
-        Loader2,
-        Paperclip,
-        UploadCloud,
-        XCircle,
-        ShieldCheck,
-        Trash2,
-        Wallet2,
-        Users,
-        Star
+	AlertTriangle,
+	ArrowLeft,
+	CalendarClock,
+	CheckCircle2,
+	CreditCard,
+	Download,
+	Eye,
+	Flag,
+	FolderOpen,
+	ChevronDown,
+	History,
+	LayoutDashboard,
+	Loader2,
+	Paperclip,
+	UploadCloud,
+	XCircle,
+	ShieldCheck,
+	Trash2,
+	Wallet2,
+	Users,
+	Star
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import {
-        createContractMilestone,
-        deleteContractMilestone,
-        deleteContractMilestoneResource,
-        getContractDetail,
-        listContractMilestones,
-        uploadContractMilestoneAttachments,
-        submitMilestoneWork,
-        approveMilestoneSubmission,
-        declineMilestoneSubmission,
-        payMilestone
+	createContractMilestone,
+	deleteContractMilestone,
+	deleteContractMilestoneResource,
+	getContractDetail,
+	listContractMilestones,
+	uploadContractMilestoneAttachments,
+	submitMilestoneWork,
+	approveMilestoneSubmission,
+	declineMilestoneSubmission,
+	payMilestone
 } from '~/apis/contract.api'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type {
-        Contract,
-        ContractMilestone,
-        ContractMilestoneSubmission,
-        ContractMilestoneResource,
-        CreateContractMilestoneInput,
-        PayContractMilestoneInput,
-        PayContractMilestoneResponse
+	Contract,
+	ContractMilestone,
+	ContractMilestoneSubmission,
+	ContractMilestoneResource,
+	CreateContractMilestoneInput,
+	PayContractMilestoneInput,
+	PayContractMilestoneResponse
 } from '~/types/contract'
 import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
@@ -60,17 +60,14 @@ import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
 import { getStripe } from '~/utils/stripe'
 import {
-        extractLanguageLabels,
-        extractSkillNames,
-        getBudgetDisplay,
-        getCurrency,
-        getParticipantLocation,
-        getParticipantName
+	extractLanguageLabels,
+	extractSkillNames,
+	getBudgetDisplay,
+	getCurrency,
+	getParticipantLocation,
+	getParticipantName
 } from './utils'
-import type {
-        ApproveMilestoneSubmissionFormValues,
-        DeclineMilestoneSubmissionFormValues
-} from './schemas'
+import type { ApproveMilestoneSubmissionFormValues, DeclineMilestoneSubmissionFormValues } from './schemas'
 import CreateMilestoneDialog from './components/CreateMilestoneDialog'
 import SubmitMilestoneWorkDialog from './components/SubmitMilestoneWorkDialog'
 import ReviewMilestoneSubmissionDialog from './components/ReviewMilestoneSubmissionDialog'
@@ -90,13 +87,13 @@ type ViewerRole = 'client' | 'freelancer' | 'all'
 const MILESTONES_PER_PAGE = 4
 
 const milestoneStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
-        PENDING: { label: 'Chờ bắt đầu', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
-        IN_PROGRESS: { label: 'Đang thực hiện', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-        SUBMITTED: { label: 'Đã gửi duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-        APPROVED: { label: 'Đã duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-        RELEASED: { label: 'Đã thanh toán', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-        COMPLETED: { label: 'Hoàn thành', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-        CANCELLED: { label: 'Đã hủy', badge: 'bg-rose-50 border-rose-200', text: 'text-rose-700' }
+	PENDING: { label: 'Chờ bắt đầu', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
+	IN_PROGRESS: { label: 'Đang thực hiện', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+	SUBMITTED: { label: 'Đã gửi duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+	APPROVED: { label: 'Đã duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+	RELEASED: { label: 'Đã thanh toán', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+	COMPLETED: { label: 'Hoàn thành', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+	CANCELLED: { label: 'Đã hủy', badge: 'bg-rose-50 border-rose-200', text: 'text-rose-700' }
 }
 
 const getMilestoneStatusMeta = (status?: string | null) => {
@@ -118,341 +115,332 @@ const getMilestoneStatusMeta = (status?: string | null) => {
 }
 
 const submissionStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
-        SUBMITTED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-        PENDING: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-        SUBMITED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-        AWAITING_REVIEW: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-        AWAITING_APPROVAL: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-        APPROVED: { label: 'Đã duyệt', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-        DECLINED: { label: 'Yêu cầu chỉnh sửa', badge: 'bg-amber-50 border-amber-200', text: 'text-amber-700' },
-        REVISED: { label: 'Đã cập nhật', badge: 'bg-secondary/10 border-secondary/40', text: 'text-secondary' }
+	SUBMITTED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+	PENDING: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+	SUBMITED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+	AWAITING_REVIEW: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+	AWAITING_APPROVAL: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+	APPROVED: { label: 'Đã duyệt', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+	DECLINED: { label: 'Yêu cầu chỉnh sửa', badge: 'bg-amber-50 border-amber-200', text: 'text-amber-700' },
+	REVISED: { label: 'Đã cập nhật', badge: 'bg-secondary/10 border-secondary/40', text: 'text-secondary' }
 }
 
 const getSubmissionStatusMeta = (status?: string | null) => {
-        if (!status) {
-                return { label: 'Không xác định', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' }
-        }
-        const normalized = status.toUpperCase()
-        return (
-                submissionStatusMeta[normalized] || {
-                        label: status
-                                .toLowerCase()
-                                .split(/[_\s]+/)
-                                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-                                .join(' '),
-                        badge: 'bg-slate-100 border-slate-200',
-                        text: 'text-slate-600'
-                }
-        )
+	if (!status) {
+		return { label: 'Không xác định', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' }
+	}
+	const normalized = status.toUpperCase()
+	return (
+		submissionStatusMeta[normalized] || {
+			label: status
+				.toLowerCase()
+				.split(/[_\s]+/)
+				.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+				.join(' '),
+			badge: 'bg-slate-100 border-slate-200',
+			text: 'text-slate-600'
+		}
+	)
 }
 
-const pendingReviewStatuses = new Set([
-        'SUBMITTED',
-        'PENDING',
-        'SUBMITED',
-        'AWAITING_REVIEW',
-        'AWAITING_APPROVAL'
-])
+const pendingReviewStatuses = new Set(['SUBMITTED', 'PENDING', 'SUBMITED', 'AWAITING_REVIEW', 'AWAITING_APPROVAL'])
 
 const isSubmissionAwaitingReview = (status?: string | null) => {
-        if (!status) return false
-        return pendingReviewStatuses.has(status.toUpperCase())
+	if (!status) return false
+	return pendingReviewStatuses.has(status.toUpperCase())
 }
 
 const paymentResponseKeys = [
-        'status',
-        'paymentStatus',
-        'payment_status',
-        'requiresAction',
-        'requires_action',
-        'clientSecret',
-        'client_secret',
-        'idempotencyKey',
-        'idemKey',
-        'idempotency_key',
-        'paymentIntentId',
-        'payment_intent_id',
-        'payment_intent'
+	'status',
+	'paymentStatus',
+	'payment_status',
+	'requiresAction',
+	'requires_action',
+	'clientSecret',
+	'client_secret',
+	'idempotencyKey',
+	'idemKey',
+	'idempotency_key',
+	'paymentIntentId',
+	'payment_intent_id',
+	'payment_intent'
 ] as const
 
 type PaymentResponseRecord = Record<string, unknown>
 
 const pickString = (source: PaymentResponseRecord, keys: readonly string[]) => {
-        for (const key of keys) {
-                const value = source[key]
-                if (typeof value === 'string' && value.trim()) {
-                        return value.trim()
-                }
-        }
+	for (const key of keys) {
+		const value = source[key]
+		if (typeof value === 'string' && value.trim()) {
+			return value.trim()
+		}
+	}
 
-        return undefined
+	return undefined
 }
 
 const findPaymentResponse = (
-        payload: unknown,
-        visited = new Set<PaymentResponseRecord>()
+	payload: unknown,
+	visited = new Set<PaymentResponseRecord>()
 ): PaymentResponseRecord | null => {
-        if (!payload || typeof payload !== 'object') {
-                return null
-        }
+	if (!payload || typeof payload !== 'object') {
+		return null
+	}
 
-        const record = payload as PaymentResponseRecord
+	const record = payload as PaymentResponseRecord
 
-        if (visited.has(record)) {
-                return null
-        }
+	if (visited.has(record)) {
+		return null
+	}
 
-        visited.add(record)
+	visited.add(record)
 
-        if (paymentResponseKeys.some(key => key in record)) {
-                return record
-        }
+	if (paymentResponseKeys.some(key => key in record)) {
+		return record
+	}
 
-        for (const value of Object.values(record)) {
-                const nested = findPaymentResponse(value, visited)
-                if (nested) {
-                        return nested
-                }
-        }
+	for (const value of Object.values(record)) {
+		const nested = findPaymentResponse(value, visited)
+		if (nested) {
+			return nested
+		}
+	}
 
-        return null
+	return null
 }
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
-        if (!value || typeof value !== 'object') {
-                return null
-        }
+	if (!value || typeof value !== 'object') {
+		return null
+	}
 
-        return value as Record<string, unknown>
+	return value as Record<string, unknown>
 }
 
 const extractErrorMessage = (error: unknown): string | undefined => {
-        if (isAxiosError(error)) {
-                const data = error.response?.data
+	if (isAxiosError(error)) {
+		const data = error.response?.data
 
-                if (typeof data === 'string') {
-                        const trimmed = data.trim()
-                        return trimmed || undefined
-                }
+		if (typeof data === 'string') {
+			const trimmed = data.trim()
+			return trimmed || undefined
+		}
 
-                const record = asRecord(data)
+		const record = asRecord(data)
 
-                if (record) {
-                        const candidates = ['message', 'error', 'detail', 'title'] as const
+		if (record) {
+			const candidates = ['message', 'error', 'detail', 'title'] as const
 
-                        for (const key of candidates) {
-                                const value = record[key]
+			for (const key of candidates) {
+				const value = record[key]
 
-                                if (typeof value === 'string' && value.trim()) {
-                                        return value.trim()
-                                }
-                        }
-                }
+				if (typeof value === 'string' && value.trim()) {
+					return value.trim()
+				}
+			}
+		}
 
-                return error.message
-        }
+		return error.message
+	}
 
-        if (error instanceof Error) {
-                return error.message
-        }
+	if (error instanceof Error) {
+		return error.message
+	}
 
-        if (typeof error === 'string') {
-                const trimmed = error.trim()
-                return trimmed || undefined
-        }
+	if (typeof error === 'string') {
+		const trimmed = error.trim()
+		return trimmed || undefined
+	}
 
-        return undefined
+	return undefined
 }
 
 const extractPaymentMeta = (
-        payload?: PayContractMilestoneResponse | null
+	payload?: PayContractMilestoneResponse | null
 ): {
-        status?: string
-        clientSecret?: string
-        idempotencyKey?: string
-        paymentIntentId?: string
-        requiresAction: boolean
+	status?: string
+	clientSecret?: string
+	idempotencyKey?: string
+	paymentIntentId?: string
+	requiresAction: boolean
 } => {
-        if (!payload || typeof payload !== 'object') {
-                return {
-                        status: undefined,
-                        clientSecret: undefined,
-                        idempotencyKey: undefined,
-                        paymentIntentId: undefined,
-                        requiresAction: false
-                }
-        }
+	if (!payload || typeof payload !== 'object') {
+		return {
+			status: undefined,
+			clientSecret: undefined,
+			idempotencyKey: undefined,
+			paymentIntentId: undefined,
+			requiresAction: false
+		}
+	}
 
-        const container = findPaymentResponse(payload) ?? (payload as PaymentResponseRecord)
-        const status = pickString(container, ['status', 'paymentStatus', 'payment_status'])
-        const clientSecret = pickString(container, ['clientSecret', 'client_secret'])
-        const idempotencyKey = pickString(container, ['idempotencyKey', 'idemKey', 'idempotency_key'])
-        const paymentIntentId = pickString(container, ['paymentIntentId', 'payment_intent_id', 'payment_intent'])
-        const requiresAction =
-                container.requiresAction === true ||
-                container['requires_action'] === true ||
-                (typeof status === 'string' && status.toUpperCase() === 'REQUIRES_ACTION')
+	const container = findPaymentResponse(payload) ?? (payload as PaymentResponseRecord)
+	const status = pickString(container, ['status', 'paymentStatus', 'payment_status'])
+	const clientSecret = pickString(container, ['clientSecret', 'client_secret'])
+	const idempotencyKey = pickString(container, ['idempotencyKey', 'idemKey', 'idempotency_key'])
+	const paymentIntentId = pickString(container, ['paymentIntentId', 'payment_intent_id', 'payment_intent'])
+	const requiresAction =
+		container.requiresAction === true ||
+		container['requires_action'] === true ||
+		(typeof status === 'string' && status.toUpperCase() === 'REQUIRES_ACTION')
 
-        return {
-                status,
-                clientSecret,
-                idempotencyKey,
-                paymentIntentId,
-                requiresAction
-        }
+	return {
+		status,
+		clientSecret,
+		idempotencyKey,
+		paymentIntentId,
+		requiresAction
+	}
 }
 
 type EscrowStatusMeta = {
-        status: string
-        label: string
-        icon: LucideIcon
-        iconClass: string
-        textClass: string
-        chip?: string
-        caption?: string
-        captionClass?: string
-        spinner?: boolean
+	status: string
+	label: string
+	icon: LucideIcon
+	iconClass: string
+	textClass: string
+	chip?: string
+	caption?: string
+	captionClass?: string
+	spinner?: boolean
 }
 
 const toSentenceCase = (value: string) =>
-        value
-                .toLowerCase()
-                .split(/[_\s]+/)
-                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-                .join(' ')
+	value
+		.toLowerCase()
+		.split(/[_\s]+/)
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ')
 
 const buildEscrowStatusMeta = (
-        status: string,
-        milestone: ContractMilestone,
-        viewerRole: ViewerRole
+	status: string,
+	milestone: ContractMilestone,
+	viewerRole: ViewerRole
 ): EscrowStatusMeta => {
-        const normalizedStatus = status || 'UNFUNDED'
-        const escrowCurrency = milestone.escrow?.currency ?? milestone.currency
-        const milestoneBudget = formatCurrency(milestone.amount, milestone.currency)
-        const fundedAmount = formatCurrency(milestone.escrow?.amountFunded, escrowCurrency)
-        const releasedAmount = formatCurrency(milestone.escrow?.amountReleased ?? milestone.amount, escrowCurrency)
-        const refundedAmount = formatCurrency(milestone.escrow?.amountRefunded, escrowCurrency)
+	const normalizedStatus = status || 'UNFUNDED'
+	const escrowCurrency = milestone.escrow?.currency ?? milestone.currency
+	const milestoneBudget = formatCurrency(milestone.amount, milestone.currency)
+	const fundedAmount = formatCurrency(milestone.escrow?.amountFunded, escrowCurrency)
+	const releasedAmount = formatCurrency(milestone.escrow?.amountReleased ?? milestone.amount, escrowCurrency)
+	const refundedAmount = formatCurrency(milestone.escrow?.amountRefunded, escrowCurrency)
 
-        if (normalizedStatus === 'FUNDED') {
-                const updatedAtText =
-                        formatDateTime(milestone.escrow?.updatedAt ?? milestone.escrow?.createdAt, {
-                                dateStyle: 'medium'
-                        }) ?? undefined
-                const captionParts = [] as string[]
-                if (fundedAmount) {
-                        captionParts.push(`${fundedAmount} đang được giữ an toàn trong tài khoản đảm bảo.`)
-                } else {
-                        captionParts.push('Tài khoản đảm bảo đã được nạp tiền.')
-                }
-                if (updatedAtText) {
-                        captionParts.push(`Cập nhật ngày ${updatedAtText}.`)
-                }
-                return {
-                        status: normalizedStatus,
-                        label: 'Đã giải ngân',
-                        icon: ShieldCheck,
-                        iconClass: 'text-emerald-500',
-                        textClass: 'text-emerald-700',
-                        chip: fundedAmount ?? undefined,
-                        caption: captionParts.join(' '),
-                        captionClass: 'text-emerald-600'
-                }
-        }
+	if (normalizedStatus === 'FUNDED') {
+		const updatedAtText =
+			formatDateTime(milestone.escrow?.updatedAt ?? milestone.escrow?.createdAt, {
+				dateStyle: 'medium'
+			}) ?? undefined
+		const captionParts = [] as string[]
+		if (fundedAmount) {
+			captionParts.push(`${fundedAmount} đang được giữ an toàn trong tài khoản đảm bảo.`)
+		} else {
+			captionParts.push('Tài khoản đảm bảo đã được nạp tiền.')
+		}
+		if (updatedAtText) {
+			captionParts.push(`Cập nhật ngày ${updatedAtText}.`)
+		}
+		return {
+			status: normalizedStatus,
+			label: 'Đã giải ngân',
+			icon: ShieldCheck,
+			iconClass: 'text-emerald-500',
+			textClass: 'text-emerald-700',
+			chip: fundedAmount ?? undefined,
+			caption: captionParts.join(' '),
+			captionClass: 'text-emerald-600'
+		}
+	}
 
-        if (normalizedStatus === 'PENDING') {
-                const caption = 'Khoản tiền đang được xử lý. Vui lòng kiểm tra lại sau ít phút.'
-                return {
-                        status: normalizedStatus,
-                        label: 'Đang xử lý giải ngân',
-                        icon: Loader2,
-                        iconClass: 'text-sky-500',
-                        textClass: 'text-sky-700',
-                        chip: fundedAmount ?? milestoneBudget ?? undefined,
-                        caption,
-                        captionClass: 'text-sky-600',
-                        spinner: true
-                }
-        }
+	if (normalizedStatus === 'PENDING') {
+		const caption = 'Khoản tiền đang được xử lý. Vui lòng kiểm tra lại sau ít phút.'
+		return {
+			status: normalizedStatus,
+			label: 'Đang xử lý giải ngân',
+			icon: Loader2,
+			iconClass: 'text-sky-500',
+			textClass: 'text-sky-700',
+			chip: fundedAmount ?? milestoneBudget ?? undefined,
+			caption,
+			captionClass: 'text-sky-600',
+			spinner: true
+		}
+	}
 
-        if (normalizedStatus === 'RELEASED') {
-                const releaseDateText =
-                        formatDateTime(milestone.releasedAt ?? milestone.escrow?.updatedAt ?? milestone.approvedAt, {
-                                dateStyle: 'medium'
-                        }) ?? undefined
-                const captionParts = [] as string[]
-                if (releaseDateText) {
-                        captionParts.push(`Thanh toán ngày ${releaseDateText}.`)
-                }
-                if (releasedAmount) {
-                        captionParts.push(`${releasedAmount} đã được chuyển tới freelancer.`)
-                }
-                return {
-                        status: normalizedStatus,
-                        label: 'Đã thanh toán',
-                        icon: CheckCircle2,
-                        iconClass: 'text-emerald-500',
-                        textClass: 'text-emerald-700',
-                        chip: releasedAmount ?? undefined,
-                        caption: captionParts.join(' '),
-                        captionClass: 'text-emerald-600'
-                }
-        }
+	if (normalizedStatus === 'RELEASED') {
+		const releaseDateText =
+			formatDateTime(milestone.releasedAt ?? milestone.escrow?.updatedAt ?? milestone.approvedAt, {
+				dateStyle: 'medium'
+			}) ?? undefined
+		const captionParts = [] as string[]
+		if (releaseDateText) {
+			captionParts.push(`Thanh toán ngày ${releaseDateText}.`)
+		}
+		if (releasedAmount) {
+			captionParts.push(`${releasedAmount} đã được chuyển tới freelancer.`)
+		}
+		return {
+			status: normalizedStatus,
+			label: 'Đã thanh toán',
+			icon: CheckCircle2,
+			iconClass: 'text-emerald-500',
+			textClass: 'text-emerald-700',
+			chip: releasedAmount ?? undefined,
+			caption: captionParts.join(' '),
+			captionClass: 'text-emerald-600'
+		}
+	}
 
-        if (normalizedStatus === 'REFUNDED') {
-                const caption =
-                        viewerRole === 'client'
-                                ? 'Khoản tiền đã được hoàn về phương thức thanh toán của bạn.'
-                                : 'Milestone đã được hoàn tiền. Hãy trao đổi thêm với client để biết chi tiết tiếp theo.'
-                return {
-                        status: normalizedStatus,
-                        label: 'Đã hoàn tiền',
-                        icon: Wallet2,
-                        iconClass: 'text-slate-500',
-                        textClass: 'text-slate-700',
-                        chip: refundedAmount ?? undefined,
-                        caption,
-                        captionClass: 'text-slate-500'
-                }
-        }
+	if (normalizedStatus === 'REFUNDED') {
+		const caption =
+			viewerRole === 'client'
+				? 'Khoản tiền đã được hoàn về phương thức thanh toán của bạn.'
+				: 'Milestone đã được hoàn tiền. Hãy trao đổi thêm với client để biết chi tiết tiếp theo.'
+		return {
+			status: normalizedStatus,
+			label: 'Đã hoàn tiền',
+			icon: Wallet2,
+			iconClass: 'text-slate-500',
+			textClass: 'text-slate-700',
+			chip: refundedAmount ?? undefined,
+			caption,
+			captionClass: 'text-slate-500'
+		}
+	}
 
-        if (normalizedStatus === 'UNFUNDED') {
-                const caption =
-                        viewerRole === 'client'
-                                ? 'Giải ngân milestone để chuyển tiền vào tài khoản đảm bảo trước khi freelancer tiếp tục.'
-                                : 'Client chưa giải ngân milestone này. Bạn có thể trao đổi thêm trước khi bàn giao để tránh rủi ro thanh toán.'
-                return {
-                        status: normalizedStatus,
-                        label: 'Chưa giải ngân',
-                        icon: Wallet2,
-                        iconClass: 'text-amber-500',
-                        textClass: 'text-amber-700',
-                        chip: milestoneBudget ?? undefined,
-                        caption,
-                        captionClass: viewerRole === 'client' ? 'text-slate-500' : 'text-amber-600'
-                }
-        }
+	if (normalizedStatus === 'UNFUNDED') {
+		const caption =
+			viewerRole === 'client'
+				? 'Giải ngân milestone để chuyển tiền vào tài khoản đảm bảo trước khi freelancer tiếp tục.'
+				: 'Client chưa giải ngân milestone này. Bạn có thể trao đổi thêm trước khi bàn giao để tránh rủi ro thanh toán.'
+		return {
+			status: normalizedStatus,
+			label: 'Chưa giải ngân',
+			icon: Wallet2,
+			iconClass: 'text-amber-500',
+			textClass: 'text-amber-700',
+			chip: milestoneBudget ?? undefined,
+			caption,
+			captionClass: viewerRole === 'client' ? 'text-slate-500' : 'text-amber-600'
+		}
+	}
 
-        return {
-                status: normalizedStatus,
-                label: toSentenceCase(normalizedStatus),
-                icon: Wallet2,
-                iconClass: 'text-slate-500',
-                textClass: 'text-slate-700',
-                chip: fundedAmount ?? milestoneBudget ?? undefined,
-                caption:
-                        viewerRole === 'client'
-                                ? 'Trạng thái giải ngân sẽ được cập nhật khi có thay đổi.'
-                                : undefined,
-                captionClass: 'text-slate-500'
-        }
+	return {
+		status: normalizedStatus,
+		label: toSentenceCase(normalizedStatus),
+		icon: Wallet2,
+		iconClass: 'text-slate-500',
+		textClass: 'text-slate-700',
+		chip: fundedAmount ?? milestoneBudget ?? undefined,
+		caption: viewerRole === 'client' ? 'Trạng thái giải ngân sẽ được cập nhật khi có thay đổi.' : undefined,
+		captionClass: 'text-slate-500'
+	}
 }
 
 type TabId = (typeof tabs)[number]['id']
 
 const buildTimeline = (contract?: Contract | null) => {
-        if (!contract) return [] as Array<{ id: string; date?: string | null; label: string; description?: string }>
+	if (!contract) return [] as Array<{ id: string; date?: string | null; label: string; description?: string }>
 
-        const events: Array<{ id: string; date?: string | null; label: string; description?: string }> = []
+	const events: Array<{ id: string; date?: string | null; label: string; description?: string }> = []
 
 	if (contract.createdAt) events.push({ id: 'created', date: contract.createdAt, label: 'Hợp đồng được tạo' })
 	if (contract.proposal?.submittedAt)
@@ -470,422 +458,399 @@ const buildTimeline = (contract?: Contract | null) => {
 }
 
 const buildAttachmentList = (contract?: Contract | null): NormalizedAttachment[] =>
-        normalizeAttachments(contract?.jobPost?.attachments)
+	normalizeAttachments(contract?.jobPost?.attachments)
 
 const imageExtensions = new Set(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'heic', 'heif'])
 
 const isImageAttachment = (attachment: NormalizedAttachment) => {
-        const mime = attachment.mimeType?.toLowerCase()
-        if (mime?.startsWith('image/')) return true
-        const extension = attachment.extension?.toLowerCase()
-        return extension ? imageExtensions.has(extension) : false
+	const mime = attachment.mimeType?.toLowerCase()
+	if (mime?.startsWith('image/')) return true
+	const extension = attachment.extension?.toLowerCase()
+	return extension ? imageExtensions.has(extension) : false
 }
 
 const ContractWorkroomPage = () => {
 	const { contractId } = useParams<{ contractId: string }>()
 	const navigate = useNavigate()
 	const currentUser = useSelector(selectCurrentUser)
-        const [activeTab, setActiveTab] = useState<TabId>('overview')
-        const [milestonePage, setMilestonePage] = useState(1)
-        const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
-        const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
-        const [resourceToDelete, setResourceToDelete] = useState<{
-                milestone: ContractMilestone
-                resourceId: string
-                resourceLabel?: string
-        } | null>(null)
-        const [expandedMilestoneAttachments, setExpandedMilestoneAttachments] = useState<Record<string, boolean>>({})
-        const [milestoneToSubmit, setMilestoneToSubmit] = useState<ContractMilestone | null>(null)
-        const [milestoneReviewState, setMilestoneReviewState] = useState<{
-                milestone: ContractMilestone
-                submission: ContractMilestoneSubmission
-                mode: 'approve' | 'decline'
-        } | null>(null)
-        const [milestoneToFund, setMilestoneToFund] = useState<ContractMilestone | null>(null)
-        const pendingPaymentMetaRef = useRef<
-                Record<string, { idempotencyKey?: string; clientSecret?: string }>
-        >({})
+	const [activeTab, setActiveTab] = useState<TabId>('overview')
+	const [milestonePage, setMilestonePage] = useState(1)
+	const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
+	const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
+	const [resourceToDelete, setResourceToDelete] = useState<{
+		milestone: ContractMilestone
+		resourceId: string
+		resourceLabel?: string
+	} | null>(null)
+	const [expandedMilestoneAttachments, setExpandedMilestoneAttachments] = useState<Record<string, boolean>>({})
+	const [milestoneToSubmit, setMilestoneToSubmit] = useState<ContractMilestone | null>(null)
+	const [milestoneReviewState, setMilestoneReviewState] = useState<{
+		milestone: ContractMilestone
+		submission: ContractMilestoneSubmission
+		mode: 'approve' | 'decline'
+	} | null>(null)
+	const [milestoneToFund, setMilestoneToFund] = useState<ContractMilestone | null>(null)
+	const pendingPaymentMetaRef = useRef<Record<string, { idempotencyKey?: string; clientSecret?: string }>>({})
 
-        const viewerRole: ViewerRole =
-                currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
+	const viewerRole: ViewerRole =
+		currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
 
-        const queryClient = useQueryClient()
+	const queryClient = useQueryClient()
 
-        const contractQuery = useQuery({
-                queryKey: ['contract', contractId],
-                queryFn: () => {
-                        if (!contractId) throw new Error('Missing contract id')
-                        return getContractDetail(contractId)
+	const contractQuery = useQuery({
+		queryKey: ['contract', contractId],
+		queryFn: () => {
+			if (!contractId) throw new Error('Missing contract id')
+			return getContractDetail(contractId)
 		},
 		enabled: Boolean(contractId)
 	})
 
-        const milestoneQuery = useQuery({
-                queryKey: ['contract-milestones', contractId],
-                queryFn: () => {
-                        if (!contractId) throw new Error('Missing contract ID')
-                        return listContractMilestones(contractId as string)
-                },
-                enabled: Boolean(contractId) && activeTab === 'milestones'
-        })
+	const milestoneQuery = useQuery({
+		queryKey: ['contract-milestones', contractId],
+		queryFn: () => {
+			if (!contractId) throw new Error('Missing contract ID')
+			return listContractMilestones(contractId as string)
+		},
+		enabled: Boolean(contractId) && activeTab === 'milestones'
+	})
 
-        const pendingReviewMilestones = useMemo(() => {
-                if (viewerRole !== 'client') return [] as Array<{
-                        milestone: ContractMilestone
-                        submission: ContractMilestoneSubmission
-                }>
+	const pendingReviewMilestones = useMemo(() => {
+		if (viewerRole !== 'client')
+			return [] as Array<{
+				milestone: ContractMilestone
+				submission: ContractMilestoneSubmission
+			}>
 
-                const milestones = milestoneQuery.data ?? []
+		const milestones = milestoneQuery.data ?? []
 
-                return milestones
-                        .map(milestone => {
-                                const pendingSubmission = (milestone.submissions ?? [])
-                                        .filter((submission): submission is ContractMilestoneSubmission => Boolean(submission))
-                                        .find(submission => isSubmissionAwaitingReview(submission.status))
+		return milestones
+			.map(milestone => {
+				const pendingSubmission = (milestone.submissions ?? [])
+					.filter((submission): submission is ContractMilestoneSubmission => Boolean(submission))
+					.find(submission => isSubmissionAwaitingReview(submission.status))
 
-                                if (!pendingSubmission) return null
+				if (!pendingSubmission) return null
 
-                                return { milestone, submission: pendingSubmission }
-                        })
-                        .filter((item): item is { milestone: ContractMilestone; submission: ContractMilestoneSubmission } =>
-                                Boolean(item)
-                        )
-        }, [viewerRole, milestoneQuery.data])
+				return { milestone, submission: pendingSubmission }
+			})
+			.filter((item): item is { milestone: ContractMilestone; submission: ContractMilestoneSubmission } =>
+				Boolean(item)
+			)
+	}, [viewerRole, milestoneQuery.data])
 
-        useEffect(() => {
-                const totalMilestones = milestoneQuery.data?.length ?? 0
+	useEffect(() => {
+		const totalMilestones = milestoneQuery.data?.length ?? 0
 
-                if (!totalMilestones) {
-                        if (milestonePage !== 1) {
-                                setMilestonePage(1)
-                        }
-                        return
-                }
+		if (!totalMilestones) {
+			if (milestonePage !== 1) {
+				setMilestonePage(1)
+			}
+			return
+		}
 
-                const totalPages = Math.max(1, Math.ceil(totalMilestones / MILESTONES_PER_PAGE))
+		const totalPages = Math.max(1, Math.ceil(totalMilestones / MILESTONES_PER_PAGE))
 
-                if (milestonePage > totalPages) {
-                        setMilestonePage(totalPages)
-                }
-        }, [milestonePage, milestoneQuery.data])
+		if (milestonePage > totalPages) {
+			setMilestonePage(totalPages)
+		}
+	}, [milestonePage, milestoneQuery.data])
 
-        const paymentMethodsQuery = useQuery({
-                queryKey: ['payment-methods'],
-                queryFn: () => getAllPaymentMethod() as Promise<PaymentMethod[]>,
-                enabled: viewerRole === 'client'
-        })
+	const paymentMethodsQuery = useQuery({
+		queryKey: ['payment-methods'],
+		queryFn: () => getAllPaymentMethod() as Promise<PaymentMethod[]>,
+		enabled: viewerRole === 'client'
+	})
 
-        const createMilestoneMutation = useMutation<
-                { milestone: ContractMilestone; attachmentError: unknown },
-                unknown,
-                { values: CreateContractMilestoneInput; attachments: File[] }
-        >({
-                mutationFn: async ({ values, attachments }) => {
-                        if (!contractId) throw new Error('Missing contract ID')
+	const createMilestoneMutation = useMutation<
+		{ milestone: ContractMilestone; attachmentError: unknown },
+		unknown,
+		{ values: CreateContractMilestoneInput; attachments: File[] }
+	>({
+		mutationFn: async ({ values, attachments }) => {
+			if (!contractId) throw new Error('Missing contract ID')
 
-                        const milestone = await createContractMilestone(contractId, values)
+			const milestone = await createContractMilestone(contractId, values)
 
-                        let attachmentError: unknown
+			let attachmentError: unknown
 
-                        if (attachments.length) {
-                                try {
-                                        await uploadContractMilestoneAttachments(contractId, milestone.id, attachments)
-                                } catch (error) {
-                                        attachmentError = error
-                                }
-                        }
+			if (attachments.length) {
+				try {
+					await uploadContractMilestoneAttachments(contractId, milestone.id, attachments)
+				} catch (error) {
+					attachmentError = error
+				}
+			}
 
-                        return { milestone, attachmentError }
-                },
-                onSuccess: ({ attachmentError }) => {
-                        if (attachmentError) {
-                                toast.warning('Milestone được tạo nhưng tải tệp đính kèm không thành công. Vui lòng thử lại trong tab Files.')
-                                console.error('Upload milestone attachments failed', attachmentError)
-                        } else {
-                                toast.success('Đã tạo milestone mới')
-                        }
+			return { milestone, attachmentError }
+		},
+		onSuccess: ({ attachmentError }) => {
+			if (attachmentError) {
+				toast.warning('Milestone được tạo nhưng tải tệp đính kèm không thành công. Vui lòng thử lại trong tab Files.')
+				console.error('Upload milestone attachments failed', attachmentError)
+			} else {
+				toast.success('Đã tạo milestone mới')
+			}
 
-                        setCreateMilestoneOpen(false)
-                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
-                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-                },
-                onError: () => {
-                        toast.error('Không thể tạo milestone. Vui lòng thử lại.')
-                }
-        })
+			setCreateMilestoneOpen(false)
+			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+			queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+		},
+		onError: () => {
+			toast.error('Không thể tạo milestone. Vui lòng thử lại.')
+		}
+	})
 
-        const deleteMilestoneMutation = useMutation<void, unknown, { milestoneId: string; milestoneTitle: string }>({
-                mutationFn: async ({ milestoneId }) => {
-                        if (!contractId) throw new Error('Missing contract ID')
-                        await deleteContractMilestone(contractId, milestoneId)
-                },
-                onSuccess: (_data, variables) => {
-                        toast.success(`Đã xóa milestone "${variables.milestoneTitle}"`)
-                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
-                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-                },
-                onError: () => {
-                        toast.error('Không thể xóa milestone. Vui lòng thử lại.')
-                }
-        })
+	const deleteMilestoneMutation = useMutation<void, unknown, { milestoneId: string; milestoneTitle: string }>({
+		mutationFn: async ({ milestoneId }) => {
+			if (!contractId) throw new Error('Missing contract ID')
+			await deleteContractMilestone(contractId, milestoneId)
+		},
+		onSuccess: (_data, variables) => {
+			toast.success(`Đã xóa milestone "${variables.milestoneTitle}"`)
+			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+			queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+		},
+		onError: () => {
+			toast.error('Không thể xóa milestone. Vui lòng thử lại.')
+		}
+	})
 
-        const deleteMilestoneResourceMutation = useMutation<
-                void,
-                unknown,
-                { milestoneId: string; resourceId: string; resourceName?: string }
-        >({
-                mutationFn: async ({ milestoneId, resourceId }) => {
-                        if (!contractId) throw new Error('Missing contract ID')
-                        await deleteContractMilestoneResource(contractId, milestoneId, resourceId)
-                },
-                onSuccess: (_data, variables) => {
-                        const message = variables.resourceName
-                                ? `Đã xóa tệp "${variables.resourceName}"`
-                                : 'Đã xóa tệp đính kèm'
-                        toast.success(message)
-                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
-                },
-                onError: () => {
-                        toast.error('Không thể xóa tệp đính kèm. Vui lòng thử lại.')
-                }
-        })
+	const deleteMilestoneResourceMutation = useMutation<
+		void,
+		unknown,
+		{ milestoneId: string; resourceId: string; resourceName?: string }
+	>({
+		mutationFn: async ({ milestoneId, resourceId }) => {
+			if (!contractId) throw new Error('Missing contract ID')
+			await deleteContractMilestoneResource(contractId, milestoneId, resourceId)
+		},
+		onSuccess: (_data, variables) => {
+			const message = variables.resourceName ? `Đã xóa tệp "${variables.resourceName}"` : 'Đã xóa tệp đính kèm'
+			toast.success(message)
+			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+		},
+		onError: () => {
+			toast.error('Không thể xóa tệp đính kèm. Vui lòng thử lại.')
+		}
+	})
 
-        const uploadMilestoneAttachmentsMutation = useMutation<
-                void,
-                unknown,
-                { milestoneId: string; files: File[] }
-        >({
-                mutationFn: async ({ milestoneId, files }) => {
-                        if (!contractId) throw new Error('Missing contract ID')
-                        if (!files.length) return
+	const uploadMilestoneAttachmentsMutation = useMutation<void, unknown, { milestoneId: string; files: File[] }>({
+		mutationFn: async ({ milestoneId, files }) => {
+			if (!contractId) throw new Error('Missing contract ID')
+			if (!files.length) return
 
-                        await uploadContractMilestoneAttachments(contractId, milestoneId, files)
-                },
-                onSuccess: (_data, variables) => {
-                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+			await uploadContractMilestoneAttachments(contractId, milestoneId, files)
+		},
+		onSuccess: (_data, variables) => {
+			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
 
-                        if (variables.files.length > 1) {
-                                toast.success('Đã tải lên các tệp đính kèm mới')
-                        } else {
-                                toast.success('Đã tải lên tệp đính kèm mới')
-                        }
-                },
-                onError: () => {
-                        toast.error('Không thể tải tệp đính kèm. Vui lòng thử lại.')
-                }
-        })
+			if (variables.files.length > 1) {
+				toast.success('Đã tải lên các tệp đính kèm mới')
+			} else {
+				toast.success('Đã tải lên tệp đính kèm mới')
+			}
+		},
+		onError: () => {
+			toast.error('Không thể tải tệp đính kèm. Vui lòng thử lại.')
+		}
+	})
 
-        const submitMilestoneWorkMutation = useMutation<
-                void,
-                unknown,
-                { milestoneId: string; message: string; note?: string; files: File[] }
-        >({
-                mutationFn: async ({ milestoneId, message, note, files }) => {
-                        if (!contractId) throw new Error('Missing contract ID')
-                        await submitMilestoneWork(contractId, milestoneId, {
-                                message,
-                                note,
-                                files
-                        })
-                },
-                onSuccess: () => {
-                        toast.success('Đã gửi bàn giao milestone tới khách hàng')
-                        setMilestoneToSubmit(null)
-                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
-                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-                },
-                onError: () => {
-                        toast.error('Không thể gửi bàn giao milestone. Vui lòng thử lại.')
-                }
-        })
+	const submitMilestoneWorkMutation = useMutation<
+		void,
+		unknown,
+		{ milestoneId: string; message: string; note?: string; files: File[] }
+	>({
+		mutationFn: async ({ milestoneId, message, note, files }) => {
+			if (!contractId) throw new Error('Missing contract ID')
+			await submitMilestoneWork(contractId, milestoneId, {
+				message,
+				note,
+				files
+			})
+		},
+		onSuccess: () => {
+			toast.success('Đã gửi bàn giao milestone tới khách hàng')
+			setMilestoneToSubmit(null)
+			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+			queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+		},
+		onError: () => {
+			toast.error('Không thể gửi bàn giao milestone. Vui lòng thử lại.')
+		}
+	})
 
-        const approveMilestoneSubmissionMutation = useMutation<
-                void,
-                unknown,
-                {
-                        milestoneId: string
-                        submissionId: string
-                        reviewNote?: string
-                        reviewRating: number
-                }
-        >({
-                mutationFn: async ({ milestoneId, submissionId, reviewNote, reviewRating }) => {
-                        if (!contractId) throw new Error('Missing contract ID')
-                        await approveMilestoneSubmission(contractId, milestoneId, submissionId, {
-                                reviewNote,
-                                reviewRating
-                        })
-                },
-                onSuccess: () => {
-                        toast.success('Đã chấp nhận bàn giao milestone')
-                        setMilestoneReviewState(null)
-                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
-                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-                },
-                onError: () => {
-                        toast.error('Không thể chấp nhận bàn giao. Vui lòng thử lại.')
-                }
-        })
+	const approveMilestoneSubmissionMutation = useMutation<
+		void,
+		unknown,
+		{
+			milestoneId: string
+			submissionId: string
+			reviewNote?: string
+			reviewRating: number
+		}
+	>({
+		mutationFn: async ({ milestoneId, submissionId, reviewNote, reviewRating }) => {
+			if (!contractId) throw new Error('Missing contract ID')
+			await approveMilestoneSubmission(contractId, milestoneId, submissionId, {
+				reviewNote,
+				reviewRating
+			})
+		},
+		onSuccess: () => {
+			toast.success('Đã chấp nhận bàn giao milestone')
+			setMilestoneReviewState(null)
+			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+			queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+		},
+		onError: () => {
+			toast.error('Không thể chấp nhận bàn giao. Vui lòng thử lại.')
+		}
+	})
 
-        const declineMilestoneSubmissionMutation = useMutation<
-                void,
-                unknown,
-                {
-                        milestoneId: string
-                        submissionId: string
-                        reviewNote: string
-                        reviewRating?: number
-                }
-        >({
-                mutationFn: async ({ milestoneId, submissionId, reviewNote, reviewRating }) => {
-                        if (!contractId) throw new Error('Missing contract ID')
-                        await declineMilestoneSubmission(contractId, milestoneId, submissionId, {
-                                reviewNote,
-                                reviewRating
-                        })
-                },
-                onSuccess: () => {
-                        toast.success('Đã gửi yêu cầu chỉnh sửa milestone')
-                        setMilestoneReviewState(null)
-                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
-                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-                },
-                onError: () => {
-                        toast.error('Không thể gửi yêu cầu chỉnh sửa. Vui lòng thử lại.')
-                }
-        })
+	const declineMilestoneSubmissionMutation = useMutation<
+		void,
+		unknown,
+		{
+			milestoneId: string
+			submissionId: string
+			reviewNote: string
+			reviewRating?: number
+		}
+	>({
+		mutationFn: async ({ milestoneId, submissionId, reviewNote, reviewRating }) => {
+			if (!contractId) throw new Error('Missing contract ID')
+			await declineMilestoneSubmission(contractId, milestoneId, submissionId, {
+				reviewNote,
+				reviewRating
+			})
+		},
+		onSuccess: () => {
+			toast.success('Đã gửi yêu cầu chỉnh sửa milestone')
+			setMilestoneReviewState(null)
+			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+			queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+		},
+		onError: () => {
+			toast.error('Không thể gửi yêu cầu chỉnh sửa. Vui lòng thử lại.')
+		}
+	})
 
-        const payMilestoneMutation = useMutation<
-                void,
-                unknown,
-                { milestoneId: string; paymentMethodId: string; note?: string; idempotencyKey?: string }
-        >({
-                mutationFn: async ({ milestoneId, paymentMethodId, note, idempotencyKey }) => {
-                        if (!contractId) throw new Error('Missing contract ID')
+	const payMilestoneMutation = useMutation<
+		void,
+		unknown,
+		{ milestoneId: string; paymentMethodId: string; note?: string; idempotencyKey?: string }
+	>({
+		mutationFn: async ({ milestoneId, paymentMethodId, note, idempotencyKey }) => {
+			if (!contractId) throw new Error('Missing contract ID')
 
-                        const performPayment = async (idempotencyKey?: string) => {
-                                const payload: PayContractMilestoneInput = {
-                                        paymentMethodId
-                                }
+			const performPayment = async (idempotencyKey?: string) => {
+				const payload: PayContractMilestoneInput = {
+					paymentMethodId
+				}
 
-                                if (typeof note === 'string' && note.trim().length > 0) {
-                                        payload.note = note
-                                }
+				if (typeof note === 'string' && note.trim().length > 0) {
+					payload.note = note
+				}
 
-                                if (idempotencyKey) {
-                                        payload.idempotencyKey = idempotencyKey
-                                }
+				if (idempotencyKey) {
+					payload.idempotencyKey = idempotencyKey
+				}
 
-                                try {
-                                        const response = await payMilestone(contractId, milestoneId, payload)
+				try {
+					console.log(payload)
+					const response = await payMilestone(contractId, milestoneId, payload)
 
-                                        return {
-                                                response,
-                                                meta: extractPaymentMeta(response)
-                                        }
-                                } catch (error) {
-                                        if (!isAxiosError(error)) {
-                                                throw error
-                                        }
+					return {
+						response,
+						meta: extractPaymentMeta(response)
+					}
+				} catch (error) {
+					if (!isAxiosError(error)) {
+						throw error
+					}
 
-                                        const rawPayload = asRecord(error.response?.data) ?? {}
-                                        const meta = extractPaymentMeta(rawPayload as PayContractMilestoneResponse)
+					const rawPayload = asRecord(error.response?.data) ?? {}
+					const meta = extractPaymentMeta(rawPayload as PayContractMilestoneResponse)
 
-                                        if (
-                                                meta.requiresAction ||
-                                                meta.clientSecret ||
-                                                meta.idempotencyKey ||
-                                                meta.paymentIntentId
-                                        ) {
-                                                return {
-                                                        response: rawPayload as PayContractMilestoneResponse,
-                                                        meta
-                                                }
-                                        }
+					if (meta.requiresAction || meta.clientSecret || meta.idempotencyKey || meta.paymentIntentId) {
+						return {
+							response: rawPayload as PayContractMilestoneResponse,
+							meta
+						}
+					}
 
-                                        throw new Error(
-                                                extractErrorMessage(error) ||
-                                                        'Không thể giải ngân milestone. Vui lòng thử lại.'
-                                        )
-                                }
-                        }
+					throw new Error(extractErrorMessage(error) || 'Không thể giải ngân milestone. Vui lòng thử lại.')
+				}
+			}
 
-                        const { meta: initialMeta } = await performPayment()
+			const { meta: initialMeta } = await performPayment()
 
-                        if (!initialMeta.requiresAction) {
-                                return
-                        }
+			if (!initialMeta.requiresAction) {
+				return
+			}
 
-                        if (!initialMeta.clientSecret) {
-                                throw new Error('Thiếu client secret để xác thực 3-D Secure.')
-                        }
+			if (!initialMeta.clientSecret) {
+				throw new Error('Thiếu client secret để xác thực 3-D Secure.')
+			}
 
-                        const stripe = await getStripe()
-                        const confirmation = await stripe.confirmCardPayment(initialMeta.clientSecret, {
-                                payment_method: paymentMethodId
-                        })
+			const stripe = await getStripe()
+			const confirmation = await stripe.confirmCardPayment(initialMeta.clientSecret, {
+				payment_method: paymentMethodId
+			})
 
-                        if (confirmation.error) {
-                                const code = confirmation.error.code
-                                const baseMessage =
-                                        confirmation.error.message ||
-                                        (code === 'payment_intent_authentication_failure'
-                                                ? 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
-                                                : undefined)
+			if (confirmation.error) {
+				const code = confirmation.error.code
+				const baseMessage =
+					confirmation.error.message ||
+					(code === 'payment_intent_authentication_failure'
+						? 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
+						: undefined)
 
-                                if (confirmation.error.type === 'canceled' || code === 'payment_intent_authentication_failure') {
-                                        throw new Error(
-                                                baseMessage ||
-                                                        'Xác thực 3-D Secure đã bị hủy. Vui lòng thử lại nếu bạn vẫn muốn thanh toán.'
-                                        )
-                                }
+				if (confirmation.error.type === 'canceled' || code === 'payment_intent_authentication_failure') {
+					throw new Error(baseMessage || 'Xác thực 3-D Secure đã bị hủy. Vui lòng thử lại nếu bạn vẫn muốn thanh toán.')
+				}
 
-                                throw new Error(
-                                        baseMessage || 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
-                                )
-                        }
+				throw new Error(baseMessage || 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.')
+			}
 
-                        const normalizedIdempotencyKey =
-                                initialMeta.idempotencyKey ||
-                                initialMeta.paymentIntentId ||
-                                confirmation.paymentIntent?.id ||
-                                undefined
+			const normalizedIdempotencyKey =
+				initialMeta.idempotencyKey || initialMeta.paymentIntentId || confirmation.paymentIntent?.id || undefined
 
-                        if (!normalizedIdempotencyKey) {
-                                throw new Error('Không tìm thấy idempotency key để hoàn tất thanh toán.')
-                        }
+			if (!normalizedIdempotencyKey) {
+				throw new Error('Không tìm thấy idempotency key để hoàn tất thanh toán.')
+			}
 
-                        const { meta: finalMeta } = await performPayment(normalizedIdempotencyKey)
+			const { meta: finalMeta } = await performPayment(normalizedIdempotencyKey)
 
-                        if (finalMeta.requiresAction) {
-                                throw new Error(
-                                        'Thanh toán vẫn cần xác thực bổ sung. Vui lòng kiểm tra lại trạng thái 3-D Secure.'
-                                )
-                        }
-                },
-                onSuccess: () => {
-                        toast.success('Đã giải ngân milestone thành công')
-                        setMilestoneToFund(null)
-                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
-                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-                },
-                onError: error => {
-                        const message =
-                                extractErrorMessage(error) ||
-                                (error instanceof Error ? error.message : undefined) ||
-                                (typeof error === 'string' ? error : undefined) ||
-                                'Không thể giải ngân milestone. Vui lòng thử lại.'
+			if (finalMeta.requiresAction) {
+				throw new Error('Thanh toán vẫn cần xác thực bổ sung. Vui lòng kiểm tra lại trạng thái 3-D Secure.')
+			}
+		},
+		onSuccess: () => {
+			toast.success('Đã giải ngân milestone thành công')
+			setMilestoneToFund(null)
+			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+			queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+		},
+		onError: error => {
+			const message =
+				extractErrorMessage(error) ||
+				(error instanceof Error ? error.message : undefined) ||
+				(typeof error === 'string' ? error : undefined) ||
+				'Không thể giải ngân milestone. Vui lòng thử lại.'
 
-                        toast.error(message)
-                }
-        })
+			toast.error(message)
+		}
+	})
 
-        const pendingIdempotencyKey =
-                milestoneToFund?.id ? pendingPaymentMetaRef.current[milestoneToFund.id]?.idempotencyKey : undefined
+	const pendingIdempotencyKey = milestoneToFund?.id
+		? pendingPaymentMetaRef.current[milestoneToFund.id]?.idempotencyKey
+		: undefined
 
-        const contract = contractQuery.data as Contract | undefined
-        const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
-        const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
+	const contract = contractQuery.data as Contract | undefined
+	const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
+	const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
 	const clientName = getParticipantName(contract?.client?.profile, contract?.client?.companyName)
 	const freelancerName = getParticipantName(contract?.freelancer?.profile, undefined)
 	const clientLocation = getParticipantLocation(contract?.client?.profile)
@@ -898,94 +863,87 @@ const ContractWorkroomPage = () => {
 	const outstanding = formatCurrency(contract?.outstandingBalance ?? undefined, currency)
 	const hourlyRate = formatCurrency(contract?.hourlyRate ?? undefined, contract?.hourlyRateCurrency ?? currency)
 	const fixedPrice = formatCurrency(contract?.fixedPrice ?? undefined, contract?.fixedPriceCurrency ?? currency)
-        const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
-        const attachments = useMemo(() => buildAttachmentList(contract), [contract])
+	const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
+	const attachments = useMemo(() => buildAttachmentList(contract), [contract])
 
-        const requestDeleteMilestone = (milestone: ContractMilestone) => {
-                if (deleteMilestoneMutation.isPending) return
+	const requestDeleteMilestone = (milestone: ContractMilestone) => {
+		if (deleteMilestoneMutation.isPending) return
 
-                setMilestoneToDelete(milestone)
-        }
+		setMilestoneToDelete(milestone)
+	}
 
-        const confirmDeleteMilestone = async () => {
-                if (!milestoneToDelete) return
+	const confirmDeleteMilestone = async () => {
+		if (!milestoneToDelete) return
 
-                await deleteMilestoneMutation.mutateAsync({
-                        milestoneId: milestoneToDelete.id,
-                        milestoneTitle: milestoneToDelete.title
-                })
-        }
+		await deleteMilestoneMutation.mutateAsync({
+			milestoneId: milestoneToDelete.id,
+			milestoneTitle: milestoneToDelete.title
+		})
+	}
 
-        const requestDeleteMilestoneResource = (
-                milestone: ContractMilestone,
-                resourceId: string,
-                resourceLabel: string
-        ) => {
-                if (deleteMilestoneResourceMutation.isPending) return
+	const requestDeleteMilestoneResource = (milestone: ContractMilestone, resourceId: string, resourceLabel: string) => {
+		if (deleteMilestoneResourceMutation.isPending) return
 
-                const sanitizedLabel = resourceLabel?.trim()
+		const sanitizedLabel = resourceLabel?.trim()
 
-                setResourceToDelete({
-                        milestone,
-                        resourceId,
-                        resourceLabel: sanitizedLabel || undefined
-                })
-        }
+		setResourceToDelete({
+			milestone,
+			resourceId,
+			resourceLabel: sanitizedLabel || undefined
+		})
+	}
 
-        const confirmDeleteMilestoneResource = async () => {
-                if (!resourceToDelete) return
+	const confirmDeleteMilestoneResource = async () => {
+		if (!resourceToDelete) return
 
-                await deleteMilestoneResourceMutation.mutateAsync({
-                        milestoneId: resourceToDelete.milestone.id,
-                        resourceId: resourceToDelete.resourceId,
-                        resourceName: resourceToDelete.resourceLabel
-                })
-        }
+		await deleteMilestoneResourceMutation.mutateAsync({
+			milestoneId: resourceToDelete.milestone.id,
+			resourceId: resourceToDelete.resourceId,
+			resourceName: resourceToDelete.resourceLabel
+		})
+	}
 
-        const toggleMilestoneAttachments = (milestoneId: string) => {
-                setExpandedMilestoneAttachments(prev => ({
-                        ...prev,
-                        [milestoneId]: !prev[milestoneId]
-                }))
-        }
+	const toggleMilestoneAttachments = (milestoneId: string) => {
+		setExpandedMilestoneAttachments(prev => ({
+			...prev,
+			[milestoneId]: !prev[milestoneId]
+		}))
+	}
 
-        const handleMilestoneAttachmentUpload = (milestoneId: string, files: FileList | File[]) => {
-                if (!files || uploadMilestoneAttachmentsMutation.isPending) return
+	const handleMilestoneAttachmentUpload = (milestoneId: string, files: FileList | File[]) => {
+		if (!files || uploadMilestoneAttachmentsMutation.isPending) return
 
-                const normalizedFiles = Array.from(files).filter((file): file is File => file instanceof File)
+		const normalizedFiles = Array.from(files).filter((file): file is File => file instanceof File)
 
-                if (!normalizedFiles.length) return
+		if (!normalizedFiles.length) return
 
-                uploadMilestoneAttachmentsMutation.mutate({
-                        milestoneId,
-                        files: normalizedFiles
-                })
-        }
+		uploadMilestoneAttachmentsMutation.mutate({
+			milestoneId,
+			files: normalizedFiles
+		})
+	}
 
-        const handleMilestoneAttachmentFileChange = (
-                milestoneId: string,
-                event: ChangeEvent<HTMLInputElement>
-        ) => {
-                handleMilestoneAttachmentUpload(milestoneId, event.target.files ?? [])
-                event.target.value = ''
-        }
+	const handleMilestoneAttachmentFileChange = (milestoneId: string, event: ChangeEvent<HTMLInputElement>) => {
+		handleMilestoneAttachmentUpload(milestoneId, event.target.files ?? [])
+		event.target.value = ''
+	}
 
-        const handleMilestoneAttachmentDrop = (milestoneId: string, event: DragEvent<HTMLLabelElement>) => {
-                event.preventDefault()
-                if (uploadMilestoneAttachmentsMutation.isPending) return
+	const handleMilestoneAttachmentDrop = (milestoneId: string, event: DragEvent<HTMLLabelElement>) => {
+		event.preventDefault()
+		if (uploadMilestoneAttachmentsMutation.isPending) return
 
-                handleMilestoneAttachmentUpload(milestoneId, event.dataTransfer.files ?? [])
-        }
+		handleMilestoneAttachmentUpload(milestoneId, event.dataTransfer.files ?? [])
+	}
 
-        const handleMilestoneAttachmentDragOver = (event: DragEvent<HTMLLabelElement>) => {
-                event.preventDefault()
-                event.dataTransfer.dropEffect = 'copy'
-        }
+	const handleMilestoneAttachmentDragOver = (event: DragEvent<HTMLLabelElement>) => {
+		event.preventDefault()
+		event.dataTransfer.dropEffect = 'copy'
+	}
 
-        const jobPostLink = contract?.jobPost?.id
-                ? currentUser?.role === Role.CLIENT
-                        ? routes.me.client.jobs.detail(contract.jobPost.id)
-                        : routes.freelancer.jobs.detail(contract.jobPost.id)
+	const jobPostLink = contract?.jobPost?.id
+		? currentUser?.role === Role.CLIENT
+			? routes.me.client.jobs.detail(contract.jobPost.id)
+			: routes.freelancer.jobs.detail(contract.jobPost.id)
 		: undefined
 
 	const heroBadge =
@@ -1006,18 +964,18 @@ const ContractWorkroomPage = () => {
 			<div className='grid gap-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:grid-cols-3 md:p-8'>
 				<div className='space-y-3'>
 					<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Trạng thái</p>
-                                        <div className='space-y-2'>
-                                                <span
-                                                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold shadow-sm shadow-white/40 ${statusMeta.badge} ${statusMeta.text}`}>
-                                                        <span className='size-2 rounded-full bg-current'></span>
-                                                        {statusMeta.label}
-                                                </span>
-                                                <p className='flex items-start gap-2 text-sm font-medium text-slate-600'>
-                                                        <ShieldCheck className='mt-0.5 size-4 text-primary' />
-                                                        <span className='text-left'>{statusDescription}</span>
-                                                </p>
-                                        </div>
-                                        <p className='text-sm text-slate-500'>Cập nhật lần cuối {formatDateTime(contract?.updatedAt) ?? '—'}</p>
+					<div className='space-y-2'>
+						<span
+							className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold shadow-sm shadow-white/40 ${statusMeta.badge} ${statusMeta.text}`}>
+							<span className='size-2 rounded-full bg-current'></span>
+							{statusMeta.label}
+						</span>
+						<p className='flex items-start gap-2 text-sm font-medium text-slate-600'>
+							<ShieldCheck className='mt-0.5 size-4 text-primary' />
+							<span className='text-left'>{statusDescription}</span>
+						</p>
+					</div>
+					<p className='text-sm text-slate-500'>Cập nhật lần cuối {formatDateTime(contract?.updatedAt) ?? '—'}</p>
 				</div>
 				<div className='space-y-3'>
 					<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Tài chính</p>
@@ -1161,938 +1119,872 @@ const ContractWorkroomPage = () => {
 						)}
 					</div>
 				</div>
-                                {attachments.length > 0 && (
-                                        <div className='mt-6 space-y-3'>
-                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Tệp đính kèm</p>
-                                                <div className='grid gap-4 md:grid-cols-2'>
-                                                        {attachments.slice(0, 4).map(attachment => {
-                                                                const isImage = isImageAttachment(attachment)
-                                                                const sizeLabel = formatFileSize(attachment.size)
-                                                                const typeLabel = formatFileType({
-                                                                        mimeType: attachment.mimeType,
-                                                                        extension: attachment.extension
-                                                                })
-                                                                const metadata = [sizeLabel, typeLabel].filter((value): value is string => Boolean(value))
+				{attachments.length > 0 && (
+					<div className='mt-6 space-y-3'>
+						<p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Tệp đính kèm</p>
+						<div className='grid gap-4 md:grid-cols-2'>
+							{attachments.slice(0, 4).map(attachment => {
+								const isImage = isImageAttachment(attachment)
+								const sizeLabel = formatFileSize(attachment.size)
+								const typeLabel = formatFileType({
+									mimeType: attachment.mimeType,
+									extension: attachment.extension
+								})
+								const metadata = [sizeLabel, typeLabel].filter((value): value is string => Boolean(value))
 
-                                                                const content = isImage ? (
-                                                                        <div className='group relative flex h-48 w-full overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-sm transition hover:shadow-lg'>
-                                                                                {attachment.url ? (
-                                                                                        <img
-                                                                                                src={attachment.url}
-                                                                                                alt={attachment.label}
-                                                                                                className='h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]'
-                                                                                                loading='lazy'
-                                                                                        />
-                                                                                ) : (
-                                                                                        <div className='flex h-full w-full items-center justify-center bg-slate-100 text-sm text-slate-500'>Không có xem trước</div>
-                                                                                )}
-                                                                                <div className='pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent p-4 text-white'>
-                                                                                        <p className='truncate text-sm font-medium'>{attachment.label}</p>
-                                                                                        {metadata.length > 0 && (
-                                                                                                <p className='mt-1 text-xs text-white/80'>{metadata.join(' • ')}</p>
-                                                                                        )}
-                                                                                </div>
-                                                                        </div>
-                                                                ) : (
-                                                                        <div className='flex items-center gap-3 rounded-2xl border border-white/70 bg-white/90 p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md'>
-                                                                                <div className='flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
-                                                                                        {attachment.extension ?? 'FILE'}
-                                                                                </div>
-                                                                                <div className='min-w-0 flex-1'>
-                                                                                        <p className='truncate text-sm font-medium text-slate-900'>{attachment.label}</p>
-                                                                                        {metadata.length > 0 && (
-                                                                                                <p className='mt-1 text-xs text-slate-500'>{metadata.join(' • ')}</p>
-                                                                                        )}
-                                                                                </div>
-                                                                        </div>
-                                                                )
+								const content = isImage ? (
+									<div className='group relative flex h-48 w-full overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-sm transition hover:shadow-lg'>
+										{attachment.url ? (
+											<img
+												src={attachment.url}
+												alt={attachment.label}
+												className='h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]'
+												loading='lazy'
+											/>
+										) : (
+											<div className='flex h-full w-full items-center justify-center bg-slate-100 text-sm text-slate-500'>
+												Không có xem trước
+											</div>
+										)}
+										<div className='pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent p-4 text-white'>
+											<p className='truncate text-sm font-medium'>{attachment.label}</p>
+											{metadata.length > 0 && <p className='mt-1 text-xs text-white/80'>{metadata.join(' • ')}</p>}
+										</div>
+									</div>
+								) : (
+									<div className='flex items-center gap-3 rounded-2xl border border-white/70 bg-white/90 p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md'>
+										<div className='flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
+											{attachment.extension ?? 'FILE'}
+										</div>
+										<div className='min-w-0 flex-1'>
+											<p className='truncate text-sm font-medium text-slate-900'>{attachment.label}</p>
+											{metadata.length > 0 && <p className='mt-1 text-xs text-slate-500'>{metadata.join(' • ')}</p>}
+										</div>
+									</div>
+								)
 
-                                                                if (attachment.url) {
-                                                                        return (
-                                                                                <a
-                                                                                        key={attachment.id}
-                                                                                        href={attachment.url}
-                                                                                        target='_blank'
-                                                                                        rel='noreferrer'
-                                                                                        className='block focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white'
-                                                                                >
-                                                                                        {content}
-                                                                                </a>
-                                                                        )
-                                                                }
+								if (attachment.url) {
+									return (
+										<a
+											key={attachment.id}
+											href={attachment.url}
+											target='_blank'
+											rel='noreferrer'
+											className='block focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white'>
+											{content}
+										</a>
+									)
+								}
 
-                                                                return (
-                                                                        <div key={attachment.id} className='block opacity-80'>
-                                                                                {content}
-                                                                        </div>
-                                                                )
-                                                        })}
-                                                </div>
-                                        </div>
-                                )}
+								return (
+									<div key={attachment.id} className='block opacity-80'>
+										{content}
+									</div>
+								)
+							})}
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 	)
 
-        const renderMilestones = () => {
-                if (milestoneQuery.isLoading) {
-                        return (
-                                <div className='flex justify-center py-12 text-slate-500'>
-                                        <Loader2 className='size-6 animate-spin' />
-                                </div>
-                        )
-                }
+	const renderMilestones = () => {
+		if (milestoneQuery.isLoading) {
+			return (
+				<div className='flex justify-center py-12 text-slate-500'>
+					<Loader2 className='size-6 animate-spin' />
+				</div>
+			)
+		}
 
-                const milestones = milestoneQuery.data ?? []
-                const isSubmittingWork = submitMilestoneWorkMutation.isPending
-                const isReviewingSubmission =
-                        approveMilestoneSubmissionMutation.isPending ||
-                        declineMilestoneSubmissionMutation.isPending
-                const isFundingMilestone = payMilestoneMutation.isPending
-                const totalMilestones = milestones.length
-                const totalPages = Math.max(1, Math.ceil(totalMilestones / MILESTONES_PER_PAGE))
-                const currentPage = Math.min(milestonePage, totalPages)
-                const pageStart = (currentPage - 1) * MILESTONES_PER_PAGE
-                const pageEnd = Math.min(pageStart + MILESTONES_PER_PAGE, totalMilestones)
-                const visibleMilestones = milestones.slice(pageStart, pageEnd)
-                const displayStart = totalMilestones ? pageStart + 1 : 0
-                const displayEnd = pageEnd
-                if (!milestones.length) {
-                        return (
-                                <div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
-                                        <Flag className='mx-auto mb-3 size-8 text-primary' />
-                                        <p className='text-base font-semibold text-slate-700'>Chưa có milestone nào</p>
-                                        <p className='mt-2 text-sm text-slate-500'>Tạo milestones để chia nhỏ công việc và giải ngân theo tiến độ.</p>
-                                        {viewerRole === 'client' && (
-                                                <button
-                                                        type='button'
-                                                        onClick={() => setCreateMilestoneOpen(true)}
-                                                        className='mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-                                                        disabled={createMilestoneMutation.isPending}
-                                                >
-                                                        <Flag className='size-4' /> Tạo milestone
-                                                </button>
-                                        )}
-                                </div>
-                        )
-                }
+		const milestones = milestoneQuery.data ?? []
+		const isSubmittingWork = submitMilestoneWorkMutation.isPending
+		const isReviewingSubmission =
+			approveMilestoneSubmissionMutation.isPending || declineMilestoneSubmissionMutation.isPending
+		const isFundingMilestone = payMilestoneMutation.isPending
+		const totalMilestones = milestones.length
+		const totalPages = Math.max(1, Math.ceil(totalMilestones / MILESTONES_PER_PAGE))
+		const currentPage = Math.min(milestonePage, totalPages)
+		const pageStart = (currentPage - 1) * MILESTONES_PER_PAGE
+		const pageEnd = Math.min(pageStart + MILESTONES_PER_PAGE, totalMilestones)
+		const visibleMilestones = milestones.slice(pageStart, pageEnd)
+		const displayStart = totalMilestones ? pageStart + 1 : 0
+		const displayEnd = pageEnd
+		if (!milestones.length) {
+			return (
+				<div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
+					<Flag className='mx-auto mb-3 size-8 text-primary' />
+					<p className='text-base font-semibold text-slate-700'>Chưa có milestone nào</p>
+					<p className='mt-2 text-sm text-slate-500'>Tạo milestones để chia nhỏ công việc và giải ngân theo tiến độ.</p>
+					{viewerRole === 'client' && (
+						<button
+							type='button'
+							onClick={() => setCreateMilestoneOpen(true)}
+							className='mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+							disabled={createMilestoneMutation.isPending}>
+							<Flag className='size-4' /> Tạo milestone
+						</button>
+					)}
+				</div>
+			)
+		}
 
-                return (
-                        <div className='space-y-6'>
-                                {viewerRole === 'client' && pendingReviewMilestones.length > 0 && (
-                                        <div className='space-y-4 rounded-[24px] border border-sky-200/80 bg-sky-50/80 p-5 shadow-inner shadow-white/60'>
-                                                <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-                                                        <div>
-                                                                <p className='text-[11px] font-semibold uppercase tracking-[0.35em] text-sky-500'>Bàn giao đang chờ duyệt</p>
-                                                                <h3 className='text-base font-semibold text-slate-900'>
-                                                                        {pendingReviewMilestones.length === 1
-                                                                                ? 'Có 1 bàn giao cần bạn xử lý'
-                                                                                : `Có ${pendingReviewMilestones.length} bàn giao cần bạn xử lý`}
-                                                                </h3>
-                                                                <p className='text-xs text-slate-500'>Xem nhanh các bàn giao mới nhất bên dưới hoặc duyệt ngay tại từng milestone.</p>
-                                                        </div>
-                                                </div>
-                                                <ul className='space-y-3'>
-                                                        {pendingReviewMilestones.slice(0, 3).map(({ milestone, submission }) => {
-                                                                const submittedAtText = submission.submittedAt
-                                                                        ? formatDateTime(submission.submittedAt, {
-                                                                                  dateStyle: 'medium',
-                                                                                  timeStyle: 'short'
-                                                                          })
-                                                                        : undefined
-                                                                const isCurrentReviewTarget =
-                                                                        milestoneReviewState?.milestone.id === milestone.id && isReviewingSubmission
-                                                                const reviewingMode = milestoneReviewState?.mode
+		return (
+			<div className='space-y-6'>
+				{viewerRole === 'client' && pendingReviewMilestones.length > 0 && (
+					<div className='space-y-4 rounded-[24px] border border-sky-200/80 bg-sky-50/80 p-5 shadow-inner shadow-white/60'>
+						<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+							<div>
+								<p className='text-[11px] font-semibold uppercase tracking-[0.35em] text-sky-500'>
+									Bàn giao đang chờ duyệt
+								</p>
+								<h3 className='text-base font-semibold text-slate-900'>
+									{pendingReviewMilestones.length === 1
+										? 'Có 1 bàn giao cần bạn xử lý'
+										: `Có ${pendingReviewMilestones.length} bàn giao cần bạn xử lý`}
+								</h3>
+								<p className='text-xs text-slate-500'>
+									Xem nhanh các bàn giao mới nhất bên dưới hoặc duyệt ngay tại từng milestone.
+								</p>
+							</div>
+						</div>
+						<ul className='space-y-3'>
+							{pendingReviewMilestones.slice(0, 3).map(({ milestone, submission }) => {
+								const submittedAtText = submission.submittedAt
+									? formatDateTime(submission.submittedAt, {
+											dateStyle: 'medium',
+											timeStyle: 'short'
+									  })
+									: undefined
+								const isCurrentReviewTarget =
+									milestoneReviewState?.milestone.id === milestone.id && isReviewingSubmission
+								const reviewingMode = milestoneReviewState?.mode
 
-                                                                return (
-                                                                        <li
-                                                                                key={`${milestone.id}-${submission.id}`}
-                                                                                className='space-y-3 rounded-2xl border border-sky-200 bg-white/80 p-4 text-sm text-slate-600 shadow-sm'
-                                                                        >
-                                                                                <div className='flex flex-wrap items-start justify-between gap-3'>
-                                                                                        <div className='min-w-0 flex-1'>
-                                                                                                <p className='text-sm font-semibold text-slate-800'>{milestone.title}</p>
-                                                                                                {submittedAtText ? (
-                                                                                                        <p className='text-xs text-slate-400'>Gửi {submittedAtText}</p>
-                                                                                                ) : null}
-                                                                                                {submission.message ? (
-                                                                                                        <p
-                                                                                                                className='mt-1 text-xs text-slate-500'
-                                                                                                                style={{
-                                                                                                                        display: '-webkit-box',
-                                                                                                                        WebkitBoxOrient: 'vertical',
-                                                                                                                        WebkitLineClamp: 2,
-                                                                                                                        overflow: 'hidden'
-                                                                                                                }}
-                                                                                                        >
-                                                                                                                {submission.message}
-                                                                                                        </p>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        <span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
-                                                                                                Đang chờ duyệt
-                                                                                        </span>
-                                                                                </div>
-                                                                                <div className='flex flex-wrap items-center justify-end gap-2'>
-                                                                                        <button
-                                                                                                type='button'
-                                                                                                className='btn btn-success btn-xs gap-2'
-                                                                                                onClick={() =>
-                                                                                                        setMilestoneReviewState({
-                                                                                                                milestone,
-                                                                                                                submission,
-                                                                                                                mode: 'approve'
-                                                                                                        })
-                                                                                                }
-                                                                                                disabled={isReviewingSubmission}
-                                                                                        >
-                                                                                                {isCurrentReviewTarget && reviewingMode === 'approve' ? (
-                                                                                                        <>
-                                                                                                                <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                Đang xử lý...
-                                                                                                        </>
-                                                                                                ) : (
-                                                                                                        <>
-                                                                                                                <CheckCircle2 className='size-3.5' />
-                                                                                                                Chấp nhận
-                                                                                                        </>
-                                                                                                )}
-                                                                                        </button>
-                                                                                        <button
-                                                                                                type='button'
-                                                                                                className='btn btn-warning btn-xs gap-2'
-                                                                                                onClick={() =>
-                                                                                                        setMilestoneReviewState({
-                                                                                                                milestone,
-                                                                                                                submission,
-                                                                                                                mode: 'decline'
-                                                                                                        })
-                                                                                                }
-                                                                                                disabled={isReviewingSubmission}
-                                                                                        >
-                                                                                                {isCurrentReviewTarget && reviewingMode === 'decline' ? (
-                                                                                                        <>
-                                                                                                                <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                Đang xử lý...
-                                                                                                        </>
-                                                                                                ) : (
-                                                                                                        <>
-                                                                                                                <XCircle className='size-3.5' />
-                                                                                                                Yêu cầu chỉnh sửa
-                                                                                                        </>
-                                                                                                )}
-                                                                                        </button>
-                                                                                </div>
-                                                                        </li>
-                                                                )
-                                                        })}
-                                                </ul>
-                                                {pendingReviewMilestones.length > 3 ? (
-                                                        <p className='text-xs text-slate-500'>Các bàn giao còn lại được hiển thị trong danh sách milestone bên dưới.</p>
-                                                ) : null}
-                                        </div>
-                                )}
-                                <div className='flex flex-col items-stretch justify-between gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 md:flex-row md:items-center'>
-                                        <div className='text-left text-slate-600'>
-                                                <p className='font-semibold text-slate-800'>Quản lý milestones</p>
-                                                <p className='text-xs text-slate-500'>
-                                                        {totalMilestones
-                                                                ? `Hiển thị ${displayStart}-${displayEnd} trên tổng ${totalMilestones} milestone${totalMilestones > 1 ? 's' : ''}.`
-                                                                : 'Không có milestone nào trong hợp đồng này.'}
-                                                </p>
-                                        </div>
-                                        <div className='flex flex-wrap items-center gap-2'>
-                                                {totalPages > 1 && (
-                                                        <span className='text-xs text-slate-500'>Trang {currentPage}/{totalPages}</span>
-                                                )}
-                                                {viewerRole === 'client' && (
-                                                        <button
-                                                                type='button'
-                                                                onClick={() => setCreateMilestoneOpen(true)}
-                                                                className='inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-                                                                disabled={createMilestoneMutation.isPending}
-                                                        >
-                                                                {createMilestoneMutation.isPending ? (
-                                                                        <>
-                                                                                <Loader2 className='size-4 animate-spin' />
-                                                                                Đang tạo...
-                                                                        </>
-                                                                ) : (
-                                                                        <>
-                                                                                <Flag className='size-4' /> Tạo milestone
-                                                                        </>
-                                                                )}
-                                                        </button>
-                                                )}
-                                        </div>
-                                </div>
-                                <div className='space-y-4'>
-                                        {visibleMilestones.map(milestone => {
-                                                const meta = getMilestoneStatusMeta(milestone.status)
-                                                const amount = formatCurrency(milestone.amount ?? undefined, milestone.currency ?? currency)
-                                                const isDeleting =
-                                                        deleteMilestoneMutation.isPending &&
-                                                        deleteMilestoneMutation.variables?.milestoneId === milestone.id
-                                                const resourceMap = new Map<string, ContractMilestoneResource>()
-                                                milestone.resources
-                                                        ?.filter((resource): resource is ContractMilestoneResource => Boolean(resource))
-                                                        .forEach(resource => {
-                                                                if (resource.id) {
-                                                                        resourceMap.set(resource.id, resource)
-                                                                }
-                                                        })
-                                                const milestoneAttachments = normalizeAttachments(milestone.resources ?? [])
-                                                const isAttachmentsExpanded =
-                                                        expandedMilestoneAttachments[milestone.id] ?? false
-                                                const normalizedMilestoneStatus = (milestone.status ?? '').toUpperCase()
-                                                const submissions = (milestone.submissions ?? [])
-                                                        .filter((submission): submission is ContractMilestoneSubmission =>
-                                                                Boolean(submission)
-                                                        )
-                                                        .slice()
-                                                        .sort((a, b) => {
-                                                                const aTime = a.submittedAt
-                                                                        ? new Date(a.submittedAt).getTime()
-                                                                        : 0
-                                                                const bTime = b.submittedAt
-                                                                        ? new Date(b.submittedAt).getTime()
-                                                                        : 0
-                                                                return bTime - aTime
-                                                        })
-                                                const pendingSubmission = submissions.find(submission =>
-                                                        isSubmissionAwaitingReview(submission.status)
-                                                )
-                                                const isMilestoneReleased =
-                                                        normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
-                                                const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED'
-                                                const normalizedEscrowStatus =
-                                                        (milestone.escrow?.status ?? (isMilestoneReleased ? 'RELEASED' : null))
-                                                                ?.toUpperCase() ?? 'UNFUNDED'
-                                                const escrowMeta = buildEscrowStatusMeta(
-                                                        normalizedEscrowStatus,
-                                                        milestone,
-                                                        viewerRole
-                                                )
-                                                const EscrowIcon = escrowMeta.icon
-                                                const canSubmitWork =
-                                                        viewerRole === 'freelancer' &&
-                                                        !isMilestoneReleased &&
-                                                        normalizedMilestoneStatus !== 'CANCELLED' &&
-                                                        !pendingSubmission
-                                                const pendingSubmissionAttachments = pendingSubmission
-                                                        ? normalizeAttachments(pendingSubmission.resources ?? [])
-                                                        : []
-                                                const pendingSubmittedAtText = pendingSubmission?.submittedAt
-                                                        ? formatDateTime(pendingSubmission.submittedAt, {
-                                                                  dateStyle: 'medium',
-                                                                  timeStyle: 'short'
-                                                          })
-                                                        : undefined
-                                                const canFundMilestone =
-                                                        viewerRole === 'client' &&
-                                                        !isMilestoneReleased &&
-                                                        !isMilestoneCancelled &&
-                                                        (milestone.amount ?? 0) > 0 &&
-                                                        !['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus)
-                                                const shouldWarnUnfunded =
-                                                        viewerRole === 'freelancer' && escrowMeta.status === 'UNFUNDED'
-                                                const showMilestoneActions = canSubmitWork
-                                                const hasPendingSubmission = Boolean(pendingSubmission)
-                                                const isReviewingCurrentMilestone =
-                                                        isReviewingSubmission &&
-                                                        milestoneReviewState?.milestone.id === milestone.id
+								return (
+									<li
+										key={`${milestone.id}-${submission.id}`}
+										className='space-y-3 rounded-2xl border border-sky-200 bg-white/80 p-4 text-sm text-slate-600 shadow-sm'>
+										<div className='flex flex-wrap items-start justify-between gap-3'>
+											<div className='min-w-0 flex-1'>
+												<p className='text-sm font-semibold text-slate-800'>{milestone.title}</p>
+												{submittedAtText ? <p className='text-xs text-slate-400'>Gửi {submittedAtText}</p> : null}
+												{submission.message ? (
+													<p
+														className='mt-1 text-xs text-slate-500'
+														style={{
+															display: '-webkit-box',
+															WebkitBoxOrient: 'vertical',
+															WebkitLineClamp: 2,
+															overflow: 'hidden'
+														}}>
+														{submission.message}
+													</p>
+												) : null}
+											</div>
+											<span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
+												Đang chờ duyệt
+											</span>
+										</div>
+										<div className='flex flex-wrap items-center justify-end gap-2'>
+											<button
+												type='button'
+												className='btn btn-success btn-xs gap-2'
+												onClick={() =>
+													setMilestoneReviewState({
+														milestone,
+														submission,
+														mode: 'approve'
+													})
+												}
+												disabled={isReviewingSubmission}>
+												{isCurrentReviewTarget && reviewingMode === 'approve' ? (
+													<>
+														<Loader2 className='size-3.5 animate-spin' />
+														Đang xử lý...
+													</>
+												) : (
+													<>
+														<CheckCircle2 className='size-3.5' />
+														Chấp nhận
+													</>
+												)}
+											</button>
+											<button
+												type='button'
+												className='btn btn-warning btn-xs gap-2'
+												onClick={() =>
+													setMilestoneReviewState({
+														milestone,
+														submission,
+														mode: 'decline'
+													})
+												}
+												disabled={isReviewingSubmission}>
+												{isCurrentReviewTarget && reviewingMode === 'decline' ? (
+													<>
+														<Loader2 className='size-3.5 animate-spin' />
+														Đang xử lý...
+													</>
+												) : (
+													<>
+														<XCircle className='size-3.5' />
+														Yêu cầu chỉnh sửa
+													</>
+												)}
+											</button>
+										</div>
+									</li>
+								)
+							})}
+						</ul>
+						{pendingReviewMilestones.length > 3 ? (
+							<p className='text-xs text-slate-500'>
+								Các bàn giao còn lại được hiển thị trong danh sách milestone bên dưới.
+							</p>
+						) : null}
+					</div>
+				)}
+				<div className='flex flex-col items-stretch justify-between gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 md:flex-row md:items-center'>
+					<div className='text-left text-slate-600'>
+						<p className='font-semibold text-slate-800'>Quản lý milestones</p>
+						<p className='text-xs text-slate-500'>
+							{totalMilestones
+								? `Hiển thị ${displayStart}-${displayEnd} trên tổng ${totalMilestones} milestone${
+										totalMilestones > 1 ? 's' : ''
+								  }.`
+								: 'Không có milestone nào trong hợp đồng này.'}
+						</p>
+					</div>
+					<div className='flex flex-wrap items-center gap-2'>
+						{totalPages > 1 && (
+							<span className='text-xs text-slate-500'>
+								Trang {currentPage}/{totalPages}
+							</span>
+						)}
+						{viewerRole === 'client' && (
+							<button
+								type='button'
+								onClick={() => setCreateMilestoneOpen(true)}
+								className='inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+								disabled={createMilestoneMutation.isPending}>
+								{createMilestoneMutation.isPending ? (
+									<>
+										<Loader2 className='size-4 animate-spin' />
+										Đang tạo...
+									</>
+								) : (
+									<>
+										<Flag className='size-4' /> Tạo milestone
+									</>
+								)}
+							</button>
+						)}
+					</div>
+				</div>
+				<div className='space-y-4'>
+					{visibleMilestones.map(milestone => {
+						const meta = getMilestoneStatusMeta(milestone.status)
+						const amount = formatCurrency(milestone.amount ?? undefined, milestone.currency ?? currency)
+						const isDeleting =
+							deleteMilestoneMutation.isPending && deleteMilestoneMutation.variables?.milestoneId === milestone.id
+						const resourceMap = new Map<string, ContractMilestoneResource>()
+						milestone.resources
+							?.filter((resource): resource is ContractMilestoneResource => Boolean(resource))
+							.forEach(resource => {
+								if (resource.id) {
+									resourceMap.set(resource.id, resource)
+								}
+							})
+						const milestoneAttachments = normalizeAttachments(milestone.resources ?? [])
+						const isAttachmentsExpanded = expandedMilestoneAttachments[milestone.id] ?? false
+						const normalizedMilestoneStatus = (milestone.status ?? '').toUpperCase()
+						const submissions = (milestone.submissions ?? [])
+							.filter((submission): submission is ContractMilestoneSubmission => Boolean(submission))
+							.slice()
+							.sort((a, b) => {
+								const aTime = a.submittedAt ? new Date(a.submittedAt).getTime() : 0
+								const bTime = b.submittedAt ? new Date(b.submittedAt).getTime() : 0
+								return bTime - aTime
+							})
+						const pendingSubmission = submissions.find(submission => isSubmissionAwaitingReview(submission.status))
+						const isMilestoneReleased = normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
+						const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED'
+						const normalizedEscrowStatus =
+							(milestone.escrow?.status ?? (isMilestoneReleased ? 'RELEASED' : null))?.toUpperCase() ?? 'UNFUNDED'
+						const escrowMeta = buildEscrowStatusMeta(normalizedEscrowStatus, milestone, viewerRole)
+						const EscrowIcon = escrowMeta.icon
+						const canSubmitWork =
+							viewerRole === 'freelancer' &&
+							!isMilestoneReleased &&
+							normalizedMilestoneStatus !== 'CANCELLED' &&
+							!pendingSubmission
+						const pendingSubmissionAttachments = pendingSubmission
+							? normalizeAttachments(pendingSubmission.resources ?? [])
+							: []
+						const pendingSubmittedAtText = pendingSubmission?.submittedAt
+							? formatDateTime(pendingSubmission.submittedAt, {
+									dateStyle: 'medium',
+									timeStyle: 'short'
+							  })
+							: undefined
+						const canFundMilestone =
+							viewerRole === 'client' &&
+							!isMilestoneReleased &&
+							!isMilestoneCancelled &&
+							(milestone.amount ?? 0) > 0 &&
+							!['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus)
+						const shouldWarnUnfunded = viewerRole === 'freelancer' && escrowMeta.status === 'UNFUNDED'
+						const showMilestoneActions = canSubmitWork
+						const hasPendingSubmission = Boolean(pendingSubmission)
+						const isReviewingCurrentMilestone =
+							isReviewingSubmission && milestoneReviewState?.milestone.id === milestone.id
 
-                                                return (
-                                                        <div
-                                                                key={milestone.id}
-                                                                className='flex h-full flex-col justify-between rounded-[26px] border border-slate-200/80 bg-white/95 p-5 shadow-sm transition-shadow hover:shadow-md'>
-                                                                <div className='space-y-3'>
-                                                                        <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6'>
-                                                                                <div>
-                                                                                        <h3 className='text-base font-semibold text-slate-900'>{milestone.title}</h3>
-                                                                                        <p
-                                                                                                className='mt-1 text-sm leading-relaxed text-slate-500'
-                                                                                                style={{
-                                                                                                        display: '-webkit-box',
-                                                                                                        WebkitBoxOrient: 'vertical',
-                                                                                                        WebkitLineClamp: 3,
-                                                                                                        overflow: 'hidden'
-                                                                                                }}
-                                                                                        >
-                                                                                                {milestone.description ?? 'Không có mô tả chi tiết.'}
-                                                                                        </p>
-                                                                                </div>
-                                                                                <div className='flex flex-wrap items-center justify-end gap-2'>
-                                                                                        <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge} ${meta.text}`}>
-                                                                                                <span className='size-2 rounded-full bg-current'></span>
-                                                                                                {meta.label}
-                                                                                        </span>
-                                                                                        {hasPendingSubmission && (
-                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
-                                                                                                        Đang chờ duyệt
-                                                                                                </span>
-                                                                                        )}
-                                                                                        {canFundMilestone && (
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-primary btn-xs gap-2 shadow-sm'
-                                                                                                        onClick={() => setMilestoneToFund(milestone)}
-                                                                                                        disabled={isFundingMilestone}
-                                                                                                >
-                                                                                                        {isFundingMilestone && milestoneToFund?.id === milestone.id ? (
-                                                                                                                <>
-                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                        Đang xử lý...
-                                                                                                                </>
-                                                                                                        ) : (
-                                                                                                                <>
-                                                                                                                        <CreditCard className='size-3.5' />
-                                                                                                                        Giải ngân milestone
-                                                                                                                </>
-                                                                                                        )}
-                                                                                                </button>
-                                                                                        )}
-                                                                                        {viewerRole === 'client' && (
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-ghost btn-xs text-error'
-                                                                                                        onClick={() => requestDeleteMilestone(milestone)}
-                                                                                                        disabled={deleteMilestoneMutation.isPending}
-                                                                                                        aria-label={`Xóa milestone ${milestone.title}`}
-                                                                                                >
-                                                                                                        {isDeleting ? <Loader2 className='size-4 animate-spin' /> : <Trash2 className='size-4' />}
-                                                                                                </button>
-                                                                                        )}
-                                                                                </div>
-                                                                        </div>
-                                                                <ul className='space-y-2 text-sm text-slate-600'>
-                                                                        <li>
-                                                                                <CalendarClock className='mr-2 inline size-4 text-primary' /> Hạn hoàn thành:{' '}
-                                                                                <span className='font-semibold text-slate-800'>
-                                                                                        {formatDateTime(milestone.dueDate, { dateStyle: 'medium' }) ?? '—'}
-                                                                                </span>
-                                                                        </li>
-                                                                        <li>
-                                                                                <CreditCard className='mr-2 inline size-4 text-secondary' /> Giá trị:{' '}
-                                                                                <span className='font-semibold text-slate-800'>{amount ?? '—'}</span>
-                                                                        </li>
-                                                                        {milestone.approvedAt && (
-                                                                                <li>
-                                                                                        <CheckCircle2 className='mr-2 inline size-4 text-emerald-500' /> Duyệt ngày:{' '}
-                                                                                        <span className='font-semibold text-slate-800'>
-                                                                                                {formatDateTime(milestone.approvedAt, { dateStyle: 'medium' })}
-                                                                                        </span>
-                                                                                </li>
-                                                                        )}
-                                                                        <li>
-                                                                                <div
-                                                                                        className='flex flex-wrap items-center gap-2 text-sm text-slate-600'
-                                                                                        title={escrowMeta.caption ?? undefined}
-                                                                                >
-                                                                                        <span className='font-medium text-slate-600'>Trạng thái giải ngân:</span>
-                                                                                        <span className={`inline-flex items-center gap-1 font-semibold ${escrowMeta.textClass}`}>
-                                                                                                <EscrowIcon
-                                                                                                        className={`size-4 ${escrowMeta.iconClass} ${escrowMeta.spinner ? 'animate-spin' : ''}`}
-                                                                                                />
-                                                                                                {escrowMeta.label}
-                                                                                        </span>
-                                                                                        {escrowMeta.chip && (
-                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600'>
-                                                                                                        {escrowMeta.chip}
-                                                                                                </span>
-                                                                                        )}
-                                                                                </div>
-                                                                        </li>
-                                                                </ul>
-                                                                {shouldWarnUnfunded && (
-                                                                        <div className='mt-3 flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-700'>
-                                                                                <AlertTriangle className='mt-0.5 size-4 flex-shrink-0 text-amber-500' />
-                                                                                <span>Milestone chưa được giải ngân. Nên xác nhận với khách hàng trước khi tiếp tục bàn giao.</span>
-                                                                        </div>
-                                                                )}
-                                                                {viewerRole === 'client' && pendingSubmission ? (
-                                                                        <div className='space-y-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4'>
-                                                                                <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
-                                                                                        <div className='min-w-0 flex-1 space-y-2'>
-                                                                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-sky-600'>Bàn giao chờ duyệt</p>
-                                                                                                <p className='whitespace-pre-line text-sm text-slate-700'>
-                                                                                                        {pendingSubmission.message ?? 'Không có mô tả chi tiết.'}
-                                                                                                </p>
-                                                                                                {pendingSubmission.note ? (
-                                                                                                        <p className='text-xs text-slate-500'>Ghi chú: {pendingSubmission.note}</p>
-                                                                                                ) : null}
-                                                                                                {pendingSubmittedAtText && (
-                                                                                                        <span className='text-xs text-slate-400'>Gửi {pendingSubmittedAtText}</span>
-                                                                                                )}
-                                                                                        </div>
-                                                                                        <div className='flex flex-shrink-0 flex-wrap items-center justify-end gap-2'>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-success btn-sm gap-2'
-                                                                                                        onClick={() =>
-                                                                                                                setMilestoneReviewState({
-                                                                                                                        milestone,
-                                                                                                                        submission: pendingSubmission,
-                                                                                                                        mode: 'approve'
-                                                                                                                })
-                                                                                                        }
-                                                                                                        disabled={isReviewingSubmission}
-                                                                                                >
-                                                                                                        {isReviewingCurrentMilestone && milestoneReviewState?.mode === 'approve' ? (
-                                                                                                                <>
-                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                        Đang xử lý...
-                                                                                                                </>
-                                                                                                        ) : (
-                                                                                                                <>
-                                                                                                                        <CheckCircle2 className='size-3.5' />
-                                                                                                                        Chấp nhận
-                                                                                                                </>
-                                                                                                        )}
-                                                                                                </button>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-warning btn-sm gap-2'
-                                                                                                        onClick={() =>
-                                                                                                                setMilestoneReviewState({
-                                                                                                                        milestone,
-                                                                                                                        submission: pendingSubmission,
-                                                                                                                        mode: 'decline'
-                                                                                                                })
-                                                                                                        }
-                                                                                                        disabled={isReviewingSubmission}
-                                                                                                >
-                                                                                                        {isReviewingCurrentMilestone && milestoneReviewState?.mode === 'decline' ? (
-                                                                                                                <>
-                                                                                                                        <Loader2 className='size-3.5 animate-spin' />
-                                                                                                                        Đang xử lý...
-                                                                                                                </>
-                                                                                                        ) : (
-                                                                                                                <>
-                                                                                                                        <XCircle className='size-3.5' />
-                                                                                                                        Yêu cầu chỉnh sửa
-                                                                                                                </>
-                                                                                                        )}
-                                                                                                </button>
-                                                                                        </div>
-                                                                                </div>
-                                                                                {pendingSubmissionAttachments.length ? (
-                                                                                        <ul className='space-y-2'>
-                                                                                                {pendingSubmissionAttachments.map(attachment => (
-                                                                                                        <li
-                                                                                                                key={`${pendingSubmission.id}-${attachment.id ?? attachment.label}`}
-                                                                                                                className='flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-600'
-                                                                                                        >
-                                                                                                                <span className='font-medium text-slate-700'>{attachment.label}</span>
-                                                                                                                {attachment.url ? (
-                                                                                                                        <div className='flex flex-wrap items-center gap-2'>
-                                                                                                                                <a
-                                                                                                                                        href={attachment.url}
-                                                                                                                                        target='_blank'
-                                                                                                                                        rel='noopener noreferrer'
-                                                                                                                                        className='btn btn-ghost btn-xs gap-1'
-                                                                                                                                >
-                                                                                                                                        <Eye className='size-3.5' /> Xem
-                                                                                                                                </a>
-                                                                                                                                <a
-                                                                                                                                        href={attachment.url}
-                                                                                                                                        download={attachment.fileName ?? attachment.label}
-                                                                                                                                        className='btn btn-outline btn-xs gap-1'
-                                                                                                                                >
-                                                                                                                                        <Download className='size-3.5' /> Tải xuống
-                                                                                                                                </a>
-                                                                                                                        </div>
-                                                                                                                ) : (
-                                                                                                                        <span className='text-slate-400'>Không có liên kết</span>
-                                                                                                                )}
-                                                                                                        </li>
-                                                                                                ))}
-                                                                                        </ul>
-                                                                                ) : null}
-                                                                        </div>
-                                                                ) : null}
-                                                                {showMilestoneActions && (
-                                                                        <div className='flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-3 text-sm text-slate-600'>
-                                                                                <span>Hoàn thành công việc? Gửi bàn giao để khách hàng duyệt.</span>
-                                                                                <button
-                                                                                        type='button'
-                                                                                        className='btn btn-secondary btn-xs gap-2'
-                                                                                        onClick={() => setMilestoneToSubmit(milestone)}
-                                                                                        disabled={isSubmittingWork}
-                                                                                >
-                                                                                        {isSubmittingWork && milestoneToSubmit?.id === milestone.id ? (
-                                                                                                <>
-                                                                                                        <Loader2 className='size-3.5 animate-spin' />
-                                                                                                        Đang gửi...
-                                                                                                </>
-                                                                                        ) : (
-                                                                                                <>
-                                                                                                        <UploadCloud className='size-3.5' />
-                                                                                                        Gửi bàn giao
-                                                                                                </>
-                                                                                        )}
-                                                                                </button>
-                                                                        </div>
-                                                                )}
-                                                                <div className='space-y-3'>
-                                                                        <div className='flex items-center justify-between'>
-                                                                                <p className='text-sm font-semibold text-slate-800'>Bàn giao milestone</p>
-                                                                                {submissions.length > 1 && (
-                                                                                        <span className='text-xs text-slate-400'>{submissions.length} lần bàn giao</span>
-                                                                                )}
-                                                                        </div>
-                                                                        {submissions.length ? (
-                                                                                <ul className='space-y-3'>
-                                                                                        {submissions.map(submission => {
-                                                                                                const submissionMeta = getSubmissionStatusMeta(submission.status)
-                                                                                                const submittedAt = formatDateTime(submission.submittedAt, {
-                                                                                                        dateStyle: 'medium',
-                                                                                                        timeStyle: 'short'
-                                                                                                })
-                                                                                                const reviewNote =
-                                                                                                        submission.reviewNote ??
-                                                                                                        submission.reviewerNote ??
-                                                                                                        submission.reason ??
-                                                                                                        submission.note ??
-                                                                                                        undefined
-                                                                                                const reviewRating =
-                                                                                                        typeof submission.reviewRating === 'number' &&
-                                                                                                        submission.reviewRating >= 1 &&
-                                                                                                        submission.reviewRating <= 5
-                                                                                                                ? submission.reviewRating
-                                                                                                                : undefined
-                                                                                                const reviewAt = formatDateTime(
-                                                                                                        submission.reviewedAt ??
-                                                                                                                submission.approvedAt ??
-                                                                                                                submission.declinedAt,
-                                                                                                        { dateStyle: 'medium', timeStyle: 'short' }
-                                                                                                )
-                                                                                                const submissionAttachments = normalizeAttachments(
-                                                                                                        submission.resources ?? []
-                                                                                                )
+						return (
+							<div
+								key={milestone.id}
+								className='flex h-full flex-col justify-between rounded-[26px] border border-slate-200/80 bg-white/95 p-5 shadow-sm transition-shadow hover:shadow-md'>
+								<div className='space-y-3'>
+									<div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6'>
+										<div>
+											<h3 className='text-base font-semibold text-slate-900'>{milestone.title}</h3>
+											<p
+												className='mt-1 text-sm leading-relaxed text-slate-500'
+												style={{
+													display: '-webkit-box',
+													WebkitBoxOrient: 'vertical',
+													WebkitLineClamp: 3,
+													overflow: 'hidden'
+												}}>
+												{milestone.description ?? 'Không có mô tả chi tiết.'}
+											</p>
+										</div>
+										<div className='flex flex-wrap items-center justify-end gap-2'>
+											<span
+												className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge} ${meta.text}`}>
+												<span className='size-2 rounded-full bg-current'></span>
+												{meta.label}
+											</span>
+											{hasPendingSubmission && (
+												<span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
+													Đang chờ duyệt
+												</span>
+											)}
+											{canFundMilestone && (
+												<button
+													type='button'
+													className='btn btn-primary btn-xs gap-2 shadow-sm'
+													onClick={() => setMilestoneToFund(milestone)}
+													disabled={isFundingMilestone}>
+													{isFundingMilestone && milestoneToFund?.id === milestone.id ? (
+														<>
+															<Loader2 className='size-3.5 animate-spin' />
+															Đang xử lý...
+														</>
+													) : (
+														<>
+															<CreditCard className='size-3.5' />
+															Giải ngân milestone
+														</>
+													)}
+												</button>
+											)}
+											{viewerRole === 'client' && (
+												<button
+													type='button'
+													className='btn btn-ghost btn-xs text-error'
+													onClick={() => requestDeleteMilestone(milestone)}
+													disabled={deleteMilestoneMutation.isPending}
+													aria-label={`Xóa milestone ${milestone.title}`}>
+													{isDeleting ? <Loader2 className='size-4 animate-spin' /> : <Trash2 className='size-4' />}
+												</button>
+											)}
+										</div>
+									</div>
+									<ul className='space-y-2 text-sm text-slate-600'>
+										<li>
+											<CalendarClock className='mr-2 inline size-4 text-primary' /> Hạn hoàn thành:{' '}
+											<span className='font-semibold text-slate-800'>
+												{formatDateTime(milestone.dueDate, { dateStyle: 'medium' }) ?? '—'}
+											</span>
+										</li>
+										<li>
+											<CreditCard className='mr-2 inline size-4 text-secondary' /> Giá trị:{' '}
+											<span className='font-semibold text-slate-800'>{amount ?? '—'}</span>
+										</li>
+										{milestone.approvedAt && (
+											<li>
+												<CheckCircle2 className='mr-2 inline size-4 text-emerald-500' /> Duyệt ngày:{' '}
+												<span className='font-semibold text-slate-800'>
+													{formatDateTime(milestone.approvedAt, { dateStyle: 'medium' })}
+												</span>
+											</li>
+										)}
+										<li>
+											<div
+												className='flex flex-wrap items-center gap-2 text-sm text-slate-600'
+												title={escrowMeta.caption ?? undefined}>
+												<span className='font-medium text-slate-600'>Trạng thái giải ngân:</span>
+												<span className={`inline-flex items-center gap-1 font-semibold ${escrowMeta.textClass}`}>
+													<EscrowIcon
+														className={`size-4 ${escrowMeta.iconClass} ${escrowMeta.spinner ? 'animate-spin' : ''}`}
+													/>
+													{escrowMeta.label}
+												</span>
+												{escrowMeta.chip && (
+													<span className='inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600'>
+														{escrowMeta.chip}
+													</span>
+												)}
+											</div>
+										</li>
+									</ul>
+									{shouldWarnUnfunded && (
+										<div className='mt-3 flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-700'>
+											<AlertTriangle className='mt-0.5 size-4 flex-shrink-0 text-amber-500' />
+											<span>
+												Milestone chưa được giải ngân. Nên xác nhận với khách hàng trước khi tiếp tục bàn giao.
+											</span>
+										</div>
+									)}
+									{viewerRole === 'client' && pendingSubmission ? (
+										<div className='space-y-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4'>
+											<div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
+												<div className='min-w-0 flex-1 space-y-2'>
+													<p className='text-xs font-semibold uppercase tracking-[0.25em] text-sky-600'>
+														Bàn giao chờ duyệt
+													</p>
+													<p className='whitespace-pre-line text-sm text-slate-700'>
+														{pendingSubmission.message ?? 'Không có mô tả chi tiết.'}
+													</p>
+													{pendingSubmission.note ? (
+														<p className='text-xs text-slate-500'>Ghi chú: {pendingSubmission.note}</p>
+													) : null}
+													{pendingSubmittedAtText && (
+														<span className='text-xs text-slate-400'>Gửi {pendingSubmittedAtText}</span>
+													)}
+												</div>
+												<div className='flex flex-shrink-0 flex-wrap items-center justify-end gap-2'>
+													<button
+														type='button'
+														className='btn btn-success btn-sm gap-2'
+														onClick={() =>
+															setMilestoneReviewState({
+																milestone,
+																submission: pendingSubmission,
+																mode: 'approve'
+															})
+														}
+														disabled={isReviewingSubmission}>
+														{isReviewingCurrentMilestone && milestoneReviewState?.mode === 'approve' ? (
+															<>
+																<Loader2 className='size-3.5 animate-spin' />
+																Đang xử lý...
+															</>
+														) : (
+															<>
+																<CheckCircle2 className='size-3.5' />
+																Chấp nhận
+															</>
+														)}
+													</button>
+													<button
+														type='button'
+														className='btn btn-warning btn-sm gap-2'
+														onClick={() =>
+															setMilestoneReviewState({
+																milestone,
+																submission: pendingSubmission,
+																mode: 'decline'
+															})
+														}
+														disabled={isReviewingSubmission}>
+														{isReviewingCurrentMilestone && milestoneReviewState?.mode === 'decline' ? (
+															<>
+																<Loader2 className='size-3.5 animate-spin' />
+																Đang xử lý...
+															</>
+														) : (
+															<>
+																<XCircle className='size-3.5' />
+																Yêu cầu chỉnh sửa
+															</>
+														)}
+													</button>
+												</div>
+											</div>
+											{pendingSubmissionAttachments.length ? (
+												<ul className='space-y-2'>
+													{pendingSubmissionAttachments.map(attachment => (
+														<li
+															key={`${pendingSubmission.id}-${attachment.id ?? attachment.label}`}
+															className='flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-600'>
+															<span className='font-medium text-slate-700'>{attachment.label}</span>
+															{attachment.url ? (
+																<div className='flex flex-wrap items-center gap-2'>
+																	<a
+																		href={attachment.url}
+																		target='_blank'
+																		rel='noopener noreferrer'
+																		className='btn btn-ghost btn-xs gap-1'>
+																		<Eye className='size-3.5' /> Xem
+																	</a>
+																	<a
+																		href={attachment.url}
+																		download={attachment.fileName ?? attachment.label}
+																		className='btn btn-outline btn-xs gap-1'>
+																		<Download className='size-3.5' /> Tải xuống
+																	</a>
+																</div>
+															) : (
+																<span className='text-slate-400'>Không có liên kết</span>
+															)}
+														</li>
+													))}
+												</ul>
+											) : null}
+										</div>
+									) : null}
+									{showMilestoneActions && (
+										<div className='flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-3 text-sm text-slate-600'>
+											<span>Hoàn thành công việc? Gửi bàn giao để khách hàng duyệt.</span>
+											<button
+												type='button'
+												className='btn btn-secondary btn-xs gap-2'
+												onClick={() => setMilestoneToSubmit(milestone)}
+												disabled={isSubmittingWork}>
+												{isSubmittingWork && milestoneToSubmit?.id === milestone.id ? (
+													<>
+														<Loader2 className='size-3.5 animate-spin' />
+														Đang gửi...
+													</>
+												) : (
+													<>
+														<UploadCloud className='size-3.5' />
+														Gửi bàn giao
+													</>
+												)}
+											</button>
+										</div>
+									)}
+									<div className='space-y-3'>
+										<div className='flex items-center justify-between'>
+											<p className='text-sm font-semibold text-slate-800'>Bàn giao milestone</p>
+											{submissions.length > 1 && (
+												<span className='text-xs text-slate-400'>{submissions.length} lần bàn giao</span>
+											)}
+										</div>
+										{submissions.length ? (
+											<ul className='space-y-3'>
+												{submissions.map(submission => {
+													const submissionMeta = getSubmissionStatusMeta(submission.status)
+													const submittedAt = formatDateTime(submission.submittedAt, {
+														dateStyle: 'medium',
+														timeStyle: 'short'
+													})
+													const reviewNote =
+														submission.reviewNote ??
+														submission.reviewerNote ??
+														submission.reason ??
+														submission.note ??
+														undefined
+													const reviewRating =
+														typeof submission.reviewRating === 'number' &&
+														submission.reviewRating >= 1 &&
+														submission.reviewRating <= 5
+															? submission.reviewRating
+															: undefined
+													const reviewAt = formatDateTime(
+														submission.reviewedAt ?? submission.approvedAt ?? submission.declinedAt,
+														{ dateStyle: 'medium', timeStyle: 'short' }
+													)
+													const submissionAttachments = normalizeAttachments(submission.resources ?? [])
 
-                                                                                                return (
-                                                                                                        <li
-                                                                                                                key={submission.id}
-                                                                                                                className='space-y-2 rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-sm text-slate-600'
-                                                                                                        >
-                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
-                                                                                                                        <span
-                                                                                                                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${submissionMeta.badge} ${submissionMeta.text}`}
-                                                                                                                        >
-                                                                                                                                <span className='size-2 rounded-full bg-current'></span>
-                                                                                                                                {submissionMeta.label}
-                                                                                                                        </span>
-                                                                                                                        {submittedAt && (
-                                                                                                                               <span className='text-xs text-slate-400'>Gửi {submittedAt}</span>
-                                                                                                                       )}
-                                                                                                                        {typeof reviewRating === 'number' ? (
-                                                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-600'>
-                                                                                                                                        {[1, 2, 3, 4, 5].map(value => (
-                                                                                                                                                <Star
-                                                                                                                                                        key={`${submission.id}-rating-${value}`}
-                                                                                                                                                        className='size-3'
-                                                                                                                                                        strokeWidth={1.5}
-                                                                                                                                                        fill={value <= reviewRating ? 'currentColor' : 'none'}
-                                                                                                                                                />
-                                                                                                                                        ))}
-                                                                                                                                        <span>{reviewRating}/5</span>
-                                                                                                                                </span>
-                                                                                                                        ) : null}
-                                                                                                               </div>
-                                                                                                                <p className='whitespace-pre-line text-sm text-slate-700'>
-                                                                                                                        {submission.message ?? 'Không có mô tả chi tiết.'}
-                                                                                                                </p>
-                                                                                                                {submissionAttachments.length ? (
-                                                                                                                        <ul className='space-y-2'>
-                                                                                                                                {submissionAttachments.map(attachment => (
-                                                                                                                                        <li
-                                                                                                                                                key={`${submission.id}-${attachment.id}`}
-                                                                                                                                                className='flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs'
-                                                                                                                                        >
-                                                                                                                                                <span className='font-medium text-slate-700'>{attachment.label}</span>
-                                                                                                                                                {attachment.url ? (
-                                                                                                                                                        <div className='flex flex-wrap items-center gap-2'>
-                                                                                                                                                                <a
-                                                                                                                                                                        href={attachment.url}
-                                                                                                                                                                        target='_blank'
-                                                                                                                                                                        rel='noopener noreferrer'
-                                                                                                                                                                        className='btn btn-ghost btn-xs'
-                                                                                                                                                                >
-                                                                                                                                                                        <Eye className='size-3.5' /> Xem
-                                                                                                                                                                </a>
-                                                                                                                                                                <a
-                                                                                                                                                                        href={attachment.url}
-                                                                                                                                                                        download={attachment.fileName ?? attachment.label}
-                                                                                                                                                                        className='btn btn-outline btn-xs'
-                                                                                                                                                                >
-                                                                                                                                                                        <Download className='size-3.5' /> Tải xuống
-                                                                                                                                                                </a>
-                                                                                                                                                        </div>
-                                                                                                                                                ) : (
-                                                                                                                                                        <span className='text-slate-400'>Không có liên kết</span>
-                                                                                                                                                )}
-                                                                                                                                        </li>
-                                                                                                                                ))}
-                                                                                                                        </ul>
-                                                                                                                ) : null}
-                                                                                                                {reviewNote && (
-                                                                                                                        <p className='text-xs text-slate-500'>Phản hồi: {reviewNote}</p>
-                                                                                                                )}
-                                                                                                                {reviewAt && (
-                                                                                                                        <p className='text-[11px] uppercase tracking-wide text-slate-400'>Cập nhật {reviewAt}</p>
-                                                                                                                )}
-                                                                                                        </li>
-                                                                                                )
-                                                                                        })}
-                                                                                </ul>
-                                                                        ) : (
-                                                                                <div className='rounded-2xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-xs text-slate-500'>
-                                                                                        {viewerRole === 'freelancer'
-                                                                                                ? 'Bạn chưa gửi bàn giao cho milestone này. Hoàn thành công việc và nhấn “Gửi bàn giao” để khách hàng duyệt.'
-                                                                                                : 'Freelancer chưa gửi bàn giao cho milestone này.'}
-                                                                                </div>
-                                                                        )}
-                                                                </div>
-                                                                <div className='rounded-2xl border border-white/70 bg-white/70 p-4'>
-                                                                        <button
-                                                                                type='button'
-                                                                                className='flex w-full items-center justify-between gap-3 text-left'
-                                                                                aria-expanded={isAttachmentsExpanded}
-                                                                                onClick={() => toggleMilestoneAttachments(milestone.id)}
-                                                                        >
-                                                                                <div className='inline-flex items-center gap-2 text-sm font-semibold text-slate-800'>
-                                                                                        <Paperclip className='size-4 text-primary' /> Tệp đính kèm
-                                                                                        {milestoneAttachments.length ? (
-                                                                                                <span className='rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500'>
-                                                                                                        {milestoneAttachments.length} tệp
-                                                                                                </span>
-                                                                                        ) : null}
-                                                                                </div>
-                                                                                <ChevronDown
-                                                                                        className={`size-4 text-slate-400 transition-transform ${
-                                                                                                isAttachmentsExpanded ? 'rotate-180' : ''
-                                                                                        } ${milestoneAttachments.length ? 'opacity-100' : 'opacity-40'}`}
-                                                                                />
-                                                                        </button>
-                                                                        {isAttachmentsExpanded ? (
-                                                                                <div className='mt-4 space-y-4'>
-                                                                                        {viewerRole === 'client' && (
-                                                                                                <div className='space-y-2 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-center'>
-                                                                                                        <input
-                                                                                                                id={`milestone-upload-${milestone.id}`}
-                                                                                                                type='file'
-                                                                                                                multiple
-                                                                                                                className='hidden'
-                                                                                                                onChange={event =>
-                                                                                                                        handleMilestoneAttachmentFileChange(
-                                                                                                                                milestone.id,
-                                                                                                                                event
-                                                                                                                        )
-                                                                                                                }
-                                                                                                                disabled={uploadMilestoneAttachmentsMutation.isPending}
-                                                                                                        />
-                                                                                                        <label
-                                                                                                                htmlFor={`milestone-upload-${milestone.id}`}
-                                                                                                                onDrop={event =>
-                                                                                                                        handleMilestoneAttachmentDrop(
-                                                                                                                                milestone.id,
-                                                                                                                                event
-                                                                                                                        )
-                                                                                                                }
-                                                                                                                onDragOver={handleMilestoneAttachmentDragOver}
-                                                                                                                className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300/80 bg-white/70 px-4 py-6 transition hover:border-primary/40 hover:bg-primary/5 ${
-                                                                                                                        uploadMilestoneAttachmentsMutation.isPending
-                                                                                                                                ? 'pointer-events-none opacity-60'
-                                                                                                                                : ''
-                                                                                                                }`}
-                                                                                                        >
-                                                                                                                {uploadMilestoneAttachmentsMutation.isPending &&
-                                                                                                                uploadMilestoneAttachmentsMutation.variables?.milestoneId ===
-                                                                                                                        milestone.id ? (
-                                                                                                                        <>
-                                                                                                                                <Loader2 className='size-6 animate-spin text-primary' />
-                                                                                                                                <p className='text-sm font-medium text-slate-600'>Đang tải lên tệp...</p>
-                                                                                                                        </>
-                                                                                                                ) : (
-                                                                                                                        <>
-                                                                                                                                <UploadCloud className='size-6 text-primary/80' />
-                                                                                                                                <div className='space-y-1'>
-                                                                                                                                        <p className='text-sm font-semibold text-slate-700'>Kéo thả tệp vào đây</p>
-                                                                                                                                        <p className='text-xs text-slate-500'>hoặc nhấn để chọn từ thiết bị của bạn</p>
-                                                                                                                                </div>
-                                                                                                                        </>
-                                                                                                                )}
-                                                                                                        </label>
-                                                                                                        <p className='text-xs text-slate-400'>Hỗ trợ nhiều tệp cùng lúc, mỗi tệp tối đa 25MB.</p>
-                                                                                                </div>
-                                                                                        )}
+													return (
+														<li
+															key={submission.id}
+															className='space-y-2 rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-sm text-slate-600'>
+															<div className='flex flex-wrap items-center justify-between gap-2'>
+																<span
+																	className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${submissionMeta.badge} ${submissionMeta.text}`}>
+																	<span className='size-2 rounded-full bg-current'></span>
+																	{submissionMeta.label}
+																</span>
+																{submittedAt && <span className='text-xs text-slate-400'>Gửi {submittedAt}</span>}
+																{typeof reviewRating === 'number' ? (
+																	<span className='inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-600'>
+																		{[1, 2, 3, 4, 5].map(value => (
+																			<Star
+																				key={`${submission.id}-rating-${value}`}
+																				className='size-3'
+																				strokeWidth={1.5}
+																				fill={value <= reviewRating ? 'currentColor' : 'none'}
+																			/>
+																		))}
+																		<span>{reviewRating}/5</span>
+																	</span>
+																) : null}
+															</div>
+															<p className='whitespace-pre-line text-sm text-slate-700'>
+																{submission.message ?? 'Không có mô tả chi tiết.'}
+															</p>
+															{submissionAttachments.length ? (
+																<ul className='space-y-2'>
+																	{submissionAttachments.map(attachment => (
+																		<li
+																			key={`${submission.id}-${attachment.id}`}
+																			className='flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs'>
+																			<span className='font-medium text-slate-700'>{attachment.label}</span>
+																			{attachment.url ? (
+																				<div className='flex flex-wrap items-center gap-2'>
+																					<a
+																						href={attachment.url}
+																						target='_blank'
+																						rel='noopener noreferrer'
+																						className='btn btn-ghost btn-xs'>
+																						<Eye className='size-3.5' /> Xem
+																					</a>
+																					<a
+																						href={attachment.url}
+																						download={attachment.fileName ?? attachment.label}
+																						className='btn btn-outline btn-xs'>
+																						<Download className='size-3.5' /> Tải xuống
+																					</a>
+																				</div>
+																			) : (
+																				<span className='text-slate-400'>Không có liên kết</span>
+																			)}
+																		</li>
+																	))}
+																</ul>
+															) : null}
+															{reviewNote && <p className='text-xs text-slate-500'>Phản hồi: {reviewNote}</p>}
+															{reviewAt && (
+																<p className='text-[11px] uppercase tracking-wide text-slate-400'>
+																	Cập nhật {reviewAt}
+																</p>
+															)}
+														</li>
+													)
+												})}
+											</ul>
+										) : (
+											<div className='rounded-2xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-xs text-slate-500'>
+												{viewerRole === 'freelancer'
+													? 'Bạn chưa gửi bàn giao cho milestone này. Hoàn thành công việc và nhấn “Gửi bàn giao” để khách hàng duyệt.'
+													: 'Freelancer chưa gửi bàn giao cho milestone này.'}
+											</div>
+										)}
+									</div>
+									<div className='rounded-2xl border border-white/70 bg-white/70 p-4'>
+										<button
+											type='button'
+											className='flex w-full items-center justify-between gap-3 text-left'
+											aria-expanded={isAttachmentsExpanded}
+											onClick={() => toggleMilestoneAttachments(milestone.id)}>
+											<div className='inline-flex items-center gap-2 text-sm font-semibold text-slate-800'>
+												<Paperclip className='size-4 text-primary' /> Tệp đính kèm
+												{milestoneAttachments.length ? (
+													<span className='rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500'>
+														{milestoneAttachments.length} tệp
+													</span>
+												) : null}
+											</div>
+											<ChevronDown
+												className={`size-4 text-slate-400 transition-transform ${
+													isAttachmentsExpanded ? 'rotate-180' : ''
+												} ${milestoneAttachments.length ? 'opacity-100' : 'opacity-40'}`}
+											/>
+										</button>
+										{isAttachmentsExpanded ? (
+											<div className='mt-4 space-y-4'>
+												{viewerRole === 'client' && (
+													<div className='space-y-2 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-center'>
+														<input
+															id={`milestone-upload-${milestone.id}`}
+															type='file'
+															multiple
+															className='hidden'
+															onChange={event => handleMilestoneAttachmentFileChange(milestone.id, event)}
+															disabled={uploadMilestoneAttachmentsMutation.isPending}
+														/>
+														<label
+															htmlFor={`milestone-upload-${milestone.id}`}
+															onDrop={event => handleMilestoneAttachmentDrop(milestone.id, event)}
+															onDragOver={handleMilestoneAttachmentDragOver}
+															className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300/80 bg-white/70 px-4 py-6 transition hover:border-primary/40 hover:bg-primary/5 ${
+																uploadMilestoneAttachmentsMutation.isPending ? 'pointer-events-none opacity-60' : ''
+															}`}>
+															{uploadMilestoneAttachmentsMutation.isPending &&
+															uploadMilestoneAttachmentsMutation.variables?.milestoneId === milestone.id ? (
+																<>
+																	<Loader2 className='size-6 animate-spin text-primary' />
+																	<p className='text-sm font-medium text-slate-600'>Đang tải lên tệp...</p>
+																</>
+															) : (
+																<>
+																	<UploadCloud className='size-6 text-primary/80' />
+																	<div className='space-y-1'>
+																		<p className='text-sm font-semibold text-slate-700'>Kéo thả tệp vào đây</p>
+																		<p className='text-xs text-slate-500'>hoặc nhấn để chọn từ thiết bị của bạn</p>
+																	</div>
+																</>
+															)}
+														</label>
+														<p className='text-xs text-slate-400'>Hỗ trợ nhiều tệp cùng lúc, mỗi tệp tối đa 25MB.</p>
+													</div>
+												)}
 
-                                                                                        {milestoneAttachments.length ? (
-                                                                                                <ul className='space-y-3'>
-                                                                                                {milestoneAttachments.map(attachment => {
-                                                                                                        const resource = attachment.id ? resourceMap.get(attachment.id) : undefined
-                                                                                                        const resourceId = resource?.id ?? attachment.id
-                                                                                                const sizeLabel =
-                                                                                                        formatFileSize(
-                                                                                                                attachment.size ??
-                                                                                                                        (resource?.size as number | undefined)
-                                                                                                        )
-                                                                                                const typeLabel =
-                                                                                                        formatFileType({
-                                                                                                                mimeType:
-                                                                                                                        attachment.mimeType ??
-                                                                                                                        (resource?.mimeType as string | undefined),
-                                                                                                                extension: attachment.extension
-                                                                                                        })
-                                                                                                const uploadedLabelSource =
-                                                                                                        attachment.createdAt ??
-                                                                                                        (resource?.createdAt as string | undefined)
-                                                                                                const uploadedLabel = uploadedLabelSource
-                                                                                                        ? formatDateTime(uploadedLabelSource, {
-                                                                                                                  dateStyle: 'medium',
-                                                                                                                  timeStyle: 'short'
-                                                                                                          })
-                                                                                                        : undefined
-                                                                                                const metadata = [
-                                                                                                        sizeLabel,
-                                                                                                        typeLabel,
-                                                                                                        uploadedLabel ? `Tải lên ${uploadedLabel}` : undefined
-                                                                                                ].filter((value): value is string => Boolean(value))
-                                                                                                const canDeleteResource = Boolean(resourceId) && viewerRole === 'client'
-                                                                                                const isDeletingResource =
-                                                                                                        deleteMilestoneResourceMutation.isPending &&
-                                                                                                        deleteMilestoneResourceMutation.variables?.resourceId === resourceId
-                                                                                                const attachmentLabel =
-                                                                                                        attachment.label ??
-                                                                                                        attachment.fileName ??
-                                                                                                        (resource?.name as string | undefined) ??
-                                                                                                        resourceId ??
-                                                                                                        'Tệp đính kèm'
+												{milestoneAttachments.length ? (
+													<ul className='space-y-3'>
+														{milestoneAttachments.map(attachment => {
+															const resource = attachment.id ? resourceMap.get(attachment.id) : undefined
+															const resourceId = resource?.id ?? attachment.id
+															const sizeLabel = formatFileSize(
+																attachment.size ?? (resource?.size as number | undefined)
+															)
+															const typeLabel = formatFileType({
+																mimeType: attachment.mimeType ?? (resource?.mimeType as string | undefined),
+																extension: attachment.extension
+															})
+															const uploadedLabelSource =
+																attachment.createdAt ?? (resource?.createdAt as string | undefined)
+															const uploadedLabel = uploadedLabelSource
+																? formatDateTime(uploadedLabelSource, {
+																		dateStyle: 'medium',
+																		timeStyle: 'short'
+																  })
+																: undefined
+															const metadata = [
+																sizeLabel,
+																typeLabel,
+																uploadedLabel ? `Tải lên ${uploadedLabel}` : undefined
+															].filter((value): value is string => Boolean(value))
+															const canDeleteResource = Boolean(resourceId) && viewerRole === 'client'
+															const isDeletingResource =
+																deleteMilestoneResourceMutation.isPending &&
+																deleteMilestoneResourceMutation.variables?.resourceId === resourceId
+															const attachmentLabel =
+																attachment.label ??
+																attachment.fileName ??
+																(resource?.name as string | undefined) ??
+																resourceId ??
+																'Tệp đính kèm'
 
-                                                                                                return (
-                                                                                                        <li
-                                                                                                                key={attachment.id ?? attachmentLabel}
-                                                                                                                className='flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white/60 p-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between'
-                                                                                                        >
-                                                                                                                <div className='flex min-w-0 items-start gap-3'>
-                                                                                                                        <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
-                                                                                                                                {attachment.extension ?? 'FILE'}
-                                                                                                                        </div>
-                                                                                                                        <div className='min-w-0'>
-                                                                                                                                <p className='truncate font-medium text-slate-800'>{attachmentLabel}</p>
-                                                                                                                                {metadata.length ? (
-                                                                                                                                        <div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500'>
-                                                                                                                                                {metadata.map((value, index) => (
-                                                                                                                                                        <span key={`${value}-${index}`}>{value}</span>
-                                                                                                                                                ))}
-                                                                                                                                        </div>
-                                                                                                                                ) : null}
-                                                                                                                        </div>
-                                                                                                                </div>
-                                                                                                                <div className='flex flex-shrink-0 flex-wrap items-center gap-2'>
-                                                                                                                        {attachment.url ? (
-                                                                                                                                <>
-                                                                                                                                        <a
-                                                                                                                                                href={attachment.url}
-                                                                                                                                                target='_blank'
-                                                                                                                                                rel='noopener noreferrer'
-                                                                                                                                                className='btn btn-ghost btn-xs gap-2'
-                                                                                                                                        >
-                                                                                                                                                <Eye className='size-4' /> Xem
-                                                                                                                                        </a>
-                                                                                                                                        <a
-                                                                                                                                                href={attachment.url}
-                                                                                                                                                download={attachment.fileName ?? attachmentLabel}
-                                                                                                                                                className='btn btn-outline btn-xs gap-2'
-                                                                                                                                        >
-                                                                                                                                                <Download className='size-4' /> Tải xuống
-                                                                                                                                        </a>
-                                                                                                                                </>
-                                                                                                                        ) : (
-                                                                                                                                <span className='text-xs text-slate-400'>Không có liên kết</span>
-                                                                                                                        )}
-                                                                                                                        {canDeleteResource && resourceId ? (
-                                                                                                                                <button
-                                                                                                                                        type='button'
-                                                                                                                                        className='btn btn-ghost btn-xs text-error'
-                                                                                                                                        onClick={() =>
-                                                                                                                                                requestDeleteMilestoneResource(
-                                                                                                                                                        milestone,
-                                                                                                                                                        resourceId,
-                                                                                                                                                        attachmentLabel
-                                                                                                                                                )
-                                                                                                                                        }
-                                                                                                                                        disabled={deleteMilestoneResourceMutation.isPending}
-                                                                                                                                        aria-label={`Xóa tệp ${attachmentLabel}`}
-                                                                                                                                >
-                                                                                                                                        {isDeletingResource ? (
-                                                                                                                                                <Loader2 className='size-4 animate-spin' />
-                                                                                                                                        ) : (
-                                                                                                                                                <Trash2 className='size-4' />
-                                                                                                                                        )}
-                                                                                                                                </button>
-                                                                                                                        ) : null}
-                                                                                                                </div>
-                                                                                                        </li>
-                                                                                                )
-                                                                                                })}
-                                                                                        </ul>
-                                                                                ) : (
-                                                                                                <div className='rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-3 text-xs text-slate-400'>
-                                                                                                        Chưa có tệp đính kèm cho milestone này.
-                                                                                                </div>
-                                                                                        )}
-                                                                                </div>
-                                                                        ) : (
-                                                                                <p className='mt-3 text-xs text-slate-500'>Nhấn để quản lý tệp đính kèm.</p>
-                                                                        )}
-                                                                </div>
-                                                        </div>
-                                                        <div className='mt-4 text-xs text-slate-400'>
-                                                                Tạo ngày {formatDateTime(milestone.createdAt, { dateStyle: 'medium', timeStyle: 'short' }) ?? '—'}
-                                                        </div>
-                                                </div>
-					)
-                                        })}
-                                </div>
-                                {totalPages > 1 && (
-                                        <div className='flex flex-col gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 sm:flex-row sm:items-center sm:justify-between'>
-                                                <span className='text-xs text-slate-500'>Trang {currentPage}/{totalPages}</span>
-                                                <div className='flex flex-wrap items-center gap-2'>
-                                                        <button
-                                                                type='button'
-                                                                className='btn btn-ghost btn-sm'
-                                                                onClick={() => setMilestonePage(page => Math.max(1, page - 1))}
-                                                                disabled={currentPage === 1}
-                                                        >
-                                                                Trước
-                                                        </button>
-                                                        <select
-                                                                className='select select-bordered select-sm w-auto min-w-[80px]'
-                                                                value={currentPage}
-                                                                onChange={event => setMilestonePage(Number(event.target.value))}
-                                                        >
-                                                                {Array.from({ length: totalPages }, (_, index) => index + 1).map(pageNumber => (
-                                                                        <option key={pageNumber} value={pageNumber}>
-                                                                                Trang {pageNumber}
-                                                                        </option>
-                                                                ))}
-                                                        </select>
-                                                        <button
-                                                                type='button'
-                                                                className='btn btn-ghost btn-sm'
-                                                                onClick={() => setMilestonePage(page => Math.min(totalPages, page + 1))}
-                                                                disabled={currentPage === totalPages}
-                                                        >
-                                                                Sau
-                                                        </button>
-                                                </div>
-                                        </div>
-                                )}
-                        </div>
-                )
-        }
+															return (
+																<li
+																	key={attachment.id ?? attachmentLabel}
+																	className='flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white/60 p-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between'>
+																	<div className='flex min-w-0 items-start gap-3'>
+																		<div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
+																			{attachment.extension ?? 'FILE'}
+																		</div>
+																		<div className='min-w-0'>
+																			<p className='truncate font-medium text-slate-800'>{attachmentLabel}</p>
+																			{metadata.length ? (
+																				<div className='mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500'>
+																					{metadata.map((value, index) => (
+																						<span key={`${value}-${index}`}>{value}</span>
+																					))}
+																				</div>
+																			) : null}
+																		</div>
+																	</div>
+																	<div className='flex flex-shrink-0 flex-wrap items-center gap-2'>
+																		{attachment.url ? (
+																			<>
+																				<a
+																					href={attachment.url}
+																					target='_blank'
+																					rel='noopener noreferrer'
+																					className='btn btn-ghost btn-xs gap-2'>
+																					<Eye className='size-4' /> Xem
+																				</a>
+																				<a
+																					href={attachment.url}
+																					download={attachment.fileName ?? attachmentLabel}
+																					className='btn btn-outline btn-xs gap-2'>
+																					<Download className='size-4' /> Tải xuống
+																				</a>
+																			</>
+																		) : (
+																			<span className='text-xs text-slate-400'>Không có liên kết</span>
+																		)}
+																		{canDeleteResource && resourceId ? (
+																			<button
+																				type='button'
+																				className='btn btn-ghost btn-xs text-error'
+																				onClick={() =>
+																					requestDeleteMilestoneResource(milestone, resourceId, attachmentLabel)
+																				}
+																				disabled={deleteMilestoneResourceMutation.isPending}
+																				aria-label={`Xóa tệp ${attachmentLabel}`}>
+																				{isDeletingResource ? (
+																					<Loader2 className='size-4 animate-spin' />
+																				) : (
+																					<Trash2 className='size-4' />
+																				)}
+																			</button>
+																		) : null}
+																	</div>
+																</li>
+															)
+														})}
+													</ul>
+												) : (
+													<div className='rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-3 text-xs text-slate-400'>
+														Chưa có tệp đính kèm cho milestone này.
+													</div>
+												)}
+											</div>
+										) : (
+											<p className='mt-3 text-xs text-slate-500'>Nhấn để quản lý tệp đính kèm.</p>
+										)}
+									</div>
+								</div>
+								<div className='mt-4 text-xs text-slate-400'>
+									Tạo ngày {formatDateTime(milestone.createdAt, { dateStyle: 'medium', timeStyle: 'short' }) ?? '—'}
+								</div>
+							</div>
+						)
+					})}
+				</div>
+				{totalPages > 1 && (
+					<div className='flex flex-col gap-3 rounded-[24px] border border-white/70 bg-white/90 p-4 text-sm shadow-sm shadow-white/40 sm:flex-row sm:items-center sm:justify-between'>
+						<span className='text-xs text-slate-500'>
+							Trang {currentPage}/{totalPages}
+						</span>
+						<div className='flex flex-wrap items-center gap-2'>
+							<button
+								type='button'
+								className='btn btn-ghost btn-sm'
+								onClick={() => setMilestonePage(page => Math.max(1, page - 1))}
+								disabled={currentPage === 1}>
+								Trước
+							</button>
+							<select
+								className='select select-bordered select-sm w-auto min-w-[80px]'
+								value={currentPage}
+								onChange={event => setMilestonePage(Number(event.target.value))}>
+								{Array.from({ length: totalPages }, (_, index) => index + 1).map(pageNumber => (
+									<option key={pageNumber} value={pageNumber}>
+										Trang {pageNumber}
+									</option>
+								))}
+							</select>
+							<button
+								type='button'
+								className='btn btn-ghost btn-sm'
+								onClick={() => setMilestonePage(page => Math.min(totalPages, page + 1))}
+								disabled={currentPage === totalPages}>
+								Sau
+							</button>
+						</div>
+					</div>
+				)}
+			</div>
+		)
+	}
 
 	const renderFiles = () => {
 		if (!attachments.length) {
@@ -2132,7 +2024,9 @@ const ContractWorkroomPage = () => {
 													loading='lazy'
 												/>
 											) : (
-												<div className='flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase text-slate-400'>IMG</div>
+												<div className='flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold uppercase text-slate-400'>
+													IMG
+												</div>
 											)
 										) : (
 											<div className='flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
@@ -2156,15 +2050,13 @@ const ContractWorkroomPage = () => {
 												href={attachment.url}
 												target='_blank'
 												rel='noreferrer'
-												className='inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-primary/40 hover:text-primary'
-											>
+												className='inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-primary/40 hover:text-primary'>
 												Xem
 											</a>
 											<a
 												href={attachment.url}
 												download={attachment.fileName ?? attachment.label}
-												className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-											>
+												className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'>
 												Tải xuống
 											</a>
 										</div>
@@ -2303,22 +2195,22 @@ const ContractWorkroomPage = () => {
 						</h1>
 						<p className='text-sm text-slate-600'>{heroSubtitle}</p>
 					</div>
-                                        <div className='flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600 md:text-sm'>
-                                                <span
-                                                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-semibold shadow-sm shadow-primary/20 ${statusMeta.badge} ${statusMeta.text}`}>
-                                                        <span className='size-2 rounded-full bg-current'></span>
-                                                        {statusMeta.label}
-                                                </span>
-                                                <span className='inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-3 py-1 text-slate-600 shadow-sm shadow-white/40'>
-                                                        <ShieldCheck className='size-3.5 text-primary' />
-                                                        {statusDescription}
-                                                </span>
-                                                <span className='inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/60 px-3 py-1 text-slate-500 shadow-sm shadow-white/30'>
-                                                        <CalendarClock className='size-3.5 text-secondary' />
-                                                        Bắt đầu{' '}
-                                                        {formatDateTime(contract?.startDate || contract?.offer?.startDate, { dateStyle: 'medium' }) ?? '—'}
-                                                </span>
-                                        </div>
+					<div className='flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600 md:text-sm'>
+						<span
+							className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-semibold shadow-sm shadow-primary/20 ${statusMeta.badge} ${statusMeta.text}`}>
+							<span className='size-2 rounded-full bg-current'></span>
+							{statusMeta.label}
+						</span>
+						<span className='inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-3 py-1 text-slate-600 shadow-sm shadow-white/40'>
+							<ShieldCheck className='size-3.5 text-primary' />
+							{statusDescription}
+						</span>
+						<span className='inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/60 px-3 py-1 text-slate-500 shadow-sm shadow-white/30'>
+							<CalendarClock className='size-3.5 text-secondary' />
+							Bắt đầu{' '}
+							{formatDateTime(contract?.startDate || contract?.offer?.startDate, { dateStyle: 'medium' }) ?? '—'}
+						</span>
+					</div>
 				</div>
 				<div className='flex flex-col items-start gap-3 md:items-end'>
 					<div className='flex flex-wrap items-center gap-3'>
@@ -2361,151 +2253,135 @@ const ContractWorkroomPage = () => {
 				})}
 			</nav>
 
-                        <section className='rounded-[34px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] md:p-8'>
-                                {activeTab === 'overview' && renderOverview()}
-                                {activeTab === 'milestones' && renderMilestones()}
-                                {activeTab === 'files' && renderFiles()}
-                                {activeTab === 'payments' && renderPayments()}
-                                {activeTab === 'history' && renderHistory()}
-                        </section>
-                        <CreateMilestoneDialog
-                                open={isCreateMilestoneOpen}
-                                currency={currency}
-                                isSubmitting={createMilestoneMutation.isPending}
-                                onSubmit={(values, attachments) =>
-                                        createMilestoneMutation.mutateAsync({ values, attachments })
-                                }
-                                onClose={() => setCreateMilestoneOpen(false)}
-                        />
-                        <SubmitMilestoneWorkDialog
-                                open={Boolean(milestoneToSubmit)}
-                                milestoneTitle={milestoneToSubmit?.title}
-                                isSubmitting={submitMilestoneWorkMutation.isPending}
-                                onSubmit={async (values, files) => {
-                                        if (!milestoneToSubmit) return
-                                        await submitMilestoneWorkMutation.mutateAsync({
-                                                milestoneId: milestoneToSubmit.id,
-                                                message: values.message,
-                                                note: values.note,
-                                                files
-                                        })
-                                }}
-                                onClose={() => setMilestoneToSubmit(null)}
-                        />
-                        <ReviewMilestoneSubmissionDialog
-                                open={Boolean(milestoneReviewState)}
-                                mode={milestoneReviewState?.mode ?? 'approve'}
-                                milestoneTitle={milestoneReviewState?.milestone.title}
-                                submissionMessage={milestoneReviewState?.submission.message ?? undefined}
-                                submissionReviewNote={
-                                        milestoneReviewState?.submission.reviewNote ??
-                                        milestoneReviewState?.submission.reviewerNote ??
-                                        milestoneReviewState?.submission.reason ??
-                                        null
-                                }
-                                submissionReviewRating={
-                                        typeof milestoneReviewState?.submission.reviewRating === 'number'
-                                                ? milestoneReviewState.submission.reviewRating
-                                                : null
-                                }
-                                isSubmitting={
-                                        approveMilestoneSubmissionMutation.isPending ||
-                                        declineMilestoneSubmissionMutation.isPending
-                                }
-                                onSubmit={async values => {
-                                        if (!milestoneReviewState) return
+			<section className='rounded-[34px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] md:p-8'>
+				{activeTab === 'overview' && renderOverview()}
+				{activeTab === 'milestones' && renderMilestones()}
+				{activeTab === 'files' && renderFiles()}
+				{activeTab === 'payments' && renderPayments()}
+				{activeTab === 'history' && renderHistory()}
+			</section>
+			<CreateMilestoneDialog
+				open={isCreateMilestoneOpen}
+				currency={currency}
+				isSubmitting={createMilestoneMutation.isPending}
+				onSubmit={(values, attachments) => createMilestoneMutation.mutateAsync({ values, attachments })}
+				onClose={() => setCreateMilestoneOpen(false)}
+			/>
+			<SubmitMilestoneWorkDialog
+				open={Boolean(milestoneToSubmit)}
+				milestoneTitle={milestoneToSubmit?.title}
+				isSubmitting={submitMilestoneWorkMutation.isPending}
+				onSubmit={async (values, files) => {
+					if (!milestoneToSubmit) return
+					await submitMilestoneWorkMutation.mutateAsync({
+						milestoneId: milestoneToSubmit.id,
+						message: values.message,
+						note: values.note,
+						files
+					})
+				}}
+				onClose={() => setMilestoneToSubmit(null)}
+			/>
+			<ReviewMilestoneSubmissionDialog
+				open={Boolean(milestoneReviewState)}
+				mode={milestoneReviewState?.mode ?? 'approve'}
+				milestoneTitle={milestoneReviewState?.milestone.title}
+				submissionMessage={milestoneReviewState?.submission.message ?? undefined}
+				submissionReviewNote={
+					milestoneReviewState?.submission.reviewNote ??
+					milestoneReviewState?.submission.reviewerNote ??
+					milestoneReviewState?.submission.reason ??
+					null
+				}
+				submissionReviewRating={
+					typeof milestoneReviewState?.submission.reviewRating === 'number'
+						? milestoneReviewState.submission.reviewRating
+						: null
+				}
+				isSubmitting={approveMilestoneSubmissionMutation.isPending || declineMilestoneSubmissionMutation.isPending}
+				onSubmit={async values => {
+					if (!milestoneReviewState) return
 
-                                        if (milestoneReviewState.mode === 'approve') {
-                                                const { reviewNote, reviewRating } =
-                                                        values as ApproveMilestoneSubmissionFormValues
+					if (milestoneReviewState.mode === 'approve') {
+						const { reviewNote, reviewRating } = values as ApproveMilestoneSubmissionFormValues
 
-                                                await approveMilestoneSubmissionMutation.mutateAsync({
-                                                        milestoneId: milestoneReviewState.milestone.id,
-                                                        submissionId: milestoneReviewState.submission.id,
-                                                        reviewNote,
-                                                        reviewRating
-                                                })
-                                        } else {
-                                                const { reviewNote, reviewRating } =
-                                                        values as DeclineMilestoneSubmissionFormValues
+						await approveMilestoneSubmissionMutation.mutateAsync({
+							milestoneId: milestoneReviewState.milestone.id,
+							submissionId: milestoneReviewState.submission.id,
+							reviewNote,
+							reviewRating
+						})
+					} else {
+						const { reviewNote, reviewRating } = values as DeclineMilestoneSubmissionFormValues
 
-                                                await declineMilestoneSubmissionMutation.mutateAsync({
-                                                        milestoneId: milestoneReviewState.milestone.id,
-                                                        submissionId: milestoneReviewState.submission.id,
-                                                        reviewNote,
-                                                        reviewRating
-                                                })
-                                        }
-                                }}
-                                onClose={() => setMilestoneReviewState(null)}
-                        />
-                        <FundMilestoneDialog
-                                open={Boolean(milestoneToFund)}
-                                milestoneTitle={milestoneToFund?.title}
-                                amountLabel={formatCurrency(
-                                        milestoneToFund?.amount ?? undefined,
-                                        milestoneToFund?.currency ?? currency
-                                )}
-                                paymentMethods={(paymentMethodsQuery.data as PaymentMethod[] | undefined) ?? []}
-                                isLoadingPaymentMethods={paymentMethodsQuery.isFetching}
-                                isSubmitting={payMilestoneMutation.isPending}
-                                onRefreshPaymentMethods={() => paymentMethodsQuery.refetch()}
-                                onSubmit={async values => {
-                                        if (!milestoneToFund) return
-                                        await payMilestoneMutation.mutateAsync({
-                                                milestoneId: milestoneToFund.id,
-                                                paymentMethodId: values.paymentMethodId,
-                                                note: values.note,
-                                                idempotencyKey: values.idempotencyKey
-                                        })
-                                }}
-                                onClose={() => setMilestoneToFund(null)}
-                                pendingIdempotencyKey={pendingIdempotencyKey}
-                        />
-                        <ConfirmDelete
-                                open={Boolean(milestoneToDelete)}
-                                onClose={() => setMilestoneToDelete(null)}
-                                onConfirm={confirmDeleteMilestone}
-                                name={milestoneToDelete?.title}
-                                title='Xóa milestone'
-                                description={
-                                        <p>
-                                                Bạn có chắc chắn muốn xóa milestone{' '}
-                                                <span className='font-semibold text-base-content'>
-                                                        {milestoneToDelete?.title}
-                                                </span>
-                                                ? Hành động này không thể hoàn tác.
-                                        </p>
-                                }
-                                confirmLabel='Xóa'
-                                cancelLabel='Hủy'
-                                isProcessing={deleteMilestoneMutation.isPending}
-                        />
-                        <ConfirmDelete
-                                open={Boolean(resourceToDelete)}
-                                onClose={() => setResourceToDelete(null)}
-                                onConfirm={confirmDeleteMilestoneResource}
-                                name={resourceToDelete?.resourceLabel}
-                                title='Xóa tệp đính kèm'
-                                description={
-                                        <p>
-                                                Tệp{' '}
-                                                <span className='font-semibold text-base-content'>
-                                                        {resourceToDelete?.resourceLabel ?? 'đính kèm này'}
-                                                </span>{' '}
-                                                sẽ được gỡ khỏi milestone{' '}
-                                                <span className='font-semibold text-base-content'>
-                                                        {resourceToDelete?.milestone.title}
-                                                </span>
-                                                . Hành động này không thể hoàn tác.
-                                        </p>
-                                }
-                                confirmLabel='Xóa'
-                                cancelLabel='Hủy'
-                                isProcessing={deleteMilestoneResourceMutation.isPending}
-                        />
-                </div>
-        )
+						await declineMilestoneSubmissionMutation.mutateAsync({
+							milestoneId: milestoneReviewState.milestone.id,
+							submissionId: milestoneReviewState.submission.id,
+							reviewNote,
+							reviewRating
+						})
+					}
+				}}
+				onClose={() => setMilestoneReviewState(null)}
+			/>
+			<FundMilestoneDialog
+				open={Boolean(milestoneToFund)}
+				milestoneTitle={milestoneToFund?.title}
+				amountLabel={formatCurrency(milestoneToFund?.amount ?? undefined, milestoneToFund?.currency ?? currency)}
+				paymentMethods={(paymentMethodsQuery.data as PaymentMethod[] | undefined) ?? []}
+				isLoadingPaymentMethods={paymentMethodsQuery.isFetching}
+				isSubmitting={payMilestoneMutation.isPending}
+				onRefreshPaymentMethods={() => paymentMethodsQuery.refetch()}
+				onSubmit={async values => {
+					if (!milestoneToFund) return
+					await payMilestoneMutation.mutateAsync({
+						milestoneId: milestoneToFund.id,
+						paymentMethodId: values.paymentMethodId,
+						note: values.note,
+						idempotencyKey: values.idempotencyKey
+					})
+				}}
+				onClose={() => setMilestoneToFund(null)}
+				pendingIdempotencyKey={pendingIdempotencyKey}
+			/>
+			<ConfirmDelete
+				open={Boolean(milestoneToDelete)}
+				onClose={() => setMilestoneToDelete(null)}
+				onConfirm={confirmDeleteMilestone}
+				name={milestoneToDelete?.title}
+				title='Xóa milestone'
+				description={
+					<p>
+						Bạn có chắc chắn muốn xóa milestone{' '}
+						<span className='font-semibold text-base-content'>{milestoneToDelete?.title}</span>? Hành động này không thể
+						hoàn tác.
+					</p>
+				}
+				confirmLabel='Xóa'
+				cancelLabel='Hủy'
+				isProcessing={deleteMilestoneMutation.isPending}
+			/>
+			<ConfirmDelete
+				open={Boolean(resourceToDelete)}
+				onClose={() => setResourceToDelete(null)}
+				onConfirm={confirmDeleteMilestoneResource}
+				name={resourceToDelete?.resourceLabel}
+				title='Xóa tệp đính kèm'
+				description={
+					<p>
+						Tệp{' '}
+						<span className='font-semibold text-base-content'>{resourceToDelete?.resourceLabel ?? 'đính kèm này'}</span>{' '}
+						sẽ được gỡ khỏi milestone{' '}
+						<span className='font-semibold text-base-content'>{resourceToDelete?.milestone.title}</span>. Hành động này
+						không thể hoàn tác.
+					</p>
+				}
+				confirmLabel='Xóa'
+				cancelLabel='Hủy'
+				isProcessing={deleteMilestoneResourceMutation.isPending}
+			/>
+		</div>
+	)
 }
 
 export default ContractWorkroomPage
