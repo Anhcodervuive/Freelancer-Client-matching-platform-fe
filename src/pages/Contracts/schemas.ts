@@ -96,7 +96,7 @@ export const PayMilestoneSchema = z.object({
         idempotencyKey: z
                 .string()
                 .trim()
-                .min(1, 'Thiếu idempotency key')
+                .min(1, 'Idempotency key không hợp lệ')
                 .max(255, 'Idempotency key tối đa 255 ký tự')
                 .optional(),
         note: z
