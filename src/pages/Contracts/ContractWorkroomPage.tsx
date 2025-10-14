@@ -760,7 +760,10 @@ const ContractWorkroomPage = () => {
 				try {
 					console.log(payload)
 					const response = await payMilestone(contractId, milestoneId, payload)
-
+					console.log({
+						response,
+						meta: extractPaymentMeta(response)
+					})
 					return {
 						response,
 						meta: extractPaymentMeta(response)
@@ -784,7 +787,7 @@ const ContractWorkroomPage = () => {
 				}
 			}
 
-                        const { meta: initialMeta } = await performPayment(idempotencyKey)
+			const { meta: initialMeta } = await performPayment(idempotencyKey)
 
 			if (!initialMeta.requiresAction) {
 				return
