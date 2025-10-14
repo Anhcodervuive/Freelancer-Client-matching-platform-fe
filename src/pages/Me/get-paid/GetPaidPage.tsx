@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, ExternalLink, Info, OctagonAlert, RefreshCcw, Sparkles } from 'lucide-react'
 import { toast } from 'react-toastify'
 import {
         createStripeConnectAccount,
         deleteStripeConnectAccount,
-        getStripeConnectAccount,
+        getStripeConnectAccountStatus,
         type CreateStripeConnectAccountPayload,
         type StripeConnectAccount,
-        type StripeConnectAccountResponse
+        type StripeConnectAccountNextAction,
+        type StripeConnectAccountResponse,
+        type StripeConnectAccountStatusParams,
+        type StripeConnectAccountStatusResponse
 } from '~/apis/stripe-connect.api'
 import CountrySelect, { type CountryOption } from '~/components/form/CountryAutocomplete'
 import { routes } from '~/config/routes'
@@ -145,7 +148,25 @@ const collectBankDetails = (summary?: ExternalAccountSummary | null) => {
         return details
 }
 
-function extractAccount(payload?: StripeConnectAccountResponse | null): StripeConnectAccount | null {
+const formatStripeLabel = (value?: string | null) => {
+        if (!value || typeof value !== 'string') return null
+
+        const cleaned = value.trim()
+        if (!cleaned) return null
+
+        return cleaned
+                .split(/[_-]/g)
+                .filter(Boolean)
+                .map((segment, index) => {
+                        const lower = segment.toLowerCase()
+                        return index === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower
+                })
+                .join(' ')
+}
+
+function extractAccount(
+        payload?: StripeConnectAccountStatusResponse | StripeConnectAccountResponse | null
+): StripeConnectAccount | null {
         if (!payload) return null
 
         const candidates = [payload.account, payload.connectAccount, payload.stripeAccount, payload.data]
@@ -197,8 +218,17 @@ const statusDescription = (params: {
         detailsSubmitted: boolean
         payoutsEnabled: boolean
         requirements: string[]
+        needsUpdate?: boolean
 }) => {
-        const { hasAccount, detailsSubmitted, payoutsEnabled, requirements } = params
+        const { hasAccount, detailsSubmitted, payoutsEnabled, requirements, needsUpdate } = params
+
+        if (needsUpdate) {
+                return {
+                        tone: 'warning' as Tone,
+                        title: 'Stripe needs more information',
+                        description: 'Open the Stripe flow to finish onboarding or update your details.'
+                }
+        }
 
         if (!hasAccount) {
                 return {
@@ -304,7 +334,9 @@ const summarySections = (
         detailsSubmitted?: boolean,
         payoutsEnabled?: boolean,
         requirements: string[] = [],
-        countryName?: string
+        countryName?: string,
+        needsUpdate?: boolean,
+        nextAction?: StripeConnectAccountNextAction | null
 ) => {
         const sections: Array<{
                 key: string
@@ -322,6 +354,28 @@ const summarySections = (
                         ? `Stripe is configuring your account in ${countryName}.`
                         : 'Select a country to begin the Stripe Connect process.'
         })
+
+        if (typeof needsUpdate === 'boolean') {
+                const actionLabel = formatStripeLabel(nextAction?.linkType) ?? 'Stripe review'
+                const reasonLabel = formatStripeLabel(nextAction?.reason)
+
+                sections.push({
+                        key: 'next-action',
+                        tone: needsUpdate ? 'warning' : 'success',
+                        title: 'Stripe action required',
+                        description: needsUpdate
+                                ? 'Stripe asked you to reopen the onboarding flow or update your information.'
+                                : 'Stripe has no outstanding tasks for your account.',
+                        extra:
+                                needsUpdate && (actionLabel || reasonLabel)
+                                        ? (
+                                                  <p className='text-xs leading-relaxed text-slate-500'>
+                                                          {`Next step: ${actionLabel ?? reasonLabel}.`}
+                                                  </p>
+                                          )
+                                        : undefined
+                })
+        }
 
         sections.push({
                 key: 'account',
@@ -391,16 +445,82 @@ const renderSummary = (sections: ReturnType<typeof summarySections>) => {
 }
 
 const GetPaidPage = () => {
+        const location = useLocation()
+
+        const statusParams = useMemo<StripeConnectAccountStatusParams>(() => {
+                if (typeof window === 'undefined') return {}
+
+                try {
+                        const url = new URL(location.pathname + location.search, window.location.origin)
+                        const absolute = url.toString()
+                        return { returnUrl: absolute, refreshUrl: absolute }
+                } catch {
+                        try {
+                                const fallback = new URL(window.location.href).toString()
+                                return { returnUrl: fallback, refreshUrl: fallback }
+                        } catch {
+                                return {}
+                        }
+                }
+        }, [location.pathname, location.search])
+
         const { data, isLoading, isFetching, refetch } = useQuery({
-                queryKey: ['stripe-connect-account'],
-                queryFn: getStripeConnectAccount
+                queryKey: ['stripe-connect-account-status', statusParams.returnUrl, statusParams.refreshUrl],
+                queryFn: () => getStripeConnectAccountStatus(statusParams)
         })
+
+        const needsUpdate = Boolean(data?.needsUpdate)
+        const nextAction = (data?.nextAction ?? null) as StripeConnectAccountNextAction | null
+        const nextActionUrl = useMemo(() => pickString(nextAction?.url), [nextAction])
+        const nextActionLinkTypeLabel = useMemo(() => formatStripeLabel(nextAction?.linkType), [nextAction])
+        const nextActionReasonLabel = useMemo(() => formatStripeLabel(nextAction?.reason), [nextAction])
+        const missingReturnUrl = nextAction?.reason === 'MISSING_RETURN_URL'
+        const normalizedLinkType = useMemo(() => {
+                if (!nextAction?.linkType) return ''
+                return String(nextAction.linkType).toLowerCase()
+        }, [nextAction])
+        const nextActionBanner = useMemo(() => {
+                if (!needsUpdate) return null
+
+                if (missingReturnUrl) {
+                        return {
+                                tone: 'danger' as Tone,
+                                title: 'Stripe link configuration required',
+                                description:
+                                        'Stripe could not generate the onboarding link because the return and refresh URLs are missing. Configure absolute HTTPS URLs and refresh this page to try again.'
+                        }
+                }
+
+                const descriptionParts: string[] = []
+
+                if (nextActionReasonLabel) {
+                        descriptionParts.push(`Reason from Stripe: ${nextActionReasonLabel}.`)
+                }
+
+                if (nextActionUrl) {
+                        descriptionParts.push('Use the button below to open Stripe and finish the pending task.')
+                } else {
+                        descriptionParts.push('Refresh the status or contact support if the link is still missing.')
+                }
+
+                return {
+                        tone: 'warning' as Tone,
+                        title: nextActionLinkTypeLabel ?? 'Stripe needs more information',
+                        description: descriptionParts.join(' ')
+                }
+        }, [needsUpdate, missingReturnUrl, nextActionLinkTypeLabel, nextActionReasonLabel, nextActionUrl])
 
         const createAccountMutation = useMutation({
                 mutationFn: (payload?: CreateStripeConnectAccountPayload) =>
                         createStripeConnectAccount(payload),
                 onSuccess: res => {
-                        const urlCandidate = pickString(res?.onboardingUrl, res?.accountLinkUrl, res?.url, res?.loginUrl)
+                        const urlCandidate = pickString(
+                                res?.nextAction?.url,
+                                res?.onboardingUrl,
+                                res?.accountLinkUrl,
+                                res?.url,
+                                res?.loginUrl
+                        )
 
                         if (urlCandidate) {
                                 window.open(urlCandidate, '_blank', 'noopener')
@@ -501,9 +621,10 @@ const GetPaidPage = () => {
                                 hasAccount: Boolean(accountId),
                                 detailsSubmitted,
                                 payoutsEnabled,
-                                requirements
+                                requirements,
+                                needsUpdate
                         }),
-                [accountId, detailsSubmitted, payoutsEnabled, requirements]
+                [accountId, detailsSubmitted, payoutsEnabled, requirements, needsUpdate]
         )
 
         const sections = useMemo(
@@ -513,9 +634,19 @@ const GetPaidPage = () => {
                                 detailsSubmitted,
                                 payoutsEnabled,
                                 requirements,
-                                accountCountryOption?.label
+                                accountCountryOption?.label,
+                                needsUpdate,
+                                nextAction
                         ),
-                [accountId, detailsSubmitted, payoutsEnabled, requirements, accountCountryOption]
+                [
+                        accountId,
+                        detailsSubmitted,
+                        payoutsEnabled,
+                        requirements,
+                        accountCountryOption,
+                        needsUpdate,
+                        nextAction
+                ]
         )
 
         const bankDetails = useMemo(() => collectBankDetails(externalAccountSummary), [externalAccountSummary])
@@ -531,14 +662,38 @@ const GetPaidPage = () => {
         const countryLocked = Boolean(accountId)
 
         const callToActionLabel = useMemo(() => {
+                if (needsUpdate) {
+                        if (normalizedLinkType.includes('update')) return 'Update Stripe information'
+                        if (normalizedLinkType.includes('onboarding')) return 'Resume Stripe onboarding'
+                        if (normalizedLinkType.includes('login')) return 'Open Stripe dashboard'
+                        return 'Open Stripe task'
+                }
+
                 if (!accountId) return 'Start Stripe Connect setup'
                 if (!detailsSubmitted) return 'Continue onboarding on Stripe'
                 if (requirements.length > 0) return 'Complete Stripe requirements'
                 if (!payoutsEnabled) return 'Check status on Stripe'
                 return 'Open Stripe Connect'
-        }, [accountId, detailsSubmitted, requirements, payoutsEnabled])
+        }, [needsUpdate, normalizedLinkType, accountId, detailsSubmitted, requirements, payoutsEnabled])
 
         const handleOpenStripe = () => {
+                if (needsUpdate) {
+                        if (missingReturnUrl) {
+                                toast.error(
+                                        'Stripe cannot create the onboarding link because the return and refresh URLs are missing. Please refresh after updating the configuration.'
+                                )
+                                return
+                        }
+
+                        if (!nextActionUrl) {
+                                toast.error('Stripe did not return a link. Refresh the status and try again later.')
+                                return
+                        }
+
+                        window.open(nextActionUrl, '_blank', 'noopener')
+                        return
+                }
+
                 let payload: CreateStripeConnectAccountPayload | undefined
 
                 if (!accountId) {
@@ -613,17 +768,29 @@ const GetPaidPage = () => {
 							<button
 								type='button'
 								className='inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-secondary px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-primary/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70'
-								onClick={handleOpenStripe}
+                                                                onClick={handleOpenStripe}
                                                                 disabled={
                                                                         createAccountMutation.isPending ||
-                                                                        (!countryLocked && (!countryOption?.value || !acknowledgeCreate))
+                                                                        (needsUpdate
+                                                                                ? !nextActionUrl || missingReturnUrl
+                                                                                : !countryLocked &&
+                                                                                  (!countryOption?.value ||
+                                                                                          !acknowledgeCreate))
                                                                 }
                                                         >
                                                                 <ExternalLink className='h-4 w-4' />
                                                                 {createAccountMutation.isPending ? 'Opening Stripe…' : callToActionLabel}
                                                         </button>
-						</div>
+                                                </div>
                                         </header>
+
+                                        {nextActionBanner ? (
+                                                <StatusBanner
+                                                        tone={nextActionBanner.tone}
+                                                        title={nextActionBanner.title}
+                                                        description={nextActionBanner.description}
+                                                />
+                                        ) : null}
 
                                         {!countryLocked ? (
                                                 <div className='rounded-2xl border border-sky-200/70 bg-sky-50/70 p-4 text-xs leading-relaxed text-sky-700'>

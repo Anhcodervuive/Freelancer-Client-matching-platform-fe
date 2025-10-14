@@ -21,23 +21,59 @@ export interface StripeConnectAccount {
         [key: string]: unknown
 }
 
-export type StripeConnectAccountResponse = StripeConnectAccount & {
-	account?: StripeConnectAccount | null
-	connectAccount?: StripeConnectAccount | null
-	stripeAccount?: StripeConnectAccount | null
-	data?: StripeConnectAccount | null
-	onboardingUrl?: string
-	accountLinkUrl?: string
-	url?: string
-	loginUrl?: string
+export interface StripeConnectAccountNextAction {
+        url?: string
+        reason?: string
+        type?: string
+        linkType?: string
 }
+
+export interface StripeConnectAccountStatusResponse {
+        connectAccount?: StripeConnectAccount | null
+        needsUpdate?: boolean
+        nextAction?: StripeConnectAccountNextAction | null
+}
+
+export type StripeConnectAccountResponse = StripeConnectAccountStatusResponse &
+        StripeConnectAccount & {
+                account?: StripeConnectAccount | null
+                stripeAccount?: StripeConnectAccount | null
+                data?: StripeConnectAccount | null
+                onboardingUrl?: string
+                accountLinkUrl?: string
+                url?: string
+                loginUrl?: string
+        }
 
 const baseUrl = '/freelancer/connect-account'
 
-export const getStripeConnectAccount = async () => {
-	const response = await authorizeAxiosInstance.get<StripeConnectAccountResponse>(`${baseUrl}/`)
-	return response.data
+export interface StripeConnectAccountStatusParams {
+        returnUrl?: string
+        refreshUrl?: string
 }
+
+export const getStripeConnectAccountStatus = async (
+        params?: StripeConnectAccountStatusParams
+) => {
+        const queryParams: Record<string, string> = {}
+
+        if (params?.returnUrl) {
+                queryParams.returnUrl = params.returnUrl
+        }
+
+        if (params?.refreshUrl) {
+                queryParams.refreshUrl = params.refreshUrl
+        }
+
+        const response = await authorizeAxiosInstance.get<StripeConnectAccountStatusResponse>(
+                `${baseUrl}/status`,
+                Object.keys(queryParams).length > 0 ? { params: queryParams } : undefined
+        )
+        return response.data
+}
+
+export const getStripeConnectAccount = (params?: StripeConnectAccountStatusParams) =>
+        getStripeConnectAccountStatus(params)
 
 export interface CreateStripeConnectAccountPayload {
 	country: string
