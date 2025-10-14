@@ -49,14 +49,24 @@ const SubmitMilestoneWorkDialog = ({
                 }
         })
 
-        useEffect(() => {
-            if (!open) return
+        const wasOpenRef = useRef(open)
 
-            reset({
-                    message: '',
-                    note: undefined
-            })
-            setAttachments([])
+        useEffect(() => {
+                const wasOpen = wasOpenRef.current
+
+                if (open && !wasOpen) {
+                        reset({
+                                message: '',
+                                note: undefined
+                        })
+                        setAttachments([])
+                }
+
+                if (!open && wasOpen) {
+                        setAttachments([])
+                }
+
+                wasOpenRef.current = open
         }, [open, reset])
 
         const mergeFiles = (incoming: FileList | null) => {
