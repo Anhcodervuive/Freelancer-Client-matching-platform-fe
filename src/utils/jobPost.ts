@@ -312,9 +312,19 @@ const normalizeAttachmentRecord = (
                         attachment.url,
                         attachment.fileUrl,
                         attachment.downloadUrl,
+                        (attachment as UnknownRecord)['viewUrl'],
+                        (attachment as UnknownRecord)['previewUrl'],
+                        (attachment as UnknownRecord)['signedUrl'],
+                        (attachment as UnknownRecord)['link'],
+                        (attachment as UnknownRecord)['href'],
                         asset?.url,
                         asset?.fileUrl,
-                        asset?.downloadUrl
+                        asset?.downloadUrl,
+                        (asset as UnknownRecord | undefined)?.['viewUrl'],
+                        (asset as UnknownRecord | undefined)?.['previewUrl'],
+                        (asset as UnknownRecord | undefined)?.['signedUrl'],
+                        (asset as UnknownRecord | undefined)?.['link'],
+                        (asset as UnknownRecord | undefined)?.['href']
                 ) ?? undefined
 
         const assetName = asset
