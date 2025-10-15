@@ -37,11 +37,12 @@ import {
         deleteContractMilestoneResource,
         getContractDetail,
         listContractMilestones,
-	uploadContractMilestoneAttachments,
-	submitMilestoneWork,
-	approveMilestoneSubmission,
-	declineMilestoneSubmission,
-	payMilestone
+        uploadContractMilestoneAttachments,
+        submitMilestoneWork,
+        approveMilestoneSubmission,
+        declineMilestoneSubmission,
+        payMilestone,
+        respondMilestoneCancellation
 } from '~/apis/contract.api'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
@@ -72,13 +73,15 @@ import {
 import type {
         ApproveMilestoneSubmissionFormValues,
         CancelMilestoneFormValues,
-        DeclineMilestoneSubmissionFormValues
+        DeclineMilestoneSubmissionFormValues,
+        RespondMilestoneCancellationFormValues
 } from './schemas'
 import CreateMilestoneDialog from './components/CreateMilestoneDialog'
 import SubmitMilestoneWorkDialog from './components/SubmitMilestoneWorkDialog'
 import ReviewMilestoneSubmissionDialog from './components/ReviewMilestoneSubmissionDialog'
 import FundMilestoneDialog from './components/FundMilestoneDialog'
 import CancelMilestoneDialog from './components/CancelMilestoneDialog'
+import RespondMilestoneCancellationDialog from './components/RespondMilestoneCancellationDialog'
 import ConfirmDelete from '~/components/ConfirmDelete'
 
 const tabs = [
@@ -505,7 +508,11 @@ const ContractWorkroomPage = () => {
         } | null>(null)
         const [milestoneToFund, setMilestoneToFund] = useState<ContractMilestone | null>(null)
         const [milestoneToCancel, setMilestoneToCancel] = useState<ContractMilestone | null>(null)
-	const pendingPaymentMetaRef = useRef<Record<string, { idempotencyKey?: string; clientSecret?: string }>>({})
+        const [cancellationResponseState, setCancellationResponseState] = useState<{
+                milestone: ContractMilestone
+                action: 'accept' | 'decline'
+        } | null>(null)
+        const pendingPaymentMetaRef = useRef<Record<string, { idempotencyKey?: string; clientSecret?: string }>>({})
 
 	const viewerRole: ViewerRole =
 		currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
@@ -649,6 +656,37 @@ const ContractWorkroomPage = () => {
                 onError: error => {
                         const message =
                                 extractErrorMessage(error) || 'Không thể hủy milestone. Vui lòng thử lại.'
+                        toast.error(message)
+                }
+        })
+
+        const respondMilestoneCancellationMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; action: 'accept' | 'decline'; reason?: string; idempotencyKey?: string }
+        >({
+                mutationFn: async ({ milestoneId, action, reason, idempotencyKey }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await respondMilestoneCancellation(contractId, milestoneId, {
+                                action,
+                                reason,
+                                idempotencyKey
+                        })
+                },
+                onSuccess: (_data, variables) => {
+                        toast.success(
+                                variables.action === 'accept'
+                                        ? 'Đã chấp nhận yêu cầu hủy milestone'
+                                        : 'Đã từ chối yêu cầu hủy milestone'
+                        )
+                        setCancellationResponseState(null)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: error => {
+                        const message =
+                                extractErrorMessage(error) ||
+                                'Không thể phản hồi yêu cầu hủy milestone. Vui lòng thử lại.'
                         toast.error(message)
                 }
         })
@@ -918,6 +956,12 @@ const ContractWorkroomPage = () => {
                 setMilestoneToCancel(milestone)
         }
 
+        const requestRespondCancellation = (milestone: ContractMilestone, action: 'accept' | 'decline') => {
+                if (respondMilestoneCancellationMutation.isPending) return
+
+                setCancellationResponseState({ milestone, action })
+        }
+
         const confirmDeleteMilestone = async () => {
                 if (!milestoneToDelete) return
 
@@ -934,6 +978,17 @@ const ContractWorkroomPage = () => {
                         milestoneId: milestoneToCancel.id,
                         milestoneTitle: milestoneToCancel.title,
                         reason: values.reason
+                })
+        }
+
+        const confirmRespondCancellation = async (values: RespondMilestoneCancellationFormValues) => {
+                if (!cancellationResponseState) return
+
+                await respondMilestoneCancellationMutation.mutateAsync({
+                        milestoneId: cancellationResponseState.milestone.id,
+                        action: cancellationResponseState.action,
+                        reason: values.reason,
+                        idempotencyKey: values.idempotencyKey
                 })
         }
 
@@ -1473,15 +1528,102 @@ const ContractWorkroomPage = () => {
 						const pendingSubmission = submissions.find(submission => isSubmissionAwaitingReview(submission.status))
 						const isMilestoneReleased = normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
 						const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED'
-						const normalizedEscrowStatus =
-							(milestone.escrow?.status ?? (isMilestoneReleased ? 'RELEASED' : null))?.toUpperCase() ?? 'UNFUNDED'
-						const escrowMeta = buildEscrowStatusMeta(normalizedEscrowStatus, milestone, viewerRole)
-						const EscrowIcon = escrowMeta.icon
-						const canSubmitWork =
-							viewerRole === 'freelancer' &&
-							!isMilestoneReleased &&
-							normalizedMilestoneStatus !== 'CANCELLED' &&
-							!pendingSubmission
+                                                const normalizedEscrowStatus =
+                                                        (milestone.escrow?.status ?? (isMilestoneReleased ? 'RELEASED' : null))?.toUpperCase() ?? 'UNFUNDED'
+                                                const escrowMeta = buildEscrowStatusMeta(normalizedEscrowStatus, milestone, viewerRole)
+                                                const EscrowIcon = escrowMeta.icon
+                                                const cancellationStatus = (milestone.cancellationStatus ?? '').toUpperCase()
+                                                const isCancellationPending = cancellationStatus === 'PENDING'
+                                                const isCancellationAccepted = cancellationStatus === 'ACCEPTED'
+                                                const isCancellationDeclined = cancellationStatus === 'DECLINED'
+                                                const cancellationReason = milestone.cancellationReason?.trim()
+                                                const cancellationResponseReason = milestone.cancellationResponseReason?.trim()
+                                                const cancellationRequestedAtText = milestone.cancellationRequestedAt
+                                                        ? formatDateTime(milestone.cancellationRequestedAt, {
+                                                                        dateStyle: 'medium',
+                                                                        timeStyle: 'short'
+                                                                })
+                                                        : undefined
+                                                const cancellationRespondedAtText = milestone.cancellationRespondedAt
+                                                        ? formatDateTime(milestone.cancellationRespondedAt, {
+                                                                        dateStyle: 'medium',
+                                                                        timeStyle: 'short'
+                                                                })
+                                                        : undefined
+                                                const hasCancellationRequest = Boolean(
+                                                        cancellationReason ||
+                                                                cancellationRequestedAtText ||
+                                                                isCancellationPending ||
+                                                                isCancellationAccepted ||
+                                                                isCancellationDeclined
+                                                )
+                                                const isRespondingCancellation =
+                                                        respondMilestoneCancellationMutation.isPending &&
+                                                        respondMilestoneCancellationMutation.variables?.milestoneId === milestone.id
+                                                const respondingCancellationAction =
+                                                        respondMilestoneCancellationMutation.variables?.action
+                                                const canSubmitWork =
+                                                        viewerRole === 'freelancer' &&
+                                                        !isMilestoneReleased &&
+                                                        normalizedMilestoneStatus !== 'CANCELLED' &&
+                                                        !pendingSubmission &&
+                                                        !isCancellationPending
+                                                const cancellationBanner = (() => {
+                                                        if (!hasCancellationRequest) {
+                                                                return null
+                                                        }
+
+                                                        if (isCancellationPending) {
+                                                                return {
+                                                                        classes: 'border-amber-200 bg-amber-50/70',
+                                                                        iconClass: 'text-amber-600',
+                                                                        Icon: AlertTriangle,
+                                                                        title:
+                                                                                viewerRole === 'freelancer'
+                                                                                        ? 'Client muốn hủy milestone này'
+                                                                                        : 'Đang chờ freelancer phản hồi yêu cầu hủy',
+                                                                        description:
+                                                                                viewerRole === 'freelancer'
+                                                                                        ? 'Vui lòng phản hồi để xác nhận hoặc từ chối yêu cầu. Chúng tôi sẽ thông báo cho client ngay khi bạn phản hồi.'
+                                                                                        : 'Bạn đã gửi yêu cầu hủy milestone và đang chờ phản hồi từ freelancer.',
+                                                                        tone: 'pending' as const
+                                                                }
+                                                        }
+
+                                                        if (isCancellationAccepted) {
+                                                                return {
+                                                                        classes: 'border-emerald-200 bg-emerald-50/80',
+                                                                        iconClass: 'text-emerald-600',
+                                                                        Icon: CheckCircle2,
+                                                                        title:
+                                                                                viewerRole === 'freelancer'
+                                                                                        ? 'Bạn đã chấp nhận yêu cầu hủy milestone'
+                                                                                        : 'Freelancer đã chấp nhận yêu cầu hủy milestone',
+                                                                        description:
+                                                                                'Milestone sẽ được cập nhật trạng thái hủy và xử lý theo chính sách của nền tảng.',
+                                                                        tone: 'accepted' as const
+                                                                }
+                                                        }
+
+                                                        if (isCancellationDeclined) {
+                                                                return {
+                                                                        classes: 'border-rose-200 bg-rose-50/80',
+                                                                        iconClass: 'text-rose-600',
+                                                                        Icon: XCircle,
+                                                                        title:
+                                                                                viewerRole === 'freelancer'
+                                                                                        ? 'Bạn đã từ chối yêu cầu hủy milestone'
+                                                                                        : 'Freelancer đã từ chối yêu cầu hủy milestone',
+                                                                        description:
+                                                                                viewerRole === 'freelancer'
+                                                                                        ? 'Hãy trao đổi thêm với client nếu cần thống nhất phương án khác.'
+                                                                                        : 'Bạn có thể thương lượng lại với freelancer hoặc gửi yêu cầu mới nếu cần.',
+                                                                        tone: 'declined' as const
+                                                                }
+                                                        }
+
+                                                        return null
+                                                })()
                                                 const pendingSubmissionAttachments = pendingSubmission
                                                         ? normalizeAttachments(
                                                                   collectAttachmentInputs(
@@ -1501,18 +1643,21 @@ const ContractWorkroomPage = () => {
                                                         !isMilestoneReleased &&
                                                         !isMilestoneCancelled &&
                                                         (milestone.amount ?? 0) > 0 &&
-                                                        !['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus)
+                                                        !['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus) &&
+                                                        !isCancellationPending
                                                 const isFundedMilestone = ['FUNDED', 'PENDING'].includes(normalizedEscrowStatus)
                                                 const canCancelMilestone =
                                                         viewerRole === 'client' &&
                                                         !isMilestoneReleased &&
                                                         !isMilestoneCancelled &&
-                                                        isFundedMilestone
+                                                        isFundedMilestone &&
+                                                        !isCancellationPending
                                                 const canDeleteMilestone =
                                                         viewerRole === 'client' &&
                                                         !isMilestoneReleased &&
                                                         !isMilestoneCancelled &&
-                                                        !isFundedMilestone
+                                                        !isFundedMilestone &&
+                                                        !isCancellationPending
 						const shouldWarnUnfunded = viewerRole === 'freelancer' && escrowMeta.status === 'UNFUNDED'
 						const showMilestoneActions = canSubmitWork
 						const hasPendingSubmission = Boolean(pendingSubmission)
@@ -1638,17 +1783,104 @@ const ContractWorkroomPage = () => {
 											</div>
 										</li>
 									</ul>
-									{shouldWarnUnfunded && (
-										<div className='mt-3 flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-700'>
-											<AlertTriangle className='mt-0.5 size-4 flex-shrink-0 text-amber-500' />
-											<span>
-												Milestone chưa được giải ngân. Nên xác nhận với khách hàng trước khi tiếp tục bàn giao.
-											</span>
-										</div>
-									)}
-									{viewerRole === 'client' && pendingSubmission ? (
-										<div className='space-y-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4'>
-											<div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
+                                                                        {shouldWarnUnfunded && (
+                                                                                <div className='mt-3 flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-700'>
+                                                                                        <AlertTriangle className='mt-0.5 size-4 flex-shrink-0 text-amber-500' />
+                                                                                        <span>
+                                                                                                Milestone chưa được giải ngân. Nên xác nhận với khách hàng trước khi tiếp tục bàn giao.
+                                                                                        </span>
+                                                                                </div>
+                                                                        )}
+                                                                        {cancellationBanner && (
+                                                                                <div
+                                                                                        className={`mt-3 space-y-3 rounded-2xl border px-4 py-4 text-sm shadow-sm ${
+                                                                                                cancellationBanner.classes
+                                                                                        }`}
+                                                                                >
+                                                                                        <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+                                                                                                <div className='flex flex-1 items-start gap-3'>
+                                                                                                        <span
+                                                                                                                className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 ${
+                                                                                                                        cancellationBanner.iconClass
+                                                                                                                }`}
+                                                                                                        >
+                                                                                                                <cancellationBanner.Icon className='size-4' />
+                                                                                                        </span>
+                                                                                                        <div className='min-w-0 flex-1 space-y-1'>
+                                                                                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-base-content/60'>
+                                                                                                                        Yêu cầu hủy milestone
+                                                                                                                </p>
+                                                                                                                <p className='text-sm font-semibold text-base-content'>{cancellationBanner.title}</p>
+                                                                                                                <p className='text-xs text-base-content/60'>{cancellationBanner.description}</p>
+                                                                                                                {cancellationRequestedAtText && (
+                                                                                                                        <p className='text-xs text-base-content/50'>Gửi yêu cầu lúc {cancellationRequestedAtText}</p>
+                                                                                                                )}
+                                                                                                                {cancellationRespondedAtText && cancellationBanner.tone !== 'pending' && (
+                                                                                                                        <p className='text-xs text-base-content/50'>Phản hồi lúc {cancellationRespondedAtText}</p>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                                {isCancellationPending && viewerRole === 'freelancer' && (
+                                                                                                        <div className='flex flex-shrink-0 flex-wrap items-center justify-end gap-2'>
+                                                                                                                <button
+                                                                                                                        type='button'
+                                                                                                                        className='btn btn-outline btn-sm border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50'
+                                                                                                                        onClick={() => requestRespondCancellation(milestone, 'decline')}
+                                                                                                                        disabled={isRespondingCancellation}
+                                                                                                                >
+                                                                                                                        {isRespondingCancellation && respondingCancellationAction === 'decline' ? (
+                                                                                                                                <>
+                                                                                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                                                                                        Đang gửi...
+                                                                                                                                </>
+                                                                                                                        ) : (
+                                                                                                                                'Từ chối yêu cầu'
+                                                                                                                        )}
+                                                                                                                </button>
+                                                                                                                <button
+                                                                                                                        type='button'
+                                                                                                                        className='btn btn-success btn-sm gap-2'
+                                                                                                                        onClick={() => requestRespondCancellation(milestone, 'accept')}
+                                                                                                                        disabled={isRespondingCancellation}
+                                                                                                                >
+                                                                                                                        {isRespondingCancellation && respondingCancellationAction === 'accept' ? (
+                                                                                                                                <>
+                                                                                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                                                                                        Đang gửi...
+                                                                                                                                </>
+                                                                                                                        ) : (
+                                                                                                                                <>
+                                                                                                                                        <CheckCircle2 className='size-4' />
+                                                                                                                                        Chấp nhận hủy
+                                                                                                                                </>
+                                                                                                                        )}
+                                                                                                                </button>
+                                                                                                        </div>
+                                                                                                )}
+                                                                                        </div>
+                                                                                        {cancellationReason && (
+                                                                                                <div className='rounded-2xl bg-white/80 px-4 py-3 text-sm text-base-content/80'>
+                                                                                                        <p className='text-xs font-semibold uppercase tracking-[0.2em] text-base-content/50'>
+                                                                                                                Lý do từ client
+                                                                                                        </p>
+                                                                                                        <p className='mt-1 whitespace-pre-line text-sm'>{cancellationReason}</p>
+                                                                                                </div>
+                                                                                        )}
+                                                                                        {cancellationBanner.tone !== 'pending' && cancellationResponseReason && (
+                                                                                                <div className='rounded-2xl bg-white/80 px-4 py-3 text-sm text-base-content/80'>
+                                                                                                        <p className='text-xs font-semibold uppercase tracking-[0.2em] text-base-content/50'>
+                                                                                                                {viewerRole === 'freelancer'
+                                                                                                                        ? 'Lời nhắn bạn đã gửi'
+                                                                                                                        : 'Lời nhắn từ freelancer'}
+                                                                                                        </p>
+                                                                                                        <p className='mt-1 whitespace-pre-line text-sm'>{cancellationResponseReason}</p>
+                                                                                                </div>
+                                                                                        )}
+                                                                                </div>
+                                                                        )}
+                                                                        {viewerRole === 'client' && pendingSubmission ? (
+                                                                                <div className='space-y-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4'>
+                                                                                        <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
 												<div className='min-w-0 flex-1 space-y-2'>
 													<p className='text-xs font-semibold uppercase tracking-[0.25em] text-sky-600'>
 														Bàn giao chờ duyệt
@@ -2456,6 +2688,19 @@ const ContractWorkroomPage = () => {
                                 onClose={() => {
                                         if (cancelMilestoneMutation.isPending) return
                                         setMilestoneToCancel(null)
+                                }}
+                        />
+                        <RespondMilestoneCancellationDialog
+                                open={Boolean(cancellationResponseState)}
+                                action={cancellationResponseState?.action ?? 'accept'}
+                                milestoneTitle={cancellationResponseState?.milestone.title}
+                                cancellationReason={cancellationResponseState?.milestone.cancellationReason}
+                                requestedAt={cancellationResponseState?.milestone.cancellationRequestedAt}
+                                isSubmitting={respondMilestoneCancellationMutation.isPending}
+                                onSubmit={confirmRespondCancellation}
+                                onClose={() => {
+                                        if (respondMilestoneCancellationMutation.isPending) return
+                                        setCancellationResponseState(null)
                                 }}
                         />
                         <ConfirmDelete

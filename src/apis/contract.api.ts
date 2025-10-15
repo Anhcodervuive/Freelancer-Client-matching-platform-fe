@@ -7,6 +7,7 @@ import type {
         ContractMilestone,
         CreateContractMilestoneInput,
         DeclineMilestoneSubmissionInput,
+        RespondMilestoneCancellationInput,
         PaginatedContractResponse,
         PayContractMilestoneInput,
         PayContractMilestoneResponse,
@@ -125,6 +126,17 @@ export const cancelContractMilestone = async (
         payload: CancelContractMilestoneInput
 ) => {
         await authorizeAxiosInstance.post(`${baseUrl}/${contractId}/milestones/${milestoneId}/cancel`, payload)
+}
+
+export const respondMilestoneCancellation = async (
+        contractId: string,
+        milestoneId: string,
+        payload: RespondMilestoneCancellationInput
+) => {
+        await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/cancel/respond`,
+                payload
+        )
 }
 
 export const deleteContractMilestoneResource = async (contractId: string, milestoneId: string, resourceId: string) => {

@@ -126,3 +126,25 @@ export const CancelMilestoneSchema = z.object({
 })
 
 export type CancelMilestoneFormValues = z.infer<typeof CancelMilestoneSchema>
+
+export const RespondMilestoneCancellationSchema = z.object({
+        action: z.enum(['accept', 'decline']),
+        reason: z.preprocess(
+                sanitizeOptionalText,
+                z
+                        .string()
+                        .min(1, 'Vui lòng mô tả lý do phản hồi')
+                        .max(2000, 'Lý do tối đa 2000 ký tự')
+                        .optional()
+        ),
+        idempotencyKey: z
+                .string()
+                .trim()
+                .min(1, 'Idempotency key không hợp lệ')
+                .max(255, 'Idempotency key tối đa 255 ký tự')
+                .optional()
+})
+
+export type RespondMilestoneCancellationFormValues = z.infer<
+        typeof RespondMilestoneCancellationSchema
+>

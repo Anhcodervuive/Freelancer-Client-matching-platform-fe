@@ -198,6 +198,11 @@ export type ContractMilestone = {
         submissions?: ContractMilestoneSubmission[]
         escrow?: ContractMilestoneEscrow | null
         attachments?: ContractMilestoneResource[]
+        cancellationStatus?: string | null
+        cancellationRequestedAt?: string | null
+        cancellationReason?: string | null
+        cancellationRespondedAt?: string | null
+        cancellationResponseReason?: string | null
         [key: string]: unknown
 }
 
@@ -267,6 +272,12 @@ export type PayContractMilestoneResponse = {
 
 export type CancelContractMilestoneInput = {
         reason?: string
+}
+
+export type RespondMilestoneCancellationInput = {
+        action: 'accept' | 'decline'
+        reason?: string
+        idempotencyKey?: string
 }
 
 export type ContractListFilterInput = {
