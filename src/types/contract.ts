@@ -87,6 +87,20 @@ export type ContractMilestoneResource = {
         [key: string]: unknown
 }
 
+export type ContractMilestoneSubmissionAttachment = {
+        id?: string
+        submissionId?: string | null
+        assetId?: string | null
+        name?: string | null
+        url?: string | null
+        mimeType?: string | null
+        size?: number | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        asset?: ContractMilestoneResourceAsset | null
+        [key: string]: unknown
+}
+
 export type ContractJobPost = {
         id: string
         title: string
@@ -183,6 +197,7 @@ export type ContractMilestone = {
         resources?: ContractMilestoneResource[]
         submissions?: ContractMilestoneSubmission[]
         escrow?: ContractMilestoneEscrow | null
+        attachments?: ContractMilestoneResource[]
         [key: string]: unknown
 }
 
@@ -203,6 +218,7 @@ export type ContractMilestoneSubmission = {
         submittedById?: string | null
         reviewerId?: string | null
         resources?: ContractMilestoneResource[]
+        attachments?: ContractMilestoneSubmissionAttachment[]
         [key: string]: unknown
 }
 
