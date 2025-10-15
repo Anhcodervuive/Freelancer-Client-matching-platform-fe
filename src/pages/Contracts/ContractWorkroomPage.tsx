@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import { isAxiosError } from 'axios'
 import {
-	AlertTriangle,
-	ArrowLeft,
+        AlertTriangle,
+        Ban,
+        ArrowLeft,
 	CalendarClock,
 	CheckCircle2,
 	CreditCard,
@@ -30,11 +31,12 @@ import type { LucideIcon } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import {
-	createContractMilestone,
-	deleteContractMilestone,
-	deleteContractMilestoneResource,
-	getContractDetail,
-	listContractMilestones,
+        createContractMilestone,
+        cancelContractMilestone,
+        deleteContractMilestone,
+        deleteContractMilestoneResource,
+        getContractDetail,
+        listContractMilestones,
 	uploadContractMilestoneAttachments,
 	submitMilestoneWork,
 	approveMilestoneSubmission,
@@ -67,11 +69,16 @@ import {
 	getParticipantLocation,
 	getParticipantName
 } from './utils'
-import type { ApproveMilestoneSubmissionFormValues, DeclineMilestoneSubmissionFormValues } from './schemas'
+import type {
+        ApproveMilestoneSubmissionFormValues,
+        CancelMilestoneFormValues,
+        DeclineMilestoneSubmissionFormValues
+} from './schemas'
 import CreateMilestoneDialog from './components/CreateMilestoneDialog'
 import SubmitMilestoneWorkDialog from './components/SubmitMilestoneWorkDialog'
 import ReviewMilestoneSubmissionDialog from './components/ReviewMilestoneSubmissionDialog'
 import FundMilestoneDialog from './components/FundMilestoneDialog'
+import CancelMilestoneDialog from './components/CancelMilestoneDialog'
 import ConfirmDelete from '~/components/ConfirmDelete'
 
 const tabs = [
@@ -483,20 +490,21 @@ const ContractWorkroomPage = () => {
 	const [activeTab, setActiveTab] = useState<TabId>('overview')
 	const [milestonePage, setMilestonePage] = useState(1)
 	const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
-	const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
-	const [resourceToDelete, setResourceToDelete] = useState<{
-		milestone: ContractMilestone
-		resourceId: string
-		resourceLabel?: string
-	} | null>(null)
-	const [expandedMilestoneAttachments, setExpandedMilestoneAttachments] = useState<Record<string, boolean>>({})
-	const [milestoneToSubmit, setMilestoneToSubmit] = useState<ContractMilestone | null>(null)
-	const [milestoneReviewState, setMilestoneReviewState] = useState<{
-		milestone: ContractMilestone
-		submission: ContractMilestoneSubmission
-		mode: 'approve' | 'decline'
-	} | null>(null)
-	const [milestoneToFund, setMilestoneToFund] = useState<ContractMilestone | null>(null)
+        const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
+        const [resourceToDelete, setResourceToDelete] = useState<{
+                milestone: ContractMilestone
+                resourceId: string
+                resourceLabel?: string
+        } | null>(null)
+        const [expandedMilestoneAttachments, setExpandedMilestoneAttachments] = useState<Record<string, boolean>>({})
+        const [milestoneToSubmit, setMilestoneToSubmit] = useState<ContractMilestone | null>(null)
+        const [milestoneReviewState, setMilestoneReviewState] = useState<{
+                milestone: ContractMilestone
+                submission: ContractMilestoneSubmission
+                mode: 'approve' | 'decline'
+        } | null>(null)
+        const [milestoneToFund, setMilestoneToFund] = useState<ContractMilestone | null>(null)
+        const [milestoneToCancel, setMilestoneToCancel] = useState<ContractMilestone | null>(null)
 	const pendingPaymentMetaRef = useRef<Record<string, { idempotencyKey?: string; clientSecret?: string }>>({})
 
 	const viewerRole: ViewerRole =
@@ -608,26 +616,48 @@ const ContractWorkroomPage = () => {
 		}
 	})
 
-	const deleteMilestoneMutation = useMutation<void, unknown, { milestoneId: string; milestoneTitle: string }>({
-		mutationFn: async ({ milestoneId }) => {
-			if (!contractId) throw new Error('Missing contract ID')
-			await deleteContractMilestone(contractId, milestoneId)
-		},
-		onSuccess: (_data, variables) => {
-			toast.success(`Đã xóa milestone "${variables.milestoneTitle}"`)
-			queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
-			queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-		},
-		onError: () => {
-			toast.error('Không thể xóa milestone. Vui lòng thử lại.')
-		}
-	})
+        const deleteMilestoneMutation = useMutation<void, unknown, { milestoneId: string; milestoneTitle: string }>({
+                mutationFn: async ({ milestoneId }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await deleteContractMilestone(contractId, milestoneId)
+                },
+                onSuccess: (_data, variables) => {
+                        toast.success(`Đã xóa milestone "${variables.milestoneTitle}"`)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể xóa milestone. Vui lòng thử lại.')
+                }
+        })
 
-	const deleteMilestoneResourceMutation = useMutation<
-		void,
-		unknown,
-		{ milestoneId: string; resourceId: string; resourceName?: string }
-	>({
+        const cancelMilestoneMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; milestoneTitle: string; reason?: string }
+        >({
+                mutationFn: async ({ milestoneId, reason }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await cancelContractMilestone(contractId, milestoneId, { reason })
+                },
+                onSuccess: (_data, variables) => {
+                        toast.success(`Đã hủy milestone "${variables.milestoneTitle}"`)
+                        setMilestoneToCancel(null)
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: error => {
+                        const message =
+                                extractErrorMessage(error) || 'Không thể hủy milestone. Vui lòng thử lại.'
+                        toast.error(message)
+                }
+        })
+
+        const deleteMilestoneResourceMutation = useMutation<
+                void,
+                unknown,
+                { milestoneId: string; resourceId: string; resourceName?: string }
+        >({
 		mutationFn: async ({ milestoneId, resourceId }) => {
 			if (!contractId) throw new Error('Missing contract ID')
 			await deleteContractMilestoneResource(contractId, milestoneId, resourceId)
@@ -876,20 +906,36 @@ const ContractWorkroomPage = () => {
 	const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
 	const attachments = useMemo(() => buildAttachmentList(contract), [contract])
 
-	const requestDeleteMilestone = (milestone: ContractMilestone) => {
-		if (deleteMilestoneMutation.isPending) return
+        const requestDeleteMilestone = (milestone: ContractMilestone) => {
+                if (deleteMilestoneMutation.isPending) return
 
-		setMilestoneToDelete(milestone)
-	}
+                setMilestoneToDelete(milestone)
+        }
 
-	const confirmDeleteMilestone = async () => {
-		if (!milestoneToDelete) return
+        const requestCancelMilestone = (milestone: ContractMilestone) => {
+                if (cancelMilestoneMutation.isPending) return
 
-		await deleteMilestoneMutation.mutateAsync({
-			milestoneId: milestoneToDelete.id,
-			milestoneTitle: milestoneToDelete.title
-		})
-	}
+                setMilestoneToCancel(milestone)
+        }
+
+        const confirmDeleteMilestone = async () => {
+                if (!milestoneToDelete) return
+
+                await deleteMilestoneMutation.mutateAsync({
+                        milestoneId: milestoneToDelete.id,
+                        milestoneTitle: milestoneToDelete.title
+                })
+        }
+
+        const confirmCancelMilestone = async (values: CancelMilestoneFormValues) => {
+                if (!milestoneToCancel) return
+
+                await cancelMilestoneMutation.mutateAsync({
+                        milestoneId: milestoneToCancel.id,
+                        milestoneTitle: milestoneToCancel.title,
+                        reason: values.reason
+                })
+        }
 
 	const requestDeleteMilestoneResource = (milestone: ContractMilestone, resourceId: string, resourceLabel: string) => {
 		if (deleteMilestoneResourceMutation.isPending) return
@@ -1394,11 +1440,13 @@ const ContractWorkroomPage = () => {
 				</div>
 				<div className='space-y-4'>
 					{visibleMilestones.map(milestone => {
-						const meta = getMilestoneStatusMeta(milestone.status)
-						const amount = formatCurrency(milestone.amount ?? undefined, milestone.currency ?? currency)
-						const isDeleting =
-							deleteMilestoneMutation.isPending && deleteMilestoneMutation.variables?.milestoneId === milestone.id
-						const resourceMap = new Map<string, ContractMilestoneResource>()
+                                                const meta = getMilestoneStatusMeta(milestone.status)
+                                                const amount = formatCurrency(milestone.amount ?? undefined, milestone.currency ?? currency)
+                                                const isDeleting =
+                                                        deleteMilestoneMutation.isPending && deleteMilestoneMutation.variables?.milestoneId === milestone.id
+                                                const isCancelling =
+                                                        cancelMilestoneMutation.isPending && cancelMilestoneMutation.variables?.milestoneId === milestone.id
+                                                const resourceMap = new Map<string, ContractMilestoneResource>()
 						milestone.resources
 							?.filter((resource): resource is ContractMilestoneResource => Boolean(resource))
 							.forEach(resource => {
@@ -1448,12 +1496,23 @@ const ContractWorkroomPage = () => {
 									timeStyle: 'short'
 							  })
 							: undefined
-						const canFundMilestone =
-							viewerRole === 'client' &&
-							!isMilestoneReleased &&
-							!isMilestoneCancelled &&
-							(milestone.amount ?? 0) > 0 &&
-							!['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus)
+                                                const canFundMilestone =
+                                                        viewerRole === 'client' &&
+                                                        !isMilestoneReleased &&
+                                                        !isMilestoneCancelled &&
+                                                        (milestone.amount ?? 0) > 0 &&
+                                                        !['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus)
+                                                const isFundedMilestone = ['FUNDED', 'PENDING'].includes(normalizedEscrowStatus)
+                                                const canCancelMilestone =
+                                                        viewerRole === 'client' &&
+                                                        !isMilestoneReleased &&
+                                                        !isMilestoneCancelled &&
+                                                        isFundedMilestone
+                                                const canDeleteMilestone =
+                                                        viewerRole === 'client' &&
+                                                        !isMilestoneReleased &&
+                                                        !isMilestoneCancelled &&
+                                                        !isFundedMilestone
 						const shouldWarnUnfunded = viewerRole === 'freelancer' && escrowMeta.status === 'UNFUNDED'
 						const showMilestoneActions = canSubmitWork
 						const hasPendingSubmission = Boolean(pendingSubmission)
@@ -1509,16 +1568,36 @@ const ContractWorkroomPage = () => {
 													)}
 												</button>
 											)}
-											{viewerRole === 'client' && (
-												<button
-													type='button'
-													className='btn btn-ghost btn-xs text-error'
-													onClick={() => requestDeleteMilestone(milestone)}
-													disabled={deleteMilestoneMutation.isPending}
-													aria-label={`Xóa milestone ${milestone.title}`}>
-													{isDeleting ? <Loader2 className='size-4 animate-spin' /> : <Trash2 className='size-4' />}
-												</button>
-											)}
+                                                                                        {canCancelMilestone && (
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-ghost btn-xs gap-1 text-error'
+                                                                                                        onClick={() => requestCancelMilestone(milestone)}
+                                                                                                        disabled={cancelMilestoneMutation.isPending}
+                                                                                                        aria-label={`Hủy milestone ${milestone.title}`}>
+                                                                                                        {isCancelling ? (
+                                                                                                                <>
+                                                                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                                                                        Đang hủy...
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <Ban className='size-4' />
+                                                                                                                        Hủy milestone
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </button>
+                                                                                        )}
+                                                                                        {canDeleteMilestone && (
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-ghost btn-xs text-error'
+                                                                                                        onClick={() => requestDeleteMilestone(milestone)}
+                                                                                                        disabled={deleteMilestoneMutation.isPending}
+                                                                                                        aria-label={`Xóa milestone ${milestone.title}`}>
+                                                                                                        {isDeleting ? <Loader2 className='size-4 animate-spin' /> : <Trash2 className='size-4' />}
+                                                                                                </button>
+                                                                                        )}
 										</div>
 									</div>
 									<ul className='space-y-2 text-sm text-slate-600'>
@@ -2349,31 +2428,41 @@ const ContractWorkroomPage = () => {
 				}}
 				onClose={() => setMilestoneReviewState(null)}
 			/>
-			<FundMilestoneDialog
-				open={Boolean(milestoneToFund)}
-				milestoneTitle={milestoneToFund?.title}
-				amountLabel={formatCurrency(milestoneToFund?.amount ?? undefined, milestoneToFund?.currency ?? currency)}
-				paymentMethods={(paymentMethodsQuery.data as PaymentMethod[] | undefined) ?? []}
-				isLoadingPaymentMethods={paymentMethodsQuery.isFetching}
-				isSubmitting={payMilestoneMutation.isPending}
-				onRefreshPaymentMethods={() => paymentMethodsQuery.refetch()}
-				onSubmit={async values => {
-					if (!milestoneToFund) return
-					await payMilestoneMutation.mutateAsync({
-						milestoneId: milestoneToFund.id,
-						paymentMethodId: values.paymentMethodId,
-						note: values.note,
-						idempotencyKey: values.idempotencyKey
-					})
-				}}
-				onClose={() => setMilestoneToFund(null)}
-				pendingIdempotencyKey={pendingIdempotencyKey}
-			/>
-			<ConfirmDelete
-				open={Boolean(milestoneToDelete)}
-				onClose={() => setMilestoneToDelete(null)}
-				onConfirm={confirmDeleteMilestone}
-				name={milestoneToDelete?.title}
+                        <FundMilestoneDialog
+                                open={Boolean(milestoneToFund)}
+                                milestoneTitle={milestoneToFund?.title}
+                                amountLabel={formatCurrency(milestoneToFund?.amount ?? undefined, milestoneToFund?.currency ?? currency)}
+                                paymentMethods={(paymentMethodsQuery.data as PaymentMethod[] | undefined) ?? []}
+                                isLoadingPaymentMethods={paymentMethodsQuery.isFetching}
+                                isSubmitting={payMilestoneMutation.isPending}
+                                onRefreshPaymentMethods={() => paymentMethodsQuery.refetch()}
+                                onSubmit={async values => {
+                                        if (!milestoneToFund) return
+                                        await payMilestoneMutation.mutateAsync({
+                                                milestoneId: milestoneToFund.id,
+                                                paymentMethodId: values.paymentMethodId,
+                                                note: values.note,
+                                                idempotencyKey: values.idempotencyKey
+                                        })
+                                }}
+                                onClose={() => setMilestoneToFund(null)}
+                                pendingIdempotencyKey={pendingIdempotencyKey}
+                        />
+                        <CancelMilestoneDialog
+                                open={Boolean(milestoneToCancel)}
+                                milestoneTitle={milestoneToCancel?.title}
+                                isSubmitting={cancelMilestoneMutation.isPending}
+                                onSubmit={confirmCancelMilestone}
+                                onClose={() => {
+                                        if (cancelMilestoneMutation.isPending) return
+                                        setMilestoneToCancel(null)
+                                }}
+                        />
+                        <ConfirmDelete
+                                open={Boolean(milestoneToDelete)}
+                                onClose={() => setMilestoneToDelete(null)}
+                                onConfirm={confirmDeleteMilestone}
+                                name={milestoneToDelete?.title}
 				title='Xóa milestone'
 				description={
 					<p>

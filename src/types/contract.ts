@@ -265,6 +265,10 @@ export type PayContractMilestoneResponse = {
         [key: string]: unknown
 }
 
+export type CancelContractMilestoneInput = {
+        reason?: string
+}
+
 export type ContractListFilterInput = {
         page?: number
         limit?: number

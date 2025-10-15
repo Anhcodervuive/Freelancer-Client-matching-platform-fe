@@ -7,6 +7,12 @@ const coerceDate = (value: unknown) => {
         return Number.isNaN(parsed.getTime()) ? value : parsed
 }
 
+const sanitizeOptionalText = (value: unknown) => {
+        if (typeof value !== 'string') return value
+        const trimmed = value.trim()
+        return trimmed.length > 0 ? trimmed : undefined
+}
+
 const CurrencySchema = z
         .string()
         .trim()
@@ -107,3 +113,16 @@ export const PayMilestoneSchema = z.object({
 })
 
 export type PayMilestoneFormValues = z.infer<typeof PayMilestoneSchema>
+
+export const CancelMilestoneSchema = z.object({
+        reason: z.preprocess(
+                sanitizeOptionalText,
+                z
+                        .string()
+                        .min(1, 'Vui lòng chia sẻ lý do hủy milestone')
+                        .max(2000, 'Lý do hủy tối đa 2000 ký tự')
+                        .optional()
+        )
+})
+
+export type CancelMilestoneFormValues = z.infer<typeof CancelMilestoneSchema>

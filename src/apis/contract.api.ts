@@ -1,6 +1,7 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import type {
         ApproveMilestoneSubmissionInput,
+        CancelContractMilestoneInput,
         Contract,
         ContractListFilterInput,
         ContractMilestone,
@@ -115,11 +116,19 @@ export const uploadContractMilestoneAttachments = async (contractId: string, mil
 }
 
 export const deleteContractMilestone = async (contractId: string, milestoneId: string) => {
-	await authorizeAxiosInstance.delete(`${baseUrl}/${contractId}/milestones/${milestoneId}`)
+        await authorizeAxiosInstance.delete(`${baseUrl}/${contractId}/milestones/${milestoneId}`)
+}
+
+export const cancelContractMilestone = async (
+        contractId: string,
+        milestoneId: string,
+        payload: CancelContractMilestoneInput
+) => {
+        await authorizeAxiosInstance.post(`${baseUrl}/${contractId}/milestones/${milestoneId}/cancel`, payload)
 }
 
 export const deleteContractMilestoneResource = async (contractId: string, milestoneId: string, resourceId: string) => {
-	await authorizeAxiosInstance.delete(`${baseUrl}/${contractId}/milestones/${milestoneId}/resources/${resourceId}`)
+        await authorizeAxiosInstance.delete(`${baseUrl}/${contractId}/milestones/${milestoneId}/resources/${resourceId}`)
 }
 
 export const submitMilestoneWork = async (
