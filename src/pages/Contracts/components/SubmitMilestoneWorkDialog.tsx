@@ -1,4 +1,5 @@
 import {
+        useCallback,
         useEffect,
         useMemo,
         useRef,
@@ -9,7 +10,7 @@ import {
 } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2, Paperclip, UploadCloud, X } from 'lucide-react'
+import { Eye, Loader2, Paperclip, UploadCloud, X } from 'lucide-react'
 
 import { formatFileSize } from '~/utils/format'
 
@@ -33,8 +34,24 @@ const SubmitMilestoneWorkDialog = ({
         onSubmit,
         onClose
 }: SubmitMilestoneWorkDialogProps) => {
-        const [attachments, setAttachments] = useState<File[]>([])
+        type AttachmentItem = {
+                file: File
+                previewUrl: string
+                signature: string
+        }
+
+        const [attachments, setAttachments] = useState<AttachmentItem[]>([])
         const fileInputRef = useRef<HTMLInputElement | null>(null)
+        const attachmentsRef = useRef<AttachmentItem[]>([])
+
+        const createFileSignature = (file: File) => `${file.name}-${file.size}-${file.lastModified}`
+
+        const clearAttachments = useCallback(() => {
+                setAttachments(prev => {
+                        prev.forEach(item => URL.revokeObjectURL(item.previewUrl))
+                        return []
+                })
+        }, [])
 
         const {
                 register,
@@ -59,28 +76,42 @@ const SubmitMilestoneWorkDialog = ({
                                 message: '',
                                 note: undefined
                         })
-                        setAttachments([])
+                        clearAttachments()
                 }
 
                 if (!open && wasOpen) {
-                        setAttachments([])
+                        clearAttachments()
                 }
 
                 wasOpenRef.current = open
-        }, [open, reset])
+        }, [clearAttachments, open, reset])
+
+        useEffect(() => {
+                attachmentsRef.current = attachments
+        }, [attachments])
+
+        useEffect(() => {
+                return () => {
+                        attachmentsRef.current.forEach(item => URL.revokeObjectURL(item.previewUrl))
+                }
+        }, [])
 
         const mergeFiles = (incoming: FileList | null) => {
                 if (!incoming || !incoming.length) return
 
                 setAttachments(prev => {
-                        const existing = new Set(prev.map(file => `${file.name}-${file.size}-${file.lastModified}`))
-                        const additions: File[] = []
+                        const existing = new Set(prev.map(item => item.signature))
+                        const additions: AttachmentItem[] = []
 
                         Array.from(incoming).forEach(file => {
-                                const signature = `${file.name}-${file.size}-${file.lastModified}`
+                                const signature = createFileSignature(file)
                                 if (existing.has(signature)) return
                                 existing.add(signature)
-                                additions.push(file)
+                                additions.push({
+                                        file,
+                                        signature,
+                                        previewUrl: URL.createObjectURL(file)
+                                })
                         })
 
                         return [...prev, ...additions]
@@ -116,23 +147,33 @@ const SubmitMilestoneWorkDialog = ({
         }
 
         const removeAttachment = (index: number) => {
-                setAttachments(prev => prev.filter((_, idx) => idx !== index))
+                setAttachments(prev => {
+                        const removed = prev[index]
+                        if (removed) {
+                                URL.revokeObjectURL(removed.previewUrl)
+                        }
+
+                        return prev.filter((_, idx) => idx !== index)
+                })
         }
 
         const attachmentSummary = useMemo(() => {
                 if (!attachments.length) return 'Chưa chọn tệp nào'
-                const totalSize = attachments.reduce((sum, file) => sum + file.size, 0)
+                const totalSize = attachments.reduce((sum, item) => sum + item.file.size, 0)
                 const readableSize = formatFileSize(totalSize)
                 return `${attachments.length} tệp${readableSize ? ` · ${readableSize}` : ''}`
         }, [attachments])
 
         const submit = handleSubmit(async values => {
-                await onSubmit(values, attachments)
+                await onSubmit(
+                        values,
+                        attachments.map(item => item.file)
+                )
                 reset({
                         message: '',
                         note: undefined
                 })
-                setAttachments([])
+                clearAttachments()
         })
 
         const messageError = errors.message?.message
@@ -239,31 +280,46 @@ const SubmitMilestoneWorkDialog = ({
 
                                                                 {attachments.length ? (
                                                                         <ul className='space-y-2 rounded-2xl border border-base-200 bg-base-100/80 p-3'>
-                                                                                {attachments.map((file, index) => (
-                                                                                        <li
-                                                                                                key={`${file.name}-${file.lastModified}`}
-                                                                                                className='flex items-center justify-between gap-3 rounded-xl bg-white/80 px-3 py-2 text-sm shadow-sm'
-                                                                                        >
-                                                                                                <div className='flex flex-1 items-center gap-3 overflow-hidden'>
-                                                                                                        <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-secondary/10 text-secondary'>
-                                                                                                                <Paperclip className='size-4' />
-                                                                                                        </div>
-                                                                                                        <div className='min-w-0'>
-                                                                                                                <p className='truncate font-medium text-base-content'>{file.name}</p>
-                                                                                                                <p className='text-xs text-base-content/60'>{formatFileSize(file.size) ?? ''}</p>
-                                                                                                        </div>
-                                                                                                </div>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-ghost btn-xs text-error'
-                                                                                                        onClick={() => removeAttachment(index)}
-                                                                                                        disabled={isSubmitting}
-                                                                                                        aria-label={`Xóa tệp ${file.name}`}
+                                                                                {attachments.map((item, index) => {
+                                                                                        const { file, previewUrl, signature } = item
+
+                                                                                        return (
+                                                                                                <li
+                                                                                                        key={signature}
+                                                                                                        className='flex items-center justify-between gap-3 rounded-xl bg-white/80 px-3 py-2 text-sm shadow-sm'
                                                                                                 >
-                                                                                                        <X className='size-3.5' />
-                                                                                                </button>
-                                                                                        </li>
-                                                                                ))}
+                                                                                                        <div className='flex flex-1 items-center gap-3 overflow-hidden'>
+                                                                                                                <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-secondary/10 text-secondary'>
+                                                                                                                        <Paperclip className='size-4' />
+                                                                                                                </div>
+                                                                                                                <div className='min-w-0'>
+                                                                                                                        <p className='truncate font-medium text-base-content'>{file.name}</p>
+                                                                                                                        <p className='text-xs text-base-content/60'>{formatFileSize(file.size) ?? ''}</p>
+                                                                                                                </div>
+                                                                                                        </div>
+                                                                                                        <div className='flex flex-shrink-0 items-center gap-2'>
+                                                                                                                <a
+                                                                                                                        href={previewUrl}
+                                                                                                                        target='_blank'
+                                                                                                                        rel='noopener noreferrer'
+                                                                                                                        className='btn btn-ghost btn-xs gap-1'
+                                                                                                                        aria-label={`Xem trước tệp ${file.name}`}
+                                                                                                                >
+                                                                                                                        <Eye className='size-3.5' /> Xem
+                                                                                                                </a>
+                                                                                                                <button
+                                                                                                                        type='button'
+                                                                                                                        className='btn btn-ghost btn-xs text-error'
+                                                                                                                        onClick={() => removeAttachment(index)}
+                                                                                                                        disabled={isSubmitting}
+                                                                                                                        aria-label={`Xóa tệp ${file.name}`}
+                                                                                                                >
+                                                                                                                        <X className='size-3.5' />
+                                                                                                                </button>
+                                                                                                        </div>
+                                                                                                </li>
+                                                                                        )
+                                                                                })}
                                                                         </ul>
                                                                 ) : (
                                                                         <p className='rounded-2xl border border-dashed border-base-200 bg-base-200/40 px-4 py-3 text-xs text-base-content/60'>Bạn có thể đính kèm các tệp như hình ảnh, tài liệu hoặc liên kết ZIP để khách hàng kiểm tra.</p>
