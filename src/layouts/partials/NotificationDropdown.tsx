@@ -89,6 +89,19 @@ const renderTitle = (notification: Notification) => {
                         return `${actorName} đã phê duyệt mốc thanh toán`
                 case NotificationEvent.CONTRACT_MILESTONE_DECLINED:
                         return `${actorName} đã từ chối mốc thanh toán`
+                case NotificationEvent.CONTRACT_MILESTONE_CANCELLATION_REQUESTED: {
+                        const rawTitle = notification.metadata?.milestoneTitle
+                        const milestoneTitle =
+                                typeof rawTitle === 'string' && rawTitle.trim().length > 0
+                                        ? rawTitle.trim()
+                                        : null
+
+                        if (milestoneTitle) {
+                                return `${actorName} đã yêu cầu hủy mốc "${milestoneTitle}"`
+                        }
+
+                        return `${actorName} đã yêu cầu hủy một mốc thanh toán`
+                }
                 case NotificationEvent.DISPUTE_CREATED:
                         return `${actorName} đã tạo tranh chấp mới`
                 case NotificationEvent.DISPUTE_UPDATED:
@@ -187,16 +200,50 @@ export default function NotificationDropdown() {
 		? 'bg-warning'
 		: 'bg-base-300'
 
-        const renderDescription = (
-                message?: string | null,
-                resourceType?: string | null,
-                metadataDescription?: string | null
-        ) => {
-		if (message) return message
-		if (metadataDescription) return metadataDescription
-		if (!resourceType) return ''
-		return `Resource: ${formatEnumLabel(resourceType)}`
-	}
+        const renderDescription = (notification: Notification) => {
+                const message = notification.message?.trim()
+                if (message) return message
+
+                const metadataDescription =
+                        typeof notification.metadata?.description === 'string'
+                                ? notification.metadata.description.trim()
+                                : ''
+                if (metadataDescription) return metadataDescription
+
+                if (notification.event === NotificationEvent.CONTRACT_MILESTONE_CANCELLATION_REQUESTED) {
+                        const milestoneTitleRaw = notification.metadata?.milestoneTitle
+                        const milestoneTitle =
+                                typeof milestoneTitleRaw === 'string' && milestoneTitleRaw.trim().length > 0
+                                        ? milestoneTitleRaw.trim()
+                                        : null
+
+                        const cancellationReasonRaw = notification.metadata?.cancellationReason
+                        const cancellationReason =
+                                typeof cancellationReasonRaw === 'string' && cancellationReasonRaw.trim().length > 0
+                                        ? cancellationReasonRaw.trim()
+                                        : null
+
+                        const parts: string[] = []
+
+                        if (milestoneTitle) {
+                                parts.push(`Mốc: ${milestoneTitle}`)
+                        }
+
+                        if (cancellationReason) {
+                                parts.push(`Lý do: ${cancellationReason}`)
+                        }
+
+                        if (parts.length > 0) {
+                                return parts.join(' • ')
+                        }
+                }
+
+                if (notification.resourceType) {
+                        return `Resource: ${formatEnumLabel(notification.resourceType)}`
+                }
+
+                return ''
+        }
 
 	return (
 		<div className='dropdown dropdown-end'>
@@ -252,14 +299,15 @@ export default function NotificationDropdown() {
                                                                 <li key={notification.id} className='group'>
                                                                         <div className='flex items-stretch'>
                                                                                 <button
-										type='button'
-										onClick={() => markAsRead(notification.id)}
-										className='flex w-full flex-1 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-base-200/70 focus:bg-base-200/70 focus:outline-none'>
-										<span
-											className={`mt-1 h-2 w-2 rounded-full ${
-												isUnread ? 'bg-primary ring-2 ring-primary/20' : 'bg-base-300'
-											}`}
-											aria-hidden='true'
+                                                                                        type='button'
+                                                                                        onClick={() => markAsRead(notification.id)}
+                                                                                        className='flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-base-200/70 focus:bg-base-200/70 focus:outline-none'
+                                                                                >
+                                                                                        <span
+                                                                                                className={`mt-1 h-2 w-2 rounded-full ${
+                                                                                                        isUnread ? 'bg-primary ring-2 ring-primary/20' : 'bg-base-300'
+                                                                                                }`}
+                                                                                                aria-hidden='true'
 										/>
 										<span className='flex min-w-0 flex-1 flex-col gap-1'>
 											<span className='flex items-center justify-between gap-3'>
@@ -270,16 +318,10 @@ export default function NotificationDropdown() {
 													{isUnread ? 'Mới' : 'Đã đọc'}
 												</span>
 											</span>
-											<p className='line-clamp-2 text-xs text-base-content/70'>
-												{renderDescription(
-													notification.message,
-													notification.resourceType,
-													typeof notification.metadata?.description === 'string'
-														? notification.metadata.description
-														: undefined
-												)}
-											</p>
-                                                                                <span className='text-[10px] text-base-content/50'>
+                                                                                        <p className='line-clamp-2 text-xs text-base-content/70'>
+                                                                                                {renderDescription(notification)}
+                                                                                        </p>
+                                                                                        <span className='text-[10px] text-base-content/50'>
                                                                                                 {formatTimestamp(notification.createdAt)}
                                                                                         </span>
                                                                                 </span>
@@ -293,7 +335,7 @@ export default function NotificationDropdown() {
                                                                                                 void handleDeleteNotification(notification.id)
                                                                                         }
                                                                                 }}
-                                                                                className='btn btn-ghost btn-xs shrink-0 self-stretch rounded-none border-l border-base-200 text-error transition-colors hover:bg-error/10 hover:text-error focus-visible:border-base-200 focus-visible:outline-none focus-visible:ring-0 disabled:opacity-50'
+                                                                                className='inline-flex h-full items-center justify-center gap-1 self-stretch border-l border-base-200 px-3 text-xs font-medium text-error transition-colors hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/20 focus-visible:ring-offset-2 focus-visible:ring-offset-base-100 disabled:opacity-50'
                                                                                 disabled={isDeleting}
                                                                                 aria-label='Xóa thông báo'
                                                                         >
