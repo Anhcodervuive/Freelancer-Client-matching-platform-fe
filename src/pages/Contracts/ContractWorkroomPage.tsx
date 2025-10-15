@@ -145,9 +145,16 @@ const getSubmissionStatusMeta = (status?: string | null) => {
 
 const pendingReviewStatuses = new Set(['SUBMITTED', 'PENDING', 'SUBMITED', 'AWAITING_REVIEW', 'AWAITING_APPROVAL'])
 
+const collectAttachmentInputs = (...sources: unknown[]): unknown[] =>
+        sources.flatMap(source => {
+                if (Array.isArray(source)) return source
+                if (source === null || source === undefined) return []
+                return [source]
+        })
+
 const isSubmissionAwaitingReview = (status?: string | null) => {
-	if (!status) return false
-	return pendingReviewStatuses.has(status.toUpperCase())
+        if (!status) return false
+        return pendingReviewStatuses.has(status.toUpperCase())
 }
 
 const paymentResponseKeys = [
@@ -1399,7 +1406,12 @@ const ContractWorkroomPage = () => {
 									resourceMap.set(resource.id, resource)
 								}
 							})
-						const milestoneAttachments = normalizeAttachments(milestone.resources ?? [])
+                                                const milestoneAttachments = normalizeAttachments(
+                                                        collectAttachmentInputs(
+                                                                milestone.resources,
+                                                                milestone.attachments
+                                                        )
+                                                )
 						const isAttachmentsExpanded = expandedMilestoneAttachments[milestone.id] ?? false
 						const normalizedMilestoneStatus = (milestone.status ?? '').toUpperCase()
 						const submissions = (milestone.submissions ?? [])
@@ -1422,9 +1434,14 @@ const ContractWorkroomPage = () => {
 							!isMilestoneReleased &&
 							normalizedMilestoneStatus !== 'CANCELLED' &&
 							!pendingSubmission
-						const pendingSubmissionAttachments = pendingSubmission
-							? normalizeAttachments(pendingSubmission.resources ?? [])
-							: []
+                                                const pendingSubmissionAttachments = pendingSubmission
+                                                        ? normalizeAttachments(
+                                                                  collectAttachmentInputs(
+                                                                          pendingSubmission.resources,
+                                                                          pendingSubmission.attachments
+                                                                  )
+                                                          )
+                                                        : []
 						const pendingSubmittedAtText = pendingSubmission?.submittedAt
 							? formatDateTime(pendingSubmission.submittedAt, {
 									dateStyle: 'medium',
@@ -1701,7 +1718,12 @@ const ContractWorkroomPage = () => {
 														submission.reviewedAt ?? submission.approvedAt ?? submission.declinedAt,
 														{ dateStyle: 'medium', timeStyle: 'short' }
 													)
-													const submissionAttachments = normalizeAttachments(submission.resources ?? [])
+                                                                                                        const submissionAttachments = normalizeAttachments(
+                                                                                                                collectAttachmentInputs(
+                                                                                                                        submission.resources,
+                                                                                                                        submission.attachments
+                                                                                                                )
+                                                                                                        )
 
 													return (
 														<li
