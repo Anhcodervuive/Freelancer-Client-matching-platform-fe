@@ -58,6 +58,19 @@ const DISPUTE_FINAL_STATUSES = new Set<DisputeStatus | string>([
         DisputeStatus.EXPIRED
 ])
 
+const FINALIZED_MILESTONE_STATUSES = new Set<string>(['APPROVED', 'RELEASED', 'COMPLETED', 'PAID'])
+
+const formatMilestoneStatus = (status?: string | null) => {
+        if (!status) return undefined
+        const normalized = status.toString().trim()
+        if (!normalized) return undefined
+        return normalized
+                .toLowerCase()
+                .split(/[_\s]+/)
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ')
+}
+
 const parseAmount = (value: unknown): number | undefined => {
         if (typeof value === 'number') {
                 return Number.isFinite(value) ? value : undefined
@@ -736,9 +749,13 @@ const ContractDisputeRoomPage = () => {
                         : undefined
 
         const milestoneEscrow = milestone?.escrow ?? milestoneFromPayload?.escrow ?? null
+        const normalizedMilestoneStatus = (milestone?.status ?? '').toString().toUpperCase()
+        const normalizedEscrowStatus = (milestoneEscrow?.status ?? '').toString().toUpperCase()
+        const milestoneStatusLabel = formatMilestoneStatus(milestone?.status)
         const escrowCurrency = milestoneEscrow?.currency || currency
         const escrowFunded = formatCurrency(parseAmount(milestoneEscrow?.amountFunded), escrowCurrency)
-        const escrowReleased = formatCurrency(parseAmount(milestoneEscrow?.amountReleased), escrowCurrency)
+        const escrowReleasedValue = parseAmount(milestoneEscrow?.amountReleased)
+        const escrowReleased = formatCurrency(escrowReleasedValue, escrowCurrency)
         const escrowRefunded = formatCurrency(parseAmount(milestoneEscrow?.amountRefunded), escrowCurrency)
         const arbFeePerParty = formatCurrency(parseAmount(dispute?.arbFeePerParty), currency)
         const milestoneUpdatedAt = formatDateTime(
@@ -750,10 +767,6 @@ const ContractDisputeRoomPage = () => {
                         milestoneFromPayload?.startAt ??
                         milestone?.startDate
         )
-        const contractClientId =
-                milestoneDispute?.contract?.clientId ?? contractQuery.data?.client?.userId ?? null
-        const contractFreelancerId =
-                milestoneDispute?.contract?.freelancerId ?? contractQuery.data?.freelancer?.userId ?? null
         const disputeCreatedAt = formatDateTime(dispute?.createdAt)
         const disputeUpdatedAt = formatDateTime(dispute?.updatedAt)
         const clientArbFeeStatus =
@@ -768,9 +781,18 @@ const ContractDisputeRoomPage = () => {
                         : dispute?.freelancerArbFeePaid === false
                         ? 'Chưa nộp'
                         : '—'
-        const milestoneContractId =
-                (milestone as DisputeMilestoneSummary | undefined)?.contractId ?? contractId ?? null
-
+        const hasEscrowReleased = typeof escrowReleasedValue === 'number' && escrowReleasedValue > 0
+        const hasApprovedTimeline = Boolean(milestone?.approvedAt || milestone?.releasedAt)
+        const isMilestoneFinalized =
+                FINALIZED_MILESTONE_STATUSES.has(normalizedMilestoneStatus) ||
+                FINALIZED_MILESTONE_STATUSES.has(normalizedEscrowStatus) ||
+                hasApprovedTimeline ||
+                hasEscrowReleased
+        const shouldBlockOpeningDispute =
+                isMilestoneFinalized ||
+                normalizedEscrowStatus === 'DISPUTED' ||
+                normalizedEscrowStatus === 'RELEASED' ||
+                normalizedEscrowStatus === 'PAID'
         const negotiations = useMemo(() => {
                 const list: DisputeNegotiation[] = []
                 if (milestoneDispute?.negotiations?.length) {
@@ -928,6 +950,11 @@ const ContractDisputeRoomPage = () => {
                                                 <p className='text-sm text-base-content/70'>
                                                         Milestone: <span className='font-medium text-base-content'>{milestone.title}</span>
                                                         {milestoneAmount && <span className='text-base-content/60'> · {milestoneAmount}</span>}
+                                                        {milestoneStatusLabel && (
+                                                                <span className='ml-2 inline-flex items-center gap-1 rounded-full border border-base-200 bg-base-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                        {milestoneStatusLabel}
+                                                                </span>
+                                                        )}
                                                 </p>
                                         </div>
                                         <div className='flex flex-col gap-3 rounded-2xl border border-base-200 bg-base-100/90 p-4 text-sm text-base-content/80'>
@@ -981,49 +1008,21 @@ const ContractDisputeRoomPage = () => {
                                         </div>
                                 </div>
 
-                                <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+                                <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
                                         <div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
-                                                <p className='text-sm font-semibold text-base-content'>Thông tin hợp đồng</p>
-                                                <dl className='mt-2 space-y-1 text-xs text-base-content/70'>
+                                                <div className='flex items-center justify-between gap-2'>
+                                                        <p className='text-sm font-semibold text-base-content'>Milestone</p>
+                                                        {milestoneStatusLabel && (
+                                                                <span className='inline-flex items-center rounded-full border border-base-200 bg-base-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-base-content/70'>
+                                                                        {milestoneStatusLabel}
+                                                                </span>
+                                                        )}
+                                                </div>
+                                                <dl className='mt-3 space-y-2 text-xs text-base-content/70'>
                                                         <div className='flex items-center justify-between gap-2'>
-                                                                <dt>Mã</dt>
-                                                                <dd className='font-medium text-base-content break-all'>
-                                                                        {contract?.id ?? '—'}
-                                                                </dd>
-                                                        </div>
-                                                        <div className='flex items-center justify-between gap-2'>
-                                                                <dt>Client</dt>
-                                                                <dd className='font-medium text-base-content break-all'>
-                                                                        {contractClientId ?? '—'}
-                                                                </dd>
-                                                        </div>
-                                                        <div className='flex items-center justify-between gap-2'>
-                                                                <dt>Freelancer</dt>
-                                                                <dd className='font-medium text-base-content break-all'>
-                                                                        {contractFreelancerId ?? '—'}
-                                                                </dd>
-                                                        </div>
-                                                </dl>
-                                        </div>
-                                        <div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
-                                                <p className='text-sm font-semibold text-base-content'>Milestone</p>
-                                                <dl className='mt-2 space-y-1 text-xs text-base-content/70'>
-                                                        <div className='flex items-center justify-between gap-2'>
-                                                                <dt>Mã</dt>
-                                                                <dd className='font-medium text-base-content break-all'>
-                                                                        {milestone?.id ?? '—'}
-                                                                </dd>
-                                                        </div>
-                                                        <div className='flex items-center justify-between gap-2'>
-                                                                <dt>Hợp đồng</dt>
-                                                                <dd className='font-medium text-base-content break-all'>
-                                                                        {milestoneContractId ?? '—'}
-                                                                </dd>
-                                                        </div>
-                                                        <div className='flex items-center justify-between gap-2'>
-                                                                <dt>Trạng thái</dt>
+                                                                <dt>Số tiền</dt>
                                                                 <dd className='font-medium text-base-content'>
-                                                                        {milestone?.status ?? '—'}
+                                                                        {milestoneAmount || '—'}
                                                                 </dd>
                                                         </div>
                                                         <div className='flex items-center justify-between gap-2'>
@@ -1032,12 +1031,12 @@ const ContractDisputeRoomPage = () => {
                                                                         {milestoneUpdatedAt ?? '—'}
                                                                 </dd>
                                                         </div>
-                                                        <div className='flex items-center justify-between gap-2'>
-                                                                <dt>Số tiền</dt>
-                                                                <dd className='font-medium text-base-content'>
-                                                                        {milestoneAmount ?? '—'}
-                                                                </dd>
-                                                        </div>
+                                                        {shouldBlockOpeningDispute && (
+                                                                <div className='flex items-center justify-between gap-2'>
+                                                                        <dt>Tranh chấp mới</dt>
+                                                                        <dd className='font-medium text-error'>Không khả dụng</dd>
+                                                                </div>
+                                                        )}
                                                 </dl>
                                         </div>
                                         <div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
@@ -1090,12 +1089,14 @@ const ContractDisputeRoomPage = () => {
                                                                         {disputableAmount ?? '—'}
                                                                 </dd>
                                                         </div>
-                                                        <div className='flex items-center justify-between gap-2'>
-                                                                <dt>Số cent</dt>
-                                                                <dd className='font-medium text-base-content'>
-                                                                        {disputableCents ?? '—'}
-                                                                </dd>
-                                                        </div>
+                                                        {disputableCents && (
+                                                                <div className='flex items-center justify-between gap-2'>
+                                                                        <dt>Giá trị (cent)</dt>
+                                                                        <dd className='font-medium text-base-content'>
+                                                                                {disputableCents}
+                                                                        </dd>
+                                                                </div>
+                                                        )}
                                                         <div className='flex items-center justify-between gap-2'>
                                                                 <dt>Phí trọng tài / bên</dt>
                                                                 <dd className='font-medium text-base-content'>
@@ -1142,124 +1143,147 @@ const ContractDisputeRoomPage = () => {
                                 )}
 
                                 {!dispute && (
-                                        <div className='rounded-2xl border border-dashed border-base-200 bg-base-50/80 p-6'>
-                                                <div className='mb-4 flex items-center gap-3 text-base-content'>
-                                                        <AlertTriangle className='size-5 text-amber-500' />
-                                                        <div>
-                                                                <p className='text-base font-semibold'>Chưa có dispute cho milestone này</p>
-                                                                <p className='text-sm text-base-content/70'>
-                                                                        Khi mở dispute, nền tảng sẽ khóa số tiền trong escrow và mời hai bên thảo luận để tìm giải pháp.
+                                        shouldBlockOpeningDispute ? (
+                                                <div className='rounded-2xl border border-dashed border-base-200 bg-base-50/80 p-6 text-sm text-base-content/80'>
+                                                        <div className='mb-3 flex items-center gap-3 text-base-content'>
+                                                                <ShieldAlert className='size-5 text-amber-500' />
+                                                                <div>
+                                                                        <p className='text-base font-semibold text-base-content'>Không thể mở dispute mới</p>
+                                                                        <p className='text-sm text-base-content/70'>
+                                                                                Milestone đã được duyệt/giải ngân nên không thể mở tranh chấp mới. Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ bộ phận hỗ trợ.
+                                                                        </p>
+                                                                </div>
+                                                        </div>
+                                                        {milestoneStatusLabel && (
+                                                                <p>
+                                                                        Trạng thái hiện tại:{' '}
+                                                                        <span className='font-semibold text-base-content'>{milestoneStatusLabel}</span>
                                                                 </p>
-                                                        </div>
+                                                        )}
                                                 </div>
-                                                <form onSubmit={handleOpenDisputeSubmit(values => openDisputeMutation.mutate(values))} className='space-y-5'>
-                                                        <div className='grid gap-4 md:grid-cols-2'>
-                                                                <div className='space-y-2'>
-                                                                        <label className='text-sm font-medium text-base-content'>
-                                                                                Trả cho freelancer
-                                                                                <span className='font-normal text-base-content/60'> ({currency})</span>
-                                                                        </label>
-                                                                        <Controller
-                                                                                name='proposedRelease'
-                                                                                control={openDisputeControl}
-                                                                                render={({ field }) => (
-                                                                                        <input
-                                                                                                {...field}
-                                                                                                type='number'
-                                                                                                min={0}
-                                                                                                step='0.01'
-                                                                                                value={field.value ?? 0}
-                                                                                                onChange={event => {
-                                                                                                        const raw = event.target.value
-                                                                                                        field.onChange(raw === '' ? 0 : Number(raw))
-                                                                                                }}
-                                                                                                className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                disabled={openDisputeMutation.isPending}
-                                                                                        />
-                                                                                )}
-                                                                        />
-                                                                        {openDisputeErrors.proposedRelease && (
-                                                                                <p className='text-xs text-error'>{openDisputeErrors.proposedRelease.message}</p>
-                                                                        )}
-                                                                </div>
-                                                                <div className='space-y-2'>
-                                                                        <label className='text-sm font-medium text-base-content'>
-                                                                                Hoàn lại cho client
-                                                                                <span className='font-normal text-base-content/60'> ({currency})</span>
-                                                                        </label>
-                                                                        <Controller
-                                                                                name='proposedRefund'
-                                                                                control={openDisputeControl}
-                                                                                render={({ field }) => (
-                                                                                        <input
-                                                                                                {...field}
-                                                                                                type='number'
-                                                                                                min={0}
-                                                                                                step='0.01'
-                                                                                                value={field.value ?? 0}
-                                                                                                onChange={event => {
-                                                                                                        const raw = event.target.value
-                                                                                                        field.onChange(raw === '' ? 0 : Number(raw))
-                                                                                                }}
-                                                                                                className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                disabled={openDisputeMutation.isPending}
-                                                                                        />
-                                                                                )}
-                                                                        />
-                                                                        {openDisputeErrors.proposedRefund && (
-                                                                                <p className='text-xs text-error'>{openDisputeErrors.proposedRefund.message}</p>
-                                                                        )}
+                                        ) : (
+                                                <div className='rounded-2xl border border-dashed border-base-200 bg-base-50/80 p-6'>
+                                                        <div className='mb-4 flex items-center gap-3 text-base-content'>
+                                                                <AlertTriangle className='size-5 text-amber-500' />
+                                                                <div>
+                                                                        <p className='text-base font-semibold'>Chưa có dispute cho milestone này</p>
+                                                                        <p className='text-sm text-base-content/70'>
+                                                                                Khi mở dispute, nền tảng sẽ khóa số tiền trong escrow và mời hai bên thảo luận để tìm giải pháp.
+                                                                        </p>
                                                                 </div>
                                                         </div>
-                                                        <div className='grid gap-4 md:grid-cols-2'>
-                                                                <div className='space-y-2'>
-                                                                        <label className='text-sm font-medium text-base-content'>Thông điệp mở dispute</label>
-                                                                        <Controller
-                                                                                name='message'
-                                                                                control={openDisputeControl}
-                                                                                render={({ field }) => (
-                                                                                        <textarea
-                                                                                                {...field}
-                                                                                                rows={4}
-                                                                                                value={field.value ?? ''}
-                                                                                                className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                placeholder='Mô tả vấn đề bạn gặp phải và điều bạn mong muốn.'
-                                                                                                disabled={openDisputeMutation.isPending}
-                                                                                        />
+                                                        <form
+                                                                onSubmit={handleOpenDisputeSubmit(values => openDisputeMutation.mutate(values))}
+                                                                className='space-y-5'
+                                                        >
+                                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                                        <div className='space-y-2'>
+                                                                                <label className='text-sm font-medium text-base-content'>
+                                                                                        Trả cho freelancer
+                                                                                        <span className='font-normal text-base-content/60'> ({currency})</span>
+                                                                                </label>
+                                                                                <Controller
+                                                                                        name='proposedRelease'
+                                                                                        control={openDisputeControl}
+                                                                                        render={({ field }) => (
+                                                                                                <input
+                                                                                                        {...field}
+                                                                                                        type='number'
+                                                                                                        min={0}
+                                                                                                        step='0.01'
+                                                                                                        value={field.value ?? 0}
+                                                                                                        onChange={event => {
+                                                                                                                const raw = event.target.value
+                                                                                                                field.onChange(raw === '' ? 0 : Number(raw))
+                                                                                                        }}
+                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                        disabled={openDisputeMutation.isPending}
+                                                                                                />
+                                                                                        )}
+                                                                                />
+                                                                                {openDisputeErrors.proposedRelease && (
+                                                                                        <p className='text-xs text-error'>{openDisputeErrors.proposedRelease.message}</p>
                                                                                 )}
-                                                                        />
-                                                                        {openDisputeErrors.message && (
-                                                                                <p className='text-xs text-error'>{openDisputeErrors.message.message}</p>
-                                                                        )}
-                                                                </div>
-                                                                <div className='space-y-2'>
-                                                                        <label className='text-sm font-medium text-base-content'>Ghi chú nội bộ</label>
-                                                                        <Controller
-                                                                                name='note'
-                                                                                control={openDisputeControl}
-                                                                                render={({ field }) => (
-                                                                                        <textarea
-                                                                                                {...field}
-                                                                                                rows={4}
-                                                                                                value={field.value ?? ''}
-                                                                                                className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                placeholder='Thông tin này chỉ hiển thị với bộ phận hỗ trợ trọng tài.'
-                                                                                                disabled={openDisputeMutation.isPending}
-                                                                                        />
+                                                                        </div>
+                                                                        <div className='space-y-2'>
+                                                                                <label className='text-sm font-medium text-base-content'>
+                                                                                        Hoàn lại cho client
+                                                                                        <span className='font-normal text-base-content/60'> ({currency})</span>
+                                                                                </label>
+                                                                                <Controller
+                                                                                        name='proposedRefund'
+                                                                                        control={openDisputeControl}
+                                                                                        render={({ field }) => (
+                                                                                                <input
+                                                                                                        {...field}
+                                                                                                        type='number'
+                                                                                                        min={0}
+                                                                                                        step='0.01'
+                                                                                                        value={field.value ?? 0}
+                                                                                                        onChange={event => {
+                                                                                                                const raw = event.target.value
+                                                                                                                field.onChange(raw === '' ? 0 : Number(raw))
+                                                                                                        }}
+                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                        disabled={openDisputeMutation.isPending}
+                                                                                                />
+                                                                                        )}
+                                                                                />
+                                                                                {openDisputeErrors.proposedRefund && (
+                                                                                        <p className='text-xs text-error'>{openDisputeErrors.proposedRefund.message}</p>
                                                                                 )}
-                                                                        />
-                                                                        {openDisputeErrors.note && (
-                                                                                <p className='text-xs text-error'>{openDisputeErrors.note.message}</p>
-                                                                        )}
+                                                                        </div>
                                                                 </div>
-                                                        </div>
-                                                        <div className='flex justify-end gap-3 pt-2'>
-                                                                <button type='submit' className='btn btn-primary' disabled={openDisputeMutation.isPending}>
-                                                                        {openDisputeMutation.isPending ? 'Đang mở dispute…' : 'Mở dispute'}
-                                                                </button>
-                                                        </div>
-                                                </form>
-                                        </div>
+                                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                                        <div className='space-y-2'>
+                                                                                <label className='text-sm font-medium text-base-content'>Thông điệp mở dispute</label>
+                                                                                <Controller
+                                                                                        name='message'
+                                                                                        control={openDisputeControl}
+                                                                                        render={({ field }) => (
+                                                                                                <textarea
+                                                                                                        {...field}
+                                                                                                        rows={4}
+                                                                                                        value={field.value ?? ''}
+                                                                                                        className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                        placeholder='Mô tả vấn đề bạn gặp phải và điều bạn mong muốn.'
+                                                                                                        disabled={openDisputeMutation.isPending}
+                                                                                                />
+                                                                                        )}
+                                                                                />
+                                                                                {openDisputeErrors.message && (
+                                                                                        <p className='text-xs text-error'>{openDisputeErrors.message.message}</p>
+                                                                                )}
+                                                                        </div>
+                                                                        <div className='space-y-2'>
+                                                                                <label className='text-sm font-medium text-base-content'>Ghi chú nội bộ</label>
+                                                                                <Controller
+                                                                                        name='note'
+                                                                                        control={openDisputeControl}
+                                                                                        render={({ field }) => (
+                                                                                                <textarea
+                                                                                                        {...field}
+                                                                                                        rows={4}
+                                                                                                        value={field.value ?? ''}
+                                                                                                        className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                        placeholder='Thông tin này chỉ hiển thị với bộ phận hỗ trợ trọng tài.'
+                                                                                                        disabled={openDisputeMutation.isPending}
+                                                                                                />
+                                                                                        )}
+                                                                                />
+                                                                                {openDisputeErrors.note && (
+                                                                                        <p className='text-xs text-error'>{openDisputeErrors.note.message}</p>
+                                                                                )}
+                                                                        </div>
+                                                                </div>
+                                                                <div className='flex justify-end gap-3 pt-2'>
+                                                                        <button type='submit' className='btn btn-primary' disabled={openDisputeMutation.isPending}>
+                                                                                {openDisputeMutation.isPending ? 'Đang mở dispute…' : 'Mở dispute'}
+                                                                        </button>
+                                                                </div>
+                                                        </form>
+                                                </div>
+                                        )
                                 )}
 
                                 {dispute && (

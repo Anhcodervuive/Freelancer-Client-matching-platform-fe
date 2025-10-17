@@ -1526,12 +1526,19 @@ const ContractWorkroomPage = () => {
 								return bTime - aTime
 							})
 						const pendingSubmission = submissions.find(submission => isSubmissionAwaitingReview(submission.status))
-						const isMilestoneReleased = normalizedMilestoneStatus === 'RELEASED' || Boolean(milestone.releasedAt)
+						const hasEscrowReleased = typeof milestone.escrow?.amountReleased === 'number' && milestone.escrow.amountReleased > 0
+						const isMilestoneReleased = normalizedMilestoneStatus === 'RELEASED' ||
+											normalizedMilestoneStatus === 'COMPLETED' ||
+											normalizedMilestoneStatus === 'APPROVED' ||
+											normalizedMilestoneStatus === 'PAID' ||
+											Boolean(milestone.releasedAt || milestone.approvedAt || hasEscrowReleased)
 						const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED'
                                                 const normalizedEscrowStatus =
                                                         (milestone.escrow?.status ?? (isMilestoneReleased ? 'RELEASED' : null))?.toUpperCase() ?? 'UNFUNDED'
                                                 const escrowMeta = buildEscrowStatusMeta(normalizedEscrowStatus, milestone, viewerRole)
                                                 const EscrowIcon = escrowMeta.icon
+                                                const isEscrowDisputed = normalizedEscrowStatus === 'DISPUTED'
+                                                const canVisitDisputeCenter = isEscrowDisputed || !isMilestoneReleased
                                                 const cancellationStatus = (milestone.cancellationStatus ?? '').toUpperCase()
                                                 const isCancellationPending = cancellationStatus === 'PENDING'
                                                 const isCancellationAccepted = cancellationStatus === 'ACCEPTED'
@@ -1689,14 +1696,19 @@ const ContractWorkroomPage = () => {
                                                                                                 <span className='size-2 rounded-full bg-current'></span>
                                                                                                 {meta.label}
                                                                                         </span>
-                                                                                        {contractId && (
+                                                                                        {contractId && canVisitDisputeCenter ? (
                                                                                                 <Link
                                                                                                         to={routes.contracts.dispute(contractId!, milestone.id)}
                                                                                                         className='btn btn-outline btn-xs text-primary'
                                                                                                 >
                                                                                                         Trung tâm dispute
                                                                                                 </Link>
-                                                                                        )}
+                                                                                        ) : null}
+                                                                                        {contractId && !canVisitDisputeCenter && !isEscrowDisputed ? (
+                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500'>
+                                                                                                        Đã giải ngân
+                                                                                                </span>
+                                                                                        ) : null}
                                                                                         {hasPendingSubmission && (
                                                                                                 <span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
                                                                                                         Đang chờ duyệt
