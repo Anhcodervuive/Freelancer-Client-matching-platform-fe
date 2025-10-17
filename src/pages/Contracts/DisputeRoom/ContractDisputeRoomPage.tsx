@@ -27,6 +27,7 @@ import {
         getMilestoneDispute,
         listContractMilestones,
         openMilestoneDispute,
+        respondDisputeNegotiation,
         updateDisputeNegotiation
 } from '~/apis/contract.api'
 import { routes } from '~/config/routes'
@@ -647,6 +648,32 @@ const ContractDisputeRoomPage = () => {
                 }
         })
 
+        const respondNegotiationMutation = useMutation({
+                mutationFn: async ({
+                        disputeId,
+                        negotiationId,
+                        payload
+                }: {
+                        disputeId: string
+                        negotiationId: string
+                        payload: { action: 'accept' | 'reject'; message?: string }
+                }) => {
+                        if (!contractId || !milestoneId) {
+                                throw new Error('Thiếu thông tin dispute')
+                        }
+                        return respondDisputeNegotiation(contractId, milestoneId, disputeId, negotiationId, payload)
+                },
+                onSuccess: async (_data, variables) => {
+                        if (variables.payload.action === 'accept') {
+                                toast.success('Bạn đã chấp nhận đề xuất này.')
+                        } else {
+                                toast.info('Bạn đã từ chối đề xuất.')
+                        }
+                        await queryClient.invalidateQueries({ queryKey: disputeQueryKey })
+                        setActionState({ negotiation: null, action: null })
+                }
+        })
+
         const deleteNegotiationMutation = useMutation({
                 mutationFn: async ({ disputeId, negotiationId }: { disputeId: string; negotiationId: string }) => {
                         if (!contractId || !milestoneId) {
@@ -713,10 +740,10 @@ const ContractDisputeRoomPage = () => {
 
         const handleAcceptNegotiation = () => {
                 if (!dispute?.id || !actionState.negotiation) return
-                updateNegotiationMutation.mutate({
+                respondNegotiationMutation.mutate({
                         disputeId: dispute.id,
                         negotiationId: actionState.negotiation.id,
-                        payload: { status: DisputeNegotiationStatus.ACCEPTED }
+                        payload: { action: 'accept' }
                 })
         }
 
@@ -736,12 +763,12 @@ const ContractDisputeRoomPage = () => {
 
         const handleRejectNegotiation = (values: RejectNegotiationFormValues) => {
                 if (!dispute?.id || !actionState.negotiation) return
-                updateNegotiationMutation.mutate({
+                respondNegotiationMutation.mutate({
                         disputeId: dispute.id,
                         negotiationId: actionState.negotiation.id,
                         payload: {
-                                status: DisputeNegotiationStatus.REJECTED,
-                                responseMessage: values.responseMessage
+                                action: 'reject',
+                                message: values.responseMessage
                         }
                 })
         }
@@ -1193,26 +1220,26 @@ const ContractDisputeRoomPage = () => {
                                                                                                         </div>
                                                                                                         {!isFinalDispute && (
                                                                                                                 <div className='flex flex-wrap items-center justify-end gap-2 text-xs'>
-                                                                                                                        {isPending && isCounterparty && (
-                                                                                                                                <>
-                                                                                                                                        <button
-                                                                                                                                                type='button'
-                                                                                                                                                className='btn btn-success btn-sm'
-                                                                                                                                                onClick={() => requestAction(negotiation, 'accept')}
-                                                                                                                                                disabled={updateNegotiationMutation.isPending}
-                                                                                                                                        >
-                                                                                                                                                Chấp nhận
-                                                                                                                                        </button>
-                                                                                                                                        <button
-                                                                                                                                                type='button'
-                                                                                                                                                className='btn btn-error btn-sm'
-                                                                                                                                                onClick={() => requestAction(negotiation, 'reject')}
-                                                                                                                                                disabled={updateNegotiationMutation.isPending}
-                                                                                                                                        >
-                                                                                                                                                Từ chối
-                                                                                                                                        </button>
-                                                                                                                                </>
-                                                                                                                        )}
+                                                        {isPending && isCounterparty && (
+                                                                <>
+                                                                        <button
+                                                                                type='button'
+                                                                                className='btn btn-success btn-sm'
+                                                                                onClick={() => requestAction(negotiation, 'accept')}
+                                                                                disabled={respondNegotiationMutation.isPending}
+                                                                        >
+                                                                                Chấp nhận
+                                                                        </button>
+                                                                        <button
+                                                                                type='button'
+                                                                                className='btn btn-error btn-sm'
+                                                                                onClick={() => requestAction(negotiation, 'reject')}
+                                                                                disabled={respondNegotiationMutation.isPending}
+                                                                        >
+                                                                                Từ chối
+                                                                        </button>
+                                                                </>
+                                                        )}
                                                                                                                         {isPending && isProposer && (
                                                                                                                                 <>
                                                                                                                                         <button
@@ -1261,7 +1288,7 @@ const ContractDisputeRoomPage = () => {
                                         confirmLabel='Chấp nhận'
                                         onConfirm={handleAcceptNegotiation}
                                         onClose={closeActionDialog}
-                                        isSubmitting={updateNegotiationMutation.isPending}
+                                        isSubmitting={respondNegotiationMutation.isPending}
                                 />
                         )}
 
@@ -1291,7 +1318,7 @@ const ContractDisputeRoomPage = () => {
 
                         {actionState.negotiation && actionState.action === 'reject' && (
                                 <RejectNegotiationModal
-                                        isSubmitting={updateNegotiationMutation.isPending}
+                                        isSubmitting={respondNegotiationMutation.isPending}
                                         onSubmit={values => handleRejectNegotiation(values)}
                                         onClose={closeActionDialog}
                                 />

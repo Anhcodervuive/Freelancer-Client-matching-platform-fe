@@ -19,6 +19,7 @@ import type {
         Dispute,
         DisputeNegotiation,
         OpenDisputeInput,
+        RespondDisputeNegotiationInput,
         UpdateDisputeNegotiationInput
 } from '~/types/dispute'
 
@@ -366,6 +367,21 @@ export const updateDisputeNegotiation = async (
 ): Promise<DisputeNegotiation | null> => {
         const response = await authorizeAxiosInstance.patch(
                 `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/negotiations/${negotiationId}`,
+                payload
+        )
+
+        return extractNegotiation(response.data)
+}
+
+export const respondDisputeNegotiation = async (
+        contractId: string,
+        milestoneId: string,
+        disputeId: string,
+        negotiationId: string,
+        payload: RespondDisputeNegotiationInput
+): Promise<DisputeNegotiation | null> => {
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/negotiations/${negotiationId}/respond`,
                 payload
         )
 

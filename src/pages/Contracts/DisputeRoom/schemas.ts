@@ -74,10 +74,10 @@ export type DisputeNegotiationFormOutput = z.infer<typeof DisputeNegotiationSche
 
 export const RejectNegotiationSchema = z.object({
         responseMessage: z
-                .string({ required_error: 'Vui lòng nhập lý do từ chối' })
-                .min(5, 'Lý do từ chối cần tối thiểu 5 ký tự')
-                .max(2000, 'Tối đa 2000 ký tự')
-                .transform(value => value.trim())
+                .string({ required_error: 'Vui lòng giải thích lý do từ chối đề xuất.' })
+                .trim()
+                .min(1, 'Vui lòng giải thích lý do từ chối đề xuất.')
+                .max(2000, 'Phản hồi tối đa 2000 ký tự.')
 })
 
 export type RejectNegotiationFormValues = z.input<typeof RejectNegotiationSchema>

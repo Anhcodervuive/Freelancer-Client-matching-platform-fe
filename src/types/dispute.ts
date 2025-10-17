@@ -106,3 +106,8 @@ export type UpdateDisputeNegotiationInput = {
         status?: DisputeNegotiationStatus
         responseMessage?: string
 }
+
+export type RespondDisputeNegotiationInput = {
+        action: 'accept' | 'reject'
+        message?: string
+}
