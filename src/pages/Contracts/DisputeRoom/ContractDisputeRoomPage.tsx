@@ -58,7 +58,7 @@ const DISPUTE_FINAL_STATUSES = new Set<DisputeStatus | string>([
         DisputeStatus.EXPIRED
 ])
 
-const FINALIZED_MILESTONE_STATUSES = new Set<string>(['APPROVED', 'RELEASED', 'COMPLETED', 'PAID'])
+const FINALIZED_MILESTONE_STATUSES = new Set<string>(['APPROVED', 'RELEASED', 'COMPLETED', 'PAID', 'CANCELLED', 'CANCELED'])
 
 const formatMilestoneStatus = (status?: string | null) => {
         if (!status) return undefined
@@ -751,6 +751,7 @@ const ContractDisputeRoomPage = () => {
         const milestoneEscrow = milestone?.escrow ?? milestoneFromPayload?.escrow ?? null
         const normalizedMilestoneStatus = (milestone?.status ?? '').toString().toUpperCase()
         const normalizedEscrowStatus = (milestoneEscrow?.status ?? '').toString().toUpperCase()
+        const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED' || normalizedMilestoneStatus === 'CANCELED'
         const milestoneStatusLabel = formatMilestoneStatus(milestone?.status)
         const escrowCurrency = milestoneEscrow?.currency || currency
         const escrowFunded = formatCurrency(parseAmount(milestoneEscrow?.amountFunded), escrowCurrency)
@@ -790,9 +791,13 @@ const ContractDisputeRoomPage = () => {
                 hasEscrowReleased
         const shouldBlockOpeningDispute =
                 isMilestoneFinalized ||
+                isMilestoneCancelled ||
                 normalizedEscrowStatus === 'DISPUTED' ||
                 normalizedEscrowStatus === 'RELEASED' ||
                 normalizedEscrowStatus === 'PAID'
+        const blockDisputeDescription = isMilestoneCancelled
+                ? 'Milestone đã bị hủy nên không thể mở tranh chấp mới. Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ bộ phận hỗ trợ.'
+                : 'Milestone đã được duyệt/giải ngân nên không thể mở tranh chấp mới. Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ bộ phận hỗ trợ.'
         const negotiations = useMemo(() => {
                 const list: DisputeNegotiation[] = []
                 if (milestoneDispute?.negotiations?.length) {
@@ -1149,9 +1154,7 @@ const ContractDisputeRoomPage = () => {
                                                                 <ShieldAlert className='size-5 text-amber-500' />
                                                                 <div>
                                                                         <p className='text-base font-semibold text-base-content'>Không thể mở dispute mới</p>
-                                                                        <p className='text-sm text-base-content/70'>
-                                                                                Milestone đã được duyệt/giải ngân nên không thể mở tranh chấp mới. Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ bộ phận hỗ trợ.
-                                                                        </p>
+                                                                        <p className='text-sm text-base-content/70'>{blockDisputeDescription}</p>
                                                                 </div>
                                                         </div>
                                                         {milestoneStatusLabel && (

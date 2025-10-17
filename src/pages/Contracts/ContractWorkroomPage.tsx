@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import { isAxiosError } from 'axios'
@@ -487,11 +487,17 @@ const isImageAttachment = (attachment: NormalizedAttachment) => {
 }
 
 const ContractWorkroomPage = () => {
-	const { contractId } = useParams<{ contractId: string }>()
-	const navigate = useNavigate()
-	const currentUser = useSelector(selectCurrentUser)
-	const [activeTab, setActiveTab] = useState<TabId>('overview')
-	const [milestonePage, setMilestonePage] = useState(1)
+        const { contractId } = useParams<{ contractId: string }>()
+        const navigate = useNavigate()
+        const currentUser = useSelector(selectCurrentUser)
+        const [searchParams, setSearchParams] = useSearchParams()
+        const queryTab = searchParams.get('tab')
+        const resolvedTab: TabId = useMemo(() => {
+                if (!queryTab) return 'overview'
+                return (tabs.find(tab => tab.id === queryTab)?.id ?? 'overview') as TabId
+        }, [queryTab])
+        const [activeTab, setActiveTab] = useState<TabId>(resolvedTab)
+        const [milestonePage, setMilestonePage] = useState(1)
 	const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
         const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
         const [resourceToDelete, setResourceToDelete] = useState<{
@@ -517,7 +523,25 @@ const ContractWorkroomPage = () => {
 	const viewerRole: ViewerRole =
 		currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
 
-	const queryClient = useQueryClient()
+        const queryClient = useQueryClient()
+
+        useEffect(() => {
+                if (activeTab === resolvedTab) return
+                setActiveTab(resolvedTab)
+        }, [resolvedTab, activeTab])
+
+        const handleTabChange = (tabId: TabId) => {
+                setActiveTab(tabId)
+                setSearchParams(previous => {
+                        const params = new URLSearchParams(previous)
+                        if (tabId === 'overview') {
+                                params.delete('tab')
+                        } else {
+                                params.set('tab', tabId)
+                        }
+                        return params
+                }, { replace: true })
+        }
 
 	const contractQuery = useQuery({
 		queryKey: ['contract', contractId],
@@ -1532,13 +1556,14 @@ const ContractWorkroomPage = () => {
 											normalizedMilestoneStatus === 'APPROVED' ||
 											normalizedMilestoneStatus === 'PAID' ||
 											Boolean(milestone.releasedAt || milestone.approvedAt || hasEscrowReleased)
-						const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED'
+                                                const isMilestoneCancelled = normalizedMilestoneStatus === 'CANCELLED'
                                                 const normalizedEscrowStatus =
                                                         (milestone.escrow?.status ?? (isMilestoneReleased ? 'RELEASED' : null))?.toUpperCase() ?? 'UNFUNDED'
                                                 const escrowMeta = buildEscrowStatusMeta(normalizedEscrowStatus, milestone, viewerRole)
                                                 const EscrowIcon = escrowMeta.icon
                                                 const isEscrowDisputed = normalizedEscrowStatus === 'DISPUTED'
-                                                const canVisitDisputeCenter = isEscrowDisputed || !isMilestoneReleased
+                                                const hasActiveDispute = isEscrowDisputed
+                                                const canVisitDisputeCenter = hasActiveDispute || (!isMilestoneReleased && !isMilestoneCancelled)
                                                 const cancellationStatus = (milestone.cancellationStatus ?? '').toUpperCase()
                                                 const isCancellationPending = cancellationStatus === 'PENDING'
                                                 const isCancellationAccepted = cancellationStatus === 'ACCEPTED'
@@ -1706,7 +1731,7 @@ const ContractWorkroomPage = () => {
                                                                                         ) : null}
                                                                                         {contractId && !canVisitDisputeCenter && !isEscrowDisputed ? (
                                                                                                 <span className='inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500'>
-                                                                                                        Đã giải ngân
+                                                                                                        {isMilestoneCancelled ? 'Milestone đã hủy' : 'Đã giải ngân'}
                                                                                                 </span>
                                                                                         ) : null}
                                                                                         {hasPendingSubmission && (
@@ -2589,19 +2614,19 @@ const ContractWorkroomPage = () => {
 			</div>
 
 			<nav className='flex flex-wrap items-center gap-2 rounded-[28px] border border-white/70 bg-white/85 p-2 shadow-[0_20px_60px_rgba(15,23,42,0.08)]'>
-				{tabs.map(tab => {
-					const Icon = tab.icon
-					const isActive = activeTab === tab.id
-					return (
-						<button
-							key={tab.id}
-							type='button'
-							onClick={() => setActiveTab(tab.id)}
-							className={`inline-flex items-center gap-2 rounded-[22px] px-4 py-2 text-sm font-semibold transition ${
-								isActive
-									? 'bg-gradient-to-r from-primary/90 to-secondary/80 text-white shadow-lg shadow-primary/25'
-									: 'text-slate-500 hover:bg-primary/10 hover:text-primary'
-							}`}>
+                                {tabs.map(tab => {
+                                        const Icon = tab.icon
+                                        const isActive = activeTab === tab.id
+                                        return (
+                                                <button
+                                                        key={tab.id}
+                                                        type='button'
+                                                        onClick={() => handleTabChange(tab.id)}
+                                                        className={`inline-flex items-center gap-2 rounded-[22px] px-4 py-2 text-sm font-semibold transition ${
+                                                                isActive
+                                                                        ? 'bg-gradient-to-r from-primary/90 to-secondary/80 text-white shadow-lg shadow-primary/25'
+                                                                        : 'text-slate-500 hover:bg-primary/10 hover:text-primary'
+                                                        }`}>
 							<Icon className='size-4' />
 							{tab.label}
 						</button>
