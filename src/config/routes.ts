@@ -14,7 +14,11 @@ export const routes = {
         },
         contracts: {
                 list: '/contracts',
-                detail: (contractId: string = 'contractId') => `/contracts/${contractId}`
+                detail: (contractId: string = 'contractId') => `/contracts/${contractId}`,
+                dispute: (
+                        contractId: string = 'contractId',
+                        milestoneId: string = 'milestoneId'
+                ) => `/contracts/${contractId}/milestones/${milestoneId}/disputes`
         },
         freelancer: {
                 jobs: {

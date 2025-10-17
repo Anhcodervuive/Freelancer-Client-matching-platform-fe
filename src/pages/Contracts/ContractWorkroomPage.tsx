@@ -1683,17 +1683,25 @@ const ContractWorkroomPage = () => {
 												{milestone.description ?? 'Không có mô tả chi tiết.'}
 											</p>
 										</div>
-										<div className='flex flex-wrap items-center justify-end gap-2'>
-											<span
-												className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge} ${meta.text}`}>
-												<span className='size-2 rounded-full bg-current'></span>
-												{meta.label}
-											</span>
-											{hasPendingSubmission && (
-												<span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
-													Đang chờ duyệt
-												</span>
-											)}
+                                                                                <div className='flex flex-wrap items-center justify-end gap-2'>
+                                                                                        <span
+                                                                                                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge} ${meta.text}`}>
+                                                                                                <span className='size-2 rounded-full bg-current'></span>
+                                                                                                {meta.label}
+                                                                                        </span>
+                                                                                        {contractId && (
+                                                                                                <Link
+                                                                                                        to={routes.contracts.dispute(contractId!, milestone.id)}
+                                                                                                        className='btn btn-outline btn-xs text-primary'
+                                                                                                >
+                                                                                                        Trung tâm dispute
+                                                                                                </Link>
+                                                                                        )}
+                                                                                        {hasPendingSubmission && (
+                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700'>
+                                                                                                        Đang chờ duyệt
+                                                                                                </span>
+                                                                                        )}
 											{canFundMilestone && (
 												<button
 													type='button'

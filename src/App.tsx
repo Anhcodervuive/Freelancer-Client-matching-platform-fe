@@ -61,6 +61,7 @@ import FreelancerJobOfferListPage from './pages/Freelancer/Jobs/FreelancerJobOff
 import { ChatSocketProvider } from '~/contexts/chat-socket/ChatSocketProvider'
 import ContractListPage from './pages/Contracts/ContractListPage'
 import ContractWorkroomPage from './pages/Contracts/ContractWorkroomPage'
+import ContractDisputeRoomPage from './pages/Contracts/DisputeRoom/ContractDisputeRoomPage'
 
 const persistor = persistStore(store)
 
@@ -97,6 +98,11 @@ const router = createBrowserRouter([
                                 path: routes.contracts.detail(':contractId'),
                                 loader: checkAuthenticatedUser,
                                 element: <ContractWorkroomPage />
+                        },
+                        {
+                                path: routes.contracts.dispute(':contractId', ':milestoneId'),
+                                loader: checkAuthenticatedUser,
+                                element: <ContractDisputeRoomPage />
                         },
                         {
                                 path: routes.freelancer.jobs.list,

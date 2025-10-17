@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import type {
         ApproveMilestoneSubmissionInput,
@@ -13,6 +14,13 @@ import type {
         PayContractMilestoneResponse,
         SubmitMilestoneWorkInput
 } from '~/types/contract'
+import type {
+        CreateDisputeNegotiationInput,
+        Dispute,
+        DisputeNegotiation,
+        OpenDisputeInput,
+        UpdateDisputeNegotiationInput
+} from '~/types/dispute'
 
 const baseUrl = '/contracts'
 
@@ -51,6 +59,98 @@ const serializeFilters = (filters: Partial<ContractListFilterInput> = {}) => {
 
 	const query = params.toString()
 	return query ? `?${query}` : ''
+}
+
+const looksLikeDispute = (value: unknown): value is Dispute => {
+        if (!value || typeof value !== 'object') {
+                return false
+        }
+
+        const record = value as Record<string, unknown>
+        return typeof record.id === 'string' && typeof record.status === 'string'
+}
+
+const extractDispute = (value: unknown): Dispute | null => {
+        if (!value) {
+                return null
+        }
+
+        if (looksLikeDispute(value)) {
+                return value
+        }
+
+        if (Array.isArray(value)) {
+                for (const item of value) {
+                        const extracted = extractDispute(item)
+                        if (extracted) {
+                                return extracted
+                        }
+                }
+                return null
+        }
+
+        if (typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const candidates = ['dispute', 'data', 'result', 'item', 'payload']
+
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const extracted = extractDispute(record[key])
+                if (extracted) {
+                        return extracted
+                }
+        }
+
+        return null
+}
+
+const looksLikeNegotiation = (value: unknown): value is DisputeNegotiation => {
+        if (!value || typeof value !== 'object') {
+                return false
+        }
+
+        const record = value as Record<string, unknown>
+        return typeof record.id === 'string' && typeof record.disputeId === 'string'
+}
+
+const extractNegotiation = (value: unknown): DisputeNegotiation | null => {
+        if (!value) {
+                return null
+        }
+
+        if (looksLikeNegotiation(value)) {
+                return value
+        }
+
+        if (Array.isArray(value)) {
+                for (const item of value) {
+                        const extracted = extractNegotiation(item)
+                        if (extracted) {
+                                return extracted
+                        }
+                }
+                return null
+        }
+
+        if (typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const candidates = ['negotiation', 'data', 'result', 'item', 'payload']
+
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const extracted = extractNegotiation(record[key])
+                if (extracted) {
+                        return extracted
+                }
+        }
+
+        return null
 }
 
 export const listContracts = async (
@@ -209,4 +309,76 @@ export const payMilestone = async (
         )
 
         return response.data ?? {}
+}
+
+export const getMilestoneDispute = async (
+        contractId: string,
+        milestoneId: string
+): Promise<Dispute | null> => {
+        try {
+                const response = await authorizeAxiosInstance.get(
+                        `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes`
+                )
+
+                return extractDispute(response.data)
+        } catch (error) {
+                if (isAxiosError(error) && error.response?.status === 404) {
+                        return null
+                }
+
+                throw error
+        }
+}
+
+export const openMilestoneDispute = async (
+        contractId: string,
+        milestoneId: string,
+        payload: OpenDisputeInput
+): Promise<Dispute | null> => {
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes`,
+                payload
+        )
+
+        return extractDispute(response.data)
+}
+
+export const createDisputeNegotiation = async (
+        contractId: string,
+        milestoneId: string,
+        disputeId: string,
+        payload: CreateDisputeNegotiationInput
+): Promise<DisputeNegotiation | null> => {
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/negotiations`,
+                payload
+        )
+
+        return extractNegotiation(response.data)
+}
+
+export const updateDisputeNegotiation = async (
+        contractId: string,
+        milestoneId: string,
+        disputeId: string,
+        negotiationId: string,
+        payload: UpdateDisputeNegotiationInput
+): Promise<DisputeNegotiation | null> => {
+        const response = await authorizeAxiosInstance.patch(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/negotiations/${negotiationId}`,
+                payload
+        )
+
+        return extractNegotiation(response.data)
+}
+
+export const deleteDisputeNegotiation = async (
+        contractId: string,
+        milestoneId: string,
+        disputeId: string,
+        negotiationId: string
+) => {
+        await authorizeAxiosInstance.delete(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/negotiations/${negotiationId}`
+        )
 }
