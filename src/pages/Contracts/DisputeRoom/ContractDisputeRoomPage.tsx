@@ -33,7 +33,12 @@ import {
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type { Contract, ContractMilestone } from '~/types/contract'
-import type { Dispute, DisputeNegotiation } from '~/types/dispute'
+import type {
+        DisputeContractSummary,
+        DisputeMilestoneSummary,
+        DisputeNegotiation,
+        MilestoneDisputeSummary
+} from '~/types/dispute'
 import { DisputeNegotiationStatus, DisputeStatus } from '~/types/dispute'
 import { formatCurrency, formatDateTime } from '~/utils/format'
 import {
@@ -519,7 +524,7 @@ const ContractDisputeRoomPage = () => {
                 }
         })
 
-        const disputeQuery = useQuery<Dispute | null>({
+        const disputeQuery = useQuery<MilestoneDisputeSummary | null>({
                 queryKey: disputeQueryKey,
                 enabled: Boolean(contractId && milestoneId),
                 queryFn: async () => {
@@ -688,14 +693,26 @@ const ContractDisputeRoomPage = () => {
                 }
         })
 
-        const contract = contractQuery.data
+        const milestoneDispute = disputeQuery.data
+        const contractFromPayload = milestoneDispute?.contract ?? null
         const milestones = useMemo(() => milestonesQuery.data ?? [], [milestonesQuery.data])
-        const dispute = disputeQuery.data
-        const milestone = useMemo(() => {
+        const contract = useMemo<DisputeContractSummary | Contract | null>(() => {
+                if (contractFromPayload) {
+                        return contractFromPayload
+                }
+                return contractQuery.data ?? null
+        }, [contractFromPayload, contractQuery.data])
+
+        const milestoneFromPayload = milestoneDispute?.milestone ?? null
+        const milestone = useMemo<DisputeMilestoneSummary | ContractMilestone | undefined>(() => {
+                if (milestoneFromPayload) {
+                        return milestoneFromPayload
+                }
                 if (!milestoneId) return undefined
                 return milestones.find(item => item.id === milestoneId)
-        }, [milestoneId, milestones])
+        }, [milestoneFromPayload, milestoneId, milestones])
 
+        const dispute = milestoneDispute?.dispute ?? null
         const disputeStatusMeta = getDisputeStatusMeta(dispute?.status)
         const currency =
                 milestone?.currency ||
@@ -704,28 +721,81 @@ const ContractDisputeRoomPage = () => {
                 contract?.totalPaidCurrency ||
                 'USD'
 
-        const milestoneAmount = formatCurrency(milestone?.amount ?? undefined, currency)
+        const milestoneAmount = formatCurrency(parseAmount(milestone?.amount), currency)
         const proposedRelease = formatCurrency(parseAmount(dispute?.proposedRelease), currency)
         const proposedRefund = formatCurrency(parseAmount(dispute?.proposedRefund), currency)
         const decidedRelease = formatCurrency(parseAmount(dispute?.decidedRelease), currency)
         const decidedRefund = formatCurrency(parseAmount(dispute?.decidedRefund), currency)
+        const disputableAmount = formatCurrency(parseAmount(milestoneDispute?.disputableAmount), currency)
+        const disputableCentsValue = parseAmount(milestoneDispute?.disputableCents)
+        const disputableCents =
+                typeof disputableCentsValue === 'number'
+                        ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
+                                  disputableCentsValue
+                          )
+                        : undefined
+
+        const milestoneEscrow = milestone?.escrow ?? milestoneFromPayload?.escrow ?? null
+        const escrowCurrency = milestoneEscrow?.currency || currency
+        const escrowFunded = formatCurrency(parseAmount(milestoneEscrow?.amountFunded), escrowCurrency)
+        const escrowReleased = formatCurrency(parseAmount(milestoneEscrow?.amountReleased), escrowCurrency)
+        const escrowRefunded = formatCurrency(parseAmount(milestoneEscrow?.amountRefunded), escrowCurrency)
+        const arbFeePerParty = formatCurrency(parseAmount(dispute?.arbFeePerParty), currency)
+        const milestoneUpdatedAt = formatDateTime(
+                milestoneFromPayload?.updatedAt ??
+                        milestone?.updatedAt ??
+                        milestoneFromPayload?.endAt ??
+                        milestoneFromPayload?.endDate ??
+                        milestone?.endDate ??
+                        milestoneFromPayload?.startAt ??
+                        milestone?.startDate
+        )
+        const contractClientId =
+                milestoneDispute?.contract?.clientId ?? contractQuery.data?.client?.userId ?? null
+        const contractFreelancerId =
+                milestoneDispute?.contract?.freelancerId ?? contractQuery.data?.freelancer?.userId ?? null
+        const disputeCreatedAt = formatDateTime(dispute?.createdAt)
+        const disputeUpdatedAt = formatDateTime(dispute?.updatedAt)
+        const clientArbFeeStatus =
+                dispute?.clientArbFeePaid === true
+                        ? 'Đã nộp'
+                        : dispute?.clientArbFeePaid === false
+                        ? 'Chưa nộp'
+                        : '—'
+        const freelancerArbFeeStatus =
+                dispute?.freelancerArbFeePaid === true
+                        ? 'Đã nộp'
+                        : dispute?.freelancerArbFeePaid === false
+                        ? 'Chưa nộp'
+                        : '—'
+        const milestoneContractId =
+                (milestone as DisputeMilestoneSummary | undefined)?.contractId ?? contractId ?? null
 
         const negotiations = useMemo(() => {
                 const list: DisputeNegotiation[] = []
+                if (milestoneDispute?.negotiations?.length) {
+                        list.push(...(milestoneDispute.negotiations.filter(Boolean) as DisputeNegotiation[]))
+                }
                 if (dispute?.negotiations?.length) {
                         list.push(...(dispute.negotiations.filter(Boolean) as DisputeNegotiation[]))
                 }
                 if (dispute?.latestProposal && !list.some(item => item.id === dispute.latestProposal?.id)) {
                         list.push(dispute.latestProposal)
                 }
-                return list
-                        .slice()
-                        .sort((a, b) => {
-                                const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
-                                const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
-                                return bTime - aTime
-                        })
-        }, [dispute?.latestProposal, dispute?.negotiations])
+                const deduped: DisputeNegotiation[] = []
+                const seen = new Set<string>()
+                for (const negotiation of list) {
+                        if (!negotiation?.id) continue
+                        if (seen.has(negotiation.id)) continue
+                        seen.add(negotiation.id)
+                        deduped.push(negotiation)
+                }
+                return deduped.sort((a, b) => {
+                        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                        return bTime - aTime
+                })
+        }, [dispute?.latestProposal, dispute?.negotiations, milestoneDispute?.negotiations])
 
         const isFinalDispute = isDisputeClosed(dispute?.status)
         const hasPendingNegotiation = negotiations.some(
@@ -783,7 +853,11 @@ const ContractDisputeRoomPage = () => {
         }
 
         const isLoading =
-                contractQuery.isLoading || milestonesQuery.isLoading || disputeQuery.isLoading || !contractId || !milestoneId
+                disputeQuery.isLoading ||
+                !contractId ||
+                !milestoneId ||
+                (contractQuery.isLoading && !contractFromPayload) ||
+                (milestonesQuery.isLoading && !milestoneFromPayload)
 
         if (!contractId || !milestoneId) {
                 return (
@@ -806,7 +880,10 @@ const ContractDisputeRoomPage = () => {
                 )
         }
 
-        if (contractQuery.isError || milestonesQuery.isError) {
+        if (
+                (contractQuery.isError && !contractFromPayload) ||
+                (milestonesQuery.isError && !milestoneFromPayload)
+        ) {
                 return (
                         <div className='mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center px-4 py-10'>
                                 <div className='rounded-3xl border border-error/40 bg-error/10 px-6 py-5 text-center text-sm text-error'>
@@ -901,6 +978,155 @@ const ContractDisputeRoomPage = () => {
                                                                 </p>
                                                         </div>
                                                 )}
+                                        </div>
+                                </div>
+
+                                <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+                                        <div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
+                                                <p className='text-sm font-semibold text-base-content'>Thông tin hợp đồng</p>
+                                                <dl className='mt-2 space-y-1 text-xs text-base-content/70'>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Mã</dt>
+                                                                <dd className='font-medium text-base-content break-all'>
+                                                                        {contract?.id ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Client</dt>
+                                                                <dd className='font-medium text-base-content break-all'>
+                                                                        {contractClientId ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Freelancer</dt>
+                                                                <dd className='font-medium text-base-content break-all'>
+                                                                        {contractFreelancerId ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                </dl>
+                                        </div>
+                                        <div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
+                                                <p className='text-sm font-semibold text-base-content'>Milestone</p>
+                                                <dl className='mt-2 space-y-1 text-xs text-base-content/70'>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Mã</dt>
+                                                                <dd className='font-medium text-base-content break-all'>
+                                                                        {milestone?.id ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Hợp đồng</dt>
+                                                                <dd className='font-medium text-base-content break-all'>
+                                                                        {milestoneContractId ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Trạng thái</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {milestone?.status ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Cập nhật</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {milestoneUpdatedAt ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Số tiền</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {milestoneAmount ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                </dl>
+                                        </div>
+                                        <div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
+                                                <p className='text-sm font-semibold text-base-content'>Escrow</p>
+                                                <dl className='mt-2 space-y-1 text-xs text-base-content/70'>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Trạng thái</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {milestoneEscrow?.status ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Đã nạp</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {escrowFunded ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Đã giải ngân</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {escrowReleased ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Đã hoàn</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {escrowRefunded ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                </dl>
+                                        </div>
+                                        <div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
+                                                <p className='text-sm font-semibold text-base-content'>Chi tiết dispute</p>
+                                                <dl className='mt-2 space-y-1 text-xs text-base-content/70'>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Mã dispute</dt>
+                                                                <dd className='font-medium text-base-content break-all'>
+                                                                        {dispute?.id ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Mở bởi</dt>
+                                                                <dd className='font-medium text-base-content break-all'>
+                                                                        {dispute?.openedById ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Khoản tranh chấp</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {disputableAmount ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Số cent</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {disputableCents ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Phí trọng tài / bên</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {arbFeePerParty ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Client đã nộp</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {clientArbFeeStatus}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Freelancer đã nộp</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {freelancerArbFeeStatus}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Tạo lúc</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {disputeCreatedAt ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div className='flex items-center justify-between gap-2'>
+                                                                <dt>Cập nhật</dt>
+                                                                <dd className='font-medium text-base-content'>
+                                                                        {disputeUpdatedAt ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                </dl>
                                         </div>
                                 </div>
 

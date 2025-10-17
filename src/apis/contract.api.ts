@@ -17,7 +17,10 @@ import type {
 import type {
         CreateDisputeNegotiationInput,
         Dispute,
+        DisputeContractSummary,
+        DisputeMilestoneSummary,
         DisputeNegotiation,
+        MilestoneDisputeSummary,
         OpenDisputeInput,
         RespondDisputeNegotiationInput,
         UpdateDisputeNegotiationInput
@@ -146,6 +149,124 @@ const extractNegotiation = (value: unknown): DisputeNegotiation | null => {
         for (const key of candidates) {
                 if (!(key in record)) continue
                 const extracted = extractNegotiation(record[key])
+                if (extracted) {
+                        return extracted
+                }
+        }
+
+        return null
+}
+
+const parseNumberLike = (value: unknown): number | undefined => {
+        if (typeof value === 'number') {
+                return Number.isFinite(value) ? value : undefined
+        }
+
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                if (!trimmed) return undefined
+                const parsed = Number(trimmed)
+                return Number.isFinite(parsed) ? parsed : undefined
+        }
+
+        return undefined
+}
+
+const looksLikeDisputeContract = (value: unknown): value is DisputeContractSummary => {
+        if (!value || typeof value !== 'object') {
+                return false
+        }
+
+        const record = value as Record<string, unknown>
+        return typeof record.id === 'string'
+}
+
+const looksLikeDisputeMilestone = (value: unknown): value is DisputeMilestoneSummary => {
+        if (!value || typeof value !== 'object') {
+                return false
+        }
+
+        const record = value as Record<string, unknown>
+        return typeof record.id === 'string'
+}
+
+const extractNegotiationsList = (value: unknown): DisputeNegotiation[] | undefined => {
+        if (!value) {
+                return undefined
+        }
+
+        if (Array.isArray(value)) {
+                return value.filter(looksLikeNegotiation) as DisputeNegotiation[]
+        }
+
+        if (typeof value !== 'object') {
+                return undefined
+        }
+
+        const record = value as Record<string, unknown>
+        const candidates = ['negotiations', 'items', 'results', 'data'] as const
+
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const extracted = extractNegotiationsList(record[key])
+                if (extracted && extracted.length > 0) {
+                        return extracted
+                }
+        }
+
+        return undefined
+}
+
+const extractMilestoneDisputeSummary = (value: unknown): MilestoneDisputeSummary | null => {
+        if (!value) {
+                return null
+        }
+
+        if (Array.isArray(value)) {
+                for (const item of value) {
+                        const extracted = extractMilestoneDisputeSummary(item)
+                        if (extracted) {
+                                return extracted
+                        }
+                }
+                return null
+        }
+
+        if (typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const contract = looksLikeDisputeContract(record.contract) ? record.contract : null
+        const milestone = looksLikeDisputeMilestone(record.milestone) ? record.milestone : null
+        const dispute = extractDispute(record.dispute)
+        const negotiations = extractNegotiationsList(record.negotiations)
+        const disputableAmount = parseNumberLike(record.disputableAmount)
+        const disputableCents = parseNumberLike(record.disputableCents)
+
+        if (
+                contract ||
+                milestone ||
+                dispute ||
+                (negotiations && negotiations.length > 0) ||
+                disputableAmount !== undefined ||
+                disputableCents !== undefined
+        ) {
+                return {
+                        contract,
+                        milestone,
+                        dispute: dispute ?? null,
+                        negotiations: negotiations ?? null,
+                        disputableAmount: disputableAmount ?? null,
+                        disputableCents: disputableCents ?? null
+                }
+        }
+
+        const candidates = ['data', 'result', 'payload', 'item'] as const
+
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const extracted = extractMilestoneDisputeSummary(record[key])
                 if (extracted) {
                         return extracted
                 }
@@ -315,13 +436,50 @@ export const payMilestone = async (
 export const getMilestoneDispute = async (
         contractId: string,
         milestoneId: string
-): Promise<Dispute | null> => {
+): Promise<MilestoneDisputeSummary | null> => {
         try {
                 const response = await authorizeAxiosInstance.get(
                         `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes`
                 )
+                const extracted = extractMilestoneDisputeSummary(response.data)
 
-                return extractDispute(response.data)
+                const rawRecord =
+                        response.data && typeof response.data === 'object'
+                                ? (response.data as Record<string, unknown>)
+                                : undefined
+
+                if (extracted) {
+                        const fallbackDispute = extracted.dispute ?? extractDispute(response.data)
+                        const fallbackNegotiations =
+                                extracted.negotiations ?? extractNegotiationsList(response.data) ?? null
+                        const disputableAmount =
+                                extracted.disputableAmount ?? parseNumberLike(rawRecord?.disputableAmount)
+                        const disputableCents =
+                                extracted.disputableCents ?? parseNumberLike(rawRecord?.disputableCents)
+
+                        return {
+                                ...extracted,
+                                dispute: fallbackDispute ?? null,
+                                negotiations: fallbackNegotiations,
+                                disputableAmount: disputableAmount ?? null,
+                                disputableCents: disputableCents ?? null
+                        }
+                }
+
+                const dispute = extractDispute(response.data)
+                if (dispute) {
+                        const fallbackNegotiations = extractNegotiationsList(response.data)
+                        return {
+                                contract: null,
+                                milestone: null,
+                                dispute,
+                                negotiations: fallbackNegotiations ?? null,
+                                disputableAmount: parseNumberLike(rawRecord?.disputableAmount) ?? null,
+                                disputableCents: parseNumberLike(rawRecord?.disputableCents) ?? null
+                        }
+                }
+
+                return null
         } catch (error) {
                 if (isAxiosError(error) && error.response?.status === 404) {
                         return null

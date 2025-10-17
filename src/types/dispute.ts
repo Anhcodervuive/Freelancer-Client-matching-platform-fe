@@ -1,3 +1,4 @@
+import type { Contract, ContractMilestone } from '~/types/contract'
 import type { Role } from '~/types/user'
 
 export enum DisputeStatus {
@@ -110,4 +111,29 @@ export type UpdateDisputeNegotiationInput = {
 export type RespondDisputeNegotiationInput = {
         action: 'accept' | 'reject'
         message?: string
+}
+
+export type DisputeContractSummary = Partial<Contract> & {
+        id: string
+        clientId?: string | null
+        freelancerId?: string | null
+        [key: string]: unknown
+}
+
+export type DisputeMilestoneSummary = Partial<ContractMilestone> & {
+        id: string
+        contractId?: string | null
+        startAt?: string | null
+        endAt?: string | null
+        [key: string]: unknown
+}
+
+export type MilestoneDisputeSummary = {
+        contract?: DisputeContractSummary | null
+        milestone?: DisputeMilestoneSummary | null
+        dispute?: Dispute | null
+        negotiations?: DisputeNegotiation[] | null
+        disputableAmount?: DecimalLike | null
+        disputableCents?: DecimalLike | null
+        [key: string]: unknown
 }
