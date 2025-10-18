@@ -5,6 +5,7 @@ import PublicNavbar from './partials/PublicNavbar'
 import ClientNavbar from './partials/ClientNavbar'
 import FreelancerNavbar from './partials/FreelancerNavbar'
 import PublicFooter from './partials/PublicFooter'
+import AdminNavbar from './partials/AdminNavbar'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import { Role } from '~/types/user'
 
@@ -16,7 +17,14 @@ export default function CommonLayout({ children }: prop) {
         const currentUser = useSelector(selectCurrentUser)
         const role = currentUser?.role
 
-        const Navbar = role === Role.CLIENT ? ClientNavbar : role === Role.FREELANCER ? FreelancerNavbar : PublicNavbar
+        const Navbar =
+                role === Role.ADMIN
+                        ? AdminNavbar
+                        : role === Role.CLIENT
+                        ? ClientNavbar
+                        : role === Role.FREELANCER
+                        ? FreelancerNavbar
+                        : PublicNavbar
 
         return (
                 <div className='flex min-h-dvh flex-col'>
