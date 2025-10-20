@@ -6,6 +6,7 @@ import type {
         AdminDisputeMetrics,
         AdminDisputeParties,
         AdminJoinDisputeInput,
+        DecimalLike,
         Dispute,
         DisputeContractSummary,
         DisputeMilestoneSummary,
@@ -17,6 +18,26 @@ import authorizeAxiosInstance from '~/utils/authorizeAxios'
 const baseUrl = '/admin/disputes'
 
 type RawListResponse = Partial<ListResponse<unknown>> & Record<string, unknown>
+
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+                return null
+        }
+        return value as Record<string, unknown>
+}
+
+const getString = (value: unknown): string | undefined => {
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                return trimmed.length ? trimmed : undefined
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+                return String(value)
+        }
+
+        return undefined
+}
 
 const isDisputeStatusValue = (value: unknown): value is DisputeStatus =>
         typeof value === 'string' && (Object.values(DisputeStatus) as string[]).includes(value as DisputeStatus)
@@ -41,21 +62,46 @@ const looksLikeContractSummary = (value: unknown): value is DisputeContractSumma
 const looksLikeMilestoneSummary = (value: unknown): value is DisputeMilestoneSummary =>
         Boolean(value && typeof value === 'object' && typeof (value as Record<string, unknown>).id === 'string')
 
+const getDecimalLike = (value: unknown): DecimalLike | undefined => {
+        if (typeof value === 'number') {
+                return Number.isFinite(value) ? value : undefined
+        }
+
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                return trimmed.length ? trimmed : undefined
+        }
+
+        if (value && typeof value === 'object') {
+                const record = value as Record<string, unknown>
+                if (typeof record.value === 'number' && Number.isFinite(record.value)) {
+                        return record.value
+                }
+                if (typeof record.value === 'string' && record.value.trim().length) {
+                        return record.value.trim()
+                }
+        }
+
+        return undefined
+}
+
 const normalizeUserSummary = (value: unknown): DisputeUserSummary | null => {
-        if (!value || typeof value !== 'object') {
+        const record = asRecord(value)
+        if (!record) {
                 return null
         }
 
-        const record = value as Record<string, unknown>
         const id =
-                pickString(record, ['id', 'userId', 'user_id']) ??
-                (typeof record.accountId === 'string' ? record.accountId : undefined)
+                getString(record.id) ??
+                getString(record.userId ?? record.user_id) ??
+                getString(record.accountId ?? record.account_id)
 
         if (!id) {
                 return null
         }
 
         const normalized: DisputeUserSummary = { id }
+        const writable = normalized as Record<string, unknown>
 
         if (typeof record.firstName === 'string') {
                 normalized.firstName = record.firstName
@@ -77,28 +123,24 @@ const normalizeUserSummary = (value: unknown): DisputeUserSummary | null => {
                 normalized.role = record.role as DisputeUserSummary['role']
         }
 
-        if (typeof record.email === 'string') {
-                ;(normalized as Record<string, unknown>).email = record.email
+        if (typeof record.email === 'string' && record.email.trim().length) {
+                writable.email = record.email.trim()
         }
 
-        const displayName =
-                (typeof record.displayName === 'string' && record.displayName.trim()) ||
-                (typeof record.name === 'string' && record.name.trim()) ||
-                undefined
-
+        const displayName = getString(record.displayName) ?? getString(record.name) ?? getString(record.fullName)
         if (displayName) {
-                ;(normalized as Record<string, unknown>).displayName = displayName
+                writable.displayName = displayName
         }
 
         return normalized
 }
 
 const normalizeParties = (value: unknown): AdminDisputeParties => {
-        if (!value || typeof value !== 'object') {
+        const record = asRecord(value)
+        if (!record) {
                 return null
         }
 
-        const record = value as Record<string, unknown>
         const client = normalizeUserSummary(record.client)
         const freelancer = normalizeUserSummary(record.freelancer)
 
@@ -112,52 +154,58 @@ const normalizeParties = (value: unknown): AdminDisputeParties => {
         }
 }
 
-const pickDecimal = (container: Record<string, unknown>, keys: string[]) => {
-        for (const key of keys) {
-                const value = container[key]
-                if (typeof value === 'number' || (typeof value === 'string' && value !== '')) {
-                        return value
-                }
-        }
-        return undefined
-}
-
-const normalizeAmounts = (value: unknown, dispute?: Dispute | null): AdminDisputeAmounts => {
-        const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined
+const normalizeAmounts = (
+        value: unknown,
+        dispute?: Dispute | null,
+        milestone?: DisputeMilestoneSummary | null
+): AdminDisputeAmounts => {
+        const record = asRecord(value)
         const normalized: Partial<NonNullable<AdminDisputeAmounts>> = {}
 
         if (record) {
-                const currency = pickString(record, ['currency', 'currencyCode'])
+                const currency =
+                        getString(record.currency) ??
+                        getString(record.currencyCode ?? record.currency_code)
                 if (currency) {
                         normalized.currency = currency
                 }
 
-                const funded = pickDecimal(record, ['funded', 'fundedAmount', 'funded_amount'])
+                const funded =
+                        getDecimalLike(record.funded) ??
+                        getDecimalLike(record.fundedAmount ?? record.funded_amount)
                 if (funded !== undefined) {
                         normalized.funded = funded
                 }
 
-                const released = pickDecimal(record, ['released', 'releasedAmount', 'released_amount'])
+                const released =
+                        getDecimalLike(record.released) ??
+                        getDecimalLike(record.releasedAmount ?? record.released_amount)
                 if (released !== undefined) {
                         normalized.released = released
                 }
 
-                const refunded = pickDecimal(record, ['refunded', 'refundedAmount', 'refunded_amount'])
+                const refunded =
+                        getDecimalLike(record.refunded) ??
+                        getDecimalLike(record.refundedAmount ?? record.refunded_amount)
                 if (refunded !== undefined) {
                         normalized.refunded = refunded
                 }
 
-                const disputable = pickDecimal(record, ['disputable', 'disputableAmount', 'disputable_amount'])
+                const disputable =
+                        getDecimalLike(record.disputable) ??
+                        getDecimalLike(record.disputableAmount ?? record.disputable_amount)
                 if (disputable !== undefined) {
                         normalized.disputable = disputable
                 }
 
-                const proposedRelease = pickDecimal(record, ['proposedRelease', 'releaseAmount', 'proposed_release'])
+                const proposedRelease =
+                        getDecimalLike(record.proposedRelease ?? record.releaseAmount ?? record.proposed_release)
                 if (proposedRelease !== undefined) {
                         normalized.proposedRelease = proposedRelease
                 }
 
-                const proposedRefund = pickDecimal(record, ['proposedRefund', 'refundAmount', 'proposed_refund'])
+                const proposedRefund =
+                        getDecimalLike(record.proposedRefund ?? record.refundAmount ?? record.proposed_refund)
                 if (proposedRefund !== undefined) {
                         normalized.proposedRefund = proposedRefund
                 }
@@ -165,11 +213,33 @@ const normalizeAmounts = (value: unknown, dispute?: Dispute | null): AdminDisput
 
         if (dispute) {
                 if (normalized.proposedRelease === undefined && dispute.proposedRelease != null) {
-                        normalized.proposedRelease = dispute.proposedRelease
+                        const proposedRelease = getDecimalLike(dispute.proposedRelease)
+                        if (proposedRelease !== undefined) {
+                                normalized.proposedRelease = proposedRelease
+                        }
                 }
 
                 if (normalized.proposedRefund === undefined && dispute.proposedRefund != null) {
-                        normalized.proposedRefund = dispute.proposedRefund
+                        const proposedRefund = getDecimalLike(dispute.proposedRefund)
+                        if (proposedRefund !== undefined) {
+                                normalized.proposedRefund = proposedRefund
+                        }
+                }
+        }
+
+        if (milestone) {
+                if (!normalized.currency) {
+                        const milestoneCurrency = getString(milestone.currency)
+                        if (milestoneCurrency) {
+                                normalized.currency = milestoneCurrency
+                        }
+                }
+
+                if (normalized.funded === undefined && milestone.amount != null) {
+                        const milestoneAmount = getDecimalLike(milestone.amount)
+                        if (milestoneAmount !== undefined) {
+                                normalized.funded = milestoneAmount
+                        }
                 }
         }
 
@@ -177,49 +247,56 @@ const normalizeAmounts = (value: unknown, dispute?: Dispute | null): AdminDisput
 }
 
 const normalizeMetrics = (value: unknown): AdminDisputeMetrics => {
-        if (!value || typeof value !== 'object') {
+        const record = asRecord(value)
+        if (!record) {
                 return null
         }
 
-        const record = value as Record<string, unknown>
         const normalized: Partial<NonNullable<AdminDisputeMetrics>> = {}
 
-        const needsAdmin = parseBoolean(record.needsAdmin)
+        const needsAdmin =
+                parseBoolean(record.needsAdmin) ?? parseBoolean(record.needs_admin)
         if (needsAdmin !== undefined) {
-                        normalized.needsAdmin = needsAdmin
+                normalized.needsAdmin = needsAdmin
         }
 
-        const hasAdminJoined = parseBoolean(record.hasAdminJoined)
+        const hasAdminJoined =
+                parseBoolean(record.hasAdminJoined) ?? parseBoolean(record.has_admin_joined)
         if (hasAdminJoined !== undefined) {
                 normalized.hasAdminJoined = hasAdminJoined
         }
 
-        const overdue = parseBoolean(record.isResponseOverdue)
+        const overdue =
+                parseBoolean(record.isResponseOverdue) ?? parseBoolean(record.responseOverdue ?? record.is_overdue)
         if (overdue !== undefined) {
                 normalized.isResponseOverdue = overdue
         }
 
-        const negotiationCount = record.negotiationCount
-        if (typeof negotiationCount === 'number') {
-                normalized.negotiationCount = negotiationCount
-        } else if (typeof negotiationCount === 'string' && negotiationCount.trim()) {
-                const parsed = Number(negotiationCount)
+        const negotiationRaw =
+                record.negotiationCount ?? record.negotiation_count ?? record.negotiations
+        if (typeof negotiationRaw === 'number' && Number.isFinite(negotiationRaw)) {
+                normalized.negotiationCount = negotiationRaw
+        } else if (typeof negotiationRaw === 'string' && negotiationRaw.trim()) {
+                const parsed = Number(negotiationRaw)
                 if (!Number.isNaN(parsed)) {
                         normalized.negotiationCount = parsed
                 }
         }
 
-        const lastProposalCreatedAt = pickString(record, ['lastProposalCreatedAt', 'last_proposal_created_at'])
+        const lastProposalCreatedAt =
+                getString(record.lastProposalCreatedAt ?? record.last_proposal_created_at)
         if (lastProposalCreatedAt) {
                 normalized.lastProposalCreatedAt = lastProposalCreatedAt
         }
 
-        const lastProposalRespondedAt = pickString(record, ['lastProposalRespondedAt', 'last_proposal_responded_at'])
+        const lastProposalRespondedAt =
+                getString(record.lastProposalRespondedAt ?? record.last_proposal_responded_at)
         if (lastProposalRespondedAt) {
                 normalized.lastProposalRespondedAt = lastProposalRespondedAt
         }
 
-        const lastAdminJoinedAt = pickString(record, ['lastAdminJoinedAt', 'last_admin_joined_at'])
+        const lastAdminJoinedAt =
+                getString(record.lastAdminJoinedAt ?? record.last_admin_joined_at)
         if (lastAdminJoinedAt) {
                 normalized.lastAdminJoinedAt = lastAdminJoinedAt
         }
@@ -227,32 +304,12 @@ const normalizeMetrics = (value: unknown): AdminDisputeMetrics => {
         return Object.keys(normalized).length ? (normalized as AdminDisputeMetrics) : null
 }
 
-const pickString = (container: Record<string, unknown>, keys: string[]): string | undefined => {
-        for (const key of keys) {
-                const value = container[key]
-                if (typeof value === 'string' && value) {
-                        return value
-                }
-        }
-        return undefined
-}
-
-const pickBoolean = (container: Record<string, unknown>, keys: string[]): boolean | undefined => {
-        for (const key of keys) {
-                const parsed = parseBoolean(container[key])
-                if (parsed !== undefined) {
-                        return parsed
-                }
-        }
-        return undefined
-}
-
 const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
-        if (!value || typeof value !== 'object') {
+        const record = asRecord(value)
+        if (!record) {
                 return null
         }
 
-        const record = value as Record<string, unknown>
         const dispute = looksLikeDispute(record.dispute) ? (record.dispute as Dispute) : null
         const contract = looksLikeContractSummary(record.contract)
                 ? (record.contract as DisputeContractSummary)
@@ -260,53 +317,43 @@ const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
         const milestone = looksLikeMilestoneSummary(record.milestone)
                 ? (record.milestone as DisputeMilestoneSummary)
                 : null
-        const parties = normalizeParties(record.parties)
-        const client = normalizeUserSummary(record.client) ?? parties?.client ?? null
-        const freelancer = normalizeUserSummary(record.freelancer) ?? parties?.freelancer ?? null
-        const adminUser = normalizeUserSummary(record.admin)
 
-        const id =
-                pickString(record, ['id', 'disputeId', 'dispute_id']) ??
-                (dispute?.id ? String(dispute.id) : undefined)
-
+        const id = getString(record.id) ?? (dispute?.id ? getString(dispute.id) : undefined)
         if (!id) {
                 return null
         }
 
         const statusFromRecord =
-                pickString(record, ['status', 'disputeStatus', 'state']) ??
-                (dispute?.status ? String(dispute.status) : undefined)
+                getString(record.status) ??
+                getString(record.disputeStatus ?? record.state) ??
+                (dispute?.status ? getString(dispute.status) : undefined)
         const status = statusFromRecord && isDisputeStatusValue(statusFromRecord)
                 ? (statusFromRecord as DisputeStatus)
-                : undefined
+                : dispute?.status ?? null
 
-        const needsAttention = record.needsAttention as unknown
-        const needsAdmin =
-                pickBoolean(record, ['needsAdmin', 'needs_admin', 'requiresAdmin', 'awaitingAdmin']) ??
-                parseBoolean(needsAttention)
+        const parties = normalizeParties(record.parties)
+        const client = normalizeUserSummary(record.client) ?? parties?.client ?? null
+        const freelancer = normalizeUserSummary(record.freelancer) ?? parties?.freelancer ?? null
+        const adminUser = normalizeUserSummary(record.admin)
 
-        const isParticipant = record.isParticipant as unknown
-        const joined =
-                pickBoolean(record, ['joined', 'isAdminParticipant', 'adminJoined', 'hasJoined']) ??
-                parseBoolean(isParticipant)
-
-        const createdAt =
-                pickString(record, ['createdAt', 'created_at']) ??
-                (dispute?.createdAt ? String(dispute.createdAt) : undefined)
-        const updatedAt =
-                pickString(record, ['updatedAt', 'updated_at']) ??
-                (dispute?.updatedAt ? String(dispute.updatedAt) : undefined)
-
-        const amounts = normalizeAmounts(record.amounts, dispute)
+        const amounts = normalizeAmounts(record.amounts, dispute, milestone)
         const metrics = normalizeMetrics(record.metrics)
 
-        const normalizedNeedsAdmin =
-                metrics?.needsAdmin !== undefined ? metrics.needsAdmin : needsAdmin
-        const normalizedJoined = metrics?.hasAdminJoined !== undefined ? metrics.hasAdminJoined : joined
+        const needsAdminFallback =
+                parseBoolean(record.needsAdmin ?? record.needs_admin ?? record.requiresAdmin ?? record.awaitingAdmin)
+        const joinedFallback =
+                parseBoolean(
+                        record.joined ?? record.isAdminParticipant ?? record.adminJoined ?? record.hasJoined
+                )
+
+        const createdAt =
+                getString(record.createdAt ?? record.created_at) ?? (dispute?.createdAt ?? null)
+        const updatedAt =
+                getString(record.updatedAt ?? record.updated_at) ?? (dispute?.updatedAt ?? null)
 
         return {
                 id,
-                status: status ?? dispute?.status ?? null,
+                status,
                 dispute: dispute ?? null,
                 contract,
                 milestone,
@@ -315,11 +362,11 @@ const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
                 parties,
                 amounts,
                 metrics,
-                needsAdmin: normalizedNeedsAdmin ?? null,
-                joined: normalizedJoined ?? null,
+                needsAdmin: metrics?.needsAdmin ?? (needsAdminFallback ?? null),
+                joined: metrics?.hasAdminJoined ?? (joinedFallback ?? null),
                 admin: adminUser,
-                createdAt: createdAt ?? (dispute?.createdAt ?? null),
-                updatedAt: updatedAt ?? (dispute?.updatedAt ?? null)
+                createdAt,
+                updatedAt
         }
 }
 
