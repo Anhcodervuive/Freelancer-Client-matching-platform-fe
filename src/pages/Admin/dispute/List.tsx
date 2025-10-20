@@ -49,11 +49,20 @@ const negotiationStatusClassMap: Partial<Record<DisputeNegotiationStatus, string
         [DisputeNegotiationStatus.EXPIRED]: 'badge-neutral'
 }
 
+const ADMIN_JOIN_WAIT_MS = 5 * 24 * 60 * 60 * 1000
+
+const hasAdminJoinWindowElapsed = (createdAt?: string | null) => {
+        if (!createdAt) return true
+        const createdAtDate = new Date(createdAt)
+        if (Number.isNaN(createdAtDate.getTime())) return true
+        return Date.now() - createdAtDate.getTime() >= ADMIN_JOIN_WAIT_MS
+}
+
 const formatDateTime = (value?: string | null) => {
-	if (!value) return '—'
-	const date = new Date(value)
-	if (Number.isNaN(date.getTime())) return value
-	return date.toLocaleString()
+        if (!value) return '—'
+        const date = new Date(value)
+        if (Number.isNaN(date.getTime())) return value
+        return date.toLocaleString()
 }
 
 const humanizeStatus = (status?: DisputeStatus | null) =>
@@ -391,7 +400,9 @@ export default function AdminDisputeListPage() {
         const detailMilestoneStatus = detailMilestoneSummary?.status ?? detailEscrow?.milestone?.status ?? null
         const detailMilestoneStart = detailMilestoneSummary?.startAt ?? detailEscrow?.milestone?.startAt ?? null
         const detailMilestoneEnd = detailMilestoneSummary?.endAt ?? detailEscrow?.milestone?.endAt ?? null
-        const detailJoinDisabled = detailHasJoined || joinMutation.isPending
+        const detailCanJoin = hasAdminJoinWindowElapsed(detailOpenedAt)
+        const detailShowJoin = detailHasJoined || detailCanJoin
+        const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
         const detailEscrowContract = detailEscrow?.milestone?.contract ?? null
         const detailClientId =
                 detailClient?.id ??
@@ -657,7 +668,10 @@ export default function AdminDisputeListPage() {
                                                                         : hasAdminJoinedFlag
                                                                                 ? 'Đã tham gia'
                                                                                 : 'Chưa tham gia'
-								const joinDisabled = hasAdminJoinedFlag || joinMutation.isPending
+                                                                const canAdminJoin = hasAdminJoinWindowElapsed(createdAt)
+                                                                const showJoinButton = hasAdminJoinedFlag || canAdminJoin
+                                                                const joinDisabled =
+                                                                        hasAdminJoinedFlag || joinMutation.isPending || !canAdminJoin
 
                                                                 const createdAt = item.createdAt ?? baseDispute?.createdAt ?? null
                                                                 const updatedAt = item.updatedAt ?? baseDispute?.updatedAt ?? null
@@ -715,16 +729,18 @@ export default function AdminDisputeListPage() {
                                                                                                 </div>
                                                                                         </div>
                                                                                         <div className='flex flex-wrap items-center gap-2'>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-sm btn-outline'
-                                                                                                        disabled={joinDisabled}
-                                                                                                        onClick={() => {
-                                                                                                                setJoinTarget(item)
-                                                                                                                setJoinReason('')
-                                                                                                        }}>
-                                                                                                        {hasAdminJoinedFlag ? 'Đã tham gia' : 'Tham gia'}
-                                                                                                </button>
+                                                                                                {showJoinButton ? (
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                className='btn btn-sm btn-outline'
+                                                                                                                disabled={joinDisabled}
+                                                                                                                onClick={() => {
+                                                                                                                        setJoinTarget(item)
+                                                                                                                        setJoinReason('')
+                                                                                                                }}>
+                                                                                                                {hasAdminJoinedFlag ? 'Đã tham gia' : 'Tham gia'}
+                                                                                                        </button>
+                                                                                                ) : null}
                                                                                                 <button
                                                                                                         type='button'
                                                                                                         className='btn btn-sm btn-primary'
@@ -879,19 +895,21 @@ export default function AdminDisputeListPage() {
                                                                         </div>
                                                                 </div>
                                                                 <div className='flex flex-wrap items-center gap-2'>
-                                                                        <button
-                                                                                type='button'
-                                                                                className='btn btn-sm btn-outline'
-                                                                                disabled={detailJoinDisabled}
-                                                                                onClick={() => {
-                                                                                        if (!detailJoinDisabled && detailTarget) {
-                                                                                                setDetailTarget(null)
-                                                                                                setJoinTarget(detailTarget)
-                                                                                                setJoinReason('')
-                                                                                        }
-                                                                                }}>
-                                                                                {detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
-                                                                        </button>
+                                                                        {detailShowJoin ? (
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-sm btn-outline'
+                                                                                        disabled={detailJoinDisabled}
+                                                                                        onClick={() => {
+                                                                                                if (!detailJoinDisabled && detailTarget) {
+                                                                                                        setDetailTarget(null)
+                                                                                                        setJoinTarget(detailTarget)
+                                                                                                        setJoinReason('')
+                                                                                                }
+                                                                                        }}>
+                                                                                        {detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
+                                                                                </button>
+                                                                        ) : null}
                                                                         <button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
                                                                                 Đóng
                                                                         </button>
