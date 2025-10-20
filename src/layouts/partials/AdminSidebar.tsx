@@ -1,20 +1,21 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-	LayoutDashboard,
-	FolderKanban,
-	ListChecks,
-	CalendarDays,
-	BadgeDollarSign,
-	ReceiptText,
-	PanelLeftOpen,
-	Settings,
-	ChevronDown,
-	Boxes,
-	Tags,
-	Hammer,
-	Network
+        LayoutDashboard,
+        FolderKanban,
+        ListChecks,
+        CalendarDays,
+        BadgeDollarSign,
+        ReceiptText,
+        PanelLeftOpen,
+        Settings,
+        ChevronDown,
+        Boxes,
+        Tags,
+        Hammer,
+        Network
 } from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
+import { routes } from '~/config/routes'
 
 type Item = {
 	label: string
@@ -28,7 +29,7 @@ const NAV: Item[] = [
 	{ label: 'Manage projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },
 	{ label: 'Manage task', to: '/admin/tasks', icon: <ListChecks size={18} /> },
 	{ label: 'Manage meetings', to: '/admin/meetings', icon: <CalendarDays size={18} /> },
-	{ label: 'Disputes', to: '/admin/disputes', icon: <BadgeDollarSign size={18} /> },
+        { label: 'Disputes', to: routes.admin.dispute.list, icon: <BadgeDollarSign size={18} /> },
 	{ label: 'Invoices', to: '/admin/invoices', icon: <ReceiptText size={18} /> },
 	{
 		label: 'Taxonomy',

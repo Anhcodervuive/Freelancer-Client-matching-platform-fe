@@ -70,12 +70,15 @@ export const routes = {
 			}
 		}
 	},
-	admin: {
-		category: {
-			list: '/admin/categories',
-			categorySpecialties: (id: string = 'id') => `/admin/categories/${id}/specialties`,
-			categorySkills: (id: string = 'id') => `/admin/categories/${id}/skills`
-		},
+        admin: {
+                dispute: {
+                        list: '/admin/disputes'
+                },
+                category: {
+                        list: '/admin/categories',
+                        categorySpecialties: (id: string = 'id') => `/admin/categories/${id}/specialties`,
+                        categorySkills: (id: string = 'id') => `/admin/categories/${id}/skills`
+                },
 		specialty: {
 			list: '/admin/specialties',
 			specialtySkills: (id: string = 'id') => `/admin/specialties/${id}/skills`

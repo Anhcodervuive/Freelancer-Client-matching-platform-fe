@@ -137,3 +137,35 @@ export type MilestoneDisputeSummary = {
         disputableCents?: DecimalLike | null
         [key: string]: unknown
 }
+
+export type AdminDisputeListFilters = {
+        page?: number
+        limit?: number
+        status?: DisputeStatus[]
+        needsAdmin?: boolean
+        contractId?: string
+        clientId?: string
+        freelancerId?: string
+        search?: string
+        createdFrom?: string
+        createdTo?: string
+}
+
+export type AdminDisputeListItem = {
+        id: string
+        status?: DisputeStatus | null
+        dispute?: Dispute | null
+        contract?: DisputeContractSummary | null
+        milestone?: DisputeMilestoneSummary | null
+        client?: DisputeUserSummary | null
+        freelancer?: DisputeUserSummary | null
+        needsAdmin?: boolean | null
+        joined?: boolean | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        [key: string]: unknown
+}
+
+export type AdminJoinDisputeInput = {
+        reason?: string
+}
