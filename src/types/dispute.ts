@@ -138,6 +138,34 @@ export type MilestoneDisputeSummary = {
         [key: string]: unknown
 }
 
+export type AdminDisputeParties = {
+        client?: DisputeUserSummary | null
+        freelancer?: DisputeUserSummary | null
+        [key: string]: unknown
+} | null
+
+export type AdminDisputeAmounts = {
+        currency?: string | null
+        funded?: DecimalLike | null
+        released?: DecimalLike | null
+        refunded?: DecimalLike | null
+        disputable?: DecimalLike | null
+        proposedRelease?: DecimalLike | null
+        proposedRefund?: DecimalLike | null
+        [key: string]: unknown
+} | null
+
+export type AdminDisputeMetrics = {
+        needsAdmin?: boolean | null
+        hasAdminJoined?: boolean | null
+        isResponseOverdue?: boolean | null
+        negotiationCount?: number | null
+        lastProposalCreatedAt?: string | null
+        lastProposalRespondedAt?: string | null
+        lastAdminJoinedAt?: string | null
+        [key: string]: unknown
+} | null
+
 export type AdminDisputeListFilters = {
         page?: number
         limit?: number
@@ -159,8 +187,12 @@ export type AdminDisputeListItem = {
         milestone?: DisputeMilestoneSummary | null
         client?: DisputeUserSummary | null
         freelancer?: DisputeUserSummary | null
+        parties?: AdminDisputeParties
+        amounts?: AdminDisputeAmounts
+        metrics?: AdminDisputeMetrics
         needsAdmin?: boolean | null
         joined?: boolean | null
+        admin?: DisputeUserSummary | null
         createdAt?: string | null
         updatedAt?: string | null
         [key: string]: unknown

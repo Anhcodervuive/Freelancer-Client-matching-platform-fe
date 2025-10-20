@@ -1,7 +1,10 @@
 import type { ListResponse } from '~/types/api.response'
 import type {
+        AdminDisputeAmounts,
         AdminDisputeListFilters,
         AdminDisputeListItem,
+        AdminDisputeMetrics,
+        AdminDisputeParties,
         AdminJoinDisputeInput,
         Dispute,
         DisputeContractSummary,
@@ -38,8 +41,191 @@ const looksLikeContractSummary = (value: unknown): value is DisputeContractSumma
 const looksLikeMilestoneSummary = (value: unknown): value is DisputeMilestoneSummary =>
         Boolean(value && typeof value === 'object' && typeof (value as Record<string, unknown>).id === 'string')
 
-const looksLikeUserSummary = (value: unknown): value is DisputeUserSummary =>
-        Boolean(value && typeof value === 'object' && typeof (value as Record<string, unknown>).id === 'string')
+const normalizeUserSummary = (value: unknown): DisputeUserSummary | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const id =
+                pickString(record, ['id', 'userId', 'user_id']) ??
+                (typeof record.accountId === 'string' ? record.accountId : undefined)
+
+        if (!id) {
+                return null
+        }
+
+        const normalized: DisputeUserSummary = { id }
+
+        if (typeof record.firstName === 'string') {
+                normalized.firstName = record.firstName
+        }
+
+        if (typeof record.lastName === 'string') {
+                normalized.lastName = record.lastName
+        }
+
+        if (typeof record.avatar === 'string') {
+                normalized.avatar = record.avatar
+        }
+
+        if (record.profile && typeof record.profile === 'object') {
+                normalized.profile = record.profile as DisputeUserSummary['profile']
+        }
+
+        if (typeof record.role === 'string') {
+                normalized.role = record.role as DisputeUserSummary['role']
+        }
+
+        if (typeof record.email === 'string') {
+                ;(normalized as Record<string, unknown>).email = record.email
+        }
+
+        const displayName =
+                (typeof record.displayName === 'string' && record.displayName.trim()) ||
+                (typeof record.name === 'string' && record.name.trim()) ||
+                undefined
+
+        if (displayName) {
+                ;(normalized as Record<string, unknown>).displayName = displayName
+        }
+
+        return normalized
+}
+
+const normalizeParties = (value: unknown): AdminDisputeParties => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const client = normalizeUserSummary(record.client)
+        const freelancer = normalizeUserSummary(record.freelancer)
+
+        if (!client && !freelancer) {
+                return null
+        }
+
+        return {
+                client: client ?? null,
+                freelancer: freelancer ?? null
+        }
+}
+
+const pickDecimal = (container: Record<string, unknown>, keys: string[]) => {
+        for (const key of keys) {
+                const value = container[key]
+                if (typeof value === 'number' || (typeof value === 'string' && value !== '')) {
+                        return value
+                }
+        }
+        return undefined
+}
+
+const normalizeAmounts = (value: unknown, dispute?: Dispute | null): AdminDisputeAmounts => {
+        const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined
+        const normalized: Partial<NonNullable<AdminDisputeAmounts>> = {}
+
+        if (record) {
+                const currency = pickString(record, ['currency', 'currencyCode'])
+                if (currency) {
+                        normalized.currency = currency
+                }
+
+                const funded = pickDecimal(record, ['funded', 'fundedAmount', 'funded_amount'])
+                if (funded !== undefined) {
+                        normalized.funded = funded
+                }
+
+                const released = pickDecimal(record, ['released', 'releasedAmount', 'released_amount'])
+                if (released !== undefined) {
+                        normalized.released = released
+                }
+
+                const refunded = pickDecimal(record, ['refunded', 'refundedAmount', 'refunded_amount'])
+                if (refunded !== undefined) {
+                        normalized.refunded = refunded
+                }
+
+                const disputable = pickDecimal(record, ['disputable', 'disputableAmount', 'disputable_amount'])
+                if (disputable !== undefined) {
+                        normalized.disputable = disputable
+                }
+
+                const proposedRelease = pickDecimal(record, ['proposedRelease', 'releaseAmount', 'proposed_release'])
+                if (proposedRelease !== undefined) {
+                        normalized.proposedRelease = proposedRelease
+                }
+
+                const proposedRefund = pickDecimal(record, ['proposedRefund', 'refundAmount', 'proposed_refund'])
+                if (proposedRefund !== undefined) {
+                        normalized.proposedRefund = proposedRefund
+                }
+        }
+
+        if (dispute) {
+                if (normalized.proposedRelease === undefined && dispute.proposedRelease != null) {
+                        normalized.proposedRelease = dispute.proposedRelease
+                }
+
+                if (normalized.proposedRefund === undefined && dispute.proposedRefund != null) {
+                        normalized.proposedRefund = dispute.proposedRefund
+                }
+        }
+
+        return Object.keys(normalized).length ? (normalized as AdminDisputeAmounts) : null
+}
+
+const normalizeMetrics = (value: unknown): AdminDisputeMetrics => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const normalized: Partial<NonNullable<AdminDisputeMetrics>> = {}
+
+        const needsAdmin = parseBoolean(record.needsAdmin)
+        if (needsAdmin !== undefined) {
+                        normalized.needsAdmin = needsAdmin
+        }
+
+        const hasAdminJoined = parseBoolean(record.hasAdminJoined)
+        if (hasAdminJoined !== undefined) {
+                normalized.hasAdminJoined = hasAdminJoined
+        }
+
+        const overdue = parseBoolean(record.isResponseOverdue)
+        if (overdue !== undefined) {
+                normalized.isResponseOverdue = overdue
+        }
+
+        const negotiationCount = record.negotiationCount
+        if (typeof negotiationCount === 'number') {
+                normalized.negotiationCount = negotiationCount
+        } else if (typeof negotiationCount === 'string' && negotiationCount.trim()) {
+                const parsed = Number(negotiationCount)
+                if (!Number.isNaN(parsed)) {
+                        normalized.negotiationCount = parsed
+                }
+        }
+
+        const lastProposalCreatedAt = pickString(record, ['lastProposalCreatedAt', 'last_proposal_created_at'])
+        if (lastProposalCreatedAt) {
+                normalized.lastProposalCreatedAt = lastProposalCreatedAt
+        }
+
+        const lastProposalRespondedAt = pickString(record, ['lastProposalRespondedAt', 'last_proposal_responded_at'])
+        if (lastProposalRespondedAt) {
+                normalized.lastProposalRespondedAt = lastProposalRespondedAt
+        }
+
+        const lastAdminJoinedAt = pickString(record, ['lastAdminJoinedAt', 'last_admin_joined_at'])
+        if (lastAdminJoinedAt) {
+                normalized.lastAdminJoinedAt = lastAdminJoinedAt
+        }
+
+        return Object.keys(normalized).length ? (normalized as AdminDisputeMetrics) : null
+}
 
 const pickString = (container: Record<string, unknown>, keys: string[]): string | undefined => {
         for (const key of keys) {
@@ -74,10 +260,10 @@ const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
         const milestone = looksLikeMilestoneSummary(record.milestone)
                 ? (record.milestone as DisputeMilestoneSummary)
                 : null
-        const client = looksLikeUserSummary(record.client) ? (record.client as DisputeUserSummary) : null
-        const freelancer = looksLikeUserSummary(record.freelancer)
-                ? (record.freelancer as DisputeUserSummary)
-                : null
+        const parties = normalizeParties(record.parties)
+        const client = normalizeUserSummary(record.client) ?? parties?.client ?? null
+        const freelancer = normalizeUserSummary(record.freelancer) ?? parties?.freelancer ?? null
+        const adminUser = normalizeUserSummary(record.admin)
 
         const id =
                 pickString(record, ['id', 'disputeId', 'dispute_id']) ??
@@ -111,6 +297,13 @@ const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
                 pickString(record, ['updatedAt', 'updated_at']) ??
                 (dispute?.updatedAt ? String(dispute.updatedAt) : undefined)
 
+        const amounts = normalizeAmounts(record.amounts, dispute)
+        const metrics = normalizeMetrics(record.metrics)
+
+        const normalizedNeedsAdmin =
+                metrics?.needsAdmin !== undefined ? metrics.needsAdmin : needsAdmin
+        const normalizedJoined = metrics?.hasAdminJoined !== undefined ? metrics.hasAdminJoined : joined
+
         return {
                 id,
                 status: status ?? dispute?.status ?? null,
@@ -119,8 +312,12 @@ const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
                 milestone,
                 client,
                 freelancer,
-                needsAdmin: needsAdmin ?? null,
-                joined: joined ?? null,
+                parties,
+                amounts,
+                metrics,
+                needsAdmin: normalizedNeedsAdmin ?? null,
+                joined: normalizedJoined ?? null,
+                admin: adminUser,
                 createdAt: createdAt ?? (dispute?.createdAt ?? null),
                 updatedAt: updatedAt ?? (dispute?.updatedAt ?? null)
         }
