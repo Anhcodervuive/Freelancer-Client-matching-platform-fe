@@ -166,6 +166,68 @@ export type AdminDisputeMetrics = {
         [key: string]: unknown
 } | null
 
+export type AdminDisputeEscrowContract = {
+        id: string
+        title?: string | null
+        clientId?: string | null
+        freelancerId?: string | null
+        client?: Record<string, unknown> | null
+        freelancer?: Record<string, unknown> | null
+        [key: string]: unknown
+} | null
+
+export type AdminDisputeEscrowMilestone = {
+        id: string
+        title?: string | null
+        status?: string | null
+        amount?: DecimalLike | null
+        currency?: string | null
+        startAt?: string | null
+        endAt?: string | null
+        contractId?: string | null
+        contract?: AdminDisputeEscrowContract
+        [key: string]: unknown
+} | null
+
+export type AdminDisputeEscrow = {
+        id: string
+        status?: string | null
+        currency?: string | null
+        amountFunded?: DecimalLike | null
+        amountReleased?: DecimalLike | null
+        amountRefunded?: DecimalLike | null
+        milestone?: AdminDisputeEscrowMilestone
+        [key: string]: unknown
+} | null
+
+export type AdminDisputeChatAccessLog = {
+        id: string
+        threadId?: string | null
+        disputeId?: string | null
+        adminId?: string | null
+        action?: string | null
+        reason?: string | null
+        metadata?: Record<string, unknown> | null
+        createdAt?: string | null
+        admin?: DisputeUserSummary | null
+        [key: string]: unknown
+}
+
+export type AdminDisputeCounts = {
+        negotiations?: number | null
+        [key: string]: unknown
+} | null
+
+export type AdminDisputeDetail = {
+        id: string
+        dispute?: Dispute | null
+        escrow?: AdminDisputeEscrow
+        chatAccessLogs?: AdminDisputeChatAccessLog[] | null
+        negotiations?: DisputeNegotiation[] | null
+        counts?: AdminDisputeCounts
+        [key: string]: unknown
+}
+
 export type AdminDisputeListFilters = {
         page?: number
         limit?: number
