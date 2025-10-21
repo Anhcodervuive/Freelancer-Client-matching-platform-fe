@@ -17,12 +17,12 @@ export default function AdminLayout() {
 			</div>
 
 			{/* Sidebar */}
-			<div className='drawer-side'>
-				<label htmlFor='admin-drawer' aria-label='close sidebar' className='drawer-overlay' />
-				<aside className='w-72 bg-base-100 border-r border-base-200'>
-					<AdminSidebar />
-				</aside>
-			</div>
+                        <div className='drawer-side'>
+                                <label htmlFor='admin-drawer' aria-label='close sidebar' className='drawer-overlay' />
+                                <aside className='bg-base-100 border-r border-base-200'>
+                                        <AdminSidebar />
+                                </aside>
+                        </div>
 		</div>
 	)
 }
