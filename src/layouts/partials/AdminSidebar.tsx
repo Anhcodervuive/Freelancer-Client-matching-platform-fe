@@ -147,7 +147,13 @@ function Collapsible({ item, collapsed }: { item: Item; collapsed: boolean }) {
 }
 
 export default function AdminSidebar() {
-        const [collapsed, setCollapsed] = useState(false)
+        const { pathname } = useLocation()
+        const shouldCollapseForChat = pathname.startsWith(routes.admin.messages)
+        const [collapsed, setCollapsed] = useState(shouldCollapseForChat)
+
+        useEffect(() => {
+                setCollapsed(shouldCollapseForChat)
+        }, [shouldCollapseForChat])
 
         return (
                 <div

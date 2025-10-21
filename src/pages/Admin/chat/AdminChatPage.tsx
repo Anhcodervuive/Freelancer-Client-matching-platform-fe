@@ -51,8 +51,8 @@ export default function AdminChatPage() {
         const threadIdParam = searchParams.get('threadId') ?? undefined
         const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(threadIdParam ?? undefined)
         const [searchTerm, setSearchTerm] = useState('')
-        const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-        const [isInsightsCollapsed, setIsInsightsCollapsed] = useState(false)
+        const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
+        const [isInsightsCollapsed, setIsInsightsCollapsed] = useState(true)
 
         const activeThread = useMemo<chatThread | undefined>(() => {
                 const active = threadChatsRes?.data.find(thread => thread.id === selectedThreadId)
