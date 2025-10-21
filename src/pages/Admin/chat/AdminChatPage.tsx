@@ -5,6 +5,7 @@ import ChatComposer from '~/components/chat/ChatComposer'
 import JobChatSidebar from '~/components/chat/JobChatSidebar'
 import JobChatHeader from '~/components/chat/JobChatHeader'
 import ChatLoadingState from '~/components/chat/ChatLoadingState'
+import AdminThreadInsightsPanel from '~/components/chat/AdminThreadInsightsPanel'
 import useThreadChats from '~/hooks/chat/useThreadChats'
 import type { chatThread } from '~/types/chat'
 import { uploadDirect } from '~/utils/directUploader'
@@ -51,6 +52,7 @@ export default function AdminChatPage() {
         const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(threadIdParam ?? undefined)
         const [searchTerm, setSearchTerm] = useState('')
         const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+        const [isInsightsCollapsed, setIsInsightsCollapsed] = useState(false)
 
         const activeThread = useMemo<chatThread | undefined>(() => {
                 const active = threadChatsRes?.data.find(thread => thread.id === selectedThreadId)
@@ -140,23 +142,22 @@ export default function AdminChatPage() {
 
         const threads = threadChatsRes?.data ?? []
         const sidebarWidthClass = isSidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-[280px] 2xl:w-[320px]'
+        const insightsWidthClass = isInsightsCollapsed ? 'w-full lg:w-16' : 'w-full lg:w-[320px] 2xl:w-[360px]'
 
         return (
-                <div className='flex flex-col gap-4 lg:flex-row'>
-                        <div className={`transition-[width] duration-300 ease-in-out ${sidebarWidthClass}`}>
-                                <div className='h-full rounded-3xl border border-base-200 bg-base-100 shadow-lg'>
-                                        <JobChatSidebar
-                                                threads={threads}
-                                                selectedThreadId={selectedThreadId}
-                                                participantOnlineIds={participantOnlineIds}
-                                                onSelectThread={(id: string) => {
-                                                        setSelectedThreadId(id)
-                                                }}
-                                                searchTerm={searchTerm}
-                                                onSearchTermChange={setSearchTerm}
-                                                isCollapsed={isSidebarCollapsed}
-                                        />
-                                </div>
+                <div className='flex flex-col gap-4 lg:flex-row lg:items-start'>
+                        <div className={`h-full min-h-[360px] transition-[width] duration-300 ease-in-out ${sidebarWidthClass}`}>
+                                <JobChatSidebar
+                                        threads={threads}
+                                        selectedThreadId={selectedThreadId}
+                                        participantOnlineIds={participantOnlineIds}
+                                        onSelectThread={(id: string) => {
+                                                setSelectedThreadId(id)
+                                        }}
+                                        searchTerm={searchTerm}
+                                        onSearchTermChange={setSearchTerm}
+                                        isCollapsed={isSidebarCollapsed}
+                                />
                         </div>
 
                         <section className='flex min-h-[600px] flex-1 flex-col gap-4 rounded-3xl border border-base-200 bg-base-100 p-4 shadow-lg'>
@@ -226,6 +227,14 @@ export default function AdminChatPage() {
                                         </div>
                                 )}
                         </section>
+
+                        <div className={`h-full min-h-[360px] transition-[width] duration-300 ease-in-out ${insightsWidthClass}`}>
+                                <AdminThreadInsightsPanel
+                                        thread={activeThread}
+                                        isCollapsed={isInsightsCollapsed}
+                                        onToggleCollapse={() => setIsInsightsCollapsed(previous => !previous)}
+                                />
+                        </div>
                 </div>
         )
 }
