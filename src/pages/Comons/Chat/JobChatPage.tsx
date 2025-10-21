@@ -163,28 +163,28 @@ const renderMessagePlaceholder = (items: number) =>
 	))
 
 export default function JobChatPage() {
-        const {
-                threadChats: threadChatsRes,
-                isLoadingThreadChats,
-                threadChatError,
-                participantOnlineIds,
-                joinChat,
-                typingMessage,
-                joinThreadRes,
-                typingUserList,
-                sendMessage,
-                isSendingMessage,
-                messageListQuery
-        } = useThreadChats({
-                limit: 10,
-                page: 1,
-                search: undefined,
-                includeLastMessage: true,
-                includeParticipants: true
-        })
-        const [searchParams, setSearchParams] = useSearchParams()
-        const threadIdParam = searchParams.get('threadId') ?? undefined
-        const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(threadIdParam ?? undefined)
+	const {
+		threadChats: threadChatsRes,
+		isLoadingThreadChats,
+		threadChatError,
+		participantOnlineIds,
+		joinChat,
+		typingMessage,
+		joinThreadRes,
+		typingUserList,
+		sendMessage,
+		isSendingMessage,
+		messageListQuery
+	} = useThreadChats({
+		limit: 10,
+		page: 1,
+		search: undefined,
+		includeLastMessage: true,
+		includeParticipants: true
+	})
+	const [searchParams, setSearchParams] = useSearchParams()
+	const threadIdParam = searchParams.get('threadId') ?? undefined
+	const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(threadIdParam ?? undefined)
 	const [searchTerm, setSearchTerm] = useState('')
 	const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false)
 
@@ -198,54 +198,60 @@ export default function JobChatPage() {
 		return undefined
 	}, [selectedThreadId, threadChatsRes?.data])
 
-        useEffect(() => {
-                const threads = threadChatsRes?.data ?? []
+	useEffect(() => {
+		const threads = threadChatsRes?.data ?? []
 
-                if (!threads.length) {
-                        setSelectedThreadId(undefined)
-                        return
-                }
+		if (!threads.length) {
+			setSelectedThreadId(undefined)
+			return
+		}
 
-                if (threadIdParam && threads.some(thread => thread.id === threadIdParam)) {
-                        setSelectedThreadId(prev => (prev === threadIdParam ? prev : threadIdParam))
-                        return
-                }
+		if (threadIdParam && threads.some(thread => thread.id === threadIdParam)) {
+			setSelectedThreadId(prev => (prev === threadIdParam ? prev : threadIdParam))
+			return
+		}
 
-                setSelectedThreadId(prev => {
-                        if (prev && threads.some(thread => thread.id === prev)) {
-                                return prev
-                        }
-                        return threads[0]?.id
-                })
-        }, [threadChatsRes?.data, threadIdParam])
+		setSelectedThreadId(prev => {
+			if (prev && threads.some(thread => thread.id === prev)) {
+				return prev
+			}
+			return threads[0]?.id
+		})
+	}, [threadChatsRes?.data, threadIdParam])
 
-        useEffect(() => {
-                if (!selectedThreadId) {
-                        if (threadIdParam) {
-                                setSearchParams(prev => {
-                                        const next = new URLSearchParams(prev)
-                                        next.delete('threadId')
-                                        return next
-                                }, { replace: true })
-                        }
-                        return
-                }
+	useEffect(() => {
+		if (!selectedThreadId) {
+			if (threadIdParam) {
+				setSearchParams(
+					prev => {
+						const next = new URLSearchParams(prev)
+						next.delete('threadId')
+						return next
+					},
+					{ replace: true }
+				)
+			}
+			return
+		}
 
-                if (threadIdParam === selectedThreadId) {
-                        return
-                }
+		if (threadIdParam === selectedThreadId) {
+			return
+		}
 
-                setSearchParams(prev => {
-                        const next = new URLSearchParams(prev)
-                        next.set('threadId', selectedThreadId)
-                        return next
-                }, { replace: true })
-        }, [selectedThreadId, threadIdParam, setSearchParams])
+		setSearchParams(
+			prev => {
+				const next = new URLSearchParams(prev)
+				next.set('threadId', selectedThreadId)
+				return next
+			},
+			{ replace: true }
+		)
+	}, [selectedThreadId, threadIdParam, setSearchParams])
 
-        useEffect(() => {
-                if (!selectedThreadId) return
-                joinChat({ threadId: selectedThreadId })
-        }, [joinChat, selectedThreadId])
+	useEffect(() => {
+		if (!selectedThreadId) return
+		joinChat({ threadId: selectedThreadId })
+	}, [joinChat, selectedThreadId])
 
 	const messages = useMemo<ChatMessage[]>(() => {
 		if (!activeThread) {
@@ -275,9 +281,9 @@ export default function JobChatPage() {
 		}
 	}
 
-        if (isLoadingThreadChats) {
-                return <ChatLoadingState showSummaryPanel />
-        }
+	if (isLoadingThreadChats) {
+		return <ChatLoadingState showSummaryPanel />
+	}
 
 	if (threadChatError) {
 		return <h1>Chat error</h1>
@@ -303,9 +309,9 @@ export default function JobChatPage() {
 				threads={threadChatsRes?.data}
 				selectedThreadId={activeThread.id}
 				participantOnlineIds={participantOnlineIds}
-                                onSelectThread={(selectedThreadId: string) => {
-                                        setSelectedThreadId(selectedThreadId)
-                                }}
+				onSelectThread={(selectedThreadId: string) => {
+					setSelectedThreadId(selectedThreadId)
+				}}
 				searchTerm={searchTerm}
 				onSearchTermChange={setSearchTerm}
 			/>
@@ -315,7 +321,7 @@ export default function JobChatPage() {
 				{!joinThreadRes || messageListQuery.isError || messageListQuery.isLoading || !messageListQuery.data ? (
 					renderMessagePlaceholder(4)
 				) : joinThreadRes.success ? (
-					<div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
+					<div className='flex flex-1 min-h-[90vh] flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-4 shadow-inner shadow-primary/5'>
 						<ChatMessageList
 							hasNextPage={messageListQuery.data.hasMore}
 							isFetchingNextPage={messageListQuery.isFetchingNextPage}
@@ -335,12 +341,12 @@ export default function JobChatPage() {
 				)}
 			</section>
 
-                        <JobSummaryPanel
-                                thread={activeThread}
-                                attachments={sharedAttachments}
-                                isCollapsed={isSummaryCollapsed}
-                                onToggleCollapse={() => setIsSummaryCollapsed(previous => !previous)}
-                        />
-                </div>
-        )
+			<JobSummaryPanel
+				thread={activeThread}
+				attachments={sharedAttachments}
+				isCollapsed={isSummaryCollapsed}
+				onToggleCollapse={() => setIsSummaryCollapsed(previous => !previous)}
+			/>
+		</div>
+	)
 }
