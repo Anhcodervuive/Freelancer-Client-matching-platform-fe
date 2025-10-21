@@ -35,6 +35,7 @@ export default function ChatComposer({ onSendMessage, onTyping, typingUserList, 
 			onSendMessage(message, files)
 			setMessage('')
 			setFiles([])
+			onTyping(false)
 		}
 	}
 
