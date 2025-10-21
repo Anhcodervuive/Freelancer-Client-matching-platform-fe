@@ -8,6 +8,7 @@ import ChatLoadingState from '~/components/chat/ChatLoadingState'
 import useThreadChats from '~/hooks/chat/useThreadChats'
 import type { chatThread } from '~/types/chat'
 import { uploadDirect } from '~/utils/directUploader'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const shimmerBaseClass =
         "relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:content-[''] before:pointer-events-none before:animate-[shimmer_1.6s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent"
@@ -49,6 +50,7 @@ export default function AdminChatPage() {
         const threadIdParam = searchParams.get('threadId') ?? undefined
         const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(threadIdParam ?? undefined)
         const [searchTerm, setSearchTerm] = useState('')
+        const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
         const activeThread = useMemo<chatThread | undefined>(() => {
                 const active = threadChatsRes?.data.find(thread => thread.id === selectedThreadId)
@@ -136,30 +138,47 @@ export default function AdminChatPage() {
                 return <h1>Chat error</h1>
         }
 
-        if (!activeThread) {
-                return (
-                        <div className='rounded-3xl border border-base-200 bg-base-100 p-10 text-center text-base-content/70 shadow-lg'>
-                                <p>No conversations available. Select a thread from the sidebar to begin monitoring.</p>
-                        </div>
-                )
-        }
+        const threads = threadChatsRes?.data ?? []
+        const sidebarWidthClass = isSidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-[280px] 2xl:w-[320px]'
 
         return (
-                <div className='grid gap-4 lg:grid-cols-[280px_minmax(0,_1fr)] 2xl:grid-cols-[320px_minmax(0,_1fr)]'>
-                        <aside className='rounded-3xl border border-base-200 bg-base-100 shadow-lg'>
-                                <JobChatSidebar
-                                        threads={threadChatsRes?.data}
-                                        selectedThreadId={activeThread.id}
-                                        participantOnlineIds={participantOnlineIds}
-                                        onSelectThread={(id: string) => {
-                                                setSelectedThreadId(id)
-                                        }}
-                                        searchTerm={searchTerm}
-                                        onSearchTermChange={setSearchTerm}
-                                />
-                        </aside>
+                <div className='flex flex-col gap-4 lg:flex-row'>
+                        <div className={`transition-[width] duration-300 ease-in-out ${sidebarWidthClass}`}>
+                                <div className='h-full rounded-3xl border border-base-200 bg-base-100 shadow-lg'>
+                                        <JobChatSidebar
+                                                threads={threads}
+                                                selectedThreadId={selectedThreadId}
+                                                participantOnlineIds={participantOnlineIds}
+                                                onSelectThread={(id: string) => {
+                                                        setSelectedThreadId(id)
+                                                }}
+                                                searchTerm={searchTerm}
+                                                onSearchTermChange={setSearchTerm}
+                                                isCollapsed={isSidebarCollapsed}
+                                        />
+                                </div>
+                        </div>
 
-                        <section className='flex min-h-[600px] flex-col gap-4 rounded-3xl border border-base-200 bg-base-100 p-4 shadow-lg'>
+                        <section className='flex min-h-[600px] flex-1 flex-col gap-4 rounded-3xl border border-base-200 bg-base-100 p-4 shadow-lg'>
+                                <div className='flex items-center justify-between'>
+                                        <button
+                                                type='button'
+                                                onClick={() => setIsSidebarCollapsed(previous => !previous)}
+                                                className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-base-200 bg-base-100 text-base-content/70 transition hover:bg-base-200/40'
+                                                aria-label={
+                                                        isSidebarCollapsed
+                                                                ? 'Mở rộng danh sách cuộc trò chuyện'
+                                                                : 'Thu gọn danh sách cuộc trò chuyện'
+                                                }
+                                        >
+                                                {isSidebarCollapsed ? (
+                                                        <ChevronRight className='size-4' />
+                                                ) : (
+                                                        <ChevronLeft className='size-4' />
+                                                )}
+                                        </button>
+                                </div>
+
                                 <div className='flex flex-col gap-2 rounded-2xl border border-base-200 bg-base-100/80 p-4 shadow-inner'>
                                         <div className='flex items-center justify-between gap-3'>
                                                 <h2 className='text-lg font-semibold text-base-content'>Admin conversation oversight</h2>
@@ -169,29 +188,42 @@ export default function AdminChatPage() {
                                                 This workspace reuses the freelancer-client chat tools so you can observe and join discussions.
                                         </p>
                                 </div>
-                                <JobChatHeader thread={activeThread} />
-                                {!joinThreadRes || messageListQuery.isError || messageListQuery.isLoading || !messageListQuery.data ? (
-                                        <div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100/80 p-4 shadow-inner'>
-                                                {renderMessagePlaceholder(4)}
-                                        </div>
-                                ) : joinThreadRes.success ? (
-                                        <div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100/80 p-4 shadow-inner'>
-                                                <ChatMessageList
-                                                        hasNextPage={messageListQuery.data.hasMore}
-                                                        isFetchingNextPage={messageListQuery.isFetchingNextPage}
-                                                        fetchNextPage={messageListQuery.fetchNextPage}
-                                                        messages={messageListQuery?.data?.items ?? []}
-                                                        jobTitle={activeThread.jobPost?.title ?? ''}
-                                                />
-                                                <ChatComposer
-                                                        onTyping={handleTypingMessage}
-                                                        typingUserList={typingUserList}
-                                                        onSendMessage={handleSendMessage}
-                                                        isSendingMessage={isSendingMessage}
-                                                />
+
+                                {activeThread ? (
+                                        <>
+                                                <JobChatHeader thread={activeThread} />
+                                                {!joinThreadRes || messageListQuery.isError || messageListQuery.isLoading || !messageListQuery.data ? (
+                                                        <div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100/80 p-4 shadow-inner'>
+                                                                {renderMessagePlaceholder(4)}
+                                                        </div>
+                                                ) : joinThreadRes.success ? (
+                                                        <div className='flex flex-1 min-h-0 flex-col overflow-hidden rounded-3xl border border-base-200 bg-base-100/80 p-4 shadow-inner'>
+                                                                <ChatMessageList
+                                                                        hasNextPage={messageListQuery.data.hasMore}
+                                                                        isFetchingNextPage={messageListQuery.isFetchingNextPage}
+                                                                        fetchNextPage={messageListQuery.fetchNextPage}
+                                                                        messages={messageListQuery?.data?.items ?? []}
+                                                                        jobTitle={activeThread.jobPost?.title ?? ''}
+                                                                />
+                                                                <ChatComposer
+                                                                        onTyping={handleTypingMessage}
+                                                                        typingUserList={typingUserList}
+                                                                        onSendMessage={handleSendMessage}
+                                                                        isSendingMessage={isSendingMessage}
+                                                                />
+                                                        </div>
+                                                ) : (
+                                                        <div className='rounded-3xl border border-error/30 bg-error/10 p-6 text-sm text-error'>Có lỗi xảy ra</div>
+                                                )}
+                                        </>
+                                ) : threads.length > 0 ? (
+                                        <div className='flex flex-1 min-h-0 flex-col items-center justify-center rounded-3xl border border-dashed border-base-300 bg-base-100/60 p-6 text-center text-sm text-base-content/70'>
+                                                <p>Chọn một cuộc trò chuyện từ thanh bên để bắt đầu theo dõi.</p>
                                         </div>
                                 ) : (
-                                        <div className='rounded-3xl border border-error/30 bg-error/10 p-6 text-sm text-error'>Có lỗi xảy ra</div>
+                                        <div className='flex flex-1 min-h-0 flex-col items-center justify-center rounded-3xl border border-base-200 bg-base-100/80 p-6 text-center text-sm text-base-content/70'>
+                                                <p>Không có cuộc trò chuyện nào để hiển thị.</p>
+                                        </div>
                                 )}
                         </section>
                 </div>
