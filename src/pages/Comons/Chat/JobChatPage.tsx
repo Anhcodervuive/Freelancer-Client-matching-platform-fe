@@ -6,82 +6,10 @@ import JobChatSidebar from '~/components/chat/JobChatSidebar'
 import JobSummaryPanel from '~/components/chat/JobSummaryPanel'
 import JobChatHeader from '~/components/chat/JobChatHeader'
 import ChatLoadingState from '~/components/chat/ChatLoadingState'
-import type { ChatAttachment, ChatMessage, JobMilestone } from '~/components/chat/types'
+import type { ChatAttachment, ChatMessage } from '~/components/chat/types'
 import useThreadChats from '~/hooks/chat/useThreadChats'
 import type { chatThread } from '~/types/chat'
 import { uploadDirect } from '~/utils/directUploader'
-
-const milestonesByThread: Record<string, JobMilestone[]> = {
-	'thread-1': [
-		{
-			id: 'ms-1',
-			title: 'Research & wireframes',
-			dueDate: '2024-09-20T17:00:00Z',
-			amount: '$900',
-			status: 'completed'
-		},
-		{
-			id: 'ms-2',
-			title: 'High-fidelity desktop designs',
-			dueDate: '2024-09-27T17:00:00Z',
-			amount: '$1,400',
-			status: 'inReview'
-		},
-		{
-			id: 'ms-3',
-			title: 'Mobile responsive screens',
-			dueDate: '2024-10-03T17:00:00Z',
-			amount: '$900',
-			status: 'upcoming'
-		}
-	],
-	'thread-2': [
-		{
-			id: 'ms-4',
-			title: 'Smoke test checklist',
-			dueDate: '2024-09-19T09:00:00Z',
-			amount: '$250',
-			status: 'completed'
-		},
-		{
-			id: 'ms-5',
-			title: 'Regression cycle',
-			dueDate: '2024-09-25T09:00:00Z',
-			amount: '$400',
-			status: 'inReview'
-		},
-		{
-			id: 'ms-6',
-			title: 'Beta testing report',
-			dueDate: '2024-10-02T09:00:00Z',
-			amount: '$400',
-			status: 'upcoming'
-		}
-	],
-	'thread-3': [
-		{
-			id: 'ms-7',
-			title: 'Analytics audit',
-			dueDate: '2024-09-22T12:00:00Z',
-			amount: '$250',
-			status: 'upcoming'
-		},
-		{
-			id: 'ms-8',
-			title: 'Speed optimisation fixes',
-			dueDate: '2024-09-29T12:00:00Z',
-			amount: '$300',
-			status: 'upcoming'
-		},
-		{
-			id: 'ms-9',
-			title: 'Conversion improvements',
-			dueDate: '2024-10-06T12:00:00Z',
-			amount: '$200',
-			status: 'upcoming'
-		}
-	]
-}
 
 const messagesByThread: Record<string, ChatMessage[]> = {
 	'thread-1': [
@@ -347,16 +275,9 @@ export default function JobChatPage() {
 		}
 	}
 
-	const milestones = useMemo<JobMilestone[]>(() => {
-		if (!activeThread) {
-			return []
-		}
-		return milestonesByThread[activeThread.id] ?? []
-	}, [activeThread])
-
-	if (isLoadingThreadChats) {
-		return <ChatLoadingState showSummaryPanel />
-	}
+        if (isLoadingThreadChats) {
+                return <ChatLoadingState showSummaryPanel />
+        }
 
 	if (threadChatError) {
 		return <h1>Chat error</h1>
@@ -414,13 +335,12 @@ export default function JobChatPage() {
 				)}
 			</section>
 
-			<JobSummaryPanel
-				thread={activeThread}
-				milestones={milestones}
-				attachments={sharedAttachments}
-				isCollapsed={isSummaryCollapsed}
-				onToggleCollapse={() => setIsSummaryCollapsed(previous => !previous)}
-			/>
-		</div>
-	)
+                        <JobSummaryPanel
+                                thread={activeThread}
+                                attachments={sharedAttachments}
+                                isCollapsed={isSummaryCollapsed}
+                                onToggleCollapse={() => setIsSummaryCollapsed(previous => !previous)}
+                        />
+                </div>
+        )
 }

@@ -43,6 +43,7 @@ import SkillsAdminPage from './pages/Admin/skill/List'
 import CategorySkillsPage from './pages/Admin/category/CategorySkillsPage'
 import SpecialtySkillsPage from './pages/Admin/specialty/SpecialtySkillPage'
 import AdminDisputeListPage from './pages/Admin/dispute/List'
+import AdminChatPage from './pages/Admin/chat/AdminChatPage'
 import OnboardingWizard from './pages/onBoarding/OnboardingWizard'
 import PolicyLayout from './layouts/PolicyLayout'
 import ConnectAccountPolicyPage from './pages/Comons/policies/ConnectAccountPolicyPage'
@@ -256,7 +257,11 @@ const router = createBrowserRouter([
 		loader: composeLoaders(checkAuthenticatedUser, isAdminUser),
 		element: <AdminLayout />,
 		children: [
-                        { 
+                        {
+                                path: 'messages',
+                                element: <AdminChatPage />
+                        },
+                        {
                                 path: 'projects',
                                 element: <AdminProjects />
                         },

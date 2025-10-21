@@ -71,6 +71,7 @@ export const routes = {
 		}
 	},
         admin: {
+                messages: '/admin/messages',
                 dispute: {
                         list: '/admin/disputes'
                 },

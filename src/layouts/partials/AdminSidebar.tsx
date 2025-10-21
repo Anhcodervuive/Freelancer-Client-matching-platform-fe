@@ -12,7 +12,8 @@ import {
         Boxes,
         Tags,
         Hammer,
-        Network
+        Network,
+        MessageSquare
 } from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
 import { routes } from '~/config/routes'
@@ -25,7 +26,8 @@ type Item = {
 }
 
 const NAV: Item[] = [
-	{ label: 'Insights', to: '/admin', icon: <LayoutDashboard size={18} /> },
+        { label: 'Insights', to: '/admin', icon: <LayoutDashboard size={18} /> },
+        { label: 'Messages', to: routes.admin.messages, icon: <MessageSquare size={18} /> },
 	{ label: 'Manage projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },
 	{ label: 'Manage task', to: '/admin/tasks', icon: <ListChecks size={18} /> },
 	{ label: 'Manage meetings', to: '/admin/meetings', icon: <CalendarDays size={18} /> },
