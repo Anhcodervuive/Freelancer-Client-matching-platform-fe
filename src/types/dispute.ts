@@ -2,15 +2,17 @@ import type { Contract, ContractMilestone } from '~/types/contract'
 import type { Role } from '~/types/user'
 
 export enum DisputeStatus {
-        OPEN = 'OPEN',
-        NEGOTIATION = 'NEGOTIATION',
-        AWAITING_ARBITRATION_FEES = 'AWAITING_ARBITRATION_FEES',
-        ARBITRATION = 'ARBITRATION',
-        RESOLVED_RELEASE_ALL = 'RESOLVED_RELEASE_ALL',
-        RESOLVED_REFUND_ALL = 'RESOLVED_REFUND_ALL',
-        RESOLVED_SPLIT = 'RESOLVED_SPLIT',
-        CANCELED = 'CANCELED',
-        EXPIRED = 'EXPIRED'
+OPEN = 'OPEN',
+NEGOTIATION = 'NEGOTIATION',
+INTERNAL_MEDIATION = 'INTERNAL_MEDIATION',
+AWAITING_ARBITRATION_FEES = 'AWAITING_ARBITRATION_FEES',
+ARBITRATION_READY = 'ARBITRATION_READY',
+ARBITRATION = 'ARBITRATION',
+RESOLVED_RELEASE_ALL = 'RESOLVED_RELEASE_ALL',
+RESOLVED_REFUND_ALL = 'RESOLVED_REFUND_ALL',
+RESOLVED_SPLIT = 'RESOLVED_SPLIT',
+CANCELED = 'CANCELED',
+EXPIRED = 'EXPIRED'
 }
 
 export enum DisputeNegotiationStatus {
@@ -62,12 +64,33 @@ export type DisputeNegotiation = {
         [key: string]: unknown
 }
 
+export type DisputePayment = {
+        id: string
+        disputeId?: string | null
+        payerId?: string | null
+        payer?: DisputeUserSummary | null
+        amount?: DecimalLike | null
+        currency?: string | null
+        status?: string | null
+        paymentMethodRefId?: string | null
+        paymentMethodType?: string | null
+        paymentMethodBrand?: string | null
+        reference?: string | null
+        description?: string | null
+        metadata?: Record<string, unknown> | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        [key: string]: unknown
+}
+
 export type Dispute = {
         id: string
         escrowId: string
         openedById: string
         status: DisputeStatus
         latestProposalId?: string | null
+        lockedAt?: string | null
+        lockedById?: string | null
         proposedRelease: DecimalLike | null
         proposedRefund: DecimalLike | null
         arbFeePerParty?: DecimalLike | null
@@ -75,6 +98,7 @@ export type Dispute = {
         freelancerArbFeePaid?: boolean
         responseDeadline?: string | null
         arbitrationDeadline?: string | null
+        currentDossierVersion?: number | null
         decidedRelease?: DecimalLike | null
         decidedRefund?: DecimalLike | null
         decidedById?: string | null
@@ -82,8 +106,10 @@ export type Dispute = {
         createdAt?: string | null
         updatedAt?: string | null
         openedBy?: DisputeUserSummary | null
+        lockedBy?: DisputeUserSummary | null
         latestProposal?: DisputeNegotiation | null
         negotiations?: DisputeNegotiation[] | null
+        arbitrationFeePayments?: DisputePayment[] | null
         [key: string]: unknown
 }
 
@@ -219,9 +245,9 @@ export type AdminDisputeCounts = {
 } | null
 
 export type AdminDisputeDetail = {
-        id: string
-        dispute?: Dispute | null
-        escrow?: AdminDisputeEscrow
+id: string
+dispute?: Dispute | null
+escrow?: AdminDisputeEscrow
         chatAccessLogs?: AdminDisputeChatAccessLog[] | null
         negotiations?: DisputeNegotiation[] | null
         counts?: AdminDisputeCounts
@@ -262,4 +288,13 @@ export type AdminDisputeListItem = {
 
 export type AdminJoinDisputeInput = {
         reason?: string
+}
+
+export type ConfirmArbitrationFeeInput = {
+        paymentMethodRefId: string
+        identityPaymentKey?: string
+}
+
+export type AdminRequestArbitrationFeesInput = {
+        deadlineDays?: number
 }

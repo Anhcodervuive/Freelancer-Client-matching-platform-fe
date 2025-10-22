@@ -31,6 +31,19 @@ const OptionalTextSchema = z
                 return trimmed.length > 0 ? trimmed : undefined
         })
 
+const OptionalShortTextSchema = z
+        .string()
+        .max(255, 'Tối đa 255 ký tự')
+        .optional()
+        .transform(value => {
+                if (typeof value !== 'string') {
+                        return undefined
+                }
+
+                const trimmed = value.trim()
+                return trimmed.length > 0 ? trimmed : undefined
+        })
+
 export const OpenDisputeSchema = z
         .object({
                 proposedRelease: MoneyFieldSchema,
@@ -81,3 +94,14 @@ export const RejectNegotiationSchema = z.object({
 })
 
 export type RejectNegotiationFormValues = z.input<typeof RejectNegotiationSchema>
+
+export const ConfirmArbitrationFeeSchema = z.object({
+        paymentMethodRefId: z
+                .string({ required_error: 'Vui lòng chọn phương thức thanh toán.' })
+                .trim()
+                .min(1, 'Vui lòng chọn phương thức thanh toán.'),
+        identityPaymentKey: OptionalShortTextSchema
+})
+
+export type ConfirmArbitrationFeeFormValues = z.input<typeof ConfirmArbitrationFeeSchema>
+export type ConfirmArbitrationFeeFormOutput = z.infer<typeof ConfirmArbitrationFeeSchema>

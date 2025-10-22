@@ -690,6 +690,18 @@ export const getAdminDisputes = async (
 }
 
 export const joinDisputeAsAdmin = async (disputeId: string, payload: AdminJoinDisputeInput = {}) => {
-	const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/join`, payload)
-	return response.data
+        const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/join`, payload)
+        return response.data
+}
+
+export const requestArbitrationFees = async (
+        disputeId: string,
+        payload: AdminRequestArbitrationFeesInput = {}
+) => {
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${disputeId}/request-arbitration-fees`,
+                payload
+        )
+
+        return response.data
 }

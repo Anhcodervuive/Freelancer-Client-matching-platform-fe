@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import {
 	AlertTriangle,
@@ -15,39 +17,67 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
-import { getAdminDisputes, getAdminDisputeDetail, joinDisputeAsAdmin } from '~/apis/admin/dispute.api'
+import {
+        getAdminDisputes,
+        getAdminDisputeDetail,
+        joinDisputeAsAdmin,
+        requestArbitrationFees
+} from '~/apis/admin/dispute.api'
 import { routes } from '~/config/routes'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import type {
-	AdminDisputeDetail,
-	AdminDisputeListItem,
-	AdminJoinDisputeInput,
-	DecimalLike,
-	DisputeUserSummary
+        AdminDisputeDetail,
+        AdminDisputeListItem,
+        AdminJoinDisputeInput,
+        AdminRequestArbitrationFeesInput,
+        DecimalLike,
+        DisputePayment,
+        DisputeUserSummary
 } from '~/types/dispute'
 import { DisputeNegotiationStatus, DisputeStatus } from '~/types/dispute'
+import {
+        getDisputePaymentIdentityKey,
+        getDisputePaymentPayerId,
+        getDisputePaymentReference,
+        humanizeDisputePaymentStatus,
+        isDisputePaymentSuccessful
+} from '~/utils/disputePayments'
+import {
+        AdminRequestArbitrationFeesSchema,
+        type AdminRequestArbitrationFeesFormOutput
+} from './schemas'
 
 const STATUS_OPTIONS = Object.values(DisputeStatus)
 
 const statusClassMap: Partial<Record<DisputeStatus, string>> = {
-	[DisputeStatus.OPEN]: 'badge-warning',
-	[DisputeStatus.NEGOTIATION]: 'badge-info',
-	[DisputeStatus.AWAITING_ARBITRATION_FEES]: 'badge-warning',
-	[DisputeStatus.ARBITRATION]: 'badge-secondary',
-	[DisputeStatus.RESOLVED_RELEASE_ALL]: 'badge-success',
-	[DisputeStatus.RESOLVED_REFUND_ALL]: 'badge-success',
-	[DisputeStatus.RESOLVED_SPLIT]: 'badge-success',
-	[DisputeStatus.CANCELED]: 'badge-neutral',
+        [DisputeStatus.OPEN]: 'badge-warning',
+        [DisputeStatus.NEGOTIATION]: 'badge-info',
+        [DisputeStatus.INTERNAL_MEDIATION]: 'badge-info',
+        [DisputeStatus.AWAITING_ARBITRATION_FEES]: 'badge-warning',
+        [DisputeStatus.ARBITRATION_READY]: 'badge-secondary',
+        [DisputeStatus.ARBITRATION]: 'badge-secondary',
+        [DisputeStatus.RESOLVED_RELEASE_ALL]: 'badge-success',
+        [DisputeStatus.RESOLVED_REFUND_ALL]: 'badge-success',
+        [DisputeStatus.RESOLVED_SPLIT]: 'badge-success',
+        [DisputeStatus.CANCELED]: 'badge-neutral',
 	[DisputeStatus.EXPIRED]: 'badge-neutral'
 }
 
 const negotiationStatusClassMap: Partial<Record<DisputeNegotiationStatus, string>> = {
-	[DisputeNegotiationStatus.PENDING]: 'badge-warning',
-	[DisputeNegotiationStatus.ACCEPTED]: 'badge-success',
-	[DisputeNegotiationStatus.REJECTED]: 'badge-error',
-	[DisputeNegotiationStatus.WITHDRAWN]: 'badge-neutral',
-	[DisputeNegotiationStatus.EXPIRED]: 'badge-neutral'
+        [DisputeNegotiationStatus.PENDING]: 'badge-warning',
+        [DisputeNegotiationStatus.ACCEPTED]: 'badge-success',
+        [DisputeNegotiationStatus.REJECTED]: 'badge-error',
+        [DisputeNegotiationStatus.WITHDRAWN]: 'badge-neutral',
+        [DisputeNegotiationStatus.EXPIRED]: 'badge-neutral'
 }
+
+const FINAL_DISPUTE_STATUSES = new Set<DisputeStatus | string>([
+        DisputeStatus.RESOLVED_RELEASE_ALL,
+        DisputeStatus.RESOLVED_REFUND_ALL,
+        DisputeStatus.RESOLVED_SPLIT,
+        DisputeStatus.CANCELED,
+        DisputeStatus.EXPIRED
+])
 
 const ADMIN_JOIN_WAIT_MS = 5 * 24 * 60 * 60 * 1000
 
@@ -186,11 +216,22 @@ export default function AdminDisputeListPage() {
 	const [createdTo, setCreatedTo] = useState('')
 	const [filtersOpen, setFiltersOpen] = useState(false)
 
-	const [joinTarget, setJoinTarget] = useState<AdminDisputeListItem | null>(null)
-	const [joinReason, setJoinReason] = useState('')
-	const [detailTarget, setDetailTarget] = useState<AdminDisputeListItem | null>(null)
+        const [joinTarget, setJoinTarget] = useState<AdminDisputeListItem | null>(null)
+        const [joinReason, setJoinReason] = useState('')
+        const [detailTarget, setDetailTarget] = useState<AdminDisputeListItem | null>(null)
+        const [requestFeesOpen, setRequestFeesOpen] = useState(false)
 
-	const queryClient = useQueryClient()
+        const queryClient = useQueryClient()
+
+        const {
+                register: requestFeesRegister,
+                handleSubmit: handleRequestFeesSubmit,
+                formState: { errors: requestFeesErrors },
+                reset: resetRequestFeesForm
+        } = useForm<AdminRequestArbitrationFeesFormOutput>({
+                resolver: zodResolver(AdminRequestArbitrationFeesSchema),
+                defaultValues: { deadlineDays: 7 }
+        })
 
 	const dateRangeError = useMemo(() => {
 		if (!createdFrom || !createdTo) return false
@@ -264,19 +305,42 @@ export default function AdminDisputeListPage() {
 	const total = data?.total ?? 0
 	const pages = Math.max(1, Math.ceil(total / limit))
 
-	const joinMutation = useMutation({
-		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminJoinDisputeInput }) =>
-			joinDisputeAsAdmin(disputeId, payload),
-		onSuccess: async () => {
-			toast.success('Đã tham gia tranh chấp với tư cách admin')
-			setJoinTarget(null)
-			setJoinReason('')
-			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-		},
-		onError: () => {
-			toast.error('Không thể tham gia tranh chấp, vui lòng thử lại sau')
-		}
-	})
+        const joinMutation = useMutation({
+                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminJoinDisputeInput }) =>
+                        joinDisputeAsAdmin(disputeId, payload),
+                onSuccess: async () => {
+                        toast.success('Đã tham gia tranh chấp với tư cách admin')
+                        setJoinTarget(null)
+                        setJoinReason('')
+                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
+                },
+                onError: () => {
+                        toast.error('Không thể tham gia tranh chấp, vui lòng thử lại sau')
+                }
+        })
+
+        const requestFeesMutation = useMutation({
+                mutationFn: ({
+                        disputeId,
+                        payload
+                }: {
+                        disputeId: string
+                        payload: AdminRequestArbitrationFeesInput
+                }) => requestArbitrationFees(disputeId, payload),
+                onSuccess: async () => {
+                        toast.success('Đã yêu cầu các bên nộp phí trọng tài.')
+                        resetRequestFeesForm({ deadlineDays: 7 })
+                        setRequestFeesOpen(false)
+                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
+                        if (detailDisputeId) {
+                                await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
+                        }
+                },
+                onError: error => {
+                        const message = error instanceof Error ? error.message : 'Không thể yêu cầu đóng phí trọng tài.'
+                        toast.error(message)
+                }
+        })
 
 	const detailDisputeId = detailTarget?.id ?? null
 
@@ -314,13 +378,27 @@ export default function AdminDisputeListPage() {
 		setPage(1)
 	}
 
-	const handleJoin = () => {
-		if (!joinTarget) return
-		joinMutation.mutate({
-			disputeId: joinTarget.id,
-			payload: joinReason.trim() ? { reason: joinReason.trim() } : {}
-		})
-	}
+        const handleJoin = () => {
+                if (!joinTarget) return
+                joinMutation.mutate({
+                        disputeId: joinTarget.id,
+                        payload: joinReason.trim() ? { reason: joinReason.trim() } : {}
+                })
+        }
+
+        const handleRequestFees = (values: AdminRequestArbitrationFeesFormOutput) => {
+                if (!detailDisputeId) return
+                requestFeesMutation.mutate({
+                        disputeId: detailDisputeId,
+                        payload: { deadlineDays: values.deadlineDays }
+                })
+        }
+
+        useEffect(() => {
+                if (!detailTarget) {
+                        setRequestFeesOpen(false)
+                }
+        }, [detailTarget])
 
 	const limitOptions = [10, 20, 50]
 
@@ -329,7 +407,7 @@ export default function AdminDisputeListPage() {
 	const detailAmounts = detailTarget?.amounts ?? null
 	const detailParties = detailTarget?.parties ?? null
 	const detailClient = detailTarget?.client ?? detailParties?.client ?? null
-	const detailFreelancer = detailTarget?.freelancer ?? detailParties?.freelancer ?? null
+        const detailFreelancer = detailTarget?.freelancer ?? detailParties?.freelancer ?? null
 	const detailContract = detailTarget?.contract ?? null
 	const detailMilestoneSummary = detailTarget?.milestone ?? null
 	const detailEscrow = detailData?.escrow ?? null
@@ -376,13 +454,42 @@ export default function AdminDisputeListPage() {
 	const detailDisputable = detailAmounts?.disputable ?? null
 	const detailProposedRelease = detailAmounts?.proposedRelease ?? detailDispute?.proposedRelease ?? null
 	const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
-	const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
-	const detailClientFeePaid = detailDispute?.clientArbFeePaid
-	const detailFreelancerFeePaid = detailDispute?.freelancerArbFeePaid
-	const detailNote = detailDispute?.note ?? null
-	const detailOpenedBy = detailDispute?.openedBy ?? null
-	const detailOpenedAt = detailDispute?.createdAt ?? detailTarget?.createdAt ?? null
-	const detailUpdatedAt = detailDispute?.updatedAt ?? detailTarget?.updatedAt ?? null
+        const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
+        const detailClientFeePaid = detailHasPartyPaid(detailDispute?.clientArbFeePaid, detailClientId)
+        const detailFreelancerFeePaid = detailHasPartyPaid(detailDispute?.freelancerArbFeePaid, detailFreelancerId)
+        const detailClientFeeDisplay = detailClientId ? detailClientFeePaid : undefined
+        const detailFreelancerFeeDisplay = detailFreelancerId ? detailFreelancerFeePaid : undefined
+        const detailBothFeesPaid = detailClientFeePaid && detailFreelancerFeePaid
+        const getDetailPaymentPayerLabel = (payment: DisputePayment) => {
+                const payerId = getDisputePaymentPayerId(payment)
+
+                if (payerId && detailClientId && payerId === detailClientId) {
+                        return formatUserName(detailClient ?? null, detailClientId) || `Khách hàng #${detailClientId}`
+                }
+
+                if (payerId && detailFreelancerId && payerId === detailFreelancerId) {
+                        return (
+                                formatUserName(detailFreelancer ?? null, detailFreelancerId) || `Freelancer #${detailFreelancerId}`
+                        )
+                }
+
+                if (payment.payer) {
+                        const label = formatUserName(payment.payer, payerId ?? undefined)
+                        if (label && label !== '—') {
+                                return label
+                        }
+                }
+
+                if (payerId) {
+                        return payerId.length > 8 ? `Người dùng #${payerId.slice(0, 8)}` : `Người dùng #${payerId}`
+                }
+
+                return 'Không xác định'
+        }
+        const detailNote = detailDispute?.note ?? null
+        const detailOpenedBy = detailDispute?.openedBy ?? null
+        const detailOpenedAt = detailDispute?.createdAt ?? detailTarget?.createdAt ?? null
+        const detailUpdatedAt = detailDispute?.updatedAt ?? detailTarget?.updatedAt ?? null
 	const detailLatestProposal = detailDispute?.latestProposal ?? null
 	const detailNegotiationTotal =
 		detailCounts?.negotiations ??
@@ -395,22 +502,63 @@ export default function AdminDisputeListPage() {
 	const detailMilestoneStatus = detailMilestoneSummary?.status ?? detailEscrow?.milestone?.status ?? null
 	const detailMilestoneStart = detailMilestoneSummary?.startAt ?? detailEscrow?.milestone?.startAt ?? null
 	const detailMilestoneEnd = detailMilestoneSummary?.endAt ?? detailEscrow?.milestone?.endAt ?? null
-	const detailCanJoin = hasAdminJoinWindowElapsed(detailOpenedAt)
-	const detailShowJoin = detailHasJoined || detailCanJoin
-	const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
-	const detailEscrowContract = detailEscrow?.milestone?.contract ?? null
+        const detailCanJoin = hasAdminJoinWindowElapsed(detailOpenedAt)
+        const detailShowJoin = detailHasJoined || detailCanJoin
+        const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
+        const detailEscrowContract = detailEscrow?.milestone?.contract ?? null
 	const detailClientId =
 		detailClient?.id ??
 		detailContract?.clientId ??
 		(detailEscrowContract && typeof detailEscrowContract.clientId === 'string'
 			? (detailEscrowContract.clientId as string)
 			: null)
-	const detailFreelancerId =
-		detailFreelancer?.id ??
-		detailContract?.freelancerId ??
-		(detailEscrowContract && typeof detailEscrowContract.freelancerId === 'string'
-			? (detailEscrowContract.freelancerId as string)
-			: null)
+        const detailFreelancerId =
+                detailFreelancer?.id ??
+                detailContract?.freelancerId ??
+                (detailEscrowContract && typeof detailEscrowContract.freelancerId === 'string'
+                        ? (detailEscrowContract.freelancerId as string)
+                        : null)
+        const detailCanRequestFees = Boolean(
+                detailDisputeId &&
+                        detailArbFeePerParty &&
+                        detailStatus &&
+                        !FINAL_DISPUTE_STATUSES.has(detailStatus) &&
+                        ![
+                                DisputeStatus.AWAITING_ARBITRATION_FEES,
+                                DisputeStatus.ARBITRATION_READY,
+                                DisputeStatus.ARBITRATION
+                        ].includes(detailStatus as DisputeStatus) &&
+                        !detailBothFeesPaid
+        )
+        const detailArbitrationPayments = useMemo<DisputePayment[]>(() => {
+                if (!detailDispute?.arbitrationFeePayments?.length) {
+                        return []
+                }
+
+                const filtered = detailDispute.arbitrationFeePayments.filter(Boolean) as DisputePayment[]
+                return filtered.sort((a, b) => {
+                        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                        return bTime - aTime
+                })
+        }, [detailDispute?.arbitrationFeePayments])
+        const detailHasPartyPaid = useMemo(
+                () =>
+                        (flag: boolean | undefined | null, userId?: string | null) => {
+                                if (flag === true) {
+                                        return true
+                                }
+                                if (!userId) {
+                                        return false
+                                }
+                                return detailArbitrationPayments.some(
+                                        payment =>
+                                                isDisputePaymentSuccessful(payment) &&
+                                                getDisputePaymentPayerId(payment) === userId
+                                )
+                        },
+                [detailArbitrationPayments]
+        )
 
 	return (
 		<div className='space-y-6'>
@@ -878,24 +1026,37 @@ export default function AdminDisputeListPage() {
 									</div>
 								</div>
 								<div className='flex flex-wrap items-center gap-2'>
-									{detailShowJoin ? (
-										<button
-											type='button'
-											className='btn btn-sm btn-outline'
-											disabled={detailJoinDisabled}
-											onClick={() => {
-												if (!detailJoinDisabled && detailTarget) {
-													setDetailTarget(null)
-													setJoinTarget(detailTarget)
-													setJoinReason('')
-												}
-											}}>
-											{detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
-										</button>
-									) : null}
-									<button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
-										Đóng
-									</button>
+                                                                {detailShowJoin ? (
+                                                                        <button
+                                                                                type='button'
+                                                                                className='btn btn-sm btn-outline'
+                                                                                disabled={detailJoinDisabled}
+                                                                                onClick={() => {
+                                                                                        if (!detailJoinDisabled && detailTarget) {
+                                                                                                setDetailTarget(null)
+                                                                                                setJoinTarget(detailTarget)
+                                                                                                setJoinReason('')
+                                                                                        }
+                                                                                }}>
+                                                                                {detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
+                                                                        </button>
+                                                                ) : null}
+                                                                {detailCanRequestFees ? (
+                                                                        <button
+                                                                                type='button'
+                                                                                className='btn btn-sm btn-primary'
+                                                                                onClick={() => {
+                                                                                        resetRequestFeesForm({ deadlineDays: 7 })
+                                                                                        setRequestFeesOpen(true)
+                                                                                }}
+                                                                                disabled={requestFeesMutation.isPending}
+                                                                        >
+                                                                                Yêu cầu đóng phí
+                                                                        </button>
+                                                                ) : null}
+                                                                <button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
+                                                                        Đóng
+                                                                </button>
 								</div>
 							</div>
 						</header>
@@ -1053,26 +1214,97 @@ export default function AdminDisputeListPage() {
 											</div>
 										</div>
 									</div>
-									<div className='space-y-2'>
-										<p className='text-xs uppercase text-base-content/60'>Phí trọng tài</p>
-										<div className='space-y-1 text-xs text-base-content/70'>
-											<div className='flex items-center justify-between gap-3'>
-												<span>Phí mỗi bên</span>
-												<span className='font-medium text-base-content'>
-													{formatCurrencyValue(detailArbFeePerParty, detailCurrency)}
-												</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span>Khách đã nộp</span>
-												<span className='font-medium text-base-content'>{formatBoolean(detailClientFeePaid)}</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span>Freelancer đã nộp</span>
-												<span className='font-medium text-base-content'>{formatBoolean(detailFreelancerFeePaid)}</span>
-											</div>
-										</div>
-									</div>
-								</section>
+                                                                        <div className='space-y-3'>
+                                                                                <p className='text-xs uppercase text-base-content/60'>Phí trọng tài</p>
+                                                                                <div className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3 text-xs text-base-content/70'>
+                                                                                        <div className='flex items-center justify-between gap-3'>
+                                                                                                <span>Phí mỗi bên</span>
+                                                                                                <span className='font-medium text-base-content'>
+                                                                                                        {formatCurrencyValue(detailArbFeePerParty, detailCurrency)}
+                                                                                                </span>
+                                                                                        </div>
+                                                                                        <div className='flex items-center justify-between gap-3'>
+                                                                                                <span>Khách đã nộp</span>
+                                                                                                <span className={`badge ${detailClientId ? (detailClientFeePaid ? 'badge-success' : 'badge-warning') : 'badge-outline'}`}>
+                                                                                                        {formatBoolean(detailClientFeeDisplay)}
+                                                                                                </span>
+                                                                                        </div>
+                                                                                        <div className='flex items-center justify-between gap-3'>
+                                                                                                <span>Freelancer đã nộp</span>
+                                                                                                <span className={`badge ${detailFreelancerId ? (detailFreelancerFeePaid ? 'badge-success' : 'badge-warning') : 'badge-outline'}`}>
+                                                                                                        {formatBoolean(detailFreelancerFeeDisplay)}
+                                                                                                </span>
+                                                                                        </div>
+                                                                                        {detailArbitrationDeadline ? (
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span>Hạn nộp phí</span>
+                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                {formatDateTime(detailArbitrationDeadline)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                        ) : null}
+                                                                                </div>
+                                                                                {detailBothFeesPaid ? (
+                                                                                        <div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-success'>
+                                                                                                Cả hai bên đã hoàn tất việc nộp phí trọng tài.
+                                                                                        </div>
+                                                                                ) : null}
+                                                                                <div className='space-y-2'>
+                                                                                        <h5 className='text-xs font-semibold uppercase text-base-content/60'>Lịch sử thanh toán</h5>
+                                                                                        {detailArbitrationPayments.length ? (
+                                                                                                <div className='space-y-2'>
+                                                                                                        {detailArbitrationPayments.map((payment, index) => {
+                                                                                                                const reference = getDisputePaymentReference(payment)
+                                                                                                                const identityKey = getDisputePaymentIdentityKey(payment)
+                                                                                                                const statusLabel = humanizeDisputePaymentStatus(payment.status)
+                                                                                                                const statusClass = isDisputePaymentSuccessful(payment)
+                                                                                                                        ? 'badge-success'
+                                                                                                                        : 'badge-ghost'
+                                                                                                                const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
+                                                                                                                const key =
+                                                                                                                        payment.id ||
+                                                                                                                        `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
+
+                                                                                                                return (
+                                                                                                                        <div key={key} className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'>
+                                                                                                                                <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                                                                                                        <div className='space-y-1'>
+                                                                                                                                                <p className='font-medium text-base-content'>
+                                                                                                                                                        {getDetailPaymentPayerLabel(payment)}
+                                                                                                                                                </p>
+                                                                                                                                                <p className='text-[11px] text-base-content/60'>
+                                                                                                                                                        Mã tham chiếu:{' '}
+                                                                                                                                                        <span className='break-all font-medium text-base-content'>
+                                                                                                                                                                {reference ?? identityKey ?? '—'}
+                                                                                                                                                        </span>
+                                                                                                                                                </p>
+                                                                                                                                        </div>
+                                                                                                                                        <div className='text-right'>
+                                                                                                                                                <p className='text-sm font-semibold text-base-content'>
+                                                                                                                                                        {formatCurrencyValue(payment.amount ?? null, payment.currency ?? detailCurrency)}
+                                                                                                                                                </p>
+                                                                                                                                                <div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-[11px] text-base-content/60'>
+                                                                                                                                                        <span className={`badge ${statusClass}`}>{statusLabel}</span>
+                                                                                                                                                        <span>{createdAtLabel}</span>
+                                                                                                                                                </div>
+                                                                                                                                        </div>
+                                                                                                                                </div>
+                                                                                                                                {identityKey && reference && identityKey !== reference ? (
+                                                                                                                                        <p className='break-all text-[11px] text-base-content/60'>Mã xác nhận: {identityKey}</p>
+                                                                                                                                ) : null}
+                                                                                                                                {payment.description ? (
+                                                                                                                                        <p className='text-[11px] text-base-content/60'>Ghi chú: {payment.description}</p>
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                )
+                                                                                                        })}
+                                                                                                </div>
+                                                                                        ) : (
+                                                                                                <p className='text-xs text-base-content/60'>Chưa có giao dịch phí trọng tài.</p>
+                                                                                        )}
+                                                                                </div>
+                                                                        </div>
+                                                                </section>
 
 								<section className='space-y-2'>
 									<div className='flex flex-wrap items-center gap-2'>
@@ -1232,12 +1464,12 @@ export default function AdminDisputeListPage() {
 				</dialog>
 			) : null}
 
-			{joinTarget ? (
-				<div className='modal modal-open'>
-					<div className='modal-box space-y-4'>
-						<h3 className='flex items-center gap-2 text-lg font-semibold'>
-							<ShieldCheck className='size-5 text-primary' /> Tham gia tranh chấp #{joinTarget.id}
-						</h3>
+                        {joinTarget ? (
+                                <div className='modal modal-open'>
+                                        <div className='modal-box space-y-4'>
+                                                <h3 className='flex items-center gap-2 text-lg font-semibold'>
+                                                        <ShieldCheck className='size-5 text-primary' /> Tham gia tranh chấp #{joinTarget.id}
+                                                </h3>
 						<p className='text-sm text-base-content/70'>
 							Bạn có thể để lại ghi chú cho các bên trước khi tham gia phòng tranh chấp.
 						</p>
@@ -1256,12 +1488,57 @@ export default function AdminDisputeListPage() {
 								{joinMutation.isPending ? 'Đang xử lý...' : 'Tham gia tranh chấp'}
 							</button>
 						</div>
-					</div>
-					<div className='modal-backdrop' onClick={() => !joinMutation.isPending && setJoinTarget(null)}>
-						Đóng
-					</div>
-				</div>
-			) : null}
-		</div>
-	)
+                                        </div>
+                                        <div className='modal-backdrop' onClick={() => !joinMutation.isPending && setJoinTarget(null)}>
+                                                Đóng
+                                        </div>
+                                </div>
+                        ) : null}
+
+                        {requestFeesOpen && detailDisputeId ? (
+                                <div className='modal modal-open'>
+                                        <div className='modal-box max-w-md space-y-4'>
+                                                <h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
+                                                        <BadgeDollarSign className='size-5 text-primary' /> Yêu cầu đóng phí trọng tài
+                                                </h3>
+                                                <p className='text-sm text-base-content/70'>
+                                                        Chọn số ngày mà các bên cần hoàn tất việc nộp phí trọng tài. Thời hạn tối đa là 14 ngày.
+                                                </p>
+                                                <form onSubmit={handleRequestFeesSubmit(handleRequestFees)} className='space-y-4'>
+                                                        <div className='space-y-2'>
+                                                                <label className='text-sm font-medium text-base-content'>Hạn nộp phí (ngày)</label>
+                                                                <input
+                                                                        type='number'
+                                                                        min={1}
+                                                                        max={14}
+                                                                        className='input input-bordered w-full'
+                                                                        {...requestFeesRegister('deadlineDays', { valueAsNumber: true })}
+                                                                        disabled={requestFeesMutation.isPending}
+                                                                />
+                                                                {requestFeesErrors.deadlineDays ? (
+                                                                        <p className='text-xs text-error'>{requestFeesErrors.deadlineDays.message}</p>
+                                                                ) : null}
+                                                        </div>
+                                                        <div className='modal-action'>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-ghost'
+                                                                        onClick={() => !requestFeesMutation.isPending && setRequestFeesOpen(false)}
+                                                                        disabled={requestFeesMutation.isPending}
+                                                                >
+                                                                        Hủy
+                                                                </button>
+                                                                <button type='submit' className='btn btn-primary' disabled={requestFeesMutation.isPending}>
+                                                                        {requestFeesMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}
+                                                                </button>
+                                                        </div>
+                                                </form>
+                                        </div>
+                                        <div className='modal-backdrop' onClick={() => !requestFeesMutation.isPending && setRequestFeesOpen(false)}>
+                                                Đóng
+                                        </div>
+                                </div>
+                        ) : null}
+                </div>
+        )
 }

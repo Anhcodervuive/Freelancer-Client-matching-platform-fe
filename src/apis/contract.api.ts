@@ -23,7 +23,8 @@ import type {
         MilestoneDisputeSummary,
         OpenDisputeInput,
         RespondDisputeNegotiationInput,
-        UpdateDisputeNegotiationInput
+        UpdateDisputeNegotiationInput,
+        ConfirmArbitrationFeeInput
 } from '~/types/dispute'
 
 const baseUrl = '/contracts'
@@ -555,4 +556,18 @@ export const deleteDisputeNegotiation = async (
         await authorizeAxiosInstance.delete(
                 `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/negotiations/${negotiationId}`
         )
+}
+
+export const confirmArbitrationFee = async (
+        contractId: string,
+        milestoneId: string,
+        disputeId: string,
+        payload: ConfirmArbitrationFeeInput
+) => {
+        const response = await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/arbitration-fees/confirm`,
+                payload
+        )
+
+        return response.data
 }

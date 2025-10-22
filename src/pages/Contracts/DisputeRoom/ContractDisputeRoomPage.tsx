@@ -21,6 +21,7 @@ import {
 import { toast } from 'react-toastify'
 
 import {
+        confirmArbitrationFee,
         createDisputeNegotiation,
         deleteDisputeNegotiation,
         getContractDetail,
@@ -30,6 +31,7 @@ import {
         respondDisputeNegotiation,
         updateDisputeNegotiation
 } from '~/apis/contract.api'
+import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type { Contract, ContractMilestone } from '~/types/contract'
@@ -37,14 +39,25 @@ import type {
         DisputeContractSummary,
         DisputeMilestoneSummary,
         DisputeNegotiation,
+        DisputePayment,
         MilestoneDisputeSummary
 } from '~/types/dispute'
 import { DisputeNegotiationStatus, DisputeStatus } from '~/types/dispute'
+import type { PaymentMethod } from '~/types/payment-method'
+import {
+        getDisputePaymentIdentityKey,
+        getDisputePaymentPayerId,
+        getDisputePaymentReference,
+        humanizeDisputePaymentStatus,
+        isDisputePaymentSuccessful
+} from '~/utils/disputePayments'
 import { formatCurrency, formatDateTime } from '~/utils/format'
 import {
         DisputeNegotiationSchema,
+        ConfirmArbitrationFeeSchema,
         OpenDisputeSchema,
         RejectNegotiationSchema,
+        type ConfirmArbitrationFeeFormOutput,
         type DisputeNegotiationFormOutput,
         type OpenDisputeFormOutput,
         type RejectNegotiationFormValues
@@ -100,11 +113,23 @@ const getDisputeStatusMeta = (status?: string) => {
                                 tone: 'negotiation' as const,
                                 badge: 'border-sky-200 bg-sky-50/80 text-sky-700'
                         }
+                case DisputeStatus.INTERNAL_MEDIATION:
+                        return {
+                                label: 'Admin đang hòa giải',
+                                tone: 'negotiation' as const,
+                                badge: 'border-indigo-200 bg-indigo-50/80 text-indigo-700'
+                        }
                 case DisputeStatus.AWAITING_ARBITRATION_FEES:
                         return {
                                 label: 'Chờ nộp phí trọng tài',
                                 tone: 'pending' as const,
                                 badge: 'border-violet-200 bg-violet-50/80 text-violet-700'
+                        }
+                case DisputeStatus.ARBITRATION_READY:
+                        return {
+                                label: 'Đang chuẩn bị trọng tài',
+                                tone: 'arbitration' as const,
+                                badge: 'border-purple-300 bg-purple-50/80 text-purple-700'
                         }
                 case DisputeStatus.ARBITRATION:
                         return {
@@ -577,6 +602,19 @@ const ContractDisputeRoomPage = () => {
                 }
         })
 
+        const {
+                register: confirmArbFeeRegister,
+                handleSubmit: handleConfirmArbFeeSubmit,
+                formState: { errors: confirmArbFeeErrors },
+                reset: resetConfirmArbFeeForm
+        } = useForm<ConfirmArbitrationFeeFormOutput>({
+                resolver: zodResolver(ConfirmArbitrationFeeSchema) as Resolver<ConfirmArbitrationFeeFormOutput>,
+                defaultValues: {
+                        paymentMethodRefId: '',
+                        identityPaymentKey: undefined
+                }
+        })
+
         const [actionState, setActionState] = useState<NegotiationActionState>({ negotiation: null, action: null })
 
         const openDisputeMutation = useMutation({
@@ -706,6 +744,30 @@ const ContractDisputeRoomPage = () => {
                 }
         })
 
+        const confirmArbitrationFeeMutation = useMutation({
+                mutationFn: async ({
+                        disputeId,
+                        payload
+                }: {
+                        disputeId: string
+                        payload: ConfirmArbitrationFeeFormOutput
+                }) => {
+                        if (!contractId || !milestoneId) {
+                                throw new Error('Thiếu thông tin dispute')
+                        }
+                        return confirmArbitrationFee(contractId, milestoneId, disputeId, payload)
+                },
+                onSuccess: async () => {
+                        toast.success('Đã xác nhận thanh toán phí trọng tài.')
+                        resetConfirmArbFeeForm({ paymentMethodRefId: '', identityPaymentKey: undefined })
+                        await queryClient.invalidateQueries({ queryKey: disputeQueryKey })
+                },
+                onError: error => {
+                        const message = error instanceof Error ? error.message : 'Không thể xác nhận thanh toán phí trọng tài.'
+                        toast.error(message)
+                }
+        })
+
         const milestoneDispute = disputeQuery.data
         const contractFromPayload = milestoneDispute?.contract ?? null
         const milestones = useMemo(() => milestonesQuery.data ?? [], [milestonesQuery.data])
@@ -727,6 +789,34 @@ const ContractDisputeRoomPage = () => {
 
         const dispute = milestoneDispute?.dispute ?? null
         const disputeStatusMeta = getDisputeStatusMeta(dispute?.status)
+        const paymentMethodsQuery = useQuery<PaymentMethod[]>({
+                queryKey: ['payment-methods'],
+                queryFn: async () => (await getAllPaymentMethod()) as PaymentMethod[],
+                enabled: shouldLoadPaymentMethods
+        })
+        const currentUserId = currentUser?.id ?? null
+        const contractEntity = (contract as Contract | null) ?? null
+        const contractSummary = (contract as DisputeContractSummary | null) ?? null
+        const contractClientId =
+                contractEntity?.client?.userId ??
+                contractSummary?.clientId ??
+                (milestoneDispute?.contract?.clientId ?? null)
+        const contractFreelancerId =
+                contractEntity?.freelancer?.userId ??
+                contractSummary?.freelancerId ??
+                (milestoneDispute?.contract?.freelancerId ?? null)
+        const clientDisplayName =
+                ((contractEntity?.client?.profile?.firstName ?? '') + ' ' + (contractEntity?.client?.profile?.lastName ?? ''))
+                        .trim() || 'Khách hàng'
+        const freelancerDisplayName =
+                ((contractEntity?.freelancer?.profile?.firstName ?? '') +
+                        ' ' +
+                        (contractEntity?.freelancer?.profile?.lastName ?? ''))
+                        .trim() || 'Freelancer'
+        const isClientParty = Boolean(currentUserId && contractClientId && currentUserId === contractClientId)
+        const isFreelancerParty = Boolean(currentUserId && contractFreelancerId && currentUserId === contractFreelancerId)
+        const isAwaitingArbitrationFees = dispute?.status === DisputeStatus.AWAITING_ARBITRATION_FEES
+        const shouldLoadPaymentMethods = Boolean(isAwaitingArbitrationFees && (isClientParty || isFreelancerParty))
         const currency =
                 milestone?.currency ||
                 contract?.fixedPriceCurrency ||
@@ -770,18 +860,107 @@ const ContractDisputeRoomPage = () => {
         )
         const disputeCreatedAt = formatDateTime(dispute?.createdAt)
         const disputeUpdatedAt = formatDateTime(dispute?.updatedAt)
-        const clientArbFeeStatus =
-                dispute?.clientArbFeePaid === true
-                        ? 'Đã nộp'
-                        : dispute?.clientArbFeePaid === false
-                        ? 'Chưa nộp'
-                        : '—'
-        const freelancerArbFeeStatus =
-                dispute?.freelancerArbFeePaid === true
-                        ? 'Đã nộp'
-                        : dispute?.freelancerArbFeePaid === false
-                        ? 'Chưa nộp'
-                        : '—'
+        const arbitrationPayments = useMemo<DisputePayment[]>(() => {
+                if (!dispute?.arbitrationFeePayments?.length) {
+                        return []
+                }
+
+                const filtered = dispute.arbitrationFeePayments.filter(Boolean) as DisputePayment[]
+                return filtered.sort((a, b) => {
+                        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                        return bTime - aTime
+                })
+        }, [dispute?.arbitrationFeePayments])
+        const hasPartyPaid = useMemo(
+                () =>
+                        (flag: boolean | undefined | null, userId?: string | null) => {
+                                if (flag === true) {
+                                        return true
+                                }
+                                if (!userId) {
+                                        return false
+                                }
+                                return arbitrationPayments.some(
+                                        payment =>
+                                                isDisputePaymentSuccessful(payment) &&
+                                                getDisputePaymentPayerId(payment) === userId
+                                )
+                        },
+                [arbitrationPayments]
+        )
+        const clientHasPaid = hasPartyPaid(dispute?.clientArbFeePaid, contractClientId)
+        const freelancerHasPaid = hasPartyPaid(dispute?.freelancerArbFeePaid, contractFreelancerId)
+        const currentUserHasPaidArbFee = useMemo(() => {
+                if (!currentUserId) {
+                        return false
+                }
+                if (currentUserId === contractClientId) {
+                        return clientHasPaid
+                }
+                if (currentUserId === contractFreelancerId) {
+                        return freelancerHasPaid
+                }
+                return arbitrationPayments.some(
+                        payment =>
+                                isDisputePaymentSuccessful(payment) &&
+                                getDisputePaymentPayerId(payment) === currentUserId
+                )
+        }, [arbitrationPayments, clientHasPaid, contractClientId, contractFreelancerId, currentUserId, freelancerHasPaid])
+        const bothPartiesPaid = clientHasPaid && freelancerHasPaid
+        const paymentMethods = (paymentMethodsQuery.data as PaymentMethod[] | undefined) ?? []
+        const isPaymentMethodsLoading = paymentMethodsQuery.isFetching
+        const paymentMethodsError = paymentMethodsQuery.error as Error | null
+        const clientArbFeeStatus = contractClientId ? (clientHasPaid ? 'Đã nộp' : 'Chưa nộp') : '—'
+        const freelancerArbFeeStatus = contractFreelancerId ? (freelancerHasPaid ? 'Đã nộp' : 'Chưa nộp') : '—'
+        const canCurrentUserPayArbFee = Boolean(
+                isAwaitingArbitrationFees && (isClientParty || isFreelancerParty) && !currentUserHasPaidArbFee
+        )
+        const clientBadgeClass = contractClientId ? (clientHasPaid ? 'badge-success' : 'badge-warning') : 'badge-outline'
+        const freelancerBadgeClass = contractFreelancerId
+                ? (freelancerHasPaid ? 'badge-success' : 'badge-warning')
+                : 'badge-outline'
+        const formatPaymentAmount = (payment: DisputePayment) =>
+                formatCurrency(parseAmount(payment?.amount), payment?.currency || currency) ?? '—'
+        const getPaymentPayerLabel = (payment: DisputePayment) => {
+                if (!payment) {
+                        return 'Không xác định'
+                }
+
+                if (payment.payer) {
+                        const label = getUserDisplayName(payment.payer, currentUserId ?? undefined)
+                        if (label) {
+                                return label
+                        }
+                }
+
+                const payerId = getDisputePaymentPayerId(payment)
+                if (!payerId) {
+                        return 'Không xác định'
+                }
+
+                if (payerId === currentUserId) {
+                        return 'Bạn'
+                }
+
+                if (contractClientId && payerId === contractClientId) {
+                        return clientDisplayName
+                }
+
+                if (contractFreelancerId && payerId === contractFreelancerId) {
+                        return freelancerDisplayName
+                }
+
+                return payerId.length > 8 ? `Người dùng #${payerId.slice(0, 8)}` : `Người dùng #${payerId}`
+        }
+        const formatPaymentMethodLabel = (method: PaymentMethod) => {
+                const brand = (method.brand ?? 'Thẻ').toString().toUpperCase()
+                const digits = method.last4 ? `•••• ${method.last4}` : method.paymentMethodId
+                const expMonth = method.expMonth ? String(method.expMonth).padStart(2, '0') : ''
+                const expYear = method.expYear ? String(method.expYear).slice(-2) : ''
+                const expiry = expMonth && expYear ? ` (${expMonth}/${expYear})` : ''
+                return `${brand} ${digits}${expiry}`.trim()
+        }
         const hasEscrowReleased = typeof escrowReleasedValue === 'number' && escrowReleasedValue > 0
         const hasApprovedTimeline = Boolean(milestone?.approvedAt || milestone?.releasedAt)
         const isMilestoneFinalized =
@@ -877,6 +1056,11 @@ const ContractDisputeRoomPage = () => {
                         negotiationId: actionState.negotiation.id,
                         payload: values
                 })
+        }
+
+        const handleConfirmArbitrationFee = (values: ConfirmArbitrationFeeFormOutput) => {
+                if (!dispute?.id) return
+                confirmArbitrationFeeMutation.mutate({ disputeId: dispute.id, payload: values })
         }
 
         const isLoading =
@@ -1145,6 +1329,196 @@ const ContractDisputeRoomPage = () => {
                                                         </span>
                                                 </p>
                                         </div>
+                                )}
+
+                                {dispute && (
+                                        <section className='space-y-4 rounded-2xl border border-violet-200/60 bg-violet-50/40 p-4 text-sm text-base-content/80'>
+                                                <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                        <div className='flex items-center gap-2 text-base font-semibold text-base-content'>
+                                                                <Gavel className='size-4 text-violet-500' /> Phí trọng tài
+                                                        </div>
+                                                        {dispute.arbitrationDeadline && (
+                                                                <div className='flex items-center gap-2 text-xs text-base-content/70'>
+                                                                        <Clock className='size-4 text-purple-500' />
+                                                                        <span>
+                                                                                Hạn nộp phí:{' '}
+                                                                                <strong>{formatDateTime(dispute.arbitrationDeadline)}</strong>
+                                                                        </span>
+                                                                </div>
+                                                        )}
+                                                </div>
+                                                <div className='grid gap-3 md:grid-cols-2'>
+                                                        <div className='space-y-2 rounded-xl border border-base-200 bg-base-100 p-3'>
+                                                                <p className='text-xs uppercase text-base-content/60'>Khách hàng</p>
+                                                                <div className='flex items-center justify-between gap-3'>
+                                                                        <span className='font-medium text-base-content'>
+                                                                                {contractClientId ? clientDisplayName : 'Khách hàng'}
+                                                                        </span>
+                                                                        <span className={`badge ${clientBadgeClass}`}>{clientArbFeeStatus}</span>
+                                                                </div>
+                                                        </div>
+                                                        <div className='space-y-2 rounded-xl border border-base-200 bg-base-100 p-3'>
+                                                                <p className='text-xs uppercase text-base-content/60'>Freelancer</p>
+                                                                <div className='flex items-center justify-between gap-3'>
+                                                                        <span className='font-medium text-base-content'>
+                                                                                {contractFreelancerId ? freelancerDisplayName : 'Freelancer'}
+                                                                        </span>
+                                                                        <span className={`badge ${freelancerBadgeClass}`}>{freelancerArbFeeStatus}</span>
+                                                                </div>
+                                                        </div>
+                                                </div>
+                                                {bothPartiesPaid ? (
+                                                        <div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-sm text-success'>
+                                                                Cả hai bên đã hoàn tất việc nộp phí trọng tài. Hệ thống sẽ chuyển hồ sơ sang bước tiếp theo.
+                                                        </div>
+                                                ) : null}
+                                                {isAwaitingArbitrationFees && currentUserHasPaidArbFee && !bothPartiesPaid ? (
+                                                        <div className='rounded-xl border border-info/40 bg-info/10 px-4 py-3 text-sm text-info'>
+                                                                Bạn đã xác nhận thanh toán. Vui lòng chờ bên còn lại hoàn tất.
+                                                        </div>
+                                                ) : null}
+                                                {canCurrentUserPayArbFee ? (
+                                                        <form
+                                                                onSubmit={handleConfirmArbFeeSubmit(handleConfirmArbitrationFee)}
+                                                                className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'
+                                                        >
+                                                                <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                                        <p className='text-sm font-semibold text-base-content'>Xác nhận đã thanh toán</p>
+                                                                        <span className='text-xs text-base-content/60'>
+                                                                                Phí mỗi bên:{' '}
+                                                                                <strong className='text-base-content'>{arbFeePerParty ?? '—'}</strong>
+                                                                        </span>
+                                                                </div>
+                                                                <div className='space-y-2'>
+                                                                        <label className='text-xs font-medium uppercase text-base-content/60'>Phương thức thanh toán</label>
+                                                                        <select
+                                                                                className='select select-bordered w-full'
+                                                                                {...confirmArbFeeRegister('paymentMethodRefId')}
+                                                                                disabled={isPaymentMethodsLoading || confirmArbitrationFeeMutation.isPending}
+                                                                        >
+                                                                                <option value=''>Chọn phương thức thanh toán</option>
+                                                                                {paymentMethods.map(method => (
+                                                                                        <option key={method.paymentMethodId} value={method.paymentMethodId}>
+                                                                                                {formatPaymentMethodLabel(method)}
+                                                                                        </option>
+                                                                                ))}
+                                                                        </select>
+                                                                        {confirmArbFeeErrors.paymentMethodRefId ? (
+                                                                                <p className='text-xs text-error'>
+                                                                                        {confirmArbFeeErrors.paymentMethodRefId.message}
+                                                                                </p>
+                                                                        ) : null}
+                                                                        {paymentMethodsError ? (
+                                                                                <p className='text-xs text-error'>
+                                                                                        Không thể tải phương thức thanh toán: {paymentMethodsError.message}
+                                                                                </p>
+                                                                        ) : null}
+                                                                        {!paymentMethods.length && !isPaymentMethodsLoading ? (
+                                                                                <p className='rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning'>
+                                                                                        Bạn chưa có phương thức thanh toán khả dụng. Vui lòng thêm thẻ trong phần cài đặt thanh toán.
+                                                                                </p>
+                                                                        ) : null}
+                                                                </div>
+                                                                <div className='space-y-2'>
+                                                                        <label className='text-xs font-medium uppercase text-base-content/60'>Mã giao dịch (nếu có)</label>
+                                                                        <input
+                                                                                type='text'
+                                                                                className='input input-bordered w-full'
+                                                                                placeholder='Nhập mã giao dịch hoặc tham chiếu'
+                                                                                {...confirmArbFeeRegister('identityPaymentKey')}
+                                                                                disabled={confirmArbitrationFeeMutation.isPending}
+                                                                        />
+                                                                        {confirmArbFeeErrors.identityPaymentKey ? (
+                                                                                <p className='text-xs text-error'>
+                                                                                        {confirmArbFeeErrors.identityPaymentKey.message}
+                                                                                </p>
+                                                                        ) : null}
+                                                                </div>
+                                                                <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                                        <button
+                                                                                type='button'
+                                                                                className='btn btn-ghost btn-sm'
+                                                                                onClick={() => paymentMethodsQuery.refetch()}
+                                                                                disabled={isPaymentMethodsLoading || confirmArbitrationFeeMutation.isPending}
+                                                                        >
+                                                                                {isPaymentMethodsLoading ? 'Đang tải…' : 'Tải lại phương thức'}
+                                                                        </button>
+                                                                        <button
+                                                                                type='submit'
+                                                                                className='btn btn-primary btn-sm'
+                                                                                disabled={
+                                                                                        confirmArbitrationFeeMutation.isPending ||
+                                                                                        isPaymentMethodsLoading ||
+                                                                                        !paymentMethods.length
+                                                                                }
+                                                                        >
+                                                                                {confirmArbitrationFeeMutation.isPending ? 'Đang xử lý…' : 'Tôi đã thanh toán'}
+                                                                        </button>
+                                                                </div>
+                                                        </form>
+                                                ) : null}
+                                                <div className='space-y-2'>
+                                                        <h4 className='text-sm font-semibold text-base-content'>Lịch sử thanh toán</h4>
+                                                        {arbitrationPayments.length ? (
+                                                                <div className='space-y-2'>
+                                                                        {arbitrationPayments.map((payment, index) => {
+                                                                                const reference = getDisputePaymentReference(payment)
+                                                                                const identityKey = getDisputePaymentIdentityKey(payment)
+                                                                                const statusLabel = humanizeDisputePaymentStatus(payment.status)
+                                                                                const statusClass = isDisputePaymentSuccessful(payment)
+                                                                                        ? 'badge-success'
+                                                                                        : 'badge-ghost'
+                                                                                const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
+                                                                                const key =
+                                                                                        payment.id ||
+                                                                                        `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
+
+                                                                                return (
+                                                                                        <div
+                                                                                                key={key}
+                                                                                                className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'
+                                                                                        >
+                                                                                                <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                                                                        <div className='space-y-1'>
+                                                                                                                <p className='font-semibold text-base-content'>
+                                                                                                                        {getPaymentPayerLabel(payment)}
+                                                                                                                </p>
+                                                                                                                <p className='text-xs text-base-content/60'>
+                                                                                                                        Mã giao dịch:{' '}
+                                                                                                                        <span className='break-all font-medium text-base-content'>
+                                                                                                                                {reference ?? identityKey ?? '—'}
+                                                                                                                        </span>
+                                                                                                                </p>
+                                                                                                        </div>
+                                                                                                        <div className='text-right'>
+                                                                                                                <p className='text-base font-semibold text-base-content'>
+                                                                                                                        {formatPaymentAmount(payment)}
+                                                                                                                </p>
+                                                                                                                <div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-xs text-base-content/70'>
+                                                                                                                        <span className={`badge ${statusClass}`}>{statusLabel}</span>
+                                                                                                                        <span>{createdAtLabel}</span>
+                                                                                                                </div>
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                                {identityKey && reference && identityKey !== reference ? (
+                                                                                                        <p className='break-all text-xs text-base-content/60'>
+                                                                                                                Mã xác nhận: {identityKey}
+                                                                                                        </p>
+                                                                                                ) : null}
+                                                                                                {payment.description ? (
+                                                                                                        <p className='text-xs text-base-content/70'>
+                                                                                                                Ghi chú: {payment.description}
+                                                                                                        </p>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                )
+                                                                        })}
+                                                                </div>
+                                                        ) : (
+                                                                <p className='text-sm text-base-content/70'>Chưa có giao dịch phí trọng tài nào được ghi nhận.</p>
+                                                        )}
+                                                </div>
+                                        </section>
                                 )}
 
                                 {!dispute && (
