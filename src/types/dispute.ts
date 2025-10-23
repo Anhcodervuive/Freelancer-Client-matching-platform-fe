@@ -292,7 +292,7 @@ export type AdminJoinDisputeInput = {
 
 export type ConfirmArbitrationFeeInput = {
         paymentMethodRefId: string
-        identityPaymentKey?: string
+        idempotencyKey?: string
 }
 
 export type AdminRequestArbitrationFeesInput = {

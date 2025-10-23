@@ -582,12 +582,12 @@ const ContractDisputeRoomPage = () => {
 		formState: { errors: confirmArbFeeErrors },
 		reset: resetConfirmArbFeeForm
 	} = useForm<ConfirmArbitrationFeeFormOutput>({
-		resolver: zodResolver(ConfirmArbitrationFeeSchema) as Resolver<ConfirmArbitrationFeeFormOutput>,
-		defaultValues: {
-			paymentMethodRefId: '',
-			identityPaymentKey: undefined
-		}
-	})
+                resolver: zodResolver(ConfirmArbitrationFeeSchema) as Resolver<ConfirmArbitrationFeeFormOutput>,
+                defaultValues: {
+                        paymentMethodRefId: '',
+                        idempotencyKey: undefined
+                }
+        })
 
 	const [actionState, setActionState] = useState<NegotiationActionState>({ negotiation: null, action: null })
 
@@ -718,7 +718,7 @@ const ContractDisputeRoomPage = () => {
                                 throw new Error('Thiếu thông tin dispute')
                         }
 
-                        const resolveIdentityKey = (candidate?: string) => {
+                        const resolveIdempotencyKey = (candidate?: string) => {
                                 if (typeof candidate === 'string') {
                                         const trimmed = candidate.trim()
                                         if (trimmed) {
@@ -726,8 +726,8 @@ const ContractDisputeRoomPage = () => {
                                         }
                                 }
 
-                                if (typeof payload.identityPaymentKey === 'string') {
-                                        const trimmed = payload.identityPaymentKey.trim()
+                                if (typeof payload.idempotencyKey === 'string') {
+                                        const trimmed = payload.idempotencyKey.trim()
                                         if (trimmed) {
                                                 return trimmed
                                         }
@@ -736,15 +736,15 @@ const ContractDisputeRoomPage = () => {
                                 return undefined
                         }
 
-                        const performConfirmation = async (identityKey?: string) => {
+                        const performConfirmation = async (idempotencyKey?: string) => {
                                 const body = {
                                         paymentMethodRefId: payload.paymentMethodRefId
                                 } as ConfirmArbitrationFeeFormOutput
 
-                                const normalizedIdentityKey = resolveIdentityKey(identityKey)
+                                const normalizedIdempotencyKey = resolveIdempotencyKey(idempotencyKey)
 
-                                if (normalizedIdentityKey) {
-                                        body.identityPaymentKey = normalizedIdentityKey
+                                if (normalizedIdempotencyKey) {
+                                        body.idempotencyKey = normalizedIdempotencyKey
                                 }
 
                                 try {
@@ -815,17 +815,17 @@ const ContractDisputeRoomPage = () => {
                                 throw new Error(baseMessage || 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.')
                         }
 
-                        const followupIdentityKey =
+                        const followupIdempotencyKey =
                                 initialMeta.idempotencyKey ||
                                 initialMeta.paymentIntentId ||
                                 confirmation.paymentIntent?.id ||
-                                resolveIdentityKey()
+                                resolveIdempotencyKey()
 
-                        if (!followupIdentityKey) {
+                        if (!followupIdempotencyKey) {
                                 throw new Error('Không tìm thấy khóa định danh thanh toán để hoàn tất xác thực.')
                         }
 
-                        const { meta: finalMeta } = await performConfirmation(followupIdentityKey)
+                        const { meta: finalMeta } = await performConfirmation(followupIdempotencyKey)
 
                         if (finalMeta.requiresAction) {
                                 throw new Error(
@@ -835,7 +835,7 @@ const ContractDisputeRoomPage = () => {
                 },
                 onSuccess: async () => {
                         toast.success('Đã xác nhận thanh toán phí trọng tài.')
-                        resetConfirmArbFeeForm({ paymentMethodRefId: '', identityPaymentKey: undefined })
+                        resetConfirmArbFeeForm({ paymentMethodRefId: '', idempotencyKey: undefined })
                         await queryClient.invalidateQueries({ queryKey: disputeQueryKey })
                 },
                 onError: error => {
@@ -1453,17 +1453,17 @@ const ContractDisputeRoomPage = () => {
 									) : null}
 								</div>
 								<div className='space-y-2'>
-									<label className='text-xs font-medium uppercase text-base-content/60'>Mã giao dịch (nếu có)</label>
-									<input
-										type='text'
-										className='input input-bordered w-full'
-										placeholder='Nhập mã giao dịch hoặc tham chiếu'
-										{...confirmArbFeeRegister('identityPaymentKey')}
-										disabled={confirmArbitrationFeeMutation.isPending}
-									/>
-									{confirmArbFeeErrors.identityPaymentKey ? (
-										<p className='text-xs text-error'>{confirmArbFeeErrors.identityPaymentKey.message}</p>
-									) : null}
+                                                                        <label className='text-xs font-medium uppercase text-base-content/60'>Mã giao dịch (nếu có)</label>
+                                                                        <input
+                                                                                type='text'
+                                                                                className='input input-bordered w-full'
+                                                                                placeholder='Nhập mã giao dịch hoặc tham chiếu'
+                                                                                {...confirmArbFeeRegister('idempotencyKey')}
+                                                                                disabled={confirmArbitrationFeeMutation.isPending}
+                                                                        />
+                                                                        {confirmArbFeeErrors.idempotencyKey ? (
+                                                                                <p className='text-xs text-error'>{confirmArbFeeErrors.idempotencyKey.message}</p>
+                                                                        ) : null}
 								</div>
 								<div className='flex flex-wrap items-center justify-between gap-3'>
 									<button

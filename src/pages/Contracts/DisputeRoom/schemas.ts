@@ -100,7 +100,7 @@ export const ConfirmArbitrationFeeSchema = z.object({
                 .string({ required_error: 'Vui lòng chọn phương thức thanh toán.' })
                 .trim()
                 .min(1, 'Vui lòng chọn phương thức thanh toán.'),
-        identityPaymentKey: OptionalShortTextSchema
+        idempotencyKey: OptionalShortTextSchema
 })
 
 export type ConfirmArbitrationFeeFormValues = z.input<typeof ConfirmArbitrationFeeSchema>
