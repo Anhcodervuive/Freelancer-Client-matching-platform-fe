@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { isAxiosError } from 'axios'
 import {
 	AlertTriangle,
 	ArrowLeft,
@@ -52,6 +53,8 @@ import {
 	isDisputePaymentSuccessful
 } from '~/utils/disputePayments'
 import { formatCurrency, formatDateTime } from '~/utils/format'
+import { extractPaymentErrorMessage, extractPaymentMeta } from '~/utils/payment'
+import { getStripe } from '~/utils/stripe'
 import {
 	DisputeNegotiationSchema,
 	ConfirmArbitrationFeeSchema,
@@ -709,23 +712,139 @@ const ContractDisputeRoomPage = () => {
 		}
 	})
 
-	const confirmArbitrationFeeMutation = useMutation({
-		mutationFn: async ({ disputeId, payload }: { disputeId: string; payload: ConfirmArbitrationFeeFormOutput }) => {
-			if (!contractId || !milestoneId) {
-				throw new Error('Thiếu thông tin dispute')
-			}
-			return confirmArbitrationFee(contractId, milestoneId, disputeId, payload)
-		},
-		onSuccess: async () => {
-			toast.success('Đã xác nhận thanh toán phí trọng tài.')
-			resetConfirmArbFeeForm({ paymentMethodRefId: '', identityPaymentKey: undefined })
-			await queryClient.invalidateQueries({ queryKey: disputeQueryKey })
-		},
-		onError: error => {
-			const message = error instanceof Error ? error.message : 'Không thể xác nhận thanh toán phí trọng tài.'
-			toast.error(message)
-		}
-	})
+        const confirmArbitrationFeeMutation = useMutation({
+                mutationFn: async ({ disputeId, payload }: { disputeId: string; payload: ConfirmArbitrationFeeFormOutput }) => {
+                        if (!contractId || !milestoneId) {
+                                throw new Error('Thiếu thông tin dispute')
+                        }
+
+                        const resolveIdentityKey = (candidate?: string) => {
+                                if (typeof candidate === 'string') {
+                                        const trimmed = candidate.trim()
+                                        if (trimmed) {
+                                                return trimmed
+                                        }
+                                }
+
+                                if (typeof payload.identityPaymentKey === 'string') {
+                                        const trimmed = payload.identityPaymentKey.trim()
+                                        if (trimmed) {
+                                                return trimmed
+                                        }
+                                }
+
+                                return undefined
+                        }
+
+                        const performConfirmation = async (identityKey?: string) => {
+                                const body = {
+                                        paymentMethodRefId: payload.paymentMethodRefId
+                                } as ConfirmArbitrationFeeFormOutput
+
+                                const normalizedIdentityKey = resolveIdentityKey(identityKey)
+
+                                if (normalizedIdentityKey) {
+                                        body.identityPaymentKey = normalizedIdentityKey
+                                }
+
+                                try {
+                                        const response = await confirmArbitrationFee(
+                                                contractId,
+                                                milestoneId,
+                                                disputeId,
+                                                body
+                                        )
+                                        return { response, meta: extractPaymentMeta(response) }
+                                } catch (error) {
+                                        if (!isAxiosError(error)) {
+                                                throw error
+                                        }
+
+                                        const rawPayload = error.response?.data ?? null
+                                        const meta = extractPaymentMeta(rawPayload)
+
+                                        if (
+                                                meta.requiresAction ||
+                                                meta.clientSecret ||
+                                                meta.idempotencyKey ||
+                                                meta.paymentIntentId
+                                        ) {
+                                                return { response: rawPayload, meta }
+                                        }
+
+                                        throw new Error(
+                                                extractPaymentErrorMessage(error) ||
+                                                        'Không thể xác nhận thanh toán phí trọng tài. Vui lòng thử lại.'
+                                        )
+                                }
+                        }
+
+                        const { meta: initialMeta } = await performConfirmation()
+
+                        if (!initialMeta.requiresAction) {
+                                return
+                        }
+
+                        if (!initialMeta.clientSecret) {
+                                throw new Error('Thiếu client secret để xác thực 3-D Secure.')
+                        }
+
+                        const stripe = await getStripe()
+                        const confirmation = await stripe.confirmCardPayment(initialMeta.clientSecret, {
+                                payment_method: payload.paymentMethodRefId
+                        })
+
+                        if (confirmation.error) {
+                                const code = confirmation.error.code
+                                const baseMessage =
+                                        confirmation.error.message ||
+                                        (code === 'payment_intent_authentication_failure'
+                                                ? 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.'
+                                                : undefined)
+
+                                if (
+                                        confirmation.error.type === 'canceled' ||
+                                        code === 'payment_intent_authentication_failure'
+                                ) {
+                                        throw new Error(
+                                                baseMessage ||
+                                                        'Xác thực 3-D Secure đã bị hủy. Vui lòng thử lại nếu bạn vẫn muốn thanh toán.'
+                                        )
+                                }
+
+                                throw new Error(baseMessage || 'Xác thực 3-D Secure thất bại. Vui lòng thử lại.')
+                        }
+
+                        const followupIdentityKey =
+                                initialMeta.idempotencyKey ||
+                                initialMeta.paymentIntentId ||
+                                confirmation.paymentIntent?.id ||
+                                resolveIdentityKey()
+
+                        if (!followupIdentityKey) {
+                                throw new Error('Không tìm thấy khóa định danh thanh toán để hoàn tất xác thực.')
+                        }
+
+                        const { meta: finalMeta } = await performConfirmation(followupIdentityKey)
+
+                        if (finalMeta.requiresAction) {
+                                throw new Error(
+                                        'Thanh toán vẫn cần xác thực bổ sung. Vui lòng kiểm tra lại trạng thái 3-D Secure.'
+                                )
+                        }
+                },
+                onSuccess: async () => {
+                        toast.success('Đã xác nhận thanh toán phí trọng tài.')
+                        resetConfirmArbFeeForm({ paymentMethodRefId: '', identityPaymentKey: undefined })
+                        await queryClient.invalidateQueries({ queryKey: disputeQueryKey })
+                },
+                onError: error => {
+                        const message =
+                                extractPaymentErrorMessage(error) ||
+                                'Không thể xác nhận thanh toán phí trọng tài.'
+                        toast.error(message)
+                }
+        })
 
 	const milestoneDispute = disputeQuery.data
 	const contractFromPayload = milestoneDispute?.contract ?? null

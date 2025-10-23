@@ -61,6 +61,7 @@ import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
 import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
+import { extractPaymentErrorMessage, extractPaymentMeta } from '~/utils/payment'
 import { getStripe } from '~/utils/stripe'
 import {
 	extractLanguageLabels,
@@ -165,149 +166,6 @@ const collectAttachmentInputs = (...sources: unknown[]): unknown[] =>
 const isSubmissionAwaitingReview = (status?: string | null) => {
         if (!status) return false
         return pendingReviewStatuses.has(status.toUpperCase())
-}
-
-const paymentResponseKeys = [
-	'status',
-	'paymentStatus',
-	'payment_status',
-	'requiresAction',
-	'requires_action',
-	'clientSecret',
-	'client_secret',
-	'idempotencyKey',
-	'idemKey',
-	'idempotency_key',
-	'paymentIntentId',
-	'payment_intent_id',
-	'payment_intent'
-] as const
-
-type PaymentResponseRecord = Record<string, unknown>
-
-const pickString = (source: PaymentResponseRecord, keys: readonly string[]) => {
-	for (const key of keys) {
-		const value = source[key]
-		if (typeof value === 'string' && value.trim()) {
-			return value.trim()
-		}
-	}
-
-	return undefined
-}
-
-const findPaymentResponse = (
-	payload: unknown,
-	visited = new Set<PaymentResponseRecord>()
-): PaymentResponseRecord | null => {
-	if (!payload || typeof payload !== 'object') {
-		return null
-	}
-
-	const record = payload as PaymentResponseRecord
-
-	if (visited.has(record)) {
-		return null
-	}
-
-	visited.add(record)
-
-	if (paymentResponseKeys.some(key => key in record)) {
-		return record
-	}
-
-	for (const value of Object.values(record)) {
-		const nested = findPaymentResponse(value, visited)
-		if (nested) {
-			return nested
-		}
-	}
-
-	return null
-}
-
-const asRecord = (value: unknown): Record<string, unknown> | null => {
-	if (!value || typeof value !== 'object') {
-		return null
-	}
-
-	return value as Record<string, unknown>
-}
-
-const extractErrorMessage = (error: unknown): string | undefined => {
-	if (isAxiosError(error)) {
-		const data = error.response?.data
-
-		if (typeof data === 'string') {
-			const trimmed = data.trim()
-			return trimmed || undefined
-		}
-
-		const record = asRecord(data)
-
-		if (record) {
-			const candidates = ['message', 'error', 'detail', 'title'] as const
-
-			for (const key of candidates) {
-				const value = record[key]
-
-				if (typeof value === 'string' && value.trim()) {
-					return value.trim()
-				}
-			}
-		}
-
-		return error.message
-	}
-
-	if (error instanceof Error) {
-		return error.message
-	}
-
-	if (typeof error === 'string') {
-		const trimmed = error.trim()
-		return trimmed || undefined
-	}
-
-	return undefined
-}
-
-const extractPaymentMeta = (
-	payload?: PayContractMilestoneResponse | null
-): {
-	status?: string
-	clientSecret?: string
-	idempotencyKey?: string
-	paymentIntentId?: string
-	requiresAction: boolean
-} => {
-	if (!payload || typeof payload !== 'object') {
-		return {
-			status: undefined,
-			clientSecret: undefined,
-			idempotencyKey: undefined,
-			paymentIntentId: undefined,
-			requiresAction: false
-		}
-	}
-
-	const container = findPaymentResponse(payload) ?? (payload as PaymentResponseRecord)
-	const status = pickString(container, ['status', 'paymentStatus', 'payment_status'])
-	const clientSecret = pickString(container, ['clientSecret', 'client_secret'])
-	const idempotencyKey = pickString(container, ['idempotencyKey', 'idemKey', 'idempotency_key'])
-	const paymentIntentId = pickString(container, ['paymentIntentId', 'payment_intent_id', 'payment_intent'])
-	const requiresAction =
-		container.requiresAction === true ||
-		container['requires_action'] === true ||
-		(typeof status === 'string' && status.toUpperCase() === 'REQUIRES_ACTION')
-
-	return {
-		status,
-		clientSecret,
-		idempotencyKey,
-		paymentIntentId,
-		requiresAction
-	}
 }
 
 type EscrowStatusMeta = {
@@ -679,7 +537,7 @@ const ContractWorkroomPage = () => {
                 },
                 onError: error => {
                         const message =
-                                extractErrorMessage(error) || 'Không thể hủy milestone. Vui lòng thử lại.'
+                                extractPaymentErrorMessage(error) || 'Không thể hủy milestone. Vui lòng thử lại.'
                         toast.error(message)
                 }
         })
@@ -709,7 +567,7 @@ const ContractWorkroomPage = () => {
                 },
                 onError: error => {
                         const message =
-                                extractErrorMessage(error) ||
+                                extractPaymentErrorMessage(error) ||
                                 'Không thể phản hồi yêu cầu hủy milestone. Vui lòng thử lại.'
                         toast.error(message)
                 }
@@ -872,8 +730,8 @@ const ContractWorkroomPage = () => {
 						throw error
 					}
 
-					const rawPayload = asRecord(error.response?.data) ?? {}
-					const meta = extractPaymentMeta(rawPayload as PayContractMilestoneResponse)
+                                    const rawPayload = error.response?.data ?? null
+                                    const meta = extractPaymentMeta(rawPayload as PayContractMilestoneResponse)
 
 					if (meta.requiresAction || meta.clientSecret || meta.idempotencyKey || meta.paymentIntentId) {
 						return {
@@ -882,7 +740,10 @@ const ContractWorkroomPage = () => {
 						}
 					}
 
-					throw new Error(extractErrorMessage(error) || 'Không thể giải ngân milestone. Vui lòng thử lại.')
+                                    throw new Error(
+                                            extractPaymentErrorMessage(error) ||
+                                                    'Không thể giải ngân milestone. Vui lòng thử lại.'
+                                    )
 				}
 			}
 
@@ -937,7 +798,7 @@ const ContractWorkroomPage = () => {
 		},
 		onError: error => {
 			const message =
-				extractErrorMessage(error) ||
+                            extractPaymentErrorMessage(error) ||
 				(error instanceof Error ? error.message : undefined) ||
 				(typeof error === 'string' ? error : undefined) ||
 				'Không thể giải ngân milestone. Vui lòng thử lại.'
