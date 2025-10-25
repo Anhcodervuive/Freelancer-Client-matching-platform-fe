@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
@@ -75,13 +75,15 @@ const DISPUTE_FINAL_STATUSES = new Set<DisputeStatus | string>([
 ])
 
 const FINALIZED_MILESTONE_STATUSES = new Set<string>([
-	'APPROVED',
-	'RELEASED',
-	'COMPLETED',
-	'PAID',
-	'CANCELLED',
-	'CANCELED'
+        'APPROVED',
+        'RELEASED',
+        'COMPLETED',
+        'PAID',
+        'CANCELLED',
+        'CANCELED'
 ])
+
+const NEGOTIATION_HISTORY_STORAGE_KEY = 'contract-dispute-room:show-negotiation-history'
 
 const formatMilestoneStatus = (status?: string | null) => {
 	if (!status) return undefined
@@ -589,7 +591,36 @@ const ContractDisputeRoomPage = () => {
                 }
         })
 
-	const [actionState, setActionState] = useState<NegotiationActionState>({ negotiation: null, action: null })
+        const [actionState, setActionState] = useState<NegotiationActionState>({ negotiation: null, action: null })
+        const [showNegotiationHistory, setShowNegotiationHistory] = useState<boolean>(() => {
+                if (typeof window === 'undefined') {
+                        return true
+                }
+
+                const storedValue = window.localStorage.getItem(NEGOTIATION_HISTORY_STORAGE_KEY)
+
+                if (storedValue === 'true') {
+                        return true
+                }
+
+                if (storedValue === 'false') {
+                        return false
+                }
+
+                return true
+        })
+        const negotiationHistoryPanelId = useId()
+
+        useEffect(() => {
+                if (typeof window === 'undefined') {
+                        return
+                }
+
+                window.localStorage.setItem(
+                        NEGOTIATION_HISTORY_STORAGE_KEY,
+                        showNegotiationHistory ? 'true' : 'false'
+                )
+        }, [showNegotiationHistory])
 
 	const openDisputeMutation = useMutation({
 		mutationFn: async (values: OpenDisputeFormOutput) => {
@@ -1672,8 +1703,8 @@ const ContractDisputeRoomPage = () => {
 
 				{dispute && (
 					<div className='space-y-6'>
-						{!isFinalDispute && (
-							<div className='rounded-2xl border border-base-200 bg-base-50/80 p-6'>
+                                                {!isFinalDispute && (
+                                                        <div className='rounded-2xl border border-base-200 bg-base-50/80 p-5'>
 								<div className='mb-4 flex items-center gap-3'>
 									<Handshake className='size-5 text-primary' />
 									<div>
@@ -1781,27 +1812,52 @@ const ContractDisputeRoomPage = () => {
 							</div>
 						)}
 
-						<div className='space-y-4'>
-							<div className='flex items-center gap-3'>
-								<Gavel className='size-5 text-primary' />
-								<div>
-									<p className='text-base font-semibold text-base-content'>Lịch sử thương lượng</p>
-									<p className='text-sm text-base-content/70'>
-										Theo dõi tiến trình làm việc giữa hai bên và phản hồi nhanh chóng.
-									</p>
-								</div>
-							</div>
+                                                <div className='space-y-4 rounded-2xl border border-base-200 bg-base-50/80 p-5'>
+                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                <div className='flex items-center gap-3'>
+                                                                        <Gavel className='size-5 text-primary' />
+                                                                        <div>
+                                                                                <p className='text-base font-semibold text-base-content'>Lịch sử thương lượng</p>
+                                                                                <p className='text-sm text-base-content/70'>
+                                                                                        Theo dõi tiến trình làm việc giữa hai bên và phản hồi nhanh chóng.
+                                                                                </p>
+                                                                        </div>
+                                                                </div>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-ghost btn-sm text-xs'
+                                                                        onClick={() => setShowNegotiationHistory(prev => !prev)}
+                                                                        aria-expanded={showNegotiationHistory}
+                                                                        aria-controls={negotiationHistoryPanelId}
+                                                                        title={
+                                                                                showNegotiationHistory
+                                                                                        ? 'Thu gọn lịch sử thương lượng'
+                                                                                        : 'Mở rộng lịch sử thương lượng'
+                                                                        }
+                                                                >
+                                                                        {showNegotiationHistory ? 'Thu gọn' : 'Mở rộng'}
+                                                                </button>
+                                                        </div>
 
-							{negotiations.length === 0 ? (
-								<div className='rounded-2xl border border-dashed border-base-200 bg-base-50/80 p-6 text-sm text-base-content/70'>
-									Hiện chưa có đề xuất nào được ghi nhận. Hãy gửi đề xuất đầu tiên để bắt đầu thương lượng.
-								</div>
-							) : (
-								<div className='space-y-4'>
-									{negotiations.map(negotiation => {
-										const statusMeta = getNegotiationStatusMeta(negotiation.status)
-										const isPending = negotiation.status === DisputeNegotiationStatus.PENDING
-										const isProposer = negotiation.proposerId === currentUser?.id
+                                                        {negotiations.length === 0 ? (
+                                                                <div className='rounded-2xl border border-dashed border-base-200 bg-base-100/70 p-5 text-sm text-base-content/70 transition-all'>
+                                                                        Hiện chưa có đề xuất nào được ghi nhận. Hãy gửi đề xuất đầu tiên để bắt đầu thương lượng.
+                                                                </div>
+                                                        ) : (
+                                                                <div
+                                                                        id={negotiationHistoryPanelId}
+                                                                        role='region'
+                                                                        aria-hidden={!showNegotiationHistory}
+                                                                        className={`space-y-3 pr-1 transition-all ${
+                                                                                showNegotiationHistory
+                                                                                        ? 'max-h-[480px] overflow-y-auto'
+                                                                                        : 'pointer-events-none max-h-0 overflow-hidden opacity-0'
+                                                                        }`}
+                                                                >
+                                                                        {negotiations.map(negotiation => {
+                                                                                const statusMeta = getNegotiationStatusMeta(negotiation.status)
+                                                                                const isPending = negotiation.status === DisputeNegotiationStatus.PENDING
+                                                                                const isProposer = negotiation.proposerId === currentUser?.id
 										const isCounterparty = negotiation.counterpartyId === currentUser?.id
 										const releaseAmount = formatCurrency(parseAmount(negotiation.releaseAmount), currency)
 										const refundAmount = formatCurrency(parseAmount(negotiation.refundAmount), currency)
@@ -1812,67 +1868,68 @@ const ContractDisputeRoomPage = () => {
 										return (
 											<div
 												key={negotiation.id}
-												className='rounded-2xl border border-base-200 bg-base-100/90 p-5 shadow-inner'>
-												<div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
-													<div className='space-y-2'>
-														<div className='flex flex-wrap items-center gap-2 text-sm text-base-content/70'>
-															<span className='font-semibold text-base-content'>
-																{getUserDisplayName(negotiation.proposer, currentUser?.id ?? undefined)}
-															</span>
-															<span
-																className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.badge}`}>
-																{statusMeta.label}
-															</span>
-															{createdAt && <span>· {createdAt}</span>}
-														</div>
-														<div className='grid gap-2 text-sm text-base-content/80 md:grid-cols-2'>
-															<div>
-																Trả freelancer:{' '}
-																<span className='font-semibold text-base-content'>{releaseAmount ?? '—'}</span>
-															</div>
-															<div>
-																Hoàn client:{' '}
-																<span className='font-semibold text-base-content'>{refundAmount ?? '—'}</span>
-															</div>
-														</div>
-														{negotiation.message && (
-															<div className='rounded-xl border border-base-200 bg-base-100/90 p-4 text-sm text-base-content/80'>
-																{negotiation.message}
-															</div>
-														)}
-														{negotiation.responseMessage && (
-															<div className='rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-amber-800'>
-																<p className='mb-1 font-semibold'>Phản hồi:</p>
-																<p>{negotiation.responseMessage}</p>
-																{respondedAt && (
-																	<p className='mt-1 text-xs text-amber-700/80'>
-																		{respondedByName} · {respondedAt}
-																	</p>
-																)}
-															</div>
-														)}
-													</div>
-													{!isFinalDispute && (
-														<div className='flex flex-wrap items-center justify-end gap-2 text-xs'>
-															{isPending && isCounterparty && (
-																<>
-																	<button
+                                                                                                className='rounded-2xl border border-base-200 bg-base-100/90 p-4 shadow-inner'>
+                                                                                                <div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
+                                                                                                        <div className='space-y-2'>
+                                                                                                                <div className='flex flex-wrap items-center gap-2 text-sm text-base-content/70'>
+                                                                                                                        <span className='font-semibold text-base-content'>
+                                                                                                                                {getUserDisplayName(negotiation.proposer, currentUser?.id ?? undefined)}
+                                                                                                                        </span>
+                                                                                                                        <span
+                                                                                                                                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${statusMeta.badge}`}>
+                                                                                                                                <span className='size-1.5 rounded-full bg-current'></span>
+                                                                                                                                {statusMeta.label}
+                                                                                                                        </span>
+                                                                                                                        {createdAt && <span className='text-xs'>· {createdAt}</span>}
+                                                                                                                </div>
+                                                                                                                <div className='grid gap-2 text-sm text-base-content/80 sm:grid-cols-2'>
+                                                                                                                        <div className='rounded-xl border border-base-200 bg-base-50/80 p-3'>
+                                                                                                                                <p className='text-xs uppercase tracking-wide text-base-content/50'>Trả cho freelancer</p>
+                                                                                                                                <p className='text-base font-semibold text-base-content'>{releaseAmount ?? '—'}</p>
+                                                                                                                        </div>
+                                                                                                                        <div className='rounded-xl border border-base-200 bg-base-50/80 p-3'>
+                                                                                                                                <p className='text-xs uppercase tracking-wide text-base-content/50'>Hoàn lại cho client</p>
+                                                                                                                                <p className='text-base font-semibold text-base-content'>{refundAmount ?? '—'}</p>
+                                                                                                                        </div>
+                                                                                                                </div>
+                                                                                                                {negotiation.message && (
+                                                                                                                        <div className='rounded-xl border border-base-200 bg-base-50/80 p-3 text-sm text-base-content/80'>
+                                                                                                                                {negotiation.message}
+                                                                                                                        </div>
+                                                                                                                )}
+                                                                                                                {negotiation.responseMessage && (
+                                                                                                                        <div className='rounded-xl border border-base-200 bg-base-50/80 p-3 text-sm text-base-content/80'>
+                                                                                                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Phản hồi</p>
+                                                                                                                                <p>{negotiation.responseMessage}</p>
+                                                                                                                                {respondedAt && respondedByName && (
+                                                                                                                                        <p className='mt-1 text-xs text-base-content/60'>
+                                                                                                                                                {respondedByName} · {respondedAt}
+                                                                                                                                        </p>
+                                                                                                                                )}
+                                                                                                                        </div>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                        {!isFinalDispute && (
+                                                                                                                <div className='flex flex-wrap items-center justify-end gap-2 text-xs'>
+                                                                                                                        {isPending && isCounterparty && (
+                                                                                                                                <>
+                                                                                                                                        <button
 																		type='button'
 																		className='btn btn-success btn-sm'
 																		onClick={() => requestAction(negotiation, 'accept')}
 																		disabled={respondNegotiationMutation.isPending}>
 																		Chấp nhận
 																	</button>
-																	<button
-																		type='button'
-																		className='btn btn-error btn-sm'
-																		onClick={() => requestAction(negotiation, 'reject')}
-																		disabled={respondNegotiationMutation.isPending}>
-																		Từ chối
-																	</button>
-																</>
-															)}
-															{isPending && isProposer && (
+                                                                                                                                        <button
+                                                                                                                                                type='button'
+                                                                                                                                                className='btn btn-outline btn-sm'
+                                                                                                                                                onClick={() => requestAction(negotiation, 'reject')}
+                                                                                                                                                disabled={respondNegotiationMutation.isPending}>
+                                                                                                                                                Từ chối
+                                                                                                                                        </button>
+                                                                                                                                </>
+                                                                                                                        )}
+                                                                                                                        {isPending && isProposer && (
 																<>
 																	<button
 																		type='button'
