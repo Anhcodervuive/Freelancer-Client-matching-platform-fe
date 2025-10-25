@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { isAxiosError } from 'axios'
@@ -40,6 +40,8 @@ type FinalEvidenceSectionProps = {
 type EvidenceAttachment = DisputeEvidenceMilestoneAttachment | DisputeEvidenceChatAttachment
 
 type EvidenceSource = 'milestone' | 'chat'
+
+type EvidenceTabId = 'selected' | 'milestone' | 'chat'
 
 const MAX_EVIDENCE_ITEMS = 50
 
@@ -140,6 +142,8 @@ export default function FinalEvidenceSection({
         const noAdditionalEvidence = watch('noAdditionalEvidence')
         const currentItems = watch('items') ?? []
 
+        const [activeTab, setActiveTab] = useState<EvidenceTabId>('selected')
+
         const evidenceSourcesQuery = useQuery({
                 queryKey: ['dispute-final-evidence-sources', contractId, milestoneId, disputeId],
                 queryFn: () => listFinalEvidenceSources(contractId, milestoneId, disputeId),
@@ -187,6 +191,27 @@ export default function FinalEvidenceSection({
                         return getTimestamp(b.createdAt) - getTimestamp(a.createdAt)
                 })
         }, [evidenceSourcesQuery.data?.chatAttachments])
+
+        const evidenceTabs = useMemo(
+                () => [
+                        {
+                                id: 'selected' as EvidenceTabId,
+                                label: 'Chứng cứ đã chọn',
+                                count: fields.length
+                        },
+                        {
+                                id: 'milestone' as EvidenceTabId,
+                                label: 'Tệp milestone',
+                                count: milestoneAttachments.length
+                        },
+                        {
+                                id: 'chat' as EvidenceTabId,
+                                label: 'Tệp tin nhắn',
+                                count: chatAttachments.length
+                        }
+                ],
+                [fields.length, milestoneAttachments.length, chatAttachments.length]
+        )
 
         const addAttachment = (attachment: EvidenceAttachment, source: EvidenceSource) => {
                 if (noAdditionalEvidence) {
@@ -348,193 +373,210 @@ export default function FinalEvidenceSection({
                                         </label>
                                 </div>
 
-                                <div className='space-y-3'>
-                                        <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-                                                <p className='text-sm font-semibold text-base-content'>Danh sách chứng cứ gửi tới trọng tài</p>
-                                                <div className='flex flex-wrap gap-2'>
-                                                        <button
-                                                                type='button'
-                                                                className='btn btn-outline btn-sm'
-                                                                onClick={handleAddExternalLink}
-                                                                disabled={disableAddButtons}
-                                                        >
-                                                                <Link2 className='mr-1 size-4' /> Thêm liên kết ngoài
-                                                        </button>
-                                                </div>
-                                        </div>
-
-                                        {fields.length === 0 ? (
-                                                <div className='rounded-2xl border border-dashed border-base-300 bg-base-100/60 px-4 py-6 text-center text-sm text-base-content/70'>
-                                                        Chưa có chứng cứ nào được chọn.
-                                                </div>
-                                        ) : (
-                                                <div className='space-y-4'>
-                                                        {fields.map((field, index) => {
-                                                                const sourceType = field.sourceType
-                                                                const itemErrors = errors.items?.[index]
-                                                                const isExternal = sourceType === ArbitrationEvidenceSourceType.EXTERNAL_URL
-                                                                const isAsset = sourceType === ArbitrationEvidenceSourceType.ASSET
-
-                                                                return (
-                                                                        <div
-                                                                                key={field.id}
-                                                                                className='rounded-2xl border border-base-200 bg-base-100/90 p-4 shadow-sm'
-                                                                        >
-                                                                                <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
-                                                                                        <div className='inline-flex items-center gap-2 rounded-full border border-base-200 bg-base-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-base-content/70'>
-                                                                                                <Paperclip className='size-3.5 text-primary' />
-                                                                                                {sourceType === ArbitrationEvidenceSourceType.MILESTONE_ATTACHMENT && 'Tệp milestone'}
-                                                                                                {sourceType === ArbitrationEvidenceSourceType.CHAT_ATTACHMENT && 'Tệp trong chat'}
-                                                                                                {sourceType === ArbitrationEvidenceSourceType.EXTERNAL_URL && 'Liên kết ngoài'}
-                                                                                                {sourceType === ArbitrationEvidenceSourceType.ASSET && 'Tệp đã tải lên'}
-                                                                                        </div>
-                                                                                        <button
-                                                                                                type='button'
-                                                                                                className='btn btn-ghost btn-sm text-error'
-                                                                                                onClick={() => remove(index)}
-                                                                                                disabled={isSubmitting}
-                                                                                        >
-                                                                                                <Trash2 className='mr-1 size-4' /> Gỡ bỏ
-                                                                                        </button>
-                                                                                </div>
-
-                                                                                <div className='grid gap-4 md:grid-cols-2'>
-                                                                                        <div className='space-y-2'>
-                                                                                                <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Tiêu đề chứng cứ</label>
-                                                                                                <Controller
-                                                                                                        name={`items.${index}.label`}
-                                                                                                        control={control}
-                                                                                                        render={({ field: labelField }) => (
-                                                                                                                <input
-                                                                                                                        {...labelField}
-                                                                                                                        type='text'
-                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                                        placeholder='Ví dụ: Trao đổi ngày 12/04'
-                                                                                                                        disabled={isSubmitting}
-                                                                                                                />
-                                                                                                        )}
-                                                                                                />
-                                                                                                {itemErrors?.label && (
-                                                                                                        <p className='text-xs text-error'>{itemErrors.label.message}</p>
-                                                                                                )}
-                                                                                        </div>
-                                                                                        <div className='space-y-2'>
-                                                                                                <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Mô tả</label>
-                                                                                                <Controller
-                                                                                                        name={`items.${index}.description`}
-                                                                                                        control={control}
-                                                                                                        render={({ field: descriptionField }) => (
-                                                                                                                <textarea
-                                                                                                                        {...descriptionField}
-                                                                                                                        rows={3}
-                                                                                                                        className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                                        placeholder='Tóm tắt nội dung chứng minh điều gì trong tranh chấp.'
-                                                                                                                        disabled={isSubmitting}
-                                                                                                                />
-                                                                                                        )}
-                                                                                                />
-                                                                                                {itemErrors?.description && (
-                                                                                                        <p className='text-xs text-error'>{itemErrors.description.message}</p>
-                                                                                                )}
-                                                                                        </div>
-                                                                                </div>
-
-                                                                                {isExternal && (
-                                                                                        <div className='mt-3 space-y-2'>
-                                                                                                <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Đường dẫn chứng cứ</label>
-                                                                                                <Controller
-                                                                                                        name={`items.${index}.url`}
-                                                                                                        control={control}
-                                                                                                        render={({ field: urlField }) => (
-                                                                                                                <input
-                                                                                                                        {...urlField}
-                                                                                                                        type='url'
-                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                                        placeholder='https://'
-                                                                                                                        disabled={isSubmitting}
-                                                                                                                />
-                                                                                                        )}
-                                                                                                />
-                                                                                                {itemErrors?.url && (
-                                                                                                        <p className='text-xs text-error'>{itemErrors.url.message}</p>
-                                                                                                )}
-                                                                                        </div>
-                                                                                )}
-
-                                                                                {isAsset && (
-                                                                                        <div className='mt-3 space-y-2'>
-                                                                                                <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Mã asset</label>
-                                                                                                <Controller
-                                                                                                        name={`items.${index}.assetId`}
-                                                                                                        control={control}
-                                                                                                        render={({ field: assetField }) => (
-                                                                                                                <input
-                                                                                                                        {...assetField}
-                                                                                                                        type='text'
-                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                                        placeholder='Nhập assetId đã được hệ thống cấp.'
-                                                                                                                        disabled={isSubmitting}
-                                                                                                                />
-                                                                                                        )}
-                                                                                                />
-                                                                                                {itemErrors?.assetId && (
-                                                                                                        <p className='text-xs text-error'>{itemErrors.assetId.message}</p>
-                                                                                                )}
-                                                                                        </div>
-                                                                                )}
-
-                                                                                <Controller
-                                                                                        name={`items.${index}.sourceType`}
-                                                                                        control={control}
-                                                                                        render={({ field: sourceTypeField }) => (
-                                                                                                <input type='hidden' {...sourceTypeField} />
-                                                                                        )}
-                                                                                />
-                                                                                <Controller
-                                                                                        name={`items.${index}.sourceId`}
-                                                                                        control={control}
-                                                                                        render={({ field: sourceIdField }) => (
-                                                                                                <input type='hidden' {...sourceIdField} />
-                                                                                        )}
-                                                                                />
-                                                                        </div>
-                                                                )
-                                                        })}
-                                                </div>
-                                        )}
-                                </div>
-
-                                {globalError && (
-                                        <div className='rounded-2xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error'>
-                                                {globalError}
-                                        </div>
-                                )}
-
                                 <div className='space-y-4'>
-                                        <p className='text-sm font-semibold text-base-content'>Tài liệu tham khảo</p>
+                                        <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+                                                <p className='text-sm font-semibold text-base-content'>Quản lý chứng cứ gửi tới trọng tài</p>
+                                                {activeTab === 'selected' && (
+                                                        <div className='flex flex-wrap gap-2'>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-outline btn-sm'
+                                                                        onClick={handleAddExternalLink}
+                                                                        disabled={disableAddButtons}
+                                                                >
+                                                                        <Link2 className='mr-1 size-4' /> Thêm liên kết ngoài
+                                                                </button>
+                                                        </div>
+                                                )}
+                                        </div>
 
-                                        <div className='space-y-3'>
-                                                <div>
-                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Tệp từ milestone</p>
-                                                        {sourcesError ? (
-                                                                <div className='mt-2 flex flex-wrap items-center gap-2 text-sm text-error'>
-                                                                        Không thể tải danh sách tệp.
-                                                                        <button
-                                                                                type='button'
-                                                                                className='btn btn-ghost btn-xs text-error underline'
-                                                                                onClick={() => evidenceSourcesQuery.refetch()}
-                                                                                disabled={evidenceSourcesQuery.isFetching}
-                                                                        >
-                                                                                Thử lại
-                                                                        </button>
-                                                                </div>
-                                                        ) : evidenceSourcesQuery.isLoading ? (
-                                                                <div className='mt-2 flex items-center gap-2 text-sm text-base-content/70'>
-                                                                        <Loader2 className='size-4 animate-spin' /> Đang tải danh sách tệp…
-                                                                </div>
-                                                        ) : milestoneAttachments.length ? (
-                                                                <div className='mt-3 space-y-3'>
-                                                                        {milestoneAttachments.map(attachment => {
+                                        <div className='flex flex-wrap gap-2 rounded-2xl border border-base-200 bg-base-100/60 p-1.5 shadow-sm'>
+                                                {evidenceTabs.map(tab => {
+                                                        const isActive = activeTab === tab.id
+                                                        return (
+                                                                <button
+                                                                        key={tab.id}
+                                                                        type='button'
+                                                                        className={`flex flex-1 items-center justify-between gap-2 rounded-2xl px-4 py-2 text-xs font-medium uppercase tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:flex-initial sm:text-sm ${
+                                                                                isActive
+                                                                                        ? 'bg-primary text-primary-content shadow'
+                                                                                        : 'bg-transparent text-base-content/70 hover:bg-base-200/80'
+                                                                        }`}
+                                                                        onClick={() => setActiveTab(tab.id)}
+                                                                        disabled={isSubmitting}
+                                                                >
+                                                                        <span>{tab.label}</span>
+                                                                        <span className='rounded-full border border-current/20 px-2 py-0.5 text-[11px] font-semibold sm:text-xs'>
+                                                                                {tab.count}
+                                                                        </span>
+                                                                </button>
+                                                        )
+                                                })}
+                                        </div>
+
+                                        <div className='rounded-2xl border border-base-200 bg-base-100/80 p-4 shadow-sm'>
+                                                {activeTab === 'selected' && (
+                                                        <div className='space-y-4'>
+                                                                {fields.length === 0 ? (
+                                                                        <div className='rounded-2xl border border-dashed border-base-300 bg-base-100/60 px-4 py-6 text-center text-sm text-base-content/70'>
+                                                                                Chưa có chứng cứ nào được chọn.
+                                                                        </div>
+                                                                ) : (
+                                                                        fields.map((field, index) => {
+                                                                                const sourceType = field.sourceType
+                                                                                const itemErrors = errors.items?.[index]
+                                                                                const isExternal = sourceType === ArbitrationEvidenceSourceType.EXTERNAL_URL
+                                                                                const isAsset = sourceType === ArbitrationEvidenceSourceType.ASSET
+
+                                                                                return (
+                                                                                        <div
+                                                                                                key={field.id}
+                                                                                                className='rounded-2xl border border-base-200 bg-base-100/90 p-4 shadow-sm'
+                                                                                        >
+                                                                                                <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
+                                                                                                        <div className='inline-flex items-center gap-2 rounded-full border border-base-200 bg-base-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-base-content/70'>
+                                                                                                                <Paperclip className='size-3.5 text-primary' />
+                                                                                                                {sourceType === ArbitrationEvidenceSourceType.MILESTONE_ATTACHMENT && 'Tệp milestone'}
+                                                                                                                {sourceType === ArbitrationEvidenceSourceType.CHAT_ATTACHMENT && 'Tệp trong chat'}
+                                                                                                                {sourceType === ArbitrationEvidenceSourceType.EXTERNAL_URL && 'Liên kết ngoài'}
+                                                                                                                {sourceType === ArbitrationEvidenceSourceType.ASSET && 'Tệp đã tải lên'}
+                                                                                                        </div>
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                className='btn btn-ghost btn-sm text-error'
+                                                                                                                onClick={() => remove(index)}
+                                                                                                                disabled={isSubmitting}
+                                                                                                        >
+                                                                                                                <Trash2 className='mr-1 size-4' /> Gỡ bỏ
+                                                                                                        </button>
+                                                                                                </div>
+
+                                                                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                                                                        <div className='space-y-2'>
+                                                                                                                <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Tiêu đề chứng cứ</label>
+                                                                                                                <Controller
+                                                                                                                        name={`items.${index}.label`}
+                                                                                                                        control={control}
+                                                                                                                        render={({ field: labelField }) => (
+                                                                                                                                <input
+                                                                                                                                        {...labelField}
+                                                                                                                                        type='text'
+                                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                                                        placeholder='Ví dụ: Trao đổi ngày 12/04'
+                                                                                                                                        disabled={isSubmitting}
+                                                                                                                                />
+                                                                                                                        )}
+                                                                                                                />
+                                                                                                                {itemErrors?.label && (
+                                                                                                                        <p className='text-xs text-error'>{itemErrors.label.message}</p>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                        <div className='space-y-2'>
+                                                                                                                <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Mô tả</label>
+                                                                                                                <Controller
+                                                                                                                        name={`items.${index}.description`}
+                                                                                                                        control={control}
+                                                                                                                        render={({ field: descriptionField }) => (
+                                                                                                                                <textarea
+                                                                                                                                        {...descriptionField}
+                                                                                                                                        rows={3}
+                                                                                                                                        className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                                                        placeholder='Tóm tắt nội dung chứng minh điều gì trong tranh chấp.'
+                                                                                                                                        disabled={isSubmitting}
+                                                                                                                                />
+                                                                                                                        )}
+                                                                                                                />
+                                                                                                                {itemErrors?.description && (
+                                                                                                                        <p className='text-xs text-error'>{itemErrors.description.message}</p>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                </div>
+
+                                                                                                {isExternal && (
+                                                                                                        <div className='mt-3 space-y-2'>
+                                                                                                                <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Đường dẫn chứng cứ</label>
+                                                                                                                <Controller
+                                                                                                                        name={`items.${index}.url`}
+                                                                                                                        control={control}
+                                                                                                                        render={({ field: urlField }) => (
+                                                                                                                                <input
+                                                                                                                                        {...urlField}
+                                                                                                                                        type='url'
+                                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                                                        placeholder='https://'
+                                                                                                                                        disabled={isSubmitting}
+                                                                                                                                />
+                                                                                                                        )}
+                                                                                                                />
+                                                                                                                {itemErrors?.url && (
+                                                                                                                        <p className='text-xs text-error'>{itemErrors.url.message}</p>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                )}
+
+                                                                                                {isAsset && (
+                                                                                                        <div className='mt-3 space-y-2'>
+                                                                                                                <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Mã asset</label>
+                                                                                                                <Controller
+                                                                                                                        name={`items.${index}.assetId`}
+                                                                                                                        control={control}
+                                                                                                                        render={({ field: assetField }) => (
+                                                                                                                                <input
+                                                                                                                                        {...assetField}
+                                                                                                                                        type='text'
+                                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                                                        placeholder='Nhập assetId đã được hệ thống cấp.'
+                                                                                                                                        disabled={isSubmitting}
+                                                                                                                                />
+                                                                                                                        )}
+                                                                                                                />
+                                                                                                                {itemErrors?.assetId && (
+                                                                                                                        <p className='text-xs text-error'>{itemErrors.assetId.message}</p>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                )}
+
+                                                                                                <Controller
+                                                                                                        name={`items.${index}.sourceType`}
+                                                                                                        control={control}
+                                                                                                        render={({ field: sourceTypeField }) => (
+                                                                                                                <input type='hidden' {...sourceTypeField} />
+                                                                                                        )}
+                                                                                                />
+                                                                                                <Controller
+                                                                                                        name={`items.${index}.sourceId`}
+                                                                                                        control={control}
+                                                                                                        render={({ field: sourceIdField }) => (
+                                                                                                                <input type='hidden' {...sourceIdField} />
+                                                                                                        )}
+                                                                                                />
+                                                                                        </div>
+                                                                                )
+                                                                        })
+                                                                )}
+                                                        </div>
+                                                )}
+
+                                                {activeTab === 'milestone' && (
+                                                        <div className='space-y-3'>
+                                                                {sourcesError ? (
+                                                                        <div className='flex flex-wrap items-center gap-2 text-sm text-error'>
+                                                                                Không thể tải danh sách tệp.
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-ghost btn-xs text-error underline'
+                                                                                        onClick={() => evidenceSourcesQuery.refetch()}
+                                                                                        disabled={evidenceSourcesQuery.isFetching}
+                                                                                >
+                                                                                        Thử lại
+                                                                                </button>
+                                                                        </div>
+                                                                ) : evidenceSourcesQuery.isLoading ? (
+                                                                        <div className='flex items-center gap-2 text-sm text-base-content/70'>
+                                                                                <Loader2 className='size-4 animate-spin' /> Đang tải danh sách tệp…
+                                                                        </div>
+                                                                ) : milestoneAttachments.length ? (
+                                                                        milestoneAttachments.map(attachment => {
                                                                                 const sizeLabel = formatFileSize(attachment.size)
                                                                                 const typeLabel = formatFileType({
                                                                                         mimeType: attachment.mimeType,
@@ -577,34 +619,33 @@ export default function FinalEvidenceSection({
                                                                                                 </button>
                                                                                         </div>
                                                                                 )
-                                                                        })}
-                                                                </div>
-                                                        ) : (
-                                                                <p className='mt-2 text-sm text-base-content/60'>Chưa có tệp nào từ milestone.</p>
-                                                        )}
-                                                </div>
+                                                                        })
+                                                                ) : (
+                                                                        <p className='text-sm text-base-content/60'>Chưa có tệp nào từ milestone.</p>
+                                                                )}
+                                                        </div>
+                                                )}
 
-                                                <div>
-                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Tệp từ tin nhắn</p>
-                                                        {sourcesError ? (
-                                                                <div className='mt-2 flex flex-wrap items-center gap-2 text-sm text-error'>
-                                                                        Không thể tải danh sách tệp.
-                                                                        <button
-                                                                                type='button'
-                                                                                className='btn btn-ghost btn-xs text-error underline'
-                                                                                onClick={() => evidenceSourcesQuery.refetch()}
-                                                                                disabled={evidenceSourcesQuery.isFetching}
-                                                                        >
-                                                                                Thử lại
-                                                                        </button>
-                                                                </div>
-                                                        ) : evidenceSourcesQuery.isLoading ? (
-                                                                <div className='mt-2 flex items-center gap-2 text-sm text-base-content/70'>
-                                                                        <Loader2 className='size-4 animate-spin' /> Đang tải danh sách tệp…
-                                                                </div>
-                                                        ) : chatAttachments.length ? (
-                                                                <div className='mt-3 space-y-3'>
-                                                                        {chatAttachments.map(attachment => {
+                                                {activeTab === 'chat' && (
+                                                        <div className='space-y-3'>
+                                                                {sourcesError ? (
+                                                                        <div className='flex flex-wrap items-center gap-2 text-sm text-error'>
+                                                                                Không thể tải danh sách tệp.
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-ghost btn-xs text-error underline'
+                                                                                        onClick={() => evidenceSourcesQuery.refetch()}
+                                                                                        disabled={evidenceSourcesQuery.isFetching}
+                                                                                >
+                                                                                        Thử lại
+                                                                                </button>
+                                                                        </div>
+                                                                ) : evidenceSourcesQuery.isLoading ? (
+                                                                        <div className='flex items-center gap-2 text-sm text-base-content/70'>
+                                                                                <Loader2 className='size-4 animate-spin' /> Đang tải danh sách tệp…
+                                                                        </div>
+                                                                ) : chatAttachments.length ? (
+                                                                        chatAttachments.map(attachment => {
                                                                                 const sizeLabel = formatFileSize(attachment.size)
                                                                                 const typeLabel = formatFileType({
                                                                                         mimeType: attachment.mimeType,
@@ -647,13 +688,19 @@ export default function FinalEvidenceSection({
                                                                                                 </button>
                                                                                         </div>
                                                                                 )
-                                                                        })}
-                                                                </div>
-                                                        ) : (
-                                                                <p className='mt-2 text-sm text-base-content/60'>Chưa có tệp nào từ cuộc trò chuyện.</p>
-                                                        )}
-                                                </div>
+                                                                        })
+                                                                ) : (
+                                                                        <p className='text-sm text-base-content/60'>Chưa có tệp nào từ cuộc trò chuyện.</p>
+                                                                )}
+                                                        </div>
+                                                )}
                                         </div>
+
+                                        {globalError && (
+                                                <div className='rounded-2xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error'>
+                                                        {globalError}
+                                                </div>
+                                        )}
                                 </div>
 
                                 <div className='flex justify-end'>
