@@ -22,15 +22,15 @@ import {
 import { toast } from 'react-toastify'
 
 import {
-	confirmArbitrationFee,
-	createDisputeNegotiation,
-	deleteDisputeNegotiation,
-	getContractDetail,
-	getMilestoneDispute,
-	listContractMilestones,
-	openMilestoneDispute,
-	respondDisputeNegotiation,
-	updateDisputeNegotiation
+        confirmArbitrationFee,
+        createDisputeNegotiation,
+        deleteDisputeNegotiation,
+        getContractDetail,
+        getMilestoneDispute,
+        listContractMilestones,
+        openMilestoneDispute,
+        respondDisputeNegotiation,
+        updateDisputeNegotiation
 } from '~/apis/contract.api'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { routes } from '~/config/routes'
@@ -56,15 +56,16 @@ import { formatCurrency, formatDateTime } from '~/utils/format'
 import { extractPaymentErrorMessage, extractPaymentMeta } from '~/utils/payment'
 import { getStripe } from '~/utils/stripe'
 import {
-	DisputeNegotiationSchema,
-	ConfirmArbitrationFeeSchema,
-	OpenDisputeSchema,
-	RejectNegotiationSchema,
-	type ConfirmArbitrationFeeFormOutput,
-	type DisputeNegotiationFormOutput,
-	type OpenDisputeFormOutput,
-	type RejectNegotiationFormValues
+        DisputeNegotiationSchema,
+        ConfirmArbitrationFeeSchema,
+        OpenDisputeSchema,
+        RejectNegotiationSchema,
+        type ConfirmArbitrationFeeFormOutput,
+        type DisputeNegotiationFormOutput,
+        type OpenDisputeFormOutput,
+        type RejectNegotiationFormValues
 } from './schemas'
+import FinalEvidenceSection from './components/FinalEvidenceSection'
 
 const DISPUTE_FINAL_STATUSES = new Set<DisputeStatus | string>([
 	DisputeStatus.RESOLVED_RELEASE_ALL,
@@ -898,8 +899,9 @@ const ContractDisputeRoomPage = () => {
 
 	const dispute = milestoneDispute?.dispute ?? null
 	const currentUserId = currentUser?.id ?? null
-	const disputeStatusMeta = getDisputeStatusMeta(dispute?.status)
-	const isAwaitingArbitrationFees = dispute?.status === DisputeStatus.AWAITING_ARBITRATION_FEES
+        const disputeStatusMeta = getDisputeStatusMeta(dispute?.status)
+        const isArbitrationStage = disputeStatusMeta.tone === 'arbitration'
+        const isAwaitingArbitrationFees = dispute?.status === DisputeStatus.AWAITING_ARBITRATION_FEES
 	const contractEntity = (contract as Contract | null) ?? null
 	const contractSummary = (contract as DisputeContractSummary | null) ?? null
 	const contractClientId =
@@ -1702,11 +1704,22 @@ const ContractDisputeRoomPage = () => {
 					))}
 
 				{dispute && (
-					<div className='space-y-6'>
-                                                {!isFinalDispute && (
-                                                        <div className='rounded-2xl border border-base-200 bg-base-50/80 p-5'>
-								<div className='mb-4 flex items-center gap-3'>
-									<Handshake className='size-5 text-primary' />
+                                <div className='space-y-6'>
+                                        {dispute.id && contractId && milestoneId && isArbitrationStage && (
+                                                <FinalEvidenceSection
+                                                        contractId={contractId}
+                                                        milestoneId={milestoneId}
+                                                        disputeId={dispute.id}
+                                                        currentUserId={currentUserId}
+                                                        isClientParty={isClientParty}
+                                                        isFreelancerParty={isFreelancerParty}
+                                                        isAwaitingArbitrationFees={isAwaitingArbitrationFees}
+                                                />
+                                        )}
+                                        {!isFinalDispute && (
+                                                <div className='rounded-2xl border border-base-200 bg-base-50/80 p-5'>
+                                                        <div className='mb-4 flex items-center gap-3'>
+                                                                <Handshake className='size-5 text-primary' />
 									<div>
 										<p className='text-base font-semibold text-base-content'>Gửi đề xuất thương lượng</p>
 										<p className='text-sm text-base-content/70'>

@@ -18,11 +18,19 @@ import type {
         CreateDisputeNegotiationInput,
         Dispute,
         DisputeContractSummary,
+        DisputeEvidenceAsset,
+        DisputeEvidenceChatAttachment,
+        DisputeEvidenceChatMessage,
+        DisputeEvidenceMilestoneAttachment,
+        DisputeEvidencePerson,
+        DisputeEvidenceSubmission,
+        DisputeFinalEvidenceSources,
         DisputeMilestoneSummary,
         DisputeNegotiation,
         MilestoneDisputeSummary,
         OpenDisputeInput,
         RespondDisputeNegotiationInput,
+        SubmitFinalEvidenceInput,
         UpdateDisputeNegotiationInput,
         ConfirmArbitrationFeeInput
 } from '~/types/dispute'
@@ -171,6 +179,178 @@ const parseNumberLike = (value: unknown): number | undefined => {
         }
 
         return undefined
+}
+
+const getString = (value: unknown): string | null => {
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                return trimmed.length > 0 ? trimmed : null
+        }
+
+        return null
+}
+
+const getLooseString = (value: unknown): string | null => {
+        if (typeof value === 'string') {
+                return value
+        }
+
+        if (value instanceof Date) {
+                return value.toISOString()
+        }
+
+        return null
+}
+
+const getNumber = (value: unknown): number | null => {
+        if (typeof value === 'number') {
+                return Number.isFinite(value) ? value : null
+        }
+
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                if (!trimmed) return null
+                const parsed = Number(trimmed)
+                return Number.isFinite(parsed) ? parsed : null
+        }
+
+        return null
+}
+
+const normalizePerson = (value: unknown): DisputeEvidencePerson | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        return {
+                id,
+                firstName: getLooseString(record.firstName),
+                lastName: getLooseString(record.lastName),
+                displayName: getLooseString(record.displayName)
+        }
+}
+
+const normalizeAsset = (value: unknown): DisputeEvidenceAsset | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        return {
+                id,
+                kind: getLooseString(record.kind),
+                url: getLooseString(record.url),
+                mimeType: getLooseString(record.mimeType),
+                bytes: getNumber(record.bytes),
+                status: getLooseString(record.status)
+        }
+}
+
+const normalizeSubmission = (value: unknown): DisputeEvidenceSubmission | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        return {
+                id,
+                milestoneId: getLooseString(record.milestoneId),
+                freelancerId: getLooseString(record.freelancerId),
+                createdAt: getLooseString(record.createdAt),
+                message: getLooseString(record.message),
+                freelancer: normalizePerson(record.freelancer)
+        }
+}
+
+const normalizeChatMessage = (value: unknown): DisputeEvidenceChatMessage | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        return {
+                id,
+                threadId: getLooseString(record.threadId),
+                senderId: getLooseString(record.senderId),
+                sentAt: getLooseString(record.sentAt),
+                body: getLooseString(record.body),
+                sender: normalizePerson(record.sender)
+        }
+}
+
+const normalizeMilestoneAttachment = (value: unknown): DisputeEvidenceMilestoneAttachment | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        const submission = normalizeSubmission(record.submission)
+
+        return {
+                id,
+                submissionId: getLooseString(record.submissionId) ?? submission?.id ?? null,
+                assetId: getLooseString(record.assetId),
+                name: getLooseString(record.name),
+                url: getLooseString(record.url),
+                mimeType: getLooseString(record.mimeType),
+                size: getNumber(record.size),
+                createdAt: getLooseString(record.createdAt) ?? submission?.createdAt ?? null,
+                submission,
+                asset: normalizeAsset(record.asset)
+        }
+}
+
+const normalizeChatAttachment = (value: unknown): DisputeEvidenceChatAttachment | null => {
+        if (!value || typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        const message = normalizeChatMessage(record.message)
+
+        return {
+                id,
+                messageId: getLooseString(record.messageId) ?? message?.id ?? null,
+                assetId: getLooseString(record.assetId),
+                name: getLooseString(record.name),
+                url: getLooseString(record.url),
+                mimeType: getLooseString(record.mimeType),
+                size: getNumber(record.size),
+                createdAt: getLooseString(record.createdAt) ?? message?.sentAt ?? null,
+                asset: normalizeAsset(record.asset),
+                message
+        }
 }
 
 const looksLikeDisputeContract = (value: unknown): value is DisputeContractSummary => {
@@ -570,4 +750,46 @@ export const confirmArbitrationFee = async (
         )
 
         return response.data
+}
+
+export const listFinalEvidenceSources = async (
+        contractId: string,
+        milestoneId: string,
+        disputeId: string
+): Promise<DisputeFinalEvidenceSources> => {
+        const response = await authorizeAxiosInstance.get(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/final-evidence/sources`
+        )
+
+        const record = (response.data ?? {}) as Record<string, unknown>
+        const milestoneAttachmentsRaw = Array.isArray(record.milestoneAttachments)
+                ? (record.milestoneAttachments as unknown[])
+                : []
+        const chatAttachmentsRaw = Array.isArray(record.chatAttachments)
+                ? (record.chatAttachments as unknown[])
+                : []
+
+        return {
+                contractId: getLooseString(record.contractId),
+                milestoneId: getLooseString(record.milestoneId),
+                disputeId: getLooseString(record.disputeId),
+                milestoneAttachments: milestoneAttachmentsRaw
+                        .map(normalizeMilestoneAttachment)
+                        .filter((item): item is DisputeEvidenceMilestoneAttachment => Boolean(item)),
+                chatAttachments: chatAttachmentsRaw
+                        .map(normalizeChatAttachment)
+                        .filter((item): item is DisputeEvidenceChatAttachment => Boolean(item))
+        }
+}
+
+export const submitFinalEvidence = async (
+        contractId: string,
+        milestoneId: string,
+        disputeId: string,
+        payload: SubmitFinalEvidenceInput
+) => {
+        await authorizeAxiosInstance.post(
+                `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/final-evidence`,
+                payload
+        )
 }

@@ -23,6 +23,13 @@ export enum DisputeNegotiationStatus {
         EXPIRED = 'EXPIRED'
 }
 
+export enum ArbitrationEvidenceSourceType {
+        MILESTONE_ATTACHMENT = 'MILESTONE_ATTACHMENT',
+        CHAT_ATTACHMENT = 'CHAT_ATTACHMENT',
+        ASSET = 'ASSET',
+        EXTERNAL_URL = 'EXTERNAL_URL'
+}
+
 export type DecimalLike = number | string
 
 export type DisputeParticipantProfile = {
@@ -137,6 +144,89 @@ export type UpdateDisputeNegotiationInput = {
 export type RespondDisputeNegotiationInput = {
         action: 'accept' | 'reject'
         message?: string
+}
+
+export type DisputeEvidencePerson = {
+        id: string
+        firstName?: string | null
+        lastName?: string | null
+        displayName?: string | null
+}
+
+export type DisputeEvidenceSubmission = {
+        id: string
+        milestoneId?: string | null
+        freelancerId?: string | null
+        createdAt?: string | null
+        message?: string | null
+        freelancer?: DisputeEvidencePerson | null
+}
+
+export type DisputeEvidenceAsset = {
+        id: string
+        kind?: string | null
+        url?: string | null
+        mimeType?: string | null
+        bytes?: number | null
+        status?: string | null
+}
+
+export type DisputeEvidenceMilestoneAttachment = {
+        id: string
+        submissionId?: string | null
+        assetId?: string | null
+        name?: string | null
+        url?: string | null
+        mimeType?: string | null
+        size?: number | null
+        createdAt?: string | null
+        submission?: DisputeEvidenceSubmission | null
+        asset?: DisputeEvidenceAsset | null
+}
+
+export type DisputeEvidenceChatMessage = {
+        id: string
+        threadId?: string | null
+        senderId?: string | null
+        sentAt?: string | null
+        body?: string | null
+        sender?: DisputeEvidencePerson | null
+}
+
+export type DisputeEvidenceChatAttachment = {
+        id: string
+        messageId?: string | null
+        assetId?: string | null
+        name?: string | null
+        url?: string | null
+        mimeType?: string | null
+        size?: number | null
+        createdAt?: string | null
+        asset?: DisputeEvidenceAsset | null
+        message?: DisputeEvidenceChatMessage | null
+}
+
+export type DisputeFinalEvidenceSources = {
+        contractId: string | null
+        milestoneId: string | null
+        disputeId: string | null
+        milestoneAttachments: DisputeEvidenceMilestoneAttachment[]
+        chatAttachments: DisputeEvidenceChatAttachment[]
+}
+
+export type SubmitFinalEvidenceItemInput = {
+        label?: string
+        description?: string
+        sourceType: ArbitrationEvidenceSourceType
+        sourceId?: string
+        url?: string
+        assetId?: string
+}
+
+export type SubmitFinalEvidenceInput = {
+        statement?: string
+        noAdditionalEvidence?: boolean
+        items?: SubmitFinalEvidenceItemInput[]
 }
 
 export type DisputeContractSummary = Partial<Contract> & {
