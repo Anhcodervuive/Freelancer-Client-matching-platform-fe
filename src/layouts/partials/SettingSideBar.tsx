@@ -1,11 +1,15 @@
 import { NavLink } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import { routes } from '~/config/routes'
+import { selectCurrentUser } from '~/redux/user/userSlice'
+import { Role } from '~/types'
 
 type SidebarItem = {
         label: string
         to?: string
         badge?: string
         exact?: boolean
+        roles?: Role[]
 }
 
 const billingItems: SidebarItem[] = [
@@ -20,7 +24,7 @@ const userSettingItems: SidebarItem[] = [
         { label: 'Contact Info', to: routes.me.setting.contactInfo, exact: true },
         { label: 'My Profile' },
         { label: 'Profile Settings' },
-        { label: 'Get Paid', to: routes.me.setting.getPaid },
+        { label: 'Get Paid', to: routes.me.setting.getPaid, roles: [Role.freelancer] },
         { label: 'My Teams' },
         { label: 'Connected Services' },
         { label: 'Password & Security' },
@@ -42,6 +46,16 @@ const linkClasses = (isActive: boolean) =>
 const disabledClasses = `${baseClasses} cursor-not-allowed border-slate-100 bg-white/50 text-slate-400`
 
 export default function SettingSidebar() {
+        const currentUser = useSelector(selectCurrentUser)
+        const role = currentUser?.role
+
+        const visibleUserSettingItems = userSettingItems.filter(item => {
+                if (!item.roles?.length) return true
+                if (!role) return false
+
+                return item.roles.includes(role)
+        })
+
         return (
                 <aside className='rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]'>
                         <nav className='space-y-6'>
@@ -71,7 +85,7 @@ export default function SettingSidebar() {
                                 <div>
                                         <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>User settings</p>
                                         <ul className='mt-3 space-y-2'>
-                                                {userSettingItems.map(item => (
+                                                {visibleUserSettingItems.map(item => (
                                                         <li key={item.label}>
                                                                 {item.to ? (
                                                                         <NavLink
