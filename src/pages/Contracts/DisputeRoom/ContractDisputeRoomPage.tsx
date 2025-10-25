@@ -6,18 +6,23 @@ import { Controller, type Resolver, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { isAxiosError } from 'axios'
 import {
-	AlertTriangle,
-	ArrowLeft,
-	Clock,
-	Gavel,
-	Handshake,
-	Loader2,
-	Pencil,
-	Scale,
-	ShieldAlert,
-	Trash2,
-	Undo2,
-	X
+        AlertTriangle,
+        ArrowLeft,
+        BarChart3,
+        CircleDollarSign,
+        Clock,
+        Gavel,
+        Handshake,
+        Layers,
+        Loader2,
+        Pencil,
+        ScrollText,
+        Scale,
+        ShieldAlert,
+        Trash2,
+        Undo2,
+        X,
+        Wallet2
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
@@ -1220,351 +1225,396 @@ const ContractDisputeRoomPage = () => {
 		)
 	}
 
-	return (
-		<div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
-			<div className='mb-6 flex items-center gap-3 text-sm text-base-content/70'>
-				<ArrowLeft className='size-4' />
-				<button
-					type='button'
-					className='link link-hover text-primary'
-					onClick={() => navigate(routes.contracts.detail(contractId))}>
-					Quay lại workroom
-				</button>
-			</div>
+return (
+<div className='mx-auto w-full max-w-6xl px-4 py-10 lg:px-0'>
+<div className='mb-6 flex items-center gap-3 text-sm text-base-content/70'>
+<ArrowLeft className='size-4' />
+<button
+type='button'
+className='link link-hover text-primary'
+onClick={() => navigate(routes.contracts.detail(contractId))}>
+Quay lại workroom
+</button>
+</div>
 
-			<div className='space-y-6 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-				<div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
-					<div className='space-y-2'>
-						<div className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-primary'>
-							<Scale className='size-4' /> Dispute center
-						</div>
-						<h1 className='text-2xl font-semibold text-base-content'>{contract?.title ?? 'Dispute room'}</h1>
-						<p className='text-sm text-base-content/70'>
-							Milestone: <span className='font-medium text-base-content'>{milestone.title}</span>
-							{milestoneAmount && <span className='text-base-content/60'> · {milestoneAmount}</span>}
-							{milestoneStatusLabel && (
-								<span className='ml-2 inline-flex items-center gap-1 rounded-full border border-base-200 bg-base-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-base-content/60'>
-									{milestoneStatusLabel}
-								</span>
-							)}
-						</p>
-					</div>
-					<div className='flex flex-col gap-3 rounded-2xl border border-base-200 bg-base-100/90 p-4 text-sm text-base-content/80'>
-						<div className='flex items-center gap-2 text-base font-semibold text-base-content'>
-							<Gavel className='size-4 text-primary' /> Trạng thái dispute
-						</div>
-						<span
-							className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${disputeStatusMeta.badge}`}>
-							<span className='size-2 rounded-full bg-current'></span>
-							{disputeStatusMeta.label}
-						</span>
-						{dispute?.responseDeadline && (
-							<div className='flex items-center gap-2'>
-								<Clock className='size-4 text-amber-500' />
-								<span>
-									Hạn phản hồi: <strong>{formatDateTime(dispute.responseDeadline)}</strong>
-								</span>
-							</div>
-						)}
-						{dispute?.arbitrationDeadline && (
-							<div className='flex items-center gap-2'>
-								<Clock className='size-4 text-purple-500' />
-								<span>
-									Hạn nộp phí trọng tài: <strong>{formatDateTime(dispute.arbitrationDeadline)}</strong>
-								</span>
-							</div>
-						)}
-						{proposedRelease && proposedRefund && (
-							<div className='space-y-1 text-sm'>
-								<p className='font-semibold text-base-content/80'>Đề xuất ban đầu</p>
-								<p>
-									Trả freelancer: <span className='font-semibold text-base-content'>{proposedRelease}</span>
-								</p>
-								<p>
-									Hoàn client: <span className='font-semibold text-base-content'>{proposedRefund}</span>
-								</p>
-							</div>
-						)}
-						{decidedRelease && decidedRefund && (
-							<div className='space-y-1 text-sm'>
-								<p className='font-semibold text-base-content/80'>Kết quả trọng tài</p>
-								<p>
-									Trả freelancer: <span className='font-semibold text-base-content'>{decidedRelease}</span>
-								</p>
-								<p>
-									Hoàn client: <span className='font-semibold text-base-content'>{decidedRefund}</span>
-								</p>
-							</div>
-						)}
-					</div>
-				</div>
+<div className='relative overflow-hidden rounded-3xl border border-base-200/70 bg-base-100/80 p-6 shadow-lg backdrop-blur'>
+<div className='pointer-events-none absolute -right-20 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-3xl' aria-hidden />
+<div className='pointer-events-none absolute -bottom-20 left-12 h-48 w-48 rounded-full bg-sky-100/40 blur-3xl' aria-hidden />
+<div className='relative space-y-8'>
+<div className='flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between'>
+<div className='space-y-4'>
+<div className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-primary'>
+<Scale className='size-4' /> Dispute center
+</div>
+<div className='space-y-2'>
+<h1 className='text-3xl font-semibold text-base-content'>{contract?.title ?? 'Dispute room'}</h1>
+<p className='text-sm text-base-content/70'>
+Milestone: <span className='font-medium text-base-content'>{milestone.title}</span>
+{milestoneAmount && <span className='text-base-content/60'> · {milestoneAmount}</span>}
+{milestoneStatusLabel && (
+<span className='ml-2 inline-flex items-center gap-1 rounded-full border border-base-200 bg-base-100/90 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-base-content/60'>
+{milestoneStatusLabel}
+</span>
+)}
+</p>
+</div>
+<div className='grid gap-3 sm:grid-cols-3'>
+<div className='rounded-2xl border border-primary/20 bg-primary/5 p-4 text-primary/80 shadow-sm'>
+<div className='flex items-center justify-between gap-3'>
+<div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide'>
+<CircleDollarSign className='size-4' /> Tổng milestone
+</div>
+<span className='text-[11px] font-medium text-primary/70'>Escrow</span>
+</div>
+<p className='mt-2 text-xl font-semibold text-primary'>{milestoneAmount ?? '—'}</p>
+</div>
+<div className='rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-amber-800 shadow-sm'>
+<div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-600'>
+<BarChart3 className='size-4' /> Khoản tranh chấp
+</div>
+<p className='mt-2 text-xl font-semibold'>{disputableAmount ?? '—'}</p>
+{disputableCents && <p className='text-xs text-amber-700/80'>≈ {disputableCents} cent</p>}
+</div>
+<div className='rounded-2xl border border-violet-200 bg-violet-50/80 p-4 text-violet-800 shadow-sm'>
+<div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-violet-600'>
+<Gavel className='size-4' /> Phí trọng tài / bên
+</div>
+<p className='mt-2 text-xl font-semibold'>{arbFeePerParty ?? '—'}</p>
+{dispute?.arbitrationDeadline && (
+<p className='flex items-center gap-1 text-xs text-violet-600/80'>
+<Clock className='size-3.5' /> {formatDateTime(dispute.arbitrationDeadline)}
+</p>
+)}
+</div>
+</div>
+</div>
+<div className='flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-base-200/80 bg-base-100/90 p-5 text-sm text-base-content/80 shadow-sm'>
+<div className='flex items-center gap-2 text-base font-semibold text-base-content'>
+<Gavel className='size-4 text-primary' /> Trạng thái dispute
+</div>
+<span
+className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${disputeStatusMeta.badge}`}>
+<span className='size-2 rounded-full bg-current'></span>
+{disputeStatusMeta.label}
+</span>
+{dispute?.responseDeadline && (
+<div className='flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-amber-700/90'>
+<Clock className='size-4 text-amber-600' />
+<span>
+Hạn phản hồi: <strong>{formatDateTime(dispute.responseDeadline)}</strong>
+</span>
+</div>
+)}
+{dispute?.arbitrationDeadline && (
+<div className='flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50/60 px-3 py-2 text-xs text-purple-700/90'>
+<Clock className='size-4 text-purple-600' />
+<span>
+Hạn nộp phí trọng tài: <strong>{formatDateTime(dispute.arbitrationDeadline)}</strong>
+</span>
+</div>
+)}
+{proposedRelease && proposedRefund && (
+<div className='rounded-xl border border-sky-100 bg-sky-50/60 p-3 text-sm text-sky-900/80'>
+<p className='font-semibold'>Đề xuất ban đầu</p>
+<p>Trả freelancer: <span className='font-semibold text-sky-900'>{proposedRelease}</span></p>
+<p>Hoàn client: <span className='font-semibold text-sky-900'>{proposedRefund}</span></p>
+</div>
+)}
+{decidedRelease && decidedRefund && (
+<div className='rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-sm text-emerald-900/80'>
+<p className='font-semibold'>Kết quả trọng tài</p>
+<p>Trả freelancer: <span className='font-semibold text-emerald-900'>{decidedRelease}</span></p>
+<p>Hoàn client: <span className='font-semibold text-emerald-900'>{decidedRefund}</span></p>
+</div>
+)}
+</div>
+</div>
 
-				<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-					<div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
-						<div className='flex items-center justify-between gap-2'>
-							<p className='text-sm font-semibold text-base-content'>Milestone</p>
-							{milestoneStatusLabel && (
-								<span className='inline-flex items-center rounded-full border border-base-200 bg-base-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-base-content/70'>
-									{milestoneStatusLabel}
-								</span>
-							)}
-						</div>
-						<dl className='mt-3 space-y-2 text-xs text-base-content/70'>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Số tiền</dt>
-								<dd className='font-medium text-base-content'>{milestoneAmount || '—'}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Cập nhật</dt>
-								<dd className='font-medium text-base-content'>{milestoneUpdatedAt ?? '—'}</dd>
-							</div>
-							{shouldBlockOpeningDispute && (
-								<div className='flex items-center justify-between gap-2'>
-									<dt>Tranh chấp mới</dt>
-									<dd className='font-medium text-error'>Không khả dụng</dd>
-								</div>
-							)}
-						</dl>
-					</div>
-					<div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
-						<p className='text-sm font-semibold text-base-content'>Escrow</p>
-						<dl className='mt-2 space-y-1 text-xs text-base-content/70'>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Trạng thái</dt>
-								<dd className='font-medium text-base-content'>{milestoneEscrow?.status ?? '—'}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Đã nạp</dt>
-								<dd className='font-medium text-base-content'>{escrowFunded ?? '—'}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Đã giải ngân</dt>
-								<dd className='font-medium text-base-content'>{escrowReleased ?? '—'}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Đã hoàn</dt>
-								<dd className='font-medium text-base-content'>{escrowRefunded ?? '—'}</dd>
-							</div>
-						</dl>
-					</div>
-					<div className='rounded-2xl border border-base-200 bg-base-50/80 p-4'>
-						<p className='text-sm font-semibold text-base-content'>Chi tiết dispute</p>
-						<dl className='mt-2 space-y-1 text-xs text-base-content/70'>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Mã dispute</dt>
-								<dd className='font-medium text-base-content break-all'>{dispute?.id ?? '—'}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Mở bởi</dt>
-								<dd className='font-medium text-base-content break-all'>{dispute?.openedById ?? '—'}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Khoản tranh chấp</dt>
-								<dd className='font-medium text-base-content'>{disputableAmount ?? '—'}</dd>
-							</div>
-							{disputableCents && (
-								<div className='flex items-center justify-between gap-2'>
-									<dt>Giá trị (cent)</dt>
-									<dd className='font-medium text-base-content'>{disputableCents}</dd>
-								</div>
-							)}
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Phí trọng tài / bên</dt>
-								<dd className='font-medium text-base-content'>{arbFeePerParty ?? '—'}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Client đã nộp</dt>
-								<dd className='font-medium text-base-content'>{clientArbFeeStatus}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Freelancer đã nộp</dt>
-								<dd className='font-medium text-base-content'>{freelancerArbFeeStatus}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Tạo lúc</dt>
-								<dd className='font-medium text-base-content'>{disputeCreatedAt ?? '—'}</dd>
-							</div>
-							<div className='flex items-center justify-between gap-2'>
-								<dt>Cập nhật</dt>
-								<dd className='font-medium text-base-content'>{disputeUpdatedAt ?? '—'}</dd>
-							</div>
-						</dl>
-					</div>
-				</div>
+<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+<div className='group relative overflow-hidden rounded-2xl border border-base-200/80 bg-base-100/90 p-4 shadow-sm transition-shadow hover:shadow-md'>
+<div className='absolute right-3 top-3 size-10 rounded-full bg-primary/5 blur-2xl transition-opacity duration-300 group-hover:opacity-60' aria-hidden />
+<div className='flex items-center justify-between gap-2'>
+<div className='flex items-center gap-2'>
+<span className='flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary'>
+<Layers className='size-4' />
+</span>
+<p className='text-sm font-semibold text-base-content'>Milestone</p>
+</div>
+{milestoneStatusLabel && (
+<span className='inline-flex items-center rounded-full border border-base-200 bg-base-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-base-content/70'>
+{milestoneStatusLabel}
+</span>
+)}
+</div>
+<dl className='mt-3 space-y-3 text-xs text-base-content/70'>
+<div className='flex items-center justify-between gap-2'>
+<dt>Số tiền</dt>
+<dd className='font-medium text-base-content'>{milestoneAmount || '—'}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Cập nhật</dt>
+<dd className='font-medium text-base-content'>{milestoneUpdatedAt ?? '—'}</dd>
+</div>
+{shouldBlockOpeningDispute && (
+<div className='flex items-center justify-between gap-2 text-error'>
+<dt>Tranh chấp mới</dt>
+<dd className='font-medium'>Không khả dụng</dd>
+</div>
+)}
+</dl>
+</div>
+<div className='group relative overflow-hidden rounded-2xl border border-base-200/80 bg-base-100/90 p-4 shadow-sm transition-shadow hover:shadow-md'>
+<div className='absolute -left-6 top-1/2 size-16 -translate-y-1/2 rounded-full bg-sky-100/60 blur-3xl transition-opacity duration-300 group-hover:opacity-80' aria-hidden />
+<div className='flex items-center gap-2'>
+<span className='flex size-8 items-center justify-center rounded-full bg-sky-100 text-sky-600'>
+<Wallet2 className='size-4' />
+</span>
+<p className='text-sm font-semibold text-base-content'>Escrow</p>
+</div>
+<dl className='mt-3 space-y-3 text-xs text-base-content/70'>
+<div className='flex items-center justify-between gap-2'>
+<dt>Trạng thái</dt>
+<dd className='font-medium text-base-content'>{milestoneEscrow?.status ?? '—'}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Đã nạp</dt>
+<dd className='font-medium text-base-content'>{escrowFunded ?? '—'}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Đã giải ngân</dt>
+<dd className='font-medium text-base-content'>{escrowReleased ?? '—'}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Đã hoàn</dt>
+<dd className='font-medium text-base-content'>{escrowRefunded ?? '—'}</dd>
+</div>
+</dl>
+</div>
+<div className='group relative overflow-hidden rounded-2xl border border-base-200/80 bg-base-100/90 p-4 shadow-sm transition-shadow hover:shadow-md'>
+<div className='absolute bottom-0 right-0 h-16 w-16 rounded-tl-full bg-amber-100/60 blur-2xl transition-opacity duration-300 group-hover:opacity-80' aria-hidden />
+<div className='flex items-center gap-2'>
+<span className='flex size-8 items-center justify-center rounded-full bg-amber-100 text-amber-600'>
+<ScrollText className='size-4' />
+</span>
+<p className='text-sm font-semibold text-base-content'>Chi tiết dispute</p>
+</div>
+<dl className='mt-3 space-y-3 text-xs text-base-content/70'>
+<div className='flex items-center justify-between gap-2'>
+<dt>Mã dispute</dt>
+<dd className='break-all font-medium text-base-content'>{dispute?.id ?? '—'}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Mở bởi</dt>
+<dd className='break-all font-medium text-base-content'>{dispute?.openedById ?? '—'}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Khoản tranh chấp</dt>
+<dd className='font-medium text-base-content'>{disputableAmount ?? '—'}</dd>
+</div>
+{disputableCents && (
+<div className='flex items-center justify-between gap-2'>
+<dt>Giá trị (cent)</dt>
+<dd className='font-medium text-base-content'>{disputableCents}</dd>
+</div>
+)}
+<div className='flex items-center justify-between gap-2'>
+<dt>Phí trọng tài / bên</dt>
+<dd className='font-medium text-base-content'>{arbFeePerParty ?? '—'}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Client đã nộp</dt>
+<dd className='font-medium text-base-content'>{clientArbFeeStatus}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Freelancer đã nộp</dt>
+<dd className='font-medium text-base-content'>{freelancerArbFeeStatus}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Tạo lúc</dt>
+<dd className='font-medium text-base-content'>{disputeCreatedAt ?? '—'}</dd>
+</div>
+<div className='flex items-center justify-between gap-2'>
+<dt>Cập nhật</dt>
+<dd className='font-medium text-base-content'>{disputeUpdatedAt ?? '—'}</dd>
+</div>
+</dl>
+</div>
+</div>
 
-				{dispute?.note && (
-					<div className='rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-base-content/80'>
-						<p className='flex items-start gap-2'>
-							<ShieldAlert className='mt-0.5 size-4 text-primary' />
-							<span>
-								<strong>Ghi chú dispute:</strong> {dispute.note}
-							</span>
-						</p>
-					</div>
-				)}
+{dispute?.note && (
+<div className='rounded-2xl border-l-4 border-primary bg-primary/5 p-5 text-sm text-base-content/80 shadow-sm'>
+<p className='flex items-start gap-3'>
+<ShieldAlert className='mt-1 size-4 text-primary' />
+<span>
+<strong>Ghi chú dispute:</strong> {dispute.note}
+</span>
+</p>
+</div>
+)}
+</div>
 
-				{dispute && (
-					<section className='space-y-4 rounded-2xl border border-violet-200/60 bg-violet-50/40 p-4 text-sm text-base-content/80'>
-						<div className='flex flex-wrap items-center justify-between gap-3'>
-							<div className='flex items-center gap-2 text-base font-semibold text-base-content'>
-								<Gavel className='size-4 text-violet-500' /> Phí trọng tài
-							</div>
-							{dispute.arbitrationDeadline && (
-								<div className='flex items-center gap-2 text-xs text-base-content/70'>
-									<Clock className='size-4 text-purple-500' />
-									<span>
-										Hạn nộp phí: <strong>{formatDateTime(dispute.arbitrationDeadline)}</strong>
-									</span>
-								</div>
-							)}
-						</div>
-						<div className='grid gap-3 md:grid-cols-2'>
-							<div className='space-y-2 rounded-xl border border-base-200 bg-base-100 p-3'>
-								<p className='text-xs uppercase text-base-content/60'>Khách hàng</p>
-								<div className='flex items-center justify-between gap-3'>
-									<span className='font-medium text-base-content'>
-										{contractClientId ? clientDisplayName : 'Khách hàng'}
-									</span>
-									<span className={`badge ${clientBadgeClass}`}>{clientArbFeeStatus}</span>
-								</div>
-							</div>
-							<div className='space-y-2 rounded-xl border border-base-200 bg-base-100 p-3'>
-								<p className='text-xs uppercase text-base-content/60'>Freelancer</p>
-								<div className='flex items-center justify-between gap-3'>
-									<span className='font-medium text-base-content'>
-										{contractFreelancerId ? freelancerDisplayName : 'Freelancer'}
-									</span>
-									<span className={`badge ${freelancerBadgeClass}`}>{freelancerArbFeeStatus}</span>
-								</div>
-							</div>
-						</div>
-						{bothPartiesPaid ? (
-							<div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-sm text-success'>
-								Cả hai bên đã hoàn tất việc nộp phí trọng tài. Hệ thống sẽ chuyển hồ sơ sang bước tiếp theo.
-							</div>
-						) : null}
-						{isAwaitingArbitrationFees && currentUserHasPaidArbFee && !bothPartiesPaid ? (
-							<div className='rounded-xl border border-info/40 bg-info/10 px-4 py-3 text-sm text-info'>
-								Bạn đã xác nhận thanh toán. Vui lòng chờ bên còn lại hoàn tất.
-							</div>
-						) : null}
-						{canCurrentUserPayArbFee ? (
-							<form
-								onSubmit={handleConfirmArbFeeSubmit(handleConfirmArbitrationFee)}
-								className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'>
-								<div className='flex flex-wrap items-center justify-between gap-3'>
-									<p className='text-sm font-semibold text-base-content'>Xác nhận đã thanh toán</p>
-									<span className='text-xs text-base-content/60'>
-										Phí mỗi bên: <strong className='text-base-content'>{arbFeePerParty ?? '—'}</strong>
-									</span>
-								</div>
-								<div className='space-y-2'>
-									<label className='text-xs font-medium uppercase text-base-content/60'>Phương thức thanh toán</label>
-									<select
-										className='select select-bordered w-full'
-										{...confirmArbFeeRegister('paymentMethodRefId')}
-										disabled={isPaymentMethodsLoading || confirmArbitrationFeeMutation.isPending}>
-										<option value=''>Chọn phương thức thanh toán</option>
-										{paymentMethods.map(method => (
-											<option key={method.paymentMethodId} value={method.paymentMethodId}>
-												{formatPaymentMethodLabel(method)}
-											</option>
-										))}
-									</select>
-									{confirmArbFeeErrors.paymentMethodRefId ? (
-										<p className='text-xs text-error'>{confirmArbFeeErrors.paymentMethodRefId.message}</p>
-									) : null}
-									{paymentMethodsError ? (
-										<p className='text-xs text-error'>
-											Không thể tải phương thức thanh toán: {paymentMethodsError.message}
-										</p>
-									) : null}
-									{!paymentMethods.length && !isPaymentMethodsLoading ? (
-										<p className='rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning'>
-											Bạn chưa có phương thức thanh toán khả dụng. Vui lòng thêm thẻ trong phần cài đặt thanh toán.
-										</p>
-									) : null}
-								</div>
-								<div className='space-y-2'>
-                                                                        <label className='text-xs font-medium uppercase text-base-content/60'>Mã giao dịch (nếu có)</label>
-                                                                        <input
-                                                                                type='text'
-                                                                                className='input input-bordered w-full'
-                                                                                placeholder='Nhập mã giao dịch hoặc tham chiếu'
-                                                                                {...confirmArbFeeRegister('idempotencyKey')}
-                                                                                disabled={confirmArbitrationFeeMutation.isPending}
-                                                                        />
-                                                                        {confirmArbFeeErrors.idempotencyKey ? (
-                                                                                <p className='text-xs text-error'>{confirmArbFeeErrors.idempotencyKey.message}</p>
-                                                                        ) : null}
-								</div>
-								<div className='flex flex-wrap items-center justify-between gap-3'>
-									<button
-										type='button'
-										className='btn btn-ghost btn-sm'
-										onClick={() => paymentMethodsQuery.refetch()}
-										disabled={isPaymentMethodsLoading || confirmArbitrationFeeMutation.isPending}>
-										{isPaymentMethodsLoading ? 'Đang tải…' : 'Tải lại phương thức'}
-									</button>
-									<button
-										type='submit'
-										className='btn btn-primary btn-sm'
-										disabled={
-											confirmArbitrationFeeMutation.isPending || isPaymentMethodsLoading || !paymentMethods.length
-										}>
-										{confirmArbitrationFeeMutation.isPending ? 'Đang xử lý…' : 'Tôi đã thanh toán'}
-									</button>
-								</div>
-							</form>
-						) : null}
-						<div className='space-y-2'>
-							<h4 className='text-sm font-semibold text-base-content'>Lịch sử thanh toán</h4>
-							{arbitrationPayments.length ? (
-								<div className='space-y-2'>
-									{arbitrationPayments.map((payment, index) => {
-										const reference = getDisputePaymentReference(payment)
-										const identityKey = getDisputePaymentIdentityKey(payment)
-										const statusLabel = humanizeDisputePaymentStatus(payment.status)
-										const statusClass = isDisputePaymentSuccessful(payment) ? 'badge-success' : 'badge-ghost'
-										const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
-										const key = payment.id || `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
+{dispute && (
+<section className='space-y-5 rounded-3xl border border-violet-200/70 bg-gradient-to-br from-violet-50/70 via-base-100 to-base-100 p-5 text-sm text-base-content/80 shadow-sm'>
+<div className='flex flex-wrap items-center justify-between gap-3'>
+<div className='flex items-center gap-2 text-base font-semibold text-base-content'>
+<Gavel className='size-4 text-violet-500' /> Phí trọng tài
+</div>
+{dispute.arbitrationDeadline && (
+<div className='flex items-center gap-2 text-xs text-base-content/70'>
+<Clock className='size-4 text-purple-500' />
+<span>
+Hạn nộp phí: <strong>{formatDateTime(dispute.arbitrationDeadline)}</strong>
+</span>
+</div>
+)}
+</div>
+<div className='grid gap-3 md:grid-cols-2'>
+<div className='space-y-2 rounded-xl border border-base-200/80 bg-base-100/90 p-3 shadow-sm'>
+<p className='text-xs uppercase text-base-content/60'>Khách hàng</p>
+<div className='flex items-center justify-between gap-3'>
+<span className='font-medium text-base-content'>
+{contractClientId ? clientDisplayName : 'Khách hàng'}
+</span>
+<span className={`badge ${clientBadgeClass}`}>{clientArbFeeStatus}</span>
+</div>
+</div>
+<div className='space-y-2 rounded-xl border border-base-200/80 bg-base-100/90 p-3 shadow-sm'>
+<p className='text-xs uppercase text-base-content/60'>Freelancer</p>
+<div className='flex items-center justify-between gap-3'>
+<span className='font-medium text-base-content'>
+{contractFreelancerId ? freelancerDisplayName : 'Freelancer'}
+</span>
+<span className={`badge ${freelancerBadgeClass}`}>{freelancerArbFeeStatus}</span>
+</div>
+</div>
+</div>
+{bothPartiesPaid ? (
+<div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-sm text-success'>
+Cả hai bên đã hoàn tất việc nộp phí trọng tài. Hệ thống sẽ chuyển hồ sơ sang bước tiếp theo.
+</div>
+) : null}
+{isAwaitingArbitrationFees && currentUserHasPaidArbFee && !bothPartiesPaid ? (
+<div className='rounded-xl border border-info/40 bg-info/10 px-4 py-3 text-sm text-info'>
+Bạn đã xác nhận thanh toán. Vui lòng chờ bên còn lại hoàn tất.
+</div>
+) : null}
+{canCurrentUserPayArbFee ? (
+<form
+onSubmit={handleConfirmArbFeeSubmit(handleConfirmArbitrationFee)}
+className='space-y-4 rounded-2xl border border-base-200/80 bg-base-100/90 p-4 shadow-sm'>
+<div className='flex flex-wrap items-center justify-between gap-3'>
+<p className='text-sm font-semibold text-base-content'>Xác nhận đã thanh toán</p>
+<span className='text-xs text-base-content/60'>
+Phí mỗi bên: <strong className='text-base-content'>{arbFeePerParty ?? '—'}</strong>
+</span>
+</div>
+<div className='space-y-2'>
+<label className='text-xs font-medium uppercase text-base-content/60'>Phương thức thanh toán</label>
+<select
+className='select select-bordered w-full'
+{...confirmArbFeeRegister('paymentMethodRefId')}
+disabled={isPaymentMethodsLoading || confirmArbitrationFeeMutation.isPending}>
+<option value=''>Chọn phương thức thanh toán</option>
+{paymentMethods.map(method => (
+<option key={method.paymentMethodId} value={method.paymentMethodId}>
+{formatPaymentMethodLabel(method)}
+</option>
+))}
+</select>
+{confirmArbFeeErrors.paymentMethodRefId ? (
+<p className='text-xs text-error'>{confirmArbFeeErrors.paymentMethodRefId.message}</p>
+) : null}
+{paymentMethodsError ? (
+<p className='text-xs text-error'>
+Không thể tải phương thức thanh toán: {paymentMethodsError.message}
+</p>
+) : null}
+{!paymentMethods.length && !isPaymentMethodsLoading ? (
+<p className='rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning'>
+Bạn chưa có phương thức thanh toán khả dụng. Vui lòng thêm thẻ trong phần cài đặt thanh toán.
+</p>
+) : null}
+</div>
+<div className='space-y-2'>
+<label className='text-xs font-medium uppercase text-base-content/60'>Mã giao dịch (nếu có)</label>
+<input
+type='text'
+className='input input-bordered w-full'
+placeholder='Nhập mã giao dịch hoặc tham chiếu'
+{...confirmArbFeeRegister('idempotencyKey')}
+disabled={confirmArbitrationFeeMutation.isPending}
+/>
+{confirmArbFeeErrors.idempotencyKey ? (
+<p className='text-xs text-error'>{confirmArbFeeErrors.idempotencyKey.message}</p>
+) : null}
+</div>
+<div className='flex flex-wrap items-center justify-between gap-3'>
+<button
+type='button'
+className='btn btn-ghost btn-sm'
+onClick={() => paymentMethodsQuery.refetch()}
+disabled={isPaymentMethodsLoading || confirmArbitrationFeeMutation.isPending}>
+{isPaymentMethodsLoading ? 'Đang tải…' : 'Tải lại phương thức'}
+</button>
+<button
+type='submit'
+className='btn btn-primary btn-sm'
+disabled={
+confirmArbitrationFeeMutation.isPending || isPaymentMethodsLoading || !paymentMethods.length
+}>
+{confirmArbitrationFeeMutation.isPending ? 'Đang xử lý…' : 'Tôi đã thanh toán'}
+</button>
+</div>
+</form>
+) : null}
+<div className='space-y-2'>
+<h4 className='text-sm font-semibold text-base-content'>Lịch sử thanh toán</h4>
+{arbitrationPayments.length ? (
+<div className='space-y-2'>
+{arbitrationPayments.map((payment, index) => {
+const reference = getDisputePaymentReference(payment)
+const identityKey = getDisputePaymentIdentityKey(payment)
+const statusLabel = humanizeDisputePaymentStatus(payment.status)
+const statusClass = isDisputePaymentSuccessful(payment) ? 'badge-success' : 'badge-ghost'
+const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
+const key = payment.id || `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
 
-										return (
-											<div key={key} className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'>
-												<div className='flex flex-wrap items-center justify-between gap-3'>
-													<div className='space-y-1'>
-														<p className='font-semibold text-base-content'>{getPaymentPayerLabel(payment)}</p>
-														<p className='text-xs text-base-content/60'>
-															Mã giao dịch:{' '}
-															<span className='break-all font-medium text-base-content'>
-																{reference ?? identityKey ?? '—'}
-															</span>
-														</p>
-													</div>
-													<div className='text-right'>
-														<p className='text-base font-semibold text-base-content'>{formatPaymentAmount(payment)}</p>
-														<div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-xs text-base-content/70'>
-															<span className={`badge ${statusClass}`}>{statusLabel}</span>
-															<span>{createdAtLabel}</span>
-														</div>
-													</div>
-												</div>
-												{identityKey && reference && identityKey !== reference ? (
-													<p className='break-all text-xs text-base-content/60'>Mã xác nhận: {identityKey}</p>
-												) : null}
-												{payment.description ? (
-													<p className='text-xs text-base-content/70'>Ghi chú: {payment.description}</p>
-												) : null}
-											</div>
-										)
-									})}
-								</div>
-							) : (
-								<p className='text-sm text-base-content/70'>Chưa có giao dịch phí trọng tài nào được ghi nhận.</p>
-							)}
-						</div>
-					</section>
-				)}
+return (
+<div key={key} className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'>
+<div className='flex flex-wrap items-center justify-between gap-3'>
+<div className='space-y-1'>
+<p className='font-semibold text-base-content'>{getPaymentPayerLabel(payment)}</p>
+<p className='text-xs text-base-content/60'>
+Mã giao dịch:{' '}
+<span className='break-all font-medium text-base-content'>
+{reference ?? identityKey ?? '—'}
+</span>
+</p>
+</div>
+<div className='text-right'>
+<p className='text-base font-semibold text-base-content'>{formatPaymentAmount(payment)}</p>
+<div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-xs text-base-content/70'>
+<span className={`badge ${statusClass}`}>{statusLabel}</span>
+<span>{createdAtLabel}</span>
+</div>
+</div>
+</div>
+{identityKey && reference && identityKey !== reference ? (
+<p className='break-all text-xs text-base-content/60'>Mã xác nhận: {identityKey}</p>
+) : null}
+{payment.description ? (
+<p className='text-xs text-base-content/70'>Ghi chú: {payment.description}</p>
+) : null}
+</div>
+)
+})}
+</div>
+) : (
+<p className='text-sm text-base-content/70'>Chưa có giao dịch phí trọng tài nào được ghi nhận.</p>
+)}
+</div>
+</section>
+)}
 
 				{!dispute &&
 					(shouldBlockOpeningDispute ? (
