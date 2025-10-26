@@ -1330,21 +1330,23 @@ Hạn nộp phí trọng tài: <strong>{formatDateTime(dispute.arbitrationDeadli
 </div>
 </div>
 
-<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+<section className='space-y-4 rounded-3xl border border-base-200/70 bg-base-100/80 p-5 shadow-sm'>
+<div className='flex items-center justify-between gap-2'>
+<h2 className='text-base font-semibold text-base-content'>Tổng quan milestone & escrow</h2>
+{milestoneStatusLabel && (
+<span className='inline-flex items-center gap-1 rounded-full border border-base-200 bg-base-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-base-content/70'>
+{milestoneStatusLabel}
+</span>
+)}
+</div>
+<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-2'>
 <div className='group relative overflow-hidden rounded-2xl border border-base-200/80 bg-base-100/90 p-4 shadow-sm transition-shadow hover:shadow-md'>
 <div className='absolute right-3 top-3 size-10 rounded-full bg-primary/5 blur-2xl transition-opacity duration-300 group-hover:opacity-60' aria-hidden />
-<div className='flex items-center justify-between gap-2'>
 <div className='flex items-center gap-2'>
 <span className='flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary'>
 <Layers className='size-4' />
 </span>
 <p className='text-sm font-semibold text-base-content'>Milestone</p>
-</div>
-{milestoneStatusLabel && (
-<span className='inline-flex items-center rounded-full border border-base-200 bg-base-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-base-content/70'>
-{milestoneStatusLabel}
-</span>
-)}
 </div>
 <dl className='mt-3 space-y-3 text-xs text-base-content/70'>
 <div className='flex items-center justify-between gap-2'>
@@ -1390,13 +1392,12 @@ Hạn nộp phí trọng tài: <strong>{formatDateTime(dispute.arbitrationDeadli
 </div>
 </dl>
 </div>
-<div className='group relative overflow-hidden rounded-2xl border border-base-200/80 bg-base-100/90 p-4 shadow-sm transition-shadow hover:shadow-md'>
-<div className='absolute bottom-0 right-0 h-16 w-16 rounded-tl-full bg-amber-100/60 blur-2xl transition-opacity duration-300 group-hover:opacity-80' aria-hidden />
-<div className='flex items-center gap-2'>
-<span className='flex size-8 items-center justify-center rounded-full bg-amber-100 text-amber-600'>
-<ScrollText className='size-4' />
-</span>
-<p className='text-sm font-semibold text-base-content'>Chi tiết dispute</p>
+ </div>
+</section>
+
+<section className='rounded-3xl border border-base-200/70 bg-base-100/80 p-5 text-sm text-base-content/80 shadow-sm'>
+<div className='flex items-center gap-2 text-base font-semibold text-base-content'>
+<ScrollText className='size-4 text-amber-600' /> Chi tiết dispute
 </div>
 <dl className='mt-3 space-y-3 text-xs text-base-content/70'>
 <div className='flex items-center justify-between gap-2'>
@@ -1438,8 +1439,48 @@ Hạn nộp phí trọng tài: <strong>{formatDateTime(dispute.arbitrationDeadli
 <dd className='font-medium text-base-content'>{disputeUpdatedAt ?? '—'}</dd>
 </div>
 </dl>
+</section>
+
+<section className='space-y-3 rounded-3xl border border-base-200/70 bg-base-100/80 p-5 text-sm text-base-content/80 shadow-sm'>
+<div className='flex items-center gap-2 text-base font-semibold text-base-content'>
+<Gavel className='size-4 text-primary' /> Trạng thái dispute
 </div>
+<span
+className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${disputeStatusMeta.badge}`}>
+<span className='size-2 rounded-full bg-current'></span>
+{disputeStatusMeta.label}
+</span>
+{dispute?.responseDeadline && (
+<div className='flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-amber-700/90'>
+<Clock className='size-4 text-amber-600' />
+<span>
+Hạn phản hồi: <strong>{formatDateTime(dispute.responseDeadline)}</strong>
+</span>
 </div>
+)}
+{dispute?.arbitrationDeadline && (
+<div className='flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50/60 px-3 py-2 text-xs text-purple-700/90'>
+<Clock className='size-4 text-purple-600' />
+<span>
+Hạn nộp phí trọng tài: <strong>{formatDateTime(dispute.arbitrationDeadline)}</strong>
+</span>
+</div>
+)}
+{proposedRelease && proposedRefund && (
+<div className='rounded-xl border border-sky-100 bg-sky-50/60 p-3 text-sm text-sky-900/80'>
+<p className='font-semibold'>Đề xuất ban đầu</p>
+<p>Trả freelancer: <span className='font-semibold text-sky-900'>{proposedRelease}</span></p>
+<p>Hoàn client: <span className='font-semibold text-sky-900'>{proposedRefund}</span></p>
+</div>
+)}
+{decidedRelease && decidedRefund && (
+<div className='rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-sm text-emerald-900/80'>
+<p className='font-semibold'>Kết quả trọng tài</p>
+<p>Trả freelancer: <span className='font-semibold text-emerald-900'>{decidedRelease}</span></p>
+<p>Hoàn client: <span className='font-semibold text-emerald-900'>{decidedRefund}</span></p>
+</div>
+)}
+</section>
 
 {dispute?.note && (
 <div className='rounded-2xl border-l-4 border-primary bg-primary/5 p-5 text-sm text-base-content/80 shadow-sm'>
