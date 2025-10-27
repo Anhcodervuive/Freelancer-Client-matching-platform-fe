@@ -1079,7 +1079,16 @@ const ContractDisputeRoomPage = () => {
   const dispute = milestoneDispute?.dispute ?? null;
   const currentUserId = currentUser?.id ?? null;
   const disputeStatusMeta = getDisputeStatusMeta(dispute?.status);
-  const isArbitrationStage = disputeStatusMeta.tone === "arbitration";
+  const clientEvidenceSubmitted =
+    dispute?.clientEvidenceSubmitted ?? dispute?.clientEvidenceSubmited ?? null;
+  const freelancerEvidenceSubmitted =
+    dispute?.freelancerEvidenceSubmitted ??
+    dispute?.freelancerEvidenceSubmited ??
+    null;
+  const hasSubmittedEvidence = dispute?.hasSubmittedEvidence ?? null;
+  const isEvidenceSubmissionStage =
+    dispute?.status === DisputeStatus.ARBITRATION_READY ||
+    dispute?.status === DisputeStatus.ARBITRATION;
   const isAwaitingArbitrationFees =
     dispute?.status === DisputeStatus.AWAITING_ARBITRATION_FEES;
   const contractEntity = (contract as Contract | null) ?? null;
@@ -1408,7 +1417,7 @@ const ContractDisputeRoomPage = () => {
     (item) => item.status === DisputeNegotiationStatus.PENDING,
   );
   const hasDispute = Boolean(dispute);
-  const shouldShowEvidenceTab = Boolean(dispute?.id && isArbitrationStage);
+  const shouldShowEvidenceTab = Boolean(dispute?.id && isEvidenceSubmissionStage);
   const tabItems = useMemo(() => {
     const items: { id: DisputeTabId; label: string }[] = [
       { id: "overview", label: "Tổng quan" },
@@ -2756,6 +2765,10 @@ const ContractDisputeRoomPage = () => {
                   isClientParty={isClientParty}
                   isFreelancerParty={isFreelancerParty}
                   isAwaitingArbitrationFees={isAwaitingArbitrationFees}
+                  clientEvidenceSubmitted={clientEvidenceSubmitted ?? undefined}
+                  freelancerEvidenceSubmitted={freelancerEvidenceSubmitted ?? undefined}
+                  hasSubmittedEvidence={hasSubmittedEvidence ?? undefined}
+                  isSubmissionWindowOpen={isEvidenceSubmissionStage}
                 />
               </div>
             )}

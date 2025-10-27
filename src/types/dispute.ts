@@ -103,6 +103,11 @@ export type Dispute = {
         arbFeePerParty?: DecimalLike | null
         clientArbFeePaid?: boolean
         freelancerArbFeePaid?: boolean
+        clientEvidenceSubmitted?: boolean | null
+        clientEvidenceSubmited?: boolean | null
+        freelancerEvidenceSubmitted?: boolean | null
+        freelancerEvidenceSubmited?: boolean | null
+        hasSubmittedEvidence?: boolean | null
         responseDeadline?: string | null
         arbitrationDeadline?: string | null
         currentDossierVersion?: number | null
@@ -151,6 +156,7 @@ export type DisputeEvidencePerson = {
         firstName?: string | null
         lastName?: string | null
         displayName?: string | null
+        name?: string | null
 }
 
 export type DisputeEvidenceSubmission = {
@@ -204,6 +210,36 @@ export type DisputeEvidenceChatAttachment = {
         createdAt?: string | null
         asset?: DisputeEvidenceAsset | null
         message?: DisputeEvidenceChatMessage | null
+}
+
+export type DisputeFinalEvidenceSubmissionItem = {
+        id: string
+        submissionId?: string | null
+        label?: string | null
+        description?: string | null
+        sourceType?: ArbitrationEvidenceSourceType | string | null
+        sourceId?: string | null
+        url?: string | null
+        assetId?: string | null
+        asset?: DisputeEvidenceAsset | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        [key: string]: unknown
+}
+
+export type DisputeFinalEvidenceSubmission = {
+        id: string
+        disputeId?: string | null
+        milestoneId?: string | null
+        freelancerId?: string | null
+        submittedById?: string | null
+        submittedBy?: DisputeEvidencePerson | null
+        submittedAt?: string | null
+        updatedAt?: string | null
+        statement?: string | null
+        noAdditionalEvidence?: boolean | null
+        items?: DisputeFinalEvidenceSubmissionItem[] | null
+        [key: string]: unknown
 }
 
 export type DisputeFinalEvidenceSources = {
@@ -335,12 +371,13 @@ export type AdminDisputeCounts = {
 } | null
 
 export type AdminDisputeDetail = {
-id: string
-dispute?: Dispute | null
-escrow?: AdminDisputeEscrow
+        id: string
+        dispute?: Dispute | null
+        escrow?: AdminDisputeEscrow
         chatAccessLogs?: AdminDisputeChatAccessLog[] | null
         negotiations?: DisputeNegotiation[] | null
         counts?: AdminDisputeCounts
+        evidenceSubmissions?: DisputeFinalEvidenceSubmission[] | null
         [key: string]: unknown
 }
 

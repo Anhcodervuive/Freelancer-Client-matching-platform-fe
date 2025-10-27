@@ -12,6 +12,10 @@ import type {
         DecimalLike,
         Dispute,
         DisputeContractSummary,
+        DisputeEvidenceAsset,
+        DisputeEvidencePerson,
+        DisputeFinalEvidenceSubmission,
+        DisputeFinalEvidenceSubmissionItem,
         DisputeMilestoneSummary,
         DisputeNegotiation,
         DisputeUserSummary
@@ -94,10 +98,10 @@ const getDecimalLike = (value: unknown): DecimalLike | undefined => {
 }
 
 const normalizeUserSummary = (value: unknown): DisputeUserSummary | null => {
-	const record = asRecord(value)
-	if (!record) {
-		return null
-	}
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
 
 	const id =
 		getString(record.id) ??
@@ -156,10 +160,222 @@ const normalizeParties = (value: unknown): AdminDisputeParties => {
 		return null
 	}
 
-	return {
-		client: client ?? null,
-		freelancer: freelancer ?? null
-	}
+        return { 
+                client: client ?? null,
+                freelancer: freelancer ?? null
+        }
+}
+
+const normalizeEvidencePerson = (value: unknown): DisputeEvidencePerson | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        const normalized: DisputeEvidencePerson = { id }
+
+        if (typeof record.firstName === 'string') {
+                normalized.firstName = record.firstName
+        }
+
+        if (typeof record.lastName === 'string') {
+                normalized.lastName = record.lastName
+        }
+
+        if (typeof record.displayName === 'string' && record.displayName.trim().length) {
+                normalized.displayName = record.displayName.trim()
+        }
+
+        const fallbackName =
+                getString(record.name) ?? getString(record.fullName ?? record.full_name) ?? undefined
+
+        if (fallbackName) {
+                normalized.name = fallbackName
+                if (!normalized.displayName) {
+                        normalized.displayName = fallbackName
+                }
+        }
+
+        return normalized
+}
+
+const normalizeEvidenceAsset = (value: unknown): DisputeEvidenceAsset | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        const normalized: DisputeEvidenceAsset = {
+                id,
+                kind: getString(record.kind) ?? null,
+                url: getString(record.url ?? record.previewUrl ?? record.preview_url) ?? null,
+                mimeType: getString(record.mimeType ?? record.mime_type) ?? null,
+                bytes: null,
+                status: getString(record.status) ?? null
+        }
+
+        const sizeCandidates = [
+                record.bytes,
+                record.size,
+                record.fileSize,
+                record.file_size,
+                record.length
+        ]
+
+        for (const candidate of sizeCandidates) {
+                if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+                        normalized.bytes = candidate
+                        break
+                }
+
+                if (typeof candidate === 'string') {
+                        const parsed = Number(candidate)
+                        if (Number.isFinite(parsed)) {
+                                normalized.bytes = parsed
+                                break
+                        }
+                }
+        }
+
+        return normalized
+}
+
+const normalizeEvidenceSubmissionItem = (
+        value: unknown
+): DisputeFinalEvidenceSubmissionItem | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        const normalized: DisputeFinalEvidenceSubmissionItem = {
+                id,
+                submissionId: getString(record.submissionId ?? record.submission_id) ?? null,
+                label: getString(record.label ?? record.title) ?? null,
+                description: getString(record.description ?? record.note) ?? null,
+                sourceType: getString(record.sourceType ?? record.source_type) ?? null,
+                sourceId: getString(record.sourceId ?? record.source_id) ?? null,
+                url: getString(record.url ?? record.link ?? record.href) ?? null,
+                assetId: getString(record.assetId ?? record.asset_id) ?? null,
+                asset: normalizeEvidenceAsset(record.asset) ?? null,
+                createdAt: getString(record.createdAt ?? record.created_at) ?? null,
+                updatedAt: getString(record.updatedAt ?? record.updated_at) ?? null
+        }
+
+        return normalized
+}
+
+const normalizeEvidenceSubmissionItems = (
+        value: unknown
+): DisputeFinalEvidenceSubmissionItem[] | null => {
+        if (!value) {
+                return null
+        }
+
+        if (Array.isArray(value)) {
+                const normalized = value
+                        .map(item => normalizeEvidenceSubmissionItem(item))
+                        .filter((item): item is DisputeFinalEvidenceSubmissionItem => Boolean(item))
+
+                return normalized.length ? normalized : []
+        }
+
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const candidates = ['data', 'items', 'results', 'evidences', 'attachments'] as const
+
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const normalized = normalizeEvidenceSubmissionItems(record[key])
+                if (normalized) {
+                        return normalized
+                }
+        }
+
+        return null
+}
+
+const normalizeEvidenceSubmission = (value: unknown): DisputeFinalEvidenceSubmission | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        const normalized: DisputeFinalEvidenceSubmission = {
+                id,
+                disputeId: getString(record.disputeId ?? record.dispute_id) ?? null,
+                milestoneId: getString(record.milestoneId ?? record.milestone_id) ?? null,
+                freelancerId: getString(record.freelancerId ?? record.freelancer_id) ?? null,
+                submittedById:
+                        getString(record.submittedById ?? record.submitted_by_id ?? record.submitterId ?? record.submitter_id) ?? null,
+                submittedBy: normalizeEvidencePerson(record.submittedBy ?? record.submitter ?? record.user) ?? null,
+                submittedAt: getString(record.submittedAt ?? record.submitted_at) ?? null,
+                updatedAt: getString(record.updatedAt ?? record.updated_at) ?? null,
+                statement: getString(record.statement ?? record.message ?? record.note) ?? null,
+                noAdditionalEvidence:
+                        parseBoolean(record.noAdditionalEvidence ?? record.no_additional_evidence ?? record.noMoreEvidence) ?? null,
+                items: normalizeEvidenceSubmissionItems(
+                        record.items ?? record.evidenceItems ?? record.evidence_items ?? record.attachments
+                ) ?? []
+        }
+
+        return normalized
+}
+
+const normalizeEvidenceSubmissions = (
+        value: unknown
+): DisputeFinalEvidenceSubmission[] | null => {
+        if (!value) {
+                return null
+        }
+
+        if (Array.isArray(value)) {
+                const normalized = value
+                        .map(item => normalizeEvidenceSubmission(item))
+                        .filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item))
+
+                return normalized.length ? normalized : []
+        }
+
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const candidates = ['data', 'items', 'results', 'submissions', 'evidenceSubmissions', 'evidences'] as const
+
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const normalized = normalizeEvidenceSubmissions(record[key])
+                if (normalized) {
+                        return normalized
+                }
+        }
+
+        return null
 }
 
 const normalizeAmounts = (
@@ -565,6 +781,11 @@ const extractAdminDisputeDetail = (value: unknown): AdminDisputeDetail | null =>
         )
         const negotiations = normalizeNegotiations(record.negotiations ?? (disputeRecord ? disputeRecord.negotiations : undefined))
         const counts = normalizeCounts(record._count ?? (disputeRecord ? disputeRecord._count : undefined))
+        const evidenceSubmissions = normalizeEvidenceSubmissions(
+                record.evidenceSubmissions ??
+                        record.evidence_submissions ??
+                        (disputeRecord ? (disputeRecord as Record<string, unknown>).evidenceSubmissions : undefined)
+        )
 
         return {
                 id,
@@ -572,7 +793,8 @@ const extractAdminDisputeDetail = (value: unknown): AdminDisputeDetail | null =>
                 escrow,
                 chatAccessLogs,
                 negotiations,
-                counts
+                counts,
+                evidenceSubmissions
         }
 }
 

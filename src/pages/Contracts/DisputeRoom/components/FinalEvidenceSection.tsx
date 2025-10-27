@@ -9,6 +9,7 @@ import {
         Loader2,
         Paperclip,
         Plus,
+        ShieldCheck,
         Trash2
 } from 'lucide-react'
 import { Controller, type FieldErrors, type Resolver, useFieldArray, useForm } from 'react-hook-form'
@@ -35,6 +36,10 @@ type FinalEvidenceSectionProps = {
         isClientParty: boolean
         isFreelancerParty: boolean
         isAwaitingArbitrationFees?: boolean
+        clientEvidenceSubmitted?: boolean | null
+        freelancerEvidenceSubmitted?: boolean | null
+        hasSubmittedEvidence?: boolean | null
+        isSubmissionWindowOpen?: boolean
 }
 
 type EvidenceAttachment = DisputeEvidenceMilestoneAttachment | DisputeEvidenceChatAttachment
@@ -110,10 +115,42 @@ export default function FinalEvidenceSection({
         currentUserId,
         isClientParty,
         isFreelancerParty,
-        isAwaitingArbitrationFees
+        isAwaitingArbitrationFees,
+        clientEvidenceSubmitted,
+        freelancerEvidenceSubmitted,
+        hasSubmittedEvidence,
+        isSubmissionWindowOpen = true
 }: FinalEvidenceSectionProps) {
         const allowSubmission = isClientParty || isFreelancerParty
         const queryClient = useQueryClient()
+
+        const clientHasSubmitted = clientEvidenceSubmitted === true
+        const freelancerHasSubmitted = freelancerEvidenceSubmitted === true
+        const currentUserHasSubmitted = Boolean(
+                (isClientParty && clientHasSubmitted) || (isFreelancerParty && freelancerHasSubmitted)
+        )
+        const otherPartyHasSubmitted = Boolean(
+                (isClientParty && freelancerHasSubmitted) || (isFreelancerParty && clientHasSubmitted)
+        )
+        const canSubmitEvidence = allowSubmission && isSubmissionWindowOpen && !currentUserHasSubmitted
+
+        const formatEvidenceStatus = (flag?: boolean | null) => {
+                if (flag === true) return 'Đã nộp'
+                if (flag === false) return 'Chưa nộp'
+                return 'Không rõ'
+        }
+
+        const getEvidenceStatusTone = (flag?: boolean | null) => {
+                if (flag === true) return 'text-emerald-700'
+                if (flag === false) return 'text-base-content/70'
+                return 'text-base-content/60'
+        }
+
+        const clientStatusClass = getEvidenceStatusTone(clientEvidenceSubmitted)
+        const freelancerStatusClass = getEvidenceStatusTone(freelancerEvidenceSubmitted)
+        const showSubmissionWindowClosed = allowSubmission && !isSubmissionWindowOpen
+        const showGenericSubmissionNotice =
+                !currentUserHasSubmitted && !otherPartyHasSubmitted && hasSubmittedEvidence === true
 
         const {
                 control,
@@ -214,6 +251,11 @@ export default function FinalEvidenceSection({
         )
 
         const addAttachment = (attachment: EvidenceAttachment, source: EvidenceSource) => {
+                if (!canSubmitEvidence) {
+                        toast.info('Bạn không thể thêm chứng cứ mới vào lúc này.')
+                        return
+                }
+
                 if (noAdditionalEvidence) {
                         toast.info('Bạn đang đánh dấu không gửi thêm chứng cứ mới.')
                         return
@@ -264,6 +306,11 @@ export default function FinalEvidenceSection({
                 }
 
         const handleAddExternalLink = () => {
+                if (!canSubmitEvidence) {
+                        toast.info('Bạn không thể thêm chứng cứ mới vào lúc này.')
+                        return
+                }
+
                 if (fields.length >= MAX_EVIDENCE_ITEMS) {
                         toast.warn('Bạn đã đạt số lượng chứng cứ tối đa.')
                         return
@@ -284,10 +331,21 @@ export default function FinalEvidenceSection({
         )
 
         const isSubmitting = submitMutation.isPending
-        const disableAddButtons = noAdditionalEvidence || isSubmitting
-        const disableSubmit = isSubmitting || !allowSubmission || Boolean(isAwaitingArbitrationFees)
+        const isReadOnly = isSubmitting || !canSubmitEvidence
+        const disableAddButtons = noAdditionalEvidence || isReadOnly
+        const disableSubmit =
+                isSubmitting ||
+                !allowSubmission ||
+                Boolean(isAwaitingArbitrationFees) ||
+                !isSubmissionWindowOpen ||
+                currentUserHasSubmitted
 
         const onSubmit = (values: SubmitFinalEvidenceFormOutput) => {
+                if (!canSubmitEvidence) {
+                        toast.info('Bạn không thể gửi chứng cứ vào lúc này.')
+                        return
+                }
+
                 if (fields.length === 0 && !values.statement && !values.noAdditionalEvidence) {
                         return
                 }
@@ -330,6 +388,59 @@ export default function FinalEvidenceSection({
                                 )}
                         </div>
 
+                        <div className='mb-6 space-y-3 text-xs'>
+                                <div className='flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-amber-800'>
+                                        <div className='flex items-start gap-2'>
+                                                <AlertTriangle className='size-4 flex-shrink-0' />
+                                                <span>
+                                                        Mỗi bên chỉ được gửi chứng cứ cuối cùng một lần cho tranh chấp này. Hãy kiểm tra kỹ nội dung trước khi gửi.
+                                                </span>
+                                        </div>
+                                        <div className='flex flex-wrap gap-4 text-[11px]'>
+                                                <span>
+                                                        Khách hàng:{' '}
+                                                        <span className={`font-semibold ${clientStatusClass}`}>
+                                                                {formatEvidenceStatus(clientEvidenceSubmitted)}
+                                                        </span>
+                                                </span>
+                                                <span>
+                                                        Freelancer:{' '}
+                                                        <span className={`font-semibold ${freelancerStatusClass}`}>
+                                                                {formatEvidenceStatus(freelancerEvidenceSubmitted)}
+                                                        </span>
+                                                </span>
+                                        </div>
+                                </div>
+
+                                {showSubmissionWindowClosed && (
+                                        <div className='flex items-start gap-2 rounded-2xl border border-base-200 bg-base-100/80 px-3 py-2 text-base-content/70'>
+                                                <AlertTriangle className='size-4 flex-shrink-0 text-base-content/60' />
+                                                <span>Tranh chấp chưa ở giai đoạn nộp chứng cứ, bạn tạm thời không thể gửi thêm.</span>
+                                        </div>
+                                )}
+
+                                {showGenericSubmissionNotice && (
+                                        <div className='flex items-start gap-2 rounded-2xl border border-base-200 bg-base-100/80 px-3 py-2 text-base-content/70'>
+                                                <ShieldCheck className='size-4 flex-shrink-0 text-base-content/60' />
+                                                <span>Hệ thống ghi nhận đã có chứng cứ được gửi trước đó.</span>
+                                        </div>
+                                )}
+
+                                {currentUserHasSubmitted && (
+                                        <div className='flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-emerald-700'>
+                                                <ShieldCheck className='size-4 flex-shrink-0' />
+                                                <span>Bạn đã gửi chứng cứ cuối cùng. Không thể chỉnh sửa hoặc nộp thêm tài liệu.</span>
+                                        </div>
+                                )}
+
+                                {!currentUserHasSubmitted && otherPartyHasSubmitted && (
+                                        <div className='flex items-start gap-2 rounded-2xl border border-base-200 bg-base-100/80 px-3 py-2 text-base-content/70'>
+                                                <ShieldCheck className='size-4 flex-shrink-0 text-base-content/60' />
+                                                <span>Bên còn lại đã hoàn tất việc gửi chứng cứ cuối cùng.</span>
+                                        </div>
+                                )}
+                        </div>
+
                         <form onSubmit={handleSubmit(onSubmit)} className='space-y-6'>
                                 <div className='space-y-2'>
                                         <label className='text-sm font-medium text-base-content'>Luận điểm của bạn</label>
@@ -342,7 +453,7 @@ export default function FinalEvidenceSection({
                                                                 rows={4}
                                                                 className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
                                                                 placeholder='Chia sẻ bối cảnh, yêu cầu và điều bạn muốn trọng tài cân nhắc.'
-                                                                disabled={isSubmitting}
+                                                                disabled={isReadOnly}
                                                         />
                                                 )}
                                         />
@@ -362,7 +473,7 @@ export default function FinalEvidenceSection({
                                                                         className='checkbox checkbox-primary mt-1'
                                                                         checked={field.value ?? false}
                                                                         onChange={event => field.onChange(event.target.checked)}
-                                                                        disabled={isSubmitting}
+                                                                        disabled={isReadOnly}
                                                                 />
                                                         )}
                                                 />
@@ -444,8 +555,11 @@ export default function FinalEvidenceSection({
                                                                                                         <button
                                                                                                                 type='button'
                                                                                                                 className='btn btn-ghost btn-sm text-error'
-                                                                                                                onClick={() => remove(index)}
-                                                                                                                disabled={isSubmitting}
+                                                                                                                onClick={() => {
+                                                                                                                        if (!canSubmitEvidence) return
+                                                                                                                        remove(index)
+                                                                                                                }}
+                                                                                                                disabled={isReadOnly}
                                                                                                         >
                                                                                                                 <Trash2 className='mr-1 size-4' /> Gỡ bỏ
                                                                                                         </button>
@@ -454,19 +568,19 @@ export default function FinalEvidenceSection({
                                                                                                 <div className='grid gap-4 md:grid-cols-2'>
                                                                                                         <div className='space-y-2'>
                                                                                                                 <label className='text-xs font-medium uppercase tracking-wide text-base-content/70'>Tiêu đề chứng cứ</label>
-                                                                                                                <Controller
-                                                                                                                        name={`items.${index}.label`}
-                                                                                                                        control={control}
-                                                                                                                        render={({ field: labelField }) => (
-                                                                                                                                <input
-                                                                                                                                        {...labelField}
-                                                                                                                                        type='text'
-                                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                                                        placeholder='Ví dụ: Trao đổi ngày 12/04'
-                                                                                                                                        disabled={isSubmitting}
-                                                                                                                                />
-                                                                                                                        )}
-                                                                                                                />
+                                                                                                        <Controller
+                                                                                                                name={`items.${index}.label`}
+                                                                                                                control={control}
+                                                                                                                render={({ field: labelField }) => (
+                                                                                                                        <input
+                                                                                                                                {...labelField}
+                                                                                                                                type='text'
+                                                                                                                                className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                                                placeholder='Ví dụ: Trao đổi ngày 12/04'
+                                                                                                                                disabled={isReadOnly}
+                                                                                                                        />
+                                                                                                                )}
+                                                                                                        />
                                                                                                                 {itemErrors?.label && (
                                                                                                                         <p className='text-xs text-error'>{itemErrors.label.message}</p>
                                                                                                                 )}
@@ -477,13 +591,13 @@ export default function FinalEvidenceSection({
                                                                                                                         name={`items.${index}.description`}
                                                                                                                         control={control}
                                                                                                                         render={({ field: descriptionField }) => (
-                                                                                                                                <textarea
-                                                                                                                                        {...descriptionField}
-                                                                                                                                        rows={3}
-                                                                                                                                        className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                                                        placeholder='Tóm tắt nội dung chứng minh điều gì trong tranh chấp.'
-                                                                                                                                        disabled={isSubmitting}
-                                                                                                                                />
+                                                                                                                        <textarea
+                                                                                                                                {...descriptionField}
+                                                                                                                                rows={3}
+                                                                                                                                className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                                                placeholder='Tóm tắt nội dung chứng minh điều gì trong tranh chấp.'
+                                                                                                                                disabled={isReadOnly}
+                                                                                                                        />
                                                                                                                         )}
                                                                                                                 />
                                                                                                                 {itemErrors?.description && (
@@ -499,13 +613,13 @@ export default function FinalEvidenceSection({
                                                                                                                         name={`items.${index}.url`}
                                                                                                                         control={control}
                                                                                                                         render={({ field: urlField }) => (
-                                                                                                                                <input
-                                                                                                                                        {...urlField}
-                                                                                                                                        type='url'
-                                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                                                        placeholder='https://'
-                                                                                                                                        disabled={isSubmitting}
-                                                                                                                                />
+                                                                                                                        <input
+                                                                                                                                {...urlField}
+                                                                                                                                type='url'
+                                                                                                                                className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                                                placeholder='https://'
+                                                                                                                                disabled={isReadOnly}
+                                                                                                                        />
                                                                                                                         )}
                                                                                                                 />
                                                                                                                 {itemErrors?.url && (
@@ -521,13 +635,13 @@ export default function FinalEvidenceSection({
                                                                                                                         name={`items.${index}.assetId`}
                                                                                                                         control={control}
                                                                                                                         render={({ field: assetField }) => (
-                                                                                                                                <input
-                                                                                                                                        {...assetField}
-                                                                                                                                        type='text'
-                                                                                                                                        className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                                                                                                        placeholder='Nhập assetId đã được hệ thống cấp.'
-                                                                                                                                        disabled={isSubmitting}
-                                                                                                                                />
+                                                                                                                        <input
+                                                                                                                                {...assetField}
+                                                                                                                                type='text'
+                                                                                                                                className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                                                                                placeholder='Nhập assetId đã được hệ thống cấp.'
+                                                                                                                                disabled={isReadOnly}
+                                                                                                                        />
                                                                                                                         )}
                                                                                                                 />
                                                                                                                 {itemErrors?.assetId && (

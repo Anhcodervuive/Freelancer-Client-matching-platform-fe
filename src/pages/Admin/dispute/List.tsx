@@ -4,16 +4,18 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import {
-	AlertTriangle,
-	BadgeDollarSign,
-	CalendarClock,
-	ChevronDown,
-	Filter,
-	LifeBuoy,
-	RefreshCcw,
-	Search,
-	ShieldCheck,
-	Undo2
+        AlertTriangle,
+        BadgeDollarSign,
+        CalendarClock,
+        ChevronDown,
+        Filter,
+        LifeBuoy,
+        Link2,
+        RefreshCcw,
+        ScrollText,
+        Search,
+        ShieldCheck,
+        Undo2
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
@@ -26,13 +28,14 @@ import {
 import { routes } from '~/config/routes'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import type {
-	AdminDisputeDetail,
-	AdminDisputeListItem,
-	AdminJoinDisputeInput,
-	AdminRequestArbitrationFeesInput,
-	DecimalLike,
-	DisputePayment,
-	DisputeUserSummary
+        AdminDisputeDetail,
+        AdminDisputeListItem,
+        AdminJoinDisputeInput,
+        AdminRequestArbitrationFeesInput,
+        DecimalLike,
+        DisputeFinalEvidenceSubmission,
+        DisputePayment,
+        DisputeUserSummary
 } from '~/types/dispute'
 import { DisputeNegotiationStatus, DisputeStatus } from '~/types/dispute'
 import {
@@ -146,9 +149,9 @@ const formatBoolean = (value?: boolean | null, positiveLabel: string = 'Có', ne
 }
 
 const formatUserName = (user?: DisputeUserSummary | null, fallback?: string | null) => {
-	if (!user) {
-		return fallback ?? '—'
-	}
+        if (!user) {
+                return fallback ?? '—'
+        }
 
 	const record = user as Record<string, unknown>
 	const displayName = (() => {
@@ -182,15 +185,124 @@ const formatUserName = (user?: DisputeUserSummary | null, fallback?: string | nu
 		if (profileName.length) {
 			return profileName
 		}
-	}
-	return user.id || fallback || '—'
+        }
+        return user.id || fallback || '—'
+}
+
+const humanizeEvidenceSourceType = (value?: string | null) => {
+        if (!value) {
+                return 'Không rõ nguồn'
+        }
+
+        const normalized = value.toString().trim().toUpperCase()
+
+        switch (normalized) {
+                case 'MILESTONE_ATTACHMENT':
+                        return 'Tệp milestone'
+                case 'CHAT_ATTACHMENT':
+                        return 'Tệp trò chuyện'
+                case 'ASSET':
+                        return 'Tệp đã tải lên'
+                case 'EXTERNAL_URL':
+                        return 'Liên kết ngoài'
+                default:
+                        return 'Nguồn khác'
+        }
+}
+
+const formatEvidencePersonName = (
+        person: DisputeFinalEvidenceSubmission['submittedBy']
+): string | undefined => {
+        if (!person) {
+                return undefined
+        }
+
+        if (typeof person.displayName === 'string' && person.displayName.trim().length) {
+                return person.displayName.trim()
+        }
+
+        if (typeof person.name === 'string' && person.name.trim().length) {
+                return person.name.trim()
+        }
+
+        const firstName = typeof person.firstName === 'string' ? person.firstName.trim() : ''
+        const lastName = typeof person.lastName === 'string' ? person.lastName.trim() : ''
+        const fullName = `${firstName} ${lastName}`.trim()
+
+        return fullName.length ? fullName : undefined
+}
+
+const formatSubmissionSubmitterLabel = (
+        submission: DisputeFinalEvidenceSubmission,
+        clientId?: string | null,
+        clientLabel?: string | null,
+        freelancerId?: string | null,
+        freelancerLabel?: string | null
+) => {
+        const submitterId = submission.submittedById ?? undefined
+
+        if (submitterId && clientId && submitterId === clientId) {
+                return clientLabel ?? `Khách hàng #${clientId}`
+        }
+
+        if (submitterId && freelancerId && submitterId === freelancerId) {
+                return freelancerLabel ?? `Freelancer #${freelancerId}`
+        }
+
+        const personName = formatEvidencePersonName(submission.submittedBy)
+        if (personName) {
+                return personName
+        }
+
+        if (submitterId) {
+                const shortened = submitterId.length > 8 ? `${submitterId.slice(0, 8)}…` : submitterId
+                return `Người dùng #${shortened}`
+        }
+
+        return 'Không rõ'
+}
+
+const getEvidenceItemUrl = (
+        item: NonNullable<DisputeFinalEvidenceSubmission['items']>[number] | null | undefined
+) => {
+        if (!item) {
+                return null
+        }
+
+        if (typeof item.url === 'string') {
+                const trimmed = item.url.trim()
+                if (trimmed.length) {
+                        return trimmed
+                }
+        }
+
+        if (item.asset && typeof item.asset.url === 'string') {
+                        const trimmed = item.asset.url.trim()
+                        if (trimmed.length) {
+                                return trimmed
+                        }
+        }
+
+        return null
+}
+
+const getEvidenceFlagClass = (value?: boolean | null) => {
+        if (value === true) {
+                return 'text-emerald-600'
+        }
+
+        if (value === false) {
+                return 'text-base-content/70'
+        }
+
+        return 'text-base-content/60'
 }
 
 const pickBooleanFlag = (record: AdminDisputeListItem, keys: string[]) => {
-	for (const key of keys) {
-		const value = record[key]
-		if (typeof value === 'boolean') {
-			return value
+        for (const key of keys) {
+                const value = record[key]
+                if (typeof value === 'boolean') {
+                        return value
 		}
 	}
 	return undefined
@@ -478,17 +590,21 @@ export default function AdminDisputeListPage() {
 		(detailEscrowContract && typeof detailEscrowContract.clientId === 'string'
 			? (detailEscrowContract.clientId as string)
 			: null)
-	const detailFreelancerId =
-		detailFreelancer?.id ??
-		detailContract?.freelancerId ??
-		(detailEscrowContract && typeof detailEscrowContract.freelancerId === 'string'
-			? (detailEscrowContract.freelancerId as string)
-			: null)
-	const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
-	const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
-	const detailClientFeePaid = detailHasPartyPaid(detailDispute?.clientArbFeePaid, detailClientId)
-	const detailFreelancerFeePaid = detailHasPartyPaid(detailDispute?.freelancerArbFeePaid, detailFreelancerId)
-	const detailClientFeeDisplay = detailClientId ? detailClientFeePaid : undefined
+        const detailFreelancerId =
+                detailFreelancer?.id ??
+                detailContract?.freelancerId ??
+                (detailEscrowContract && typeof detailEscrowContract.freelancerId === 'string'
+                        ? (detailEscrowContract.freelancerId as string)
+                        : null)
+        const detailClientEvidenceSubmitted =
+                detailDispute?.clientEvidenceSubmitted ?? detailDispute?.clientEvidenceSubmited ?? null
+        const detailFreelancerEvidenceSubmitted =
+                detailDispute?.freelancerEvidenceSubmitted ?? detailDispute?.freelancerEvidenceSubmited ?? null
+        const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
+        const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
+        const detailClientFeePaid = detailHasPartyPaid(detailDispute?.clientArbFeePaid, detailClientId)
+        const detailFreelancerFeePaid = detailHasPartyPaid(detailDispute?.freelancerArbFeePaid, detailFreelancerId)
+        const detailClientFeeDisplay = detailClientId ? detailClientFeePaid : undefined
 	const detailFreelancerFeeDisplay = detailFreelancerId ? detailFreelancerFeePaid : undefined
 	const detailBothFeesPaid = detailClientFeePaid && detailFreelancerFeePaid
 	const getDetailPaymentPayerLabel = (payment: DisputePayment) => {
@@ -519,7 +635,12 @@ export default function AdminDisputeListPage() {
 	const detailOpenedBy = detailDispute?.openedBy ?? null
 	const detailOpenedAt = detailDispute?.createdAt ?? detailTarget?.createdAt ?? null
 	const detailUpdatedAt = detailDispute?.updatedAt ?? detailTarget?.updatedAt ?? null
-	const detailLatestProposal = detailDispute?.latestProposal ?? null
+        const detailLatestProposal = detailDispute?.latestProposal ?? null
+        const detailEvidenceSubmissions: DisputeFinalEvidenceSubmission[] =
+                detailData?.evidenceSubmissions?.filter(
+                        (item): item is DisputeFinalEvidenceSubmission => Boolean(item)
+                ) ?? []
+        const detailEvidenceSubmissionCount = detailEvidenceSubmissions.length
 	const detailNegotiationTotal =
 		detailCounts?.negotiations ??
 		detailMetrics?.negotiationCount ??
@@ -1109,17 +1230,29 @@ export default function AdminDisputeListPage() {
 											<p className='text-xs uppercase text-base-content/60'>Các bên liên quan</p>
 											<div>
 												<p className='text-xs text-base-content/60'>Khách hàng</p>
-												<p className='font-medium text-base-content'>
-													{formatUserName(detailClient, detailClientId ?? undefined)}
-												</p>
-												<p className='text-xs text-base-content/60'>ID: {detailClientId ?? '—'}</p>
+                                                                                                <p className='font-medium text-base-content'>
+                                                                                                        {formatUserName(detailClient, detailClientId ?? undefined)}
+                                                                                                </p>
+                                                                                                <p className='text-xs text-base-content/60'>ID: {detailClientId ?? '—'}</p>
+                                                                                                <p className='text-xs text-base-content/60'>
+                                                                                                        Chứng cứ:{' '}
+                                                                                                        <span className={`font-medium ${getEvidenceFlagClass(detailClientEvidenceSubmitted)}`}>
+                                                                                                                {formatBoolean(detailClientEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
+                                                                                                        </span>
+                                                                                                </p>
 											</div>
 											<div>
 												<p className='text-xs text-base-content/60'>Freelancer</p>
-												<p className='font-medium text-base-content'>
-													{formatUserName(detailFreelancer, detailFreelancerId ?? undefined)}
-												</p>
-												<p className='text-xs text-base-content/60'>ID: {detailFreelancerId ?? '—'}</p>
+                                                                                                <p className='font-medium text-base-content'>
+                                                                                                        {formatUserName(detailFreelancer, detailFreelancerId ?? undefined)}
+                                                                                                </p>
+                                                                                                <p className='text-xs text-base-content/60'>ID: {detailFreelancerId ?? '—'}</p>
+                                                                                                <p className='text-xs text-base-content/60'>
+                                                                                                        Chứng cứ:{' '}
+                                                                                                        <span className={`font-medium ${getEvidenceFlagClass(detailFreelancerEvidenceSubmitted)}`}>
+                                                                                                                {formatBoolean(detailFreelancerEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
+                                                                                                        </span>
+                                                                                                </p>
 											</div>
 										</div>
 										<div className='space-y-2'>
@@ -1298,11 +1431,109 @@ export default function AdminDisputeListPage() {
 											)}
 										</div>
 									</div>
-								</section>
+                                                                </section>
 
-								<section className='space-y-2'>
-									<div className='flex flex-wrap items-center gap-2'>
-										<h4 className='text-sm font-semibold text-base-content'>Đề xuất mới nhất</h4>
+                                                                <section className='space-y-3'>
+                                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                                <ScrollText className='size-4 text-primary' />
+                                                                                <h4 className='text-sm font-semibold text-base-content'>Chứng cứ cuối cùng</h4>
+                                                                                {detailEvidenceSubmissionCount ? (
+                                                                                        <span className='badge badge-outline text-[11px]'>
+                                                                                                {detailEvidenceSubmissionCount}
+                                                                                        </span>
+                                                                                ) : null}
+                                                                        </div>
+                                                                        {detailEvidenceSubmissionCount ? (
+                                                                                <div className='space-y-3'>
+                                                                                        {detailEvidenceSubmissions.map((submission, submissionIndex) => {
+                                                                                                const key = submission.id ?? `submission-${submissionIndex}`
+                                                                                                const submitterLabel = formatSubmissionSubmitterLabel(
+                                                                                                        submission,
+                                                                                                        detailClientId,
+                                                                                                        formatUserName(detailClient, detailClientId ?? undefined),
+                                                                                                        detailFreelancerId,
+                                                                                                        formatUserName(detailFreelancer, detailFreelancerId ?? undefined)
+                                                                                                )
+                                                                                                const items = submission.items?.filter(Boolean) ?? []
+
+                                                                                                return (
+                                                                                                        <div
+                                                                                                                key={key}
+                                                                                                                className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'
+                                                                                                        >
+                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
+                                                                                                                        <span className='font-medium text-base-content'>{submitterLabel}</span>
+                                                                                                                        <span>{formatDateTime(submission.submittedAt)}</span>
+                                                                                                                </div>
+                                                                                                                {submission.statement ? (
+                                                                                                                        <p className='text-sm text-base-content'>{submission.statement}</p>
+                                                                                                                ) : null}
+                                                                                                                {submission.noAdditionalEvidence ? (
+                                                                                                                        <div className='rounded-lg bg-base-100/80 p-2 text-[11px] text-base-content/70'>
+                                                                                                                                Người gửi xác nhận không có chứng cứ bổ sung.
+                                                                                                                        </div>
+                                                                                                                ) : null}
+                                                                                                                {items.length ? (
+                                                                                                                        <div className='space-y-2 text-xs text-base-content/80'>
+                                                                                                                                {items.map((item, itemIndex) => {
+                                                                                                                                        const itemKey = item?.id ?? `${key}-item-${itemIndex}`
+                                                                                                                                        const itemLabel = item?.label?.trim().length
+                                                                                                                                                ? item.label.trim()
+                                                                                                                                                : `Chứng cứ #${itemIndex + 1}`
+                                                                                                                                        const itemSourceLabel = humanizeEvidenceSourceType(item?.sourceType)
+                                                                                                                                        const itemUrl = getEvidenceItemUrl(item)
+                                                                                                                                        const itemCreatedAt = formatDateTime(item?.createdAt ?? null)
+
+                                                                                                                                        return (
+                                                                                                                                                <div
+                                                                                                                                                        key={itemKey}
+                                                                                                                                                        className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3'
+                                                                                                                                                >
+                                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                                                                                <p className='font-medium text-base-content'>{itemLabel}</p>
+                                                                                                                                                                <span className='badge badge-ghost text-[11px]'>{itemSourceLabel}</span>
+                                                                                                                                                        </div>
+                                                                                                                                                        {item?.description ? (
+                                                                                                                                                                <p className='text-[11px] text-base-content/70'>{item.description}</p>
+                                                                                                                                                        ) : null}
+                                                                                                                                                        {itemUrl ? (
+                                                                                                                                                                <a
+                                                                                                                                                                        href={itemUrl}
+                                                                                                                                                                        target='_blank'
+                                                                                                                                                                        rel='noopener noreferrer'
+                                                                                                                                                                        className='inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline'
+                                                                                                                                                                >
+                                                                                                                                                                        <Link2 className='size-3' /> Mở liên kết
+                                                                                                                                                                </a>
+                                                                                                                                                        ) : null}
+                                                                                                                                                        {item?.assetId ? (
+                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Asset ID: {item.assetId}</p>
+                                                                                                                                                        ) : null}
+                                                                                                                                                        {item?.sourceId ? (
+                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Nguồn: {item.sourceId}</p>
+                                                                                                                                                        ) : null}
+                                                                                                                                                        {itemCreatedAt !== '—' ? (
+                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Thêm lúc: {itemCreatedAt}</p>
+                                                                                                                                                        ) : null}
+                                                                                                                                                </div>
+                                                                                                                                        )
+                                                                                                                                })}
+                                                                                                                        </div>
+                                                                                                                ) : (
+                                                                                                                        <p className='text-[11px] text-base-content/60'>Không có tài liệu đính kèm.</p>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                )
+                                                                                        })}
+                                                                                </div>
+                                                                        ) : (
+                                                                                <p className='text-xs text-base-content/60'>Chưa có chứng cứ cuối cùng nào được gửi.</p>
+                                                                        )}
+                                                                </section>
+
+                                                                <section className='space-y-2'>
+                                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                                <h4 className='text-sm font-semibold text-base-content'>Đề xuất mới nhất</h4>
 										{detailLatestProposal ? (
 											<span
 												className={[
