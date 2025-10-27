@@ -1091,6 +1091,14 @@ const ContractDisputeRoomPage = () => {
     dispute?.status === DisputeStatus.ARBITRATION;
   const isAwaitingArbitrationFees =
     dispute?.status === DisputeStatus.AWAITING_ARBITRATION_FEES;
+  const isArbitrationPhase = Boolean(
+    dispute?.status &&
+      [
+        DisputeStatus.AWAITING_ARBITRATION_FEES,
+        DisputeStatus.ARBITRATION_READY,
+        DisputeStatus.ARBITRATION,
+      ].includes(dispute.status as DisputeStatus),
+  );
   const contractEntity = (contract as Contract | null) ?? null;
   const contractSummary = (contract as DisputeContractSummary | null) ?? null;
   const contractClientId =
@@ -1417,6 +1425,7 @@ const ContractDisputeRoomPage = () => {
     (item) => item.status === DisputeNegotiationStatus.PENDING,
   );
   const hasDispute = Boolean(dispute);
+  const isNegotiationLocked = isFinalDispute || isArbitrationPhase;
   const shouldShowEvidenceTab = Boolean(dispute?.id && isEvidenceSubmissionStage);
   const tabItems = useMemo(() => {
     const items: { id: DisputeTabId; label: string }[] = [
@@ -1955,10 +1964,17 @@ const ContractDisputeRoomPage = () => {
                 </div>
               ) : (
                 <>
-                  {isFinalDispute ? (
-                    <div className="rounded-2xl border border-success/40 bg-success/10 px-5 py-4 text-sm text-success">
-                      Dispute đã kết thúc. Bạn vẫn có thể xem lại lịch sử thương
-                      lượng bên dưới.
+                  {isNegotiationLocked ? (
+                    <div
+                      className={`rounded-2xl px-5 py-4 text-sm ${
+                        isFinalDispute
+                          ? "border border-success/40 bg-success/10 text-success"
+                          : "border border-violet-200/70 bg-violet-50/70 text-violet-700"
+                      }`}
+                    >
+                      {isFinalDispute
+                        ? "Dispute đã kết thúc. Bạn vẫn có thể xem lại lịch sử thương lượng bên dưới."
+                        : "Dispute đã chuyển sang giai đoạn đóng phí trọng tài nên không thể gửi thêm đề xuất thương lượng mới."}
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-base-200 bg-base-50/80 p-5">

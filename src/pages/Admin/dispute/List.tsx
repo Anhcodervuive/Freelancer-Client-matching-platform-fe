@@ -309,6 +309,7 @@ const pickBooleanFlag = (record: AdminDisputeListItem, keys: string[]) => {
 }
 
 type NeedsAdminOption = 'all' | 'true' | 'false'
+type AdminDetailTabId = 'overview' | 'negotiations' | 'payments' | 'evidence' | 'activity'
 
 export default function AdminDisputeListPage() {
 	const [page, setPage] = useState(1)
@@ -328,7 +329,8 @@ export default function AdminDisputeListPage() {
 	const [joinTarget, setJoinTarget] = useState<AdminDisputeListItem | null>(null)
 	const [joinReason, setJoinReason] = useState('')
 	const [detailTarget, setDetailTarget] = useState<AdminDisputeListItem | null>(null)
-	const [requestFeesOpen, setRequestFeesOpen] = useState(false)
+        const [requestFeesOpen, setRequestFeesOpen] = useState(false)
+        const [detailActiveTab, setDetailActiveTab] = useState<AdminDetailTabId>('overview')
 
 	const queryClient = useQueryClient()
 
@@ -498,11 +500,31 @@ export default function AdminDisputeListPage() {
 		})
 	}
 
-	useEffect(() => {
-		if (!detailTarget) {
-			setRequestFeesOpen(false)
-		}
-	}, [detailTarget])
+        useEffect(() => {
+                if (!detailTarget) {
+                        setRequestFeesOpen(false)
+                        setDetailActiveTab('overview')
+                }
+        }, [detailTarget])
+
+        useEffect(() => {
+                if (!detailDisputeId) {
+                        setDetailActiveTab('overview')
+                        return
+                }
+
+                setDetailActiveTab(current => {
+                        const allowedTabs: AdminDetailTabId[] = [
+                                'overview',
+                                'negotiations',
+                                'payments',
+                                'evidence',
+                                'activity'
+                        ]
+
+                        return allowedTabs.includes(current) ? current : 'overview'
+                })
+        }, [detailDisputeId])
 
 	const limitOptions = [10, 20, 50]
 
@@ -656,16 +678,26 @@ export default function AdminDisputeListPage() {
 	const detailShowJoin = detailHasJoined || detailCanJoin
 	const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
 
-	const detailCanRequestFees = Boolean(
-		detailDisputeId &&
-			detailArbFeePerParty &&
-			detailStatus &&
-			!FINAL_DISPUTE_STATUSES.has(detailStatus) &&
-			![DisputeStatus.AWAITING_ARBITRATION_FEES, DisputeStatus.ARBITRATION_READY, DisputeStatus.ARBITRATION].includes(
-				detailStatus as DisputeStatus
-			) &&
-			!detailBothFeesPaid
-	)
+        const detailCanRequestFees = Boolean(
+                detailDisputeId &&
+                        detailArbFeePerParty &&
+                        detailStatus &&
+                        !FINAL_DISPUTE_STATUSES.has(detailStatus) &&
+                        ![DisputeStatus.AWAITING_ARBITRATION_FEES, DisputeStatus.ARBITRATION_READY, DisputeStatus.ARBITRATION].includes(
+                                detailStatus as DisputeStatus
+                        ) &&
+                        !detailBothFeesPaid
+        )
+        const detailTabItems = useMemo(
+                () => [
+                        { id: 'overview', label: 'Tổng quan' },
+                        { id: 'negotiations', label: 'Thương lượng' },
+                        { id: 'payments', label: 'Phí & thanh toán' },
+                        { id: 'evidence', label: 'Hồ sơ & chứng cứ' },
+                        { id: 'activity', label: 'Hoạt động' }
+                ] satisfies Array<{ id: AdminDetailTabId; label: string }>,
+                []
+        )
 
 	return (
 		<div className='space-y-6'>
@@ -1184,503 +1216,537 @@ export default function AdminDisputeListPage() {
 								</div>
 							</div>
 						) : (
-							<div className='space-y-6 text-sm'>
-								<section className='grid gap-4 lg:grid-cols-2'>
-									<div className='space-y-3'>
-										<div className='grid gap-3 sm:grid-cols-2'>
-											<div>
-												<p className='text-xs uppercase text-base-content/60'>Trạng thái</p>
-												<p className='font-medium text-base-content'>{humanizeStatus(detailStatus)}</p>
-											</div>
-											<div>
-												<p className='text-xs uppercase text-base-content/60'>Admin phụ trách</p>
-												<p className='font-medium text-base-content'>{detailAdminLabel}</p>
-											</div>
-											<div>
-												<p className='text-xs uppercase text-base-content/60'>Tạo lúc</p>
-												<p className='font-medium text-base-content'>{formatDateTime(detailOpenedAt)}</p>
-											</div>
-											<div>
-												<p className='text-xs uppercase text-base-content/60'>Cập nhật</p>
-												<p className='font-medium text-base-content'>{formatDateTime(detailUpdatedAt)}</p>
-											</div>
-											<div>
-												<p className='text-xs uppercase text-base-content/60'>Hạn phản hồi</p>
-												<p className='font-medium text-base-content'>{formatDateTime(detailResponseDeadline)}</p>
-											</div>
-											<div>
-												<p className='text-xs uppercase text-base-content/60'>Hạn trọng tài</p>
-												<p className='font-medium text-base-content'>{formatDateTime(detailArbitrationDeadline)}</p>
-											</div>
-										</div>
-										{detailOpenedBy ? (
-											<div className='text-xs text-base-content/70'>
-												<span className='font-medium text-base-content'>Người mở tranh chấp:</span>{' '}
-												{formatUserName(detailOpenedBy, detailOpenedBy.id)}
-											</div>
-										) : null}
-										{detailNote ? (
-											<div className='rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-base-content/80'>
-												<span className='font-medium text-primary'>Ghi chú:</span> {detailNote}
-											</div>
-										) : null}
-									</div>
-									<div className='space-y-3'>
-										<div className='space-y-2'>
-											<p className='text-xs uppercase text-base-content/60'>Các bên liên quan</p>
-											<div>
-												<p className='text-xs text-base-content/60'>Khách hàng</p>
-                                                                                                <p className='font-medium text-base-content'>
-                                                                                                        {formatUserName(detailClient, detailClientId ?? undefined)}
-                                                                                                </p>
-                                                                                                <p className='text-xs text-base-content/60'>ID: {detailClientId ?? '—'}</p>
-                                                                                                <p className='text-xs text-base-content/60'>
-                                                                                                        Chứng cứ:{' '}
-                                                                                                        <span className={`font-medium ${getEvidenceFlagClass(detailClientEvidenceSubmitted)}`}>
-                                                                                                                {formatBoolean(detailClientEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
-                                                                                                        </span>
-                                                                                                </p>
-											</div>
-											<div>
-												<p className='text-xs text-base-content/60'>Freelancer</p>
-                                                                                                <p className='font-medium text-base-content'>
-                                                                                                        {formatUserName(detailFreelancer, detailFreelancerId ?? undefined)}
-                                                                                                </p>
-                                                                                                <p className='text-xs text-base-content/60'>ID: {detailFreelancerId ?? '—'}</p>
-                                                                                                <p className='text-xs text-base-content/60'>
-                                                                                                        Chứng cứ:{' '}
-                                                                                                        <span className={`font-medium ${getEvidenceFlagClass(detailFreelancerEvidenceSubmitted)}`}>
-                                                                                                                {formatBoolean(detailFreelancerEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
-                                                                                                        </span>
-                                                                                                </p>
-											</div>
-										</div>
-										<div className='space-y-2'>
-											<p className='text-xs uppercase text-base-content/60'>Hợp đồng &amp; mốc</p>
-											<div className='space-y-1'>
-												<div>
-													{detailContractTitle ||
-														(detailContractId ? `Hợp đồng #${detailContractId}` : 'Không rõ hợp đồng')}
-												</div>
-												{detailContractId ? (
-													<Link to={routes.contracts.detail(detailContractId)} className='link link-primary text-xs'>
-														Xem hợp đồng
-													</Link>
-												) : null}
-											</div>
-											<div className='text-sm text-base-content/80'>
-												Mốc:{' '}
-												{detailMilestoneTitle || (detailMilestoneSummary?.id ? `#${detailMilestoneSummary.id}` : '—')}
-											</div>
-											<div className='grid gap-2 text-xs text-base-content/60 sm:grid-cols-2'>
-												<span>
-													Trạng thái:{' '}
-													<span className='font-medium text-base-content'>{detailMilestoneStatus ?? '—'}</span>
-												</span>
-												<span>
-													Bắt đầu:{' '}
-													<span className='font-medium text-base-content'>{formatDateTime(detailMilestoneStart)}</span>
-												</span>
-												<span>
-													Kết thúc:{' '}
-													<span className='font-medium text-base-content'>{formatDateTime(detailMilestoneEnd)}</span>
-												</span>
-											</div>
-										</div>
-									</div>
-								</section>
+                                                        <div className='space-y-6 text-sm'>
+                                                                <div className='flex flex-wrap items-center gap-2'>
+                                                                        {detailTabItems.map(item => {
+                                                                                const isActive = detailActiveTab === item.id
+                                                                                return (
+                                                                                        <button
+                                                                                                key={item.id}
+                                                                                                type='button'
+                                                                                                className={`btn btn-sm ${
+                                                                                                        isActive
+                                                                                                                ? 'btn-primary'
+                                                                                                                : 'btn-ghost border border-base-200 text-base-content/70'
+                                                                                                }`}
+                                                                                                onClick={() => setDetailActiveTab(item.id)}
+                                                                                                aria-pressed={isActive}
+                                                                                        >
+                                                                                                {item.label}
+                                                                                        </button>
+                                                                                )
+                                                                        })}
+                                                                </div>
 
-								<section className='grid gap-4 md:grid-cols-2'>
-									<div className='space-y-2'>
-										<p className='text-xs uppercase text-base-content/60'>Tài chính</p>
-										<div className='space-y-1'>
-											<div className='flex items-center justify-between gap-3'>
-												<span className='text-base-content/70'>Ký quỹ</span>
-												<span className='font-medium text-base-content'>
-													{formatCurrencyValue(detailFunded, detailCurrency)}
-												</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span className='text-base-content/70'>Đã giải ngân</span>
-												<span className='font-medium text-base-content'>
-													{formatCurrencyValue(detailReleased, detailCurrency)}
-												</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span className='text-base-content/70'>Đã hoàn</span>
-												<span className='font-medium text-base-content'>
-													{formatCurrencyValue(detailRefunded, detailCurrency)}
-												</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span className='text-base-content/70'>Đang tranh chấp</span>
-												<span className='font-medium text-base-content'>
-													{formatCurrencyValue(detailDisputable, detailCurrency)}
-												</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span className='text-base-content/70'>Đề xuất trả freelancer</span>
-												<span className='font-medium text-base-content'>
-													{formatCurrencyValue(detailProposedRelease, detailCurrency)}
-												</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span className='text-base-content/70'>Đề xuất trả khách hàng</span>
-												<span className='font-medium text-base-content'>
-													{formatCurrencyValue(detailProposedRefund, detailCurrency)}
-												</span>
-											</div>
-										</div>
-									</div>
-									<div className='space-y-3'>
-										<p className='text-xs uppercase text-base-content/60'>Phí trọng tài</p>
-										<div className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3 text-xs text-base-content/70'>
-											<div className='flex items-center justify-between gap-3'>
-												<span>Phí mỗi bên</span>
-												<span className='font-medium text-base-content'>
-													{formatCurrencyValue(detailArbFeePerParty, detailCurrency)}
-												</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span>Khách đã nộp</span>
-												<span
-													className={`badge ${
-														detailClientId ? (detailClientFeePaid ? 'badge-success' : 'badge-warning') : 'badge-outline'
-													}`}>
-													{formatBoolean(detailClientFeeDisplay)}
-												</span>
-											</div>
-											<div className='flex items-center justify-between gap-3'>
-												<span>Freelancer đã nộp</span>
-												<span
-													className={`badge ${
-														detailFreelancerId
-															? detailFreelancerFeePaid
-																? 'badge-success'
-																: 'badge-warning'
-															: 'badge-outline'
-													}`}>
-													{formatBoolean(detailFreelancerFeeDisplay)}
-												</span>
-											</div>
-											{detailArbitrationDeadline ? (
-												<div className='flex items-center justify-between gap-3'>
-													<span>Hạn nộp phí</span>
-													<span className='font-medium text-base-content'>
-														{formatDateTime(detailArbitrationDeadline)}
-													</span>
-												</div>
-											) : null}
-										</div>
-										{detailBothFeesPaid ? (
-											<div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-success'>
-												Cả hai bên đã hoàn tất việc nộp phí trọng tài.
-											</div>
-										) : null}
-										<div className='space-y-2'>
-											<h5 className='text-xs font-semibold uppercase text-base-content/60'>Lịch sử thanh toán</h5>
-											{detailArbitrationPayments.length ? (
-												<div className='space-y-2'>
-													{detailArbitrationPayments.map((payment, index) => {
-														const reference = getDisputePaymentReference(payment)
-														const identityKey = getDisputePaymentIdentityKey(payment)
-														const statusLabel = humanizeDisputePaymentStatus(payment.status)
-														const statusClass = isDisputePaymentSuccessful(payment) ? 'badge-success' : 'badge-ghost'
-														const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
-														const key =
-															payment.id || `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
-
-														return (
-															<div key={key} className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'>
-																<div className='flex flex-wrap items-center justify-between gap-3'>
-																	<div className='space-y-1'>
-																		<p className='font-medium text-base-content'>
-																			{getDetailPaymentPayerLabel(payment)}
-																		</p>
-																		<p className='text-[11px] text-base-content/60'>
-																			Mã tham chiếu:{' '}
-																			<span className='break-all font-medium text-base-content'>
-																				{reference ?? identityKey ?? '—'}
-																			</span>
-																		</p>
-																	</div>
-																	<div className='text-right'>
-																		<p className='text-sm font-semibold text-base-content'>
-																			{formatCurrencyValue(payment.amount ?? null, payment.currency ?? detailCurrency)}
-																		</p>
-																		<div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-[11px] text-base-content/60'>
-																			<span className={`badge ${statusClass}`}>{statusLabel}</span>
-																			<span>{createdAtLabel}</span>
-																		</div>
-																	</div>
-																</div>
-																{identityKey && reference && identityKey !== reference ? (
-																	<p className='break-all text-[11px] text-base-content/60'>
-																		Mã xác nhận: {identityKey}
-																	</p>
-																) : null}
-																{payment.description ? (
-																	<p className='text-[11px] text-base-content/60'>Ghi chú: {payment.description}</p>
-																) : null}
-															</div>
-														)
-													})}
-												</div>
-											) : (
-												<p className='text-xs text-base-content/60'>Chưa có giao dịch phí trọng tài.</p>
-											)}
-										</div>
-									</div>
-                                                                </section>
-
-                                                                <section className='space-y-3'>
-                                                                        <div className='flex flex-wrap items-center gap-2'>
-                                                                                <ScrollText className='size-4 text-primary' />
-                                                                                <h4 className='text-sm font-semibold text-base-content'>Chứng cứ cuối cùng</h4>
-                                                                                {detailEvidenceSubmissionCount ? (
-                                                                                        <span className='badge badge-outline text-[11px]'>
-                                                                                                {detailEvidenceSubmissionCount}
-                                                                                        </span>
-                                                                                ) : null}
-                                                                        </div>
-                                                                        {detailEvidenceSubmissionCount ? (
+                                                                {detailActiveTab === 'overview' ? (
+                                                                        <section className='grid gap-4 lg:grid-cols-2'>
                                                                                 <div className='space-y-3'>
-                                                                                        {detailEvidenceSubmissions.map((submission, submissionIndex) => {
-                                                                                                const key = submission.id ?? `submission-${submissionIndex}`
-                                                                                                const submitterLabel = formatSubmissionSubmitterLabel(
-                                                                                                        submission,
-                                                                                                        detailClientId,
-                                                                                                        formatUserName(detailClient, detailClientId ?? undefined),
-                                                                                                        detailFreelancerId,
-                                                                                                        formatUserName(detailFreelancer, detailFreelancerId ?? undefined)
-                                                                                                )
-                                                                                                const items = submission.items?.filter(Boolean) ?? []
-
-                                                                                                return (
-                                                                                                        <div
-                                                                                                                key={key}
-                                                                                                                className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'
-                                                                                                        >
-                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
-                                                                                                                        <span className='font-medium text-base-content'>{submitterLabel}</span>
-                                                                                                                        <span>{formatDateTime(submission.submittedAt)}</span>
-                                                                                                                </div>
-                                                                                                                {submission.statement ? (
-                                                                                                                        <p className='text-sm text-base-content'>{submission.statement}</p>
-                                                                                                                ) : null}
-                                                                                                                {submission.noAdditionalEvidence ? (
-                                                                                                                        <div className='rounded-lg bg-base-100/80 p-2 text-[11px] text-base-content/70'>
-                                                                                                                                Người gửi xác nhận không có chứng cứ bổ sung.
-                                                                                                                        </div>
-                                                                                                                ) : null}
-                                                                                                                {items.length ? (
-                                                                                                                        <div className='space-y-2 text-xs text-base-content/80'>
-                                                                                                                                {items.map((item, itemIndex) => {
-                                                                                                                                        const itemKey = item?.id ?? `${key}-item-${itemIndex}`
-                                                                                                                                        const itemLabel = item?.label?.trim().length
-                                                                                                                                                ? item.label.trim()
-                                                                                                                                                : `Chứng cứ #${itemIndex + 1}`
-                                                                                                                                        const itemSourceLabel = humanizeEvidenceSourceType(item?.sourceType)
-                                                                                                                                        const itemUrl = getEvidenceItemUrl(item)
-                                                                                                                                        const itemCreatedAt = formatDateTime(item?.createdAt ?? null)
-
-                                                                                                                                        return (
-                                                                                                                                                <div
-                                                                                                                                                        key={itemKey}
-                                                                                                                                                        className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3'
-                                                                                                                                                >
-                                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
-                                                                                                                                                                <p className='font-medium text-base-content'>{itemLabel}</p>
-                                                                                                                                                                <span className='badge badge-ghost text-[11px]'>{itemSourceLabel}</span>
-                                                                                                                                                        </div>
-                                                                                                                                                        {item?.description ? (
-                                                                                                                                                                <p className='text-[11px] text-base-content/70'>{item.description}</p>
-                                                                                                                                                        ) : null}
-                                                                                                                                                        {itemUrl ? (
-                                                                                                                                                                <a
-                                                                                                                                                                        href={itemUrl}
-                                                                                                                                                                        target='_blank'
-                                                                                                                                                                        rel='noopener noreferrer'
-                                                                                                                                                                        className='inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline'
-                                                                                                                                                                >
-                                                                                                                                                                        <Link2 className='size-3' /> Mở liên kết
-                                                                                                                                                                </a>
-                                                                                                                                                        ) : null}
-                                                                                                                                                        {item?.assetId ? (
-                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Asset ID: {item.assetId}</p>
-                                                                                                                                                        ) : null}
-                                                                                                                                                        {item?.sourceId ? (
-                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Nguồn: {item.sourceId}</p>
-                                                                                                                                                        ) : null}
-                                                                                                                                                        {itemCreatedAt !== '—' ? (
-                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Thêm lúc: {itemCreatedAt}</p>
-                                                                                                                                                        ) : null}
-                                                                                                                                                </div>
-                                                                                                                                        )
-                                                                                                                                })}
-                                                                                                                        </div>
-                                                                                                                ) : (
-                                                                                                                        <p className='text-[11px] text-base-content/60'>Không có tài liệu đính kèm.</p>
-                                                                                                                )}
-                                                                                                        </div>
-                                                                                                )
-                                                                                        })}
+                                                                                        <div className='grid gap-3 sm:grid-cols-2'>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Trạng thái</p>
+                                                                                                        <p className='font-medium text-base-content'>{humanizeStatus(detailStatus)}</p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Admin phụ trách</p>
+                                                                                                        <p className='font-medium text-base-content'>{detailAdminLabel}</p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Tạo lúc</p>
+                                                                                                        <p className='font-medium text-base-content'>{formatDateTime(detailOpenedAt)}</p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Cập nhật</p>
+                                                                                                        <p className='font-medium text-base-content'>{formatDateTime(detailUpdatedAt)}</p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Hạn phản hồi</p>
+                                                                                                        <p className='font-medium text-base-content'>{formatDateTime(detailResponseDeadline)}</p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Hạn trọng tài</p>
+                                                                                                        <p className='font-medium text-base-content'>{formatDateTime(detailArbitrationDeadline)}</p>
+                                                                                                </div>
+                                                                                        </div>
+                                                                                        {detailOpenedBy ? (
+                                                                                                <div className='text-xs text-base-content/70'>
+                                                                                                        <span className='font-medium text-base-content'>Người mở tranh chấp:</span>{' '}
+                                                                                                        {formatUserName(detailOpenedBy, detailOpenedBy.id)}
+                                                                                                </div>
+                                                                                        ) : null}
+                                                                                        {detailNote ? (
+                                                                                                <div className='rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-base-content/80'>
+                                                                                                        <span className='font-medium text-primary'>Ghi chú:</span> {detailNote}
+                                                                                                </div>
+                                                                                        ) : null}
                                                                                 </div>
-                                                                        ) : (
-                                                                                <p className='text-xs text-base-content/60'>Chưa có chứng cứ cuối cùng nào được gửi.</p>
-                                                                        )}
-                                                                </section>
+                                                                                <div className='space-y-3'>
+                                                                                        <div className='space-y-2'>
+                                                                                                <p className='text-xs uppercase text-base-content/60'>Các bên liên quan</p>
+                                                                                                <div>
+                                                                                                        <p className='text-xs text-base-content/60'>Khách hàng</p>
+                                                                                                        <p className='font-medium text-base-content'>
+                                                                                                                {formatUserName(detailClient, detailClientId ?? undefined)}
+                                                                                                        </p>
+                                                                                                        <p className='text-xs text-base-content/60'>ID: {detailClientId ?? '—'}</p>
+                                                                                                        <p className='text-xs text-base-content/60'>
+                                                                                                                Chứng cứ:{' '}
+                                                                                                                <span className={`font-medium ${getEvidenceFlagClass(detailClientEvidenceSubmitted)}`}>
+                                                                                                                        {formatBoolean(detailClientEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
+                                                                                                                </span>
+                                                                                                        </p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs text-base-content/60'>Freelancer</p>
+                                                                                                        <p className='font-medium text-base-content'>
+                                                                                                                {formatUserName(detailFreelancer, detailFreelancerId ?? undefined)}
+                                                                                                        </p>
+                                                                                                        <p className='text-xs text-base-content/60'>ID: {detailFreelancerId ?? '—'}</p>
+                                                                                                        <p className='text-xs text-base-content/60'>
+                                                                                                                Chứng cứ:{' '}
+                                                                                                                <span className={`font-medium ${getEvidenceFlagClass(detailFreelancerEvidenceSubmitted)}`}>
+                                                                                                                        {formatBoolean(detailFreelancerEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
+                                                                                                                </span>
+                                                                                                        </p>
+                                                                                                </div>
+                                                                                        </div>
+                                                                                        <div className='space-y-2'>
+                                                                                                <p className='text-xs uppercase text-base-content/60'>Hợp đồng &amp; mốc</p>
+                                                                                                <div className='space-y-1'>
+                                                                                                        <div>
+                                                                                                                {detailContractTitle ||
+                                                                                                                        (detailContractId ? `Hợp đồng #${detailContractId}` : 'Không rõ hợp đồng')}
+                                                                                                        </div>
+                                                                                                        {detailContractId ? (
+                                                                                                                <Link to={routes.contracts.detail(detailContractId)} className='link link-primary text-xs'>
+                                                                                                                        Xem hợp đồng
+                                                                                                                </Link>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                                <div className='text-sm text-base-content/80'>
+                                                                                                        Mốc:{' '}
+                                                                                                        {detailMilestoneTitle || (detailMilestoneSummary?.id ? `#${detailMilestoneSummary.id}` : '—')}
+                                                                                                </div>
+                                                                                                <div className='grid gap-2 text-xs text-base-content/60 sm:grid-cols-2'>
+                                                                                                        <span>
+                                                                                                                Trạng thái:{' '}
+                                                                                                                <span className='font-medium text-base-content'>{detailMilestoneStatus ?? '—'}</span>
+                                                                                                        </span>
+                                                                                                        <span>
+                                                                                                                Bắt đầu:{' '}
+                                                                                                                <span className='font-medium text-base-content'>{formatDateTime(detailMilestoneStart)}</span>
+                                                                                                        </span>
+                                                                                                        <span>
+                                                                                                                Kết thúc:{' '}
+                                                                                                                <span className='font-medium text-base-content'>{formatDateTime(detailMilestoneEnd)}</span>
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                        </div>
+                                                                                </div>
+                                                                        </section>
+                                                                ) : null}
 
-                                                                <section className='space-y-2'>
-                                                                        <div className='flex flex-wrap items-center gap-2'>
-                                                                                <h4 className='text-sm font-semibold text-base-content'>Đề xuất mới nhất</h4>
-										{detailLatestProposal ? (
-											<span
-												className={[
-													'badge',
-													detailLatestProposal.status
-														? negotiationStatusClassMap[detailLatestProposal.status] ?? 'badge-outline'
-														: 'badge-outline'
-												].join(' ')}>
-												{humanizeNegotiationStatus(detailLatestProposal.status)}
-											</span>
-										) : null}
-									</div>
-									{detailLatestProposal ? (
-										<div className='space-y-2 rounded-xl border border-base-200 bg-base-200/50 p-3 text-base-content'>
-											<div className='grid gap-2 text-xs text-base-content/70 sm:grid-cols-2'>
-												<span>
-													Trả freelancer:{' '}
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailLatestProposal.releaseAmount, detailCurrency)}
-													</span>
-												</span>
-												<span>
-													Trả khách hàng:{' '}
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailLatestProposal.refundAmount, detailCurrency)}
-													</span>
-												</span>
-												<span>
-													Người đề xuất:{' '}
-													<span className='font-medium text-base-content'>
-														{formatUserName(detailLatestProposal.proposer, detailLatestProposal.proposerId)}
-													</span>
-												</span>
-												{detailLatestProposal.respondedBy ? (
-													<span>
-														Phản hồi bởi:{' '}
-														<span className='font-medium text-base-content'>
-															{formatUserName(
-																detailLatestProposal.respondedBy,
-																detailLatestProposal.respondedById ?? undefined
-															)}
-														</span>
-														{detailLatestProposal.respondedAt
-															? ` (${formatDateTime(detailLatestProposal.respondedAt)})`
-															: ''}
-													</span>
-												) : null}
-											</div>
-											{detailLatestProposal.message ? (
-												<p className='whitespace-pre-line text-sm text-base-content/80'>
-													{detailLatestProposal.message}
-												</p>
-											) : null}
-											{detailLatestProposal.responseMessage ? (
-												<div className='rounded-lg bg-base-100 p-2 text-xs text-base-content/70'>
-													<span className='font-medium text-base-content'>Phản hồi:</span>{' '}
-													{detailLatestProposal.responseMessage}
-												</div>
-											) : null}
-										</div>
-									) : (
-										<p className='text-sm text-base-content/70'>Chưa có đề xuất nào.</p>
-									)}
-								</section>
+                                                                {detailActiveTab === 'payments' ? (
+                                                                        <section className='grid gap-4 md:grid-cols-2'>
+                                                                                <div className='space-y-2'>
+                                                                                        <p className='text-xs uppercase text-base-content/60'>Tài chính</p>
+                                                                                        <div className='space-y-1'>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span className='text-base-content/70'>Ký quỹ</span>
+                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                {formatCurrencyValue(detailFunded, detailCurrency)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span className='text-base-content/70'>Đã giải ngân</span>
+                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                {formatCurrencyValue(detailReleased, detailCurrency)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span className='text-base-content/70'>Đã hoàn</span>
+                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                {formatCurrencyValue(detailRefunded, detailCurrency)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span className='text-base-content/70'>Đang tranh chấp</span>
+                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                {formatCurrencyValue(detailDisputable, detailCurrency)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span className='text-base-content/70'>Đề xuất trả freelancer</span>
+                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                {formatCurrencyValue(detailProposedRelease, detailCurrency)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span className='text-base-content/70'>Đề xuất trả khách hàng</span>
+                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                {formatCurrencyValue(detailProposedRefund, detailCurrency)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                        </div>
+                                                                                </div>
+                                                                                <div className='space-y-3'>
+                                                                                        <p className='text-xs uppercase text-base-content/60'>Phí trọng tài</p>
+                                                                                        <div className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3 text-xs text-base-content/70'>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span>Phí mỗi bên</span>
+                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                {formatCurrencyValue(detailArbFeePerParty, detailCurrency)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span>Khách đã nộp</span>
+                                                                                                        <span
+                                                                                                                className={`badge ${
+                                                                                                                        detailClientId ? (detailClientFeePaid ? 'badge-success' : 'badge-warning') : 'badge-outline'
+                                                                                                                }`}
+                                                                                                        >
+                                                                                                                {formatBoolean(detailClientFeeDisplay)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div className='flex items-center justify-between gap-3'>
+                                                                                                        <span>Freelancer đã nộp</span>
+                                                                                                        <span
+                                                                                                                className={`badge ${
+                                                                                                                        detailFreelancerId
+                                                                                                                                ? detailFreelancerFeePaid
+                                                                                                                                        ? 'badge-success'
+                                                                                                                                        : 'badge-warning'
+                                                                                                                                : 'badge-outline'
+                                                                                                                }`}
+                                                                                                        >
+                                                                                                                {formatBoolean(detailFreelancerFeeDisplay)}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                {detailArbitrationDeadline ? (
+                                                                                                        <div className='flex items-center justify-between gap-3'>
+                                                                                                                <span>Hạn nộp phí</span>
+                                                                                                                <span className='font-medium text-base-content'>
+                                                                                                                        {formatDateTime(detailArbitrationDeadline)}
+                                                                                                                </span>
+                                                                                                        </div>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        {detailBothFeesPaid ? (
+                                                                                                <div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-success'>
+                                                                                                        Cả hai bên đã hoàn tất việc nộp phí trọng tài.
+                                                                                                </div>
+                                                                                        ) : null}
+                                                                                        <div className='space-y-2'>
+                                                                                                <h5 className='text-xs font-semibold uppercase text-base-content/60'>Lịch sử thanh toán</h5>
+                                                                                                {detailArbitrationPayments.length ? (
+                                                                                                        <div className='space-y-2'>
+                                                                                                                {detailArbitrationPayments.map((payment, index) => {
+                                                                                                                        const reference = getDisputePaymentReference(payment)
+                                                                                                                        const identityKey = getDisputePaymentIdentityKey(payment)
+                                                                                                                        const statusLabel = humanizeDisputePaymentStatus(payment.status)
+                                                                                                                        const statusClass = isDisputePaymentSuccessful(payment) ? 'badge-success' : 'badge-ghost'
+                                                                                                                        const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
+                                                                                                                        const key =
+                                                                                                                                payment.id || `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
 
-								<section className='space-y-2'>
-									<div className='flex flex-wrap items-center gap-2'>
-										<h4 className='text-sm font-semibold text-base-content'>Lịch sử thương lượng</h4>
-										{detailNegotiationTotal != null ? (
-											<span className='badge badge-outline text-xs'>Tổng: {detailNegotiationTotal}</span>
-										) : null}
-									</div>
-									{Array.isArray(detailNegotiations) && detailNegotiations.length ? (
-										<div className='space-y-3 max-h-64 overflow-y-auto pr-1'>
-											{detailNegotiations.map(negotiation => (
-												<div key={negotiation.id} className='space-y-2 rounded-xl border border-base-200 p-3'>
-													<div className='flex flex-wrap items-center gap-2 text-xs text-base-content/70'>
-														<span>{formatDateTime(negotiation.createdAt)}</span>
-														<span
-															className={[
-																'badge badge-sm',
-																negotiationStatusClassMap[negotiation.status] ?? 'badge-outline'
-															].join(' ')}>
-															{humanizeNegotiationStatus(negotiation.status)}
-														</span>
-														<span>Bởi {formatUserName(negotiation.proposer, negotiation.proposerId)}</span>
-													</div>
-													<div className='grid gap-2 text-xs text-base-content/60 sm:grid-cols-2'>
-														<span>
-															Trả freelancer:{' '}
-															<span className='font-medium text-base-content'>
-																{formatCurrencyValue(negotiation.releaseAmount, detailCurrency)}
-															</span>
-														</span>
-														<span>
-															Trả khách hàng:{' '}
-															<span className='font-medium text-base-content'>
-																{formatCurrencyValue(negotiation.refundAmount, detailCurrency)}
-															</span>
-														</span>
-													</div>
-													{negotiation.message ? (
-														<p className='whitespace-pre-line text-sm text-base-content'>{negotiation.message}</p>
-													) : null}
-													{negotiation.respondedBy ? (
-														<div className='rounded-lg bg-base-200/60 p-2 text-xs text-base-content/70'>
-															<span className='font-medium text-base-content'>Phản hồi:</span>{' '}
-															{formatUserName(negotiation.respondedBy, negotiation.respondedById ?? undefined)}
-															{negotiation.respondedAt ? ` (${formatDateTime(negotiation.respondedAt)})` : ''}
-															{negotiation.responseMessage ? ` — ${negotiation.responseMessage}` : ''}
-														</div>
-													) : null}
-												</div>
-											))}
-										</div>
-									) : (
-										<p className='text-sm text-base-content/70'>Chưa có thương lượng nào được ghi nhận.</p>
-									)}
-								</section>
+                                                                                                                        return (
+                                                                                                                                <div key={key} className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'>
+                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                                                                                                                <div className='space-y-1'>
+                                                                                                                                                        <p className='font-medium text-base-content'>
+                                                                                                                                                                {getDetailPaymentPayerLabel(payment)}
+                                                                                                                                                        </p>
+                                                                                                                                                        <p className='text-[11px] text-base-content/60'>
+                                                                                                                                                                Mã tham chiếu:{' '}
+                                                                                                                                                                <span className='break-all font-medium text-base-content'>
+                                                                                                                                                                        {reference ?? identityKey ?? '—'}
+                                                                                                                                                                </span>
+                                                                                                                                                        </p>
+                                                                                                                                                </div>
+                                                                                                                                                <div className='text-right'>
+                                                                                                                                                        <p className='text-sm font-semibold text-base-content'>
+                                                                                                                                                                {formatCurrencyValue(payment.amount ?? null, payment.currency ?? detailCurrency)}
+                                                                                                                                                        </p>
+                                                                                                                                                        <div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-[11px] text-base-content/60'>
+                                                                                                                                                                <span className={`badge ${statusClass}`}>{statusLabel}</span>
+                                                                                                                                                                <span>{createdAtLabel}</span>
+                                                                                                                                                        </div>
+                                                                                                                                                </div>
+                                                                                                                                        </div>
+                                                                                                                                        {identityKey && reference && identityKey !== reference ? (
+                                                                                                                                                <p className='break-all text-[11px] text-base-content/60'>
+                                                                                                                                                        Mã xác nhận: {identityKey}
+                                                                                                                                                </p>
+                                                                                                                                        ) : null}
+                                                                                                                                        {payment.description ? (
+                                                                                                                                                <p className='text-[11px] text-base-content/60'>Ghi chú: {payment.description}</p>
+                                                                                                                                        ) : null}
+                                                                                                                                </div>
+                                                                                                                        )
+                                                                                                                })}
+                                                                                                        </div>
+                                                                                                ) : (
+                                                                                                        <p className='text-xs text-base-content/60'>Chưa có giao dịch phí trọng tài.</p>
+                                                                                                )}
+                                                                                        </div>
+                                                                                </div>
+                                                                        </section>
+                                                                ) : null}
 
-								<section className='space-y-2'>
-									<div className='flex flex-wrap items-center gap-2'>
-										<h4 className='text-sm font-semibold text-base-content'>Nhật ký truy cập phòng chat</h4>
-										{Array.isArray(detailChatLogs) && detailChatLogs.length ? (
-											<span className='badge badge-outline text-xs'>Số lần: {detailChatLogs.length}</span>
-										) : null}
-									</div>
-									{Array.isArray(detailChatLogs) && detailChatLogs.length ? (
-										<div className='space-y-3 max-h-48 overflow-y-auto pr-1'>
-											{detailChatLogs.map(log => (
-												<div key={log.id} className='rounded-xl border border-base-200 p-3 text-base-content'>
-													<div className='flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
-														<span>{formatDateTime(log.createdAt)}</span>
-														{log.action ? <span className='badge badge-sm badge-ghost'>{log.action}</span> : null}
-													</div>
-													<div className='text-sm text-base-content'>
-														Admin: {formatUserName(log.admin, log.adminId ?? undefined)}
-													</div>
-													{log.reason ? <div className='text-xs text-base-content/70'>Lý do: {log.reason}</div> : null}
-												</div>
-											))}
-										</div>
-									) : (
-										<p className='text-sm text-base-content/70'>Chưa có dữ liệu truy cập phòng chat.</p>
-									)}
-								</section>
-							</div>
+                                                                {detailActiveTab === 'evidence' ? (
+                                                                        <section className='space-y-3'>
+                                                                                <div className='flex flex-wrap items-center gap-2'>
+                                                                                        <ScrollText className='size-4 text-primary' />
+                                                                                        <h4 className='text-sm font-semibold text-base-content'>Chứng cứ cuối cùng</h4>
+                                                                                        {detailEvidenceSubmissionCount ? (
+                                                                                                <span className='badge badge-outline text-[11px]'>
+                                                                                                        {detailEvidenceSubmissionCount}
+                                                                                                </span>
+                                                                                        ) : null}
+                                                                                </div>
+                                                                                {detailEvidenceSubmissionCount ? (
+                                                                                        <div className='space-y-3'>
+                                                                                                {detailEvidenceSubmissions.map((submission, submissionIndex) => {
+                                                                                                        const key = submission.id ?? `submission-${submissionIndex}`
+                                                                                                        const submitterLabel = formatSubmissionSubmitterLabel(
+                                                                                                                submission,
+                                                                                                                detailClientId,
+                                                                                                                formatUserName(detailClient, detailClientId ?? undefined),
+                                                                                                                detailFreelancerId,
+                                                                                                                formatUserName(detailFreelancer, detailFreelancerId ?? undefined)
+                                                                                                        )
+                                                                                                        const items = submission.items?.filter(Boolean) ?? []
+
+                                                                                                        return (
+                                                                                                                <div
+                                                                                                                        key={key}
+                                                                                                                        className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'
+                                                                                                                >
+                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
+                                                                                                                                <span className='font-medium text-base-content'>{submitterLabel}</span>
+                                                                                                                                <span>{formatDateTime(submission.submittedAt)}</span>
+                                                                                                                        </div>
+                                                                                                                        {submission.statement ? (
+                                                                                                                                <p className='text-sm text-base-content'>{submission.statement}</p>
+                                                                                                                        ) : null}
+                                                                                                                        {submission.noAdditionalEvidence ? (
+                                                                                                                                <div className='rounded-lg bg-base-100/80 p-2 text-[11px] text-base-content/70'>
+                                                                                                                                        Người gửi xác nhận không có chứng cứ bổ sung.
+                                                                                                                                </div>
+                                                                                                                        ) : null}
+                                                                                                                        {items.length ? (
+                                                                                                                                <div className='space-y-2 text-xs text-base-content/80'>
+                                                                                                                                        {items.map((item, itemIndex) => {
+                                                                                                                                                const itemKey = item?.id ?? `${key}-item-${itemIndex}`
+                                                                                                                                                const itemLabel = item?.label?.trim().length
+                                                                                                                                                        ? item.label.trim()
+                                                                                                                                                        : `Chứng cứ #${itemIndex + 1}`
+                                                                                                                                                const itemSourceLabel = humanizeEvidenceSourceType(item?.sourceType)
+                                                                                                                                                const itemUrl = getEvidenceItemUrl(item)
+                                                                                                                                                const itemCreatedAt = formatDateTime(item?.createdAt ?? null)
+
+                                                                                                                                                return (
+                                                                                                                                                        <div
+                                                                                                                                                                key={itemKey}
+                                                                                                                                                                className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3'
+                                                                                                                                                        >
+                                                                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                                                                                        <p className='font-medium text-base-content'>{itemLabel}</p>
+                                                                                                                                                                        <span className='badge badge-ghost text-[11px]'>{itemSourceLabel}</span>
+                                                                                                                                                                </div>
+                                                                                                                                                                {item?.description ? (
+                                                                                                                                                                        <p className='text-[11px] text-base-content/70'>{item.description}</p>
+                                                                                                                                                                ) : null}
+                                                                                                                                                                {itemUrl ? (
+                                                                                                                                                                        <a
+                                                                                                                                                                                href={itemUrl}
+                                                                                                                                                                                target='_blank'
+                                                                                                                                                                                rel='noopener noreferrer'
+                                                                                                                                                                                className='inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline'
+                                                                                                                                                                        >
+                                                                                                                                                                                <Link2 className='size-3' /> Mở liên kết
+                                                                                                                                                                        </a>
+                                                                                                                                                                ) : null}
+                                                                                                                                                                {item?.assetId ? (
+                                                                                                                                                                        <p className='text-[11px] text-base-content/60'>Asset ID: {item.assetId}</p>
+                                                                                                                                                                ) : null}
+                                                                                                                                                                {item?.sourceId ? (
+                                                                                                                                                                        <p className='text-[11px] text-base-content/60'>Nguồn: {item.sourceId}</p>
+                                                                                                                                                                ) : null}
+                                                                                                                                                                {itemCreatedAt !== '—' ? (
+                                                                                                                                                                        <p className='text-[11px] text-base-content/60'>Thêm lúc: {itemCreatedAt}</p>
+                                                                                                                                                                ) : null}
+                                                                                                                                                        </div>
+                                                                                                                                                )
+                                                                                                                                        })}
+                                                                                                                                </div>
+                                                                                                                        ) : (
+                                                                                                                                <p className='text-[11px] text-base-content/60'>Không có tài liệu đính kèm.</p>
+                                                                                                                        )}
+                                                                                                                </div>
+                                                                                                        )
+                                                                                                })}
+                                                                                        </div>
+                                                                                ) : (
+                                                                                        <p className='text-xs text-base-content/60'>Chưa có chứng cứ cuối cùng nào được gửi.</p>
+                                                                                )}
+                                                                        </section>
+                                                                ) : null}
+
+                                                                {detailActiveTab === 'negotiations' ? (
+                                                                        <>
+                                                                                <section className='space-y-2'>
+                                                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                                                <h4 className='text-sm font-semibold text-base-content'>Đề xuất mới nhất</h4>
+                                                                                                {detailLatestProposal ? (
+                                                                                                        <span
+                                                                                                                className={[
+                                                                                                                        'badge',
+                                                                                                                        detailLatestProposal.status
+                                                                                                                                ? negotiationStatusClassMap[detailLatestProposal.status] ?? 'badge-outline'
+                                                                                                                                : 'badge-outline'
+                                                                                                                ].join(' ')}
+                                                                                                        >
+                                                                                                                {humanizeNegotiationStatus(detailLatestProposal.status)}
+                                                                                                        </span>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        {detailLatestProposal ? (
+                                                                                                <div className='space-y-2 rounded-xl border border-base-200 bg-base-200/50 p-3 text-base-content'>
+                                                                                                        <div className='grid gap-2 text-xs text-base-content/70 sm:grid-cols-2'>
+                                                                                                                <span>
+                                                                                                                        Trả freelancer:{' '}
+                                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                                {formatCurrencyValue(detailLatestProposal.releaseAmount, detailCurrency)}
+                                                                                                                        </span>
+                                                                                                                </span>
+                                                                                                                <span>
+                                                                                                                        Trả khách hàng:{' '}
+                                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                                {formatCurrencyValue(detailLatestProposal.refundAmount, detailCurrency)}
+                                                                                                                        </span>
+                                                                                                                </span>
+                                                                                                                <span>
+                                                                                                                        Người đề xuất:{' '}
+                                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                                {formatUserName(detailLatestProposal.proposer, detailLatestProposal.proposerId)}
+                                                                                                                        </span>
+                                                                                                                </span>
+                                                                                                                {detailLatestProposal.respondedBy ? (
+                                                                                                                        <span>
+                                                                                                                                Phản hồi bởi:{' '}
+                                                                                                                                <span className='font-medium text-base-content'>
+                                                                                                                                        {formatUserName(detailLatestProposal.respondedBy, detailLatestProposal.respondedById ?? undefined)}
+                                                                                                                                </span>
+                                                                                                                                {detailLatestProposal.respondedAt ? ` (${formatDateTime(detailLatestProposal.respondedAt)})` : ''}
+                                                                                                                        </span>
+                                                                                                                ) : null}
+                                                                                                        </div>
+                                                                                                        {detailLatestProposal.message ? (
+                                                                                                                <p className='whitespace-pre-line text-sm text-base-content/80'>
+                                                                                                                        {detailLatestProposal.message}
+                                                                                                                </p>
+                                                                                                        ) : null}
+                                                                                                        {detailLatestProposal.responseMessage ? (
+                                                                                                                <div className='rounded-lg bg-base-100 p-2 text-xs text-base-content/70'>
+                                                                                                                        <span className='font-medium text-base-content'>Phản hồi:</span>{' '}
+                                                                                                                        {detailLatestProposal.responseMessage}
+                                                                                                                </div>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        ) : (
+                                                                                                <p className='text-sm text-base-content/70'>Chưa có đề xuất nào.</p>
+                                                                                        )}
+                                                                                </section>
+                                                                                <section className='space-y-2'>
+                                                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                                                <h4 className='text-sm font-semibold text-base-content'>Lịch sử thương lượng</h4>
+                                                                                                {detailNegotiationTotal != null ? (
+                                                                                                        <span className='badge badge-outline text-xs'>Tổng: {detailNegotiationTotal}</span>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        {Array.isArray(detailNegotiations) && detailNegotiations.length ? (
+                                                                                                <div className='space-y-3 max-h-64 overflow-y-auto pr-1'>
+                                                                                                        {detailNegotiations.map(negotiation => (
+                                                                                                                <div key={negotiation.id} className='space-y-2 rounded-xl border border-base-200 p-3'>
+                                                                                                                        <div className='flex flex-wrap items-center gap-2 text-xs text-base-content/70'>
+                                                                                                                                <span>{formatDateTime(negotiation.createdAt)}</span>
+                                                                                                                                <span
+                                                                                                                                        className={[
+                                                                                                                                                'badge badge-sm',
+                                                                                                                                                negotiationStatusClassMap[negotiation.status] ?? 'badge-outline'
+                                                                                                                                        ].join(' ')}
+                                                                                                                                >
+                                                                                                                                        {humanizeNegotiationStatus(negotiation.status)}
+                                                                                                                                </span>
+                                                                                                                                <span>Bởi {formatUserName(negotiation.proposer, negotiation.proposerId)}</span>
+                                                                                                                        </div>
+                                                                                                                        <div className='grid gap-2 text-xs text-base-content/60 sm:grid-cols-2'>
+                                                                                                                                <span>
+                                                                                                                                        Trả freelancer:{' '}
+                                                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                                                {formatCurrencyValue(negotiation.releaseAmount, detailCurrency)}
+                                                                                                                                        </span>
+                                                                                                                                </span>
+                                                                                                                                <span>
+                                                                                                                                        Trả khách hàng:{' '}
+                                                                                                                                        <span className='font-medium text-base-content'>
+                                                                                                                                                {formatCurrencyValue(negotiation.refundAmount, detailCurrency)}
+                                                                                                                                        </span>
+                                                                                                                                </span>
+                                                                                                                        </div>
+                                                                                                                        {negotiation.message ? (
+                                                                                                                                <p className='whitespace-pre-line text-sm text-base-content'>
+                                                                                                                                        {negotiation.message}
+                                                                                                                                </p>
+                                                                                                                        ) : null}
+                                                                                                                        {negotiation.respondedBy ? (
+                                                                                                                                <div className='rounded-lg bg-base-200/60 p-2 text-xs text-base-content/70'>
+                                                                                                                                        <span className='font-medium text-base-content'>Phản hồi:</span>{' '}
+                                                                                                                                        {formatUserName(negotiation.respondedBy, negotiation.respondedById ?? undefined)}
+                                                                                                                                        {negotiation.respondedAt ? ` (${formatDateTime(negotiation.respondedAt)})` : ''}
+                                                                                                                                        {negotiation.responseMessage ? ` — ${negotiation.responseMessage}` : ''}
+                                                                                                                                </div>
+                                                                                                                        ) : null}
+                                                                                                                </div>
+                                                                                                        ))}
+                                                                                                </div>
+                                                                                        ) : (
+                                                                                                <p className='text-sm text-base-content/70'>Chưa có thương lượng nào được ghi nhận.</p>
+                                                                                        )}
+                                                                                </section>
+                                                                        </>
+                                                                ) : null}
+
+                                                                {detailActiveTab === 'activity' ? (
+                                                                        <section className='space-y-2'>
+                                                                                <div className='flex flex-wrap items-center gap-2'>
+                                                                                        <h4 className='text-sm font-semibold text-base-content'>Nhật ký truy cập phòng chat</h4>
+                                                                                        {Array.isArray(detailChatLogs) && detailChatLogs.length ? (
+                                                                                                <span className='badge badge-outline text-xs'>Số lần: {detailChatLogs.length}</span>
+                                                                                        ) : null}
+                                                                                </div>
+                                                                                {Array.isArray(detailChatLogs) && detailChatLogs.length ? (
+                                                                                        <div className='space-y-3 max-h-48 overflow-y-auto pr-1'>
+                                                                                                {detailChatLogs.map(log => (
+                                                                                                        <div key={log.id} className='rounded-xl border border-base-200 p-3 text-base-content'>
+                                                                                                                <div className='flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
+                                                                                                                        <span>{formatDateTime(log.createdAt)}</span>
+                                                                                                                        {log.action ? <span className='badge badge-sm badge-ghost'>{log.action}</span> : null}
+                                                                                                                </div>
+                                                                                                                <div className='text-sm text-base-content'>
+                                                                                                                        Admin: {formatUserName(log.admin, log.adminId ?? undefined)}
+                                                                                                                </div>
+                                                                                                                {log.reason ? <div className='text-xs text-base-content/70'>Lý do: {log.reason}</div> : null}
+                                                                                                        </div>
+                                                                                                ))}
+                                                                                        </div>
+                                                                                ) : (
+                                                                                        <p className='text-sm text-base-content/70'>Chưa có dữ liệu truy cập phòng chat.</p>
+                                                                                )}
+                                                                        </section>
+                                                                ) : null}
+                                                        </div>
+
 						)}
 					</div>
 					<form method='dialog' className='modal-backdrop' onClick={() => setDetailTarget(null)}>
