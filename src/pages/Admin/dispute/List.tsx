@@ -4,43 +4,43 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import {
-        AlertTriangle,
-        BadgeDollarSign,
-        CalendarClock,
-        ChevronDown,
-        Filter,
-        Lock,
-        LifeBuoy,
-        Link2,
-        RefreshCcw,
-        ScrollText,
-        Search,
-        ShieldCheck,
-        Undo2
+	AlertTriangle,
+	BadgeDollarSign,
+	CalendarClock,
+	ChevronDown,
+	Filter,
+	Lock,
+	LifeBuoy,
+	Link2,
+	RefreshCcw,
+	ScrollText,
+	Search,
+	ShieldCheck,
+	Undo2
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import {
 	getAdminDisputes,
-        generateArbitrationDossier,
-        getAdminDisputeDetail,
-        joinDisputeAsAdmin,
-        lockDispute,
-        requestArbitrationFees
+	generateArbitrationDossier,
+	getAdminDisputeDetail,
+	joinDisputeAsAdmin,
+	lockDispute,
+	requestArbitrationFees
 } from '~/apis/admin/dispute.api'
 import { routes } from '~/config/routes'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import type {
-        AdminDisputeDetail,
-        AdminDisputeListItem,
-        AdminGenerateArbitrationDossierInput,
-        AdminJoinDisputeInput,
-        AdminLockDisputeInput,
-        AdminRequestArbitrationFeesInput,
-        DecimalLike,
-        DisputeFinalEvidenceSubmission,
-        DisputePayment,
-        DisputeUserSummary
+	AdminDisputeDetail,
+	AdminDisputeListItem,
+	AdminGenerateArbitrationDossierInput,
+	AdminJoinDisputeInput,
+	AdminLockDisputeInput,
+	AdminRequestArbitrationFeesInput,
+	DecimalLike,
+	DisputeFinalEvidenceSubmission,
+	DisputePayment,
+	DisputeUserSummary
 } from '~/types/dispute'
 import { DisputeNegotiationStatus, DisputeStatus } from '~/types/dispute'
 import {
@@ -51,12 +51,12 @@ import {
 	isDisputePaymentSuccessful
 } from '~/utils/disputePayments'
 import {
-        AdminGenerateArbitrationDossierFormSchema,
-        AdminLockDisputeFormSchema,
-        AdminRequestArbitrationFeesSchema,
-        type AdminGenerateArbitrationDossierFormOutput,
-        type AdminLockDisputeFormOutput,
-        type AdminRequestArbitrationFeesFormOutput
+	AdminGenerateArbitrationDossierFormSchema,
+	AdminLockDisputeFormSchema,
+	AdminRequestArbitrationFeesSchema,
+	type AdminGenerateArbitrationDossierFormOutput,
+	type AdminLockDisputeFormOutput,
+	type AdminRequestArbitrationFeesFormOutput
 } from './schemas'
 
 const STATUS_OPTIONS = Object.values(DisputeStatus)
@@ -161,9 +161,9 @@ const formatBoolean = (value?: boolean | null, positiveLabel: string = 'Có', ne
 }
 
 const formatUserName = (user?: DisputeUserSummary | null, fallback?: string | null) => {
-        if (!user) {
-                return fallback ?? '—'
-        }
+	if (!user) {
+		return fallback ?? '—'
+	}
 
 	const record = user as Record<string, unknown>
 	const displayName = (() => {
@@ -197,176 +197,172 @@ const formatUserName = (user?: DisputeUserSummary | null, fallback?: string | nu
 		if (profileName.length) {
 			return profileName
 		}
-        }
-        return user.id || fallback || '—'
+	}
+	return user.id || fallback || '—'
 }
 
 const humanizeEvidenceSourceType = (value?: string | null) => {
-        if (!value) {
-                return 'Không rõ nguồn'
-        }
+	if (!value) {
+		return 'Không rõ nguồn'
+	}
 
-        const normalized = value.toString().trim().toUpperCase()
+	const normalized = value.toString().trim().toUpperCase()
 
-        switch (normalized) {
-                case 'MILESTONE_ATTACHMENT':
-                        return 'Tệp milestone'
-                case 'CHAT_ATTACHMENT':
-                        return 'Tệp trò chuyện'
-                case 'ASSET':
-                        return 'Tệp đã tải lên'
-                case 'EXTERNAL_URL':
-                        return 'Liên kết ngoài'
-                default:
-                        return 'Nguồn khác'
-        }
+	switch (normalized) {
+		case 'MILESTONE_ATTACHMENT':
+			return 'Tệp milestone'
+		case 'CHAT_ATTACHMENT':
+			return 'Tệp trò chuyện'
+		case 'ASSET':
+			return 'Tệp đã tải lên'
+		case 'EXTERNAL_URL':
+			return 'Liên kết ngoài'
+		default:
+			return 'Nguồn khác'
+	}
 }
 
-const formatEvidencePersonName = (
-        person: DisputeFinalEvidenceSubmission['submittedBy']
-): string | undefined => {
-        if (!person) {
-                return undefined
-        }
+const formatEvidencePersonName = (person: DisputeFinalEvidenceSubmission['submittedBy']): string | undefined => {
+	if (!person) {
+		return undefined
+	}
 
-        if (typeof person.displayName === 'string' && person.displayName.trim().length) {
-                return person.displayName.trim()
-        }
+	if (typeof person.displayName === 'string' && person.displayName.trim().length) {
+		return person.displayName.trim()
+	}
 
-        if (typeof person.name === 'string' && person.name.trim().length) {
-                return person.name.trim()
-        }
+	if (typeof person.name === 'string' && person.name.trim().length) {
+		return person.name.trim()
+	}
 
-        const firstName = typeof person.firstName === 'string' ? person.firstName.trim() : ''
-        const lastName = typeof person.lastName === 'string' ? person.lastName.trim() : ''
-        const fullName = `${firstName} ${lastName}`.trim()
+	const firstName = typeof person.firstName === 'string' ? person.firstName.trim() : ''
+	const lastName = typeof person.lastName === 'string' ? person.lastName.trim() : ''
+	const fullName = `${firstName} ${lastName}`.trim()
 
-        return fullName.length ? fullName : undefined
+	return fullName.length ? fullName : undefined
 }
 
 const formatSubmissionSubmitterLabel = (
-        submission: DisputeFinalEvidenceSubmission,
-        clientId?: string | null,
-        clientLabel?: string | null,
-        freelancerId?: string | null,
-        freelancerLabel?: string | null
+	submission: DisputeFinalEvidenceSubmission,
+	clientId?: string | null,
+	clientLabel?: string | null,
+	freelancerId?: string | null,
+	freelancerLabel?: string | null
 ) => {
-        const submitterId = submission.submittedById ?? undefined
+	const submitterId = submission.submittedById ?? undefined
 
-        if (submitterId && clientId && submitterId === clientId) {
-                return clientLabel ?? `Khách hàng #${clientId}`
-        }
+	if (submitterId && clientId && submitterId === clientId) {
+		return clientLabel ?? `Khách hàng #${clientId}`
+	}
 
-        if (submitterId && freelancerId && submitterId === freelancerId) {
-                return freelancerLabel ?? `Freelancer #${freelancerId}`
-        }
+	if (submitterId && freelancerId && submitterId === freelancerId) {
+		return freelancerLabel ?? `Freelancer #${freelancerId}`
+	}
 
-        const personName = formatEvidencePersonName(submission.submittedBy)
-        if (personName) {
-                return personName
-        }
+	const personName = formatEvidencePersonName(submission.submittedBy)
+	if (personName) {
+		return personName
+	}
 
-        if (submitterId) {
-                const shortened = submitterId.length > 8 ? `${submitterId.slice(0, 8)}…` : submitterId
-                return `Người dùng #${shortened}`
-        }
+	if (submitterId) {
+		const shortened = submitterId.length > 8 ? `${submitterId.slice(0, 8)}…` : submitterId
+		return `Người dùng #${shortened}`
+	}
 
-        return 'Không rõ'
+	return 'Không rõ'
 }
 
-const getEvidenceItemUrl = (
-        item: NonNullable<DisputeFinalEvidenceSubmission['items']>[number] | null | undefined
-) => {
-        if (!item) {
-                return null
-        }
+const getEvidenceItemUrl = (item: NonNullable<DisputeFinalEvidenceSubmission['items']>[number] | null | undefined) => {
+	if (!item) {
+		return null
+	}
 
-        if (typeof item.url === 'string') {
-                const trimmed = item.url.trim()
-                if (trimmed.length) {
-                        return trimmed
-                }
-        }
+	if (typeof item.url === 'string') {
+		const trimmed = item.url.trim()
+		if (trimmed.length) {
+			return trimmed
+		}
+	}
 
-        if (item.asset && typeof item.asset.url === 'string') {
-                        const trimmed = item.asset.url.trim()
-                        if (trimmed.length) {
-                                return trimmed
-                        }
-        }
+	if (item.asset && typeof item.asset.url === 'string') {
+		const trimmed = item.asset.url.trim()
+		if (trimmed.length) {
+			return trimmed
+		}
+	}
 
-        return null
+	return null
 }
 
 const normalizeBooleanFlag = (value: unknown): boolean | null => {
-        if (typeof value === 'boolean') {
-                return value
-        }
+	if (typeof value === 'boolean') {
+		return value
+	}
 
-        if (typeof value === 'number' && Number.isFinite(value)) {
-                if (value === 1) {
-                        return true
-                }
-                if (value === 0) {
-                        return false
-                }
-        }
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		if (value === 1) {
+			return true
+		}
+		if (value === 0) {
+			return false
+		}
+	}
 
-        if (typeof value === 'string') {
-                const normalized = value.trim().toLowerCase()
-                if (!normalized.length) {
-                        return null
-                }
+	if (typeof value === 'string') {
+		const normalized = value.trim().toLowerCase()
+		if (!normalized.length) {
+			return null
+		}
 
-                if (
-                        [
-                                'true',
-                                '1',
-                                'yes',
-                                'y',
-                                'done',
-                                'completed',
-                                'complete',
-                                'submitted',
-                                'submited',
-                                'sent',
-                                'uploaded',
-                                'provided',
-                                'delivered',
-                                'paid',
-                                'settled',
-                                'success',
-                                'succeeded'
-                        ].includes(normalized)
-                ) {
-                        return true
-                }
+		if (
+			[
+				'true',
+				'1',
+				'yes',
+				'y',
+				'done',
+				'completed',
+				'complete',
+				'submitted',
+				'submited',
+				'sent',
+				'uploaded',
+				'provided',
+				'delivered',
+				'paid',
+				'settled',
+				'success',
+				'succeeded'
+			].includes(normalized)
+		) {
+			return true
+		}
 
-                if (['false', '0', 'no', 'n', 'pending', 'awaiting'].includes(normalized)) {
-                        return false
-                }
-        }
+		if (['false', '0', 'no', 'n', 'pending', 'awaiting'].includes(normalized)) {
+			return false
+		}
+	}
 
-        return null
+	return null
 }
 
 const getEvidenceFlagClass = (value?: boolean | null) => {
-        if (value === true) {
-                return 'text-emerald-600'
-        }
+	if (value === true) {
+		return 'text-emerald-600'
+	}
 
-        if (value === false) {
-                return 'text-base-content/70'
-        }
+	if (value === false) {
+		return 'text-base-content/70'
+	}
 
-        return 'text-base-content/60'
+	return 'text-base-content/60'
 }
 
 const pickBooleanFlag = (record: AdminDisputeListItem, keys: string[]) => {
-        for (const key of keys) {
-                const value = record[key]
-                if (typeof value === 'boolean') {
-                        return value
+	for (const key of keys) {
+		const value = record[key]
+		if (typeof value === 'boolean') {
+			return value
 		}
 	}
 	return undefined
@@ -393,42 +389,42 @@ export default function AdminDisputeListPage() {
 	const [joinTarget, setJoinTarget] = useState<AdminDisputeListItem | null>(null)
 	const [joinReason, setJoinReason] = useState('')
 	const [detailTarget, setDetailTarget] = useState<AdminDisputeListItem | null>(null)
-        const [requestFeesOpen, setRequestFeesOpen] = useState(false)
-        const [lockDisputeOpen, setLockDisputeOpen] = useState(false)
-        const [generateDossierOpen, setGenerateDossierOpen] = useState(false)
-        const [detailActiveTab, setDetailActiveTab] = useState<AdminDetailTabId>('overview')
+	const [requestFeesOpen, setRequestFeesOpen] = useState(false)
+	const [lockDisputeOpen, setLockDisputeOpen] = useState(false)
+	const [generateDossierOpen, setGenerateDossierOpen] = useState(false)
+	const [detailActiveTab, setDetailActiveTab] = useState<AdminDetailTabId>('overview')
 
 	const queryClient = useQueryClient()
 
-        const {
-                register: requestFeesRegister,
-                handleSubmit: handleRequestFeesSubmit,
-                formState: { errors: requestFeesErrors },
-                reset: resetRequestFeesForm
-        } = useForm<AdminRequestArbitrationFeesFormOutput>({
-                resolver: zodResolver(AdminRequestArbitrationFeesSchema),
-                defaultValues: { deadlineDays: 7 }
-        })
+	const {
+		register: requestFeesRegister,
+		handleSubmit: handleRequestFeesSubmit,
+		formState: { errors: requestFeesErrors },
+		reset: resetRequestFeesForm
+	} = useForm<AdminRequestArbitrationFeesFormOutput>({
+		resolver: zodResolver(AdminRequestArbitrationFeesSchema),
+		defaultValues: { deadlineDays: 7 }
+	})
 
-        const {
-                register: lockDisputeRegister,
-                handleSubmit: handleLockDisputeSubmit,
-                formState: { errors: lockDisputeErrors },
-                reset: resetLockDisputeForm
-        } = useForm<AdminLockDisputeFormOutput>({
-                resolver: zodResolver(AdminLockDisputeFormSchema),
-                defaultValues: { note: '' }
-        })
+	const {
+		register: lockDisputeRegister,
+		handleSubmit: handleLockDisputeSubmit,
+		formState: { errors: lockDisputeErrors },
+		reset: resetLockDisputeForm
+	} = useForm<AdminLockDisputeFormOutput>({
+		resolver: zodResolver(AdminLockDisputeFormSchema),
+		defaultValues: { note: '' }
+	})
 
-        const {
-                register: generateDossierRegister,
-                handleSubmit: handleGenerateDossierSubmit,
-                formState: { errors: generateDossierErrors },
-                reset: resetGenerateDossierForm
-        } = useForm<AdminGenerateArbitrationDossierFormOutput>({
-                resolver: zodResolver(AdminGenerateArbitrationDossierFormSchema),
-                defaultValues: { notes: '', finalize: false }
-        })
+	const {
+		register: generateDossierRegister,
+		handleSubmit: handleGenerateDossierSubmit,
+		formState: { errors: generateDossierErrors },
+		reset: resetGenerateDossierForm
+	} = useForm<AdminGenerateArbitrationDossierFormOutput>({
+		resolver: zodResolver(AdminGenerateArbitrationDossierFormSchema),
+		defaultValues: { notes: '', finalize: false }
+	})
 
 	const dateRangeError = useMemo(() => {
 		if (!createdFrom || !createdTo) return false
@@ -502,14 +498,14 @@ export default function AdminDisputeListPage() {
 	const total = data?.total ?? 0
 	const pages = Math.max(1, Math.ceil(total / limit))
 
-        const detailDisputeId = detailTarget?.id ?? null
+	const detailDisputeId = detailTarget?.id ?? null
 
-        const joinMutation = useMutation({
-                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminJoinDisputeInput }) =>
-                        joinDisputeAsAdmin(disputeId, payload),
-                onSuccess: async () => {
-                        toast.success('Đã tham gia tranh chấp với tư cách admin')
-                        setJoinTarget(null)
+	const joinMutation = useMutation({
+		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminJoinDisputeInput }) =>
+			joinDisputeAsAdmin(disputeId, payload),
+		onSuccess: async () => {
+			toast.success('Đã tham gia tranh chấp với tư cách admin')
+			setJoinTarget(null)
 			setJoinReason('')
 			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
 		},
@@ -518,11 +514,11 @@ export default function AdminDisputeListPage() {
 		}
 	})
 
-        const requestFeesMutation = useMutation({
-                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminRequestArbitrationFeesInput }) =>
-                        requestArbitrationFees(disputeId, payload),
-                onSuccess: async () => {
-                        toast.success('Đã yêu cầu các bên nộp phí trọng tài.')
+	const requestFeesMutation = useMutation({
+		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminRequestArbitrationFeesInput }) =>
+			requestArbitrationFees(disputeId, payload),
+		onSuccess: async () => {
+			toast.success('Đã yêu cầu các bên nộp phí trọng tài.')
 			resetRequestFeesForm({ deadlineDays: 7 })
 			setRequestFeesOpen(false)
 			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
@@ -531,66 +527,61 @@ export default function AdminDisputeListPage() {
 			}
 		},
 		onError: error => {
-                        const message = error instanceof Error ? error.message : 'Không thể yêu cầu đóng phí trọng tài.'
-                        toast.error(message)
-                }
-        })
+			const message = error instanceof Error ? error.message : 'Không thể yêu cầu đóng phí trọng tài.'
+			toast.error(message)
+		}
+	})
 
-        const lockDisputeMutation = useMutation({
-                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminLockDisputeInput }) =>
-                        lockDispute(disputeId, payload),
-                onSuccess: async () => {
-                        toast.success('Đã khóa tranh chấp.')
-                        resetLockDisputeForm({ note: '' })
-                        setLockDisputeOpen(false)
-                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-                        if (detailDisputeId) {
-                                await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
-                        }
-                },
-                onError: error => {
-                        const message = error instanceof Error ? error.message : 'Không thể khóa tranh chấp.'
-                        toast.error(message)
-                }
-        })
+	const lockDisputeMutation = useMutation({
+		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminLockDisputeInput }) =>
+			lockDispute(disputeId, payload),
+		onSuccess: async () => {
+			toast.success('Đã khóa tranh chấp.')
+			resetLockDisputeForm({ note: '' })
+			setLockDisputeOpen(false)
+			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
+			if (detailDisputeId) {
+				await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
+			}
+		},
+		onError: error => {
+			const message = error instanceof Error ? error.message : 'Không thể khóa tranh chấp.'
+			toast.error(message)
+		}
+	})
 
-        const generateDossierMutation = useMutation({
-                mutationFn: ({
-                        disputeId,
-                        payload
-                }: {
-                        disputeId: string
-                        payload: AdminGenerateArbitrationDossierInput
-                }) => generateArbitrationDossier(disputeId, payload),
-                onSuccess: async () => {
-                        toast.success('Đã tạo hồ sơ tranh chấp.')
-                        resetGenerateDossierForm({ notes: '', finalize: false })
-                        setGenerateDossierOpen(false)
-                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-                        if (detailDisputeId) {
-                                await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
-                        }
-                },
-                onError: error => {
-                        const message = error instanceof Error ? error.message : 'Không thể tạo hồ sơ tranh chấp.'
-                        toast.error(message)
-                }
-        })
+	const generateDossierMutation = useMutation({
+		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminGenerateArbitrationDossierInput }) =>
+			generateArbitrationDossier(disputeId, payload),
+		onSuccess: async () => {
+			toast.success('Đã tạo hồ sơ tranh chấp.')
+			resetGenerateDossierForm({ notes: '', finalize: false })
+			setGenerateDossierOpen(false)
+			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
+			if (detailDisputeId) {
+				await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
+			}
+		},
+		onError: error => {
+			const message = error instanceof Error ? error.message : 'Không thể tạo hồ sơ tranh chấp.'
+			toast.error(message)
+		}
+	})
 
-        const closeLockDisputeModal = () => {
-                if (lockDisputeMutation.isPending) return
-                setLockDisputeOpen(false)
-                resetLockDisputeForm({ note: '' })
-        }
+	const closeLockDisputeModal = () => {
+		if (lockDisputeMutation.isPending) return
+		setLockDisputeOpen(false)
+		resetLockDisputeForm({ note: '' })
+	}
 
-        const closeGenerateDossierModal = () => {
-                if (generateDossierMutation.isPending) return
-                setGenerateDossierOpen(false)
-                resetGenerateDossierForm({ notes: '', finalize: false })
-        }
+	const closeGenerateDossierModal = () => {
+		if (generateDossierMutation.isPending) return
+		setGenerateDossierOpen(false)
+		resetGenerateDossierForm({ notes: '', finalize: false })
+	}
 
-        const {
-                data: detailData,
+	const {
+		data: detailData,
 		isLoading: isDetailLoading,
 		isFetching: isDetailFetching,
 		isError: isDetailError,
@@ -631,70 +622,64 @@ export default function AdminDisputeListPage() {
 		})
 	}
 
-        const handleRequestFees = (values: AdminRequestArbitrationFeesFormOutput) => {
-                if (!detailDisputeId) return
-                requestFeesMutation.mutate({
-                        disputeId: detailDisputeId,
-                        payload: { deadlineDays: values.deadlineDays }
-                })
-        }
+	const handleRequestFees = (values: AdminRequestArbitrationFeesFormOutput) => {
+		if (!detailDisputeId) return
+		requestFeesMutation.mutate({
+			disputeId: detailDisputeId,
+			payload: { deadlineDays: values.deadlineDays }
+		})
+	}
 
-        const handleLockDispute = (values: AdminLockDisputeFormOutput) => {
-                if (!detailDisputeId) return
-                const payload: AdminLockDisputeInput = {}
-                if (values.note && values.note.trim().length) {
-                        payload.note = values.note.trim()
-                }
-                lockDisputeMutation.mutate({
-                        disputeId: detailDisputeId,
-                        payload
-                })
-        }
+	const handleLockDispute = (values: AdminLockDisputeFormOutput) => {
+		if (!detailDisputeId) return
+		const payload: AdminLockDisputeInput = {}
+		if (values.note && values.note.trim().length) {
+			payload.note = values.note.trim()
+		}
+		lockDisputeMutation.mutate({
+			disputeId: detailDisputeId,
+			payload
+		})
+	}
 
-        const handleGenerateDossier = (values: AdminGenerateArbitrationDossierFormOutput) => {
-                if (!detailDisputeId) return
-                const payload: AdminGenerateArbitrationDossierInput = {}
-                if (values.notes && values.notes.trim().length) {
-                        payload.notes = values.notes.trim()
-                }
-                if (values.finalize !== undefined) {
-                        payload.finalize = values.finalize
-                }
-                generateDossierMutation.mutate({
-                        disputeId: detailDisputeId,
-                        payload
-                })
-        }
+	const handleGenerateDossier = (values: AdminGenerateArbitrationDossierFormOutput) => {
+		if (!detailDisputeId) return
+		const payload: AdminGenerateArbitrationDossierInput = {}
+		if (values.notes && values.notes.trim().length) {
+			payload.notes = values.notes.trim()
+		}
+		if (values.finalize !== undefined) {
+			payload.finalize = values.finalize
+		}
+		generateDossierMutation.mutate({
+			disputeId: detailDisputeId,
+			payload
+		})
+	}
 
-        useEffect(() => {
-                if (!detailTarget) {
-                        setRequestFeesOpen(false)
-                        setLockDisputeOpen(false)
-                        setGenerateDossierOpen(false)
-                        setDetailActiveTab('overview')
-                        resetLockDisputeForm({ note: '' })
-                        resetGenerateDossierForm({ notes: '', finalize: false })
-                }
-        }, [detailTarget, resetGenerateDossierForm, resetLockDisputeForm])
+	useEffect(() => {
+		if (!detailTarget) {
+			setRequestFeesOpen(false)
+			setLockDisputeOpen(false)
+			setGenerateDossierOpen(false)
+			setDetailActiveTab('overview')
+			resetLockDisputeForm({ note: '' })
+			resetGenerateDossierForm({ notes: '', finalize: false })
+		}
+	}, [detailTarget, resetGenerateDossierForm, resetLockDisputeForm])
 
-        useEffect(() => {
-                if (!detailDisputeId) {
-                        setDetailActiveTab('overview')
-                        return
-                }
+	useEffect(() => {
+		if (!detailDisputeId) {
+			setDetailActiveTab('overview')
+			return
+		}
 
-                setDetailActiveTab(current => {
-                        const allowedTabs: AdminDetailTabId[] = [
-                                'overview',
-                                'negotiations',
-                                'payments',
-                                'evidence',
-                                'activity'
-                        ]
+		setDetailActiveTab(current => {
+			const allowedTabs: AdminDetailTabId[] = ['overview', 'negotiations', 'payments', 'evidence', 'activity']
 
-                        return allowedTabs.includes(current) ? current : 'overview'
-                })
-        }, [detailDisputeId])
+			return allowedTabs.includes(current) ? current : 'overview'
+		})
+	}, [detailDisputeId])
 
 	const limitOptions = [10, 20, 50]
 
@@ -733,26 +718,26 @@ export default function AdminDisputeListPage() {
 		detailMetrics?.isResponseOverdue ??
 			(detailResponseDeadline ? new Date(detailResponseDeadline).getTime() < Date.now() : false)
 	)
-        const detailArbitrationPayments = useMemo<DisputePayment[]>(() => {
-                if (!detailDispute?.arbitrationFeePayments?.length) {
-                        return []
-                }
+	const detailArbitrationPayments = useMemo<DisputePayment[]>(() => {
+		if (!detailDispute?.arbitrationFeePayments?.length) {
+			return []
+		}
 
-                const filtered = detailDispute.arbitrationFeePayments.filter(Boolean) as DisputePayment[]
-                return filtered.sort((a, b) => {
-                        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
-                        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
-                        return bTime - aTime
-                })
-        }, [detailDispute?.arbitrationFeePayments])
-        const detailHasPartyPaid = useMemo(
-                () => (flag: unknown, userId?: string | null) => {
-                        if (normalizeBooleanFlag(flag) === true) {
-                                return true
-                        }
-                        if (!userId) {
-                                return false
-                        }
+		const filtered = detailDispute.arbitrationFeePayments.filter(Boolean) as DisputePayment[]
+		return filtered.sort((a, b) => {
+			const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+			const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
+			return bTime - aTime
+		})
+	}, [detailDispute?.arbitrationFeePayments])
+	const detailHasPartyPaid = useMemo(
+		() => (flag: unknown, userId?: string | null) => {
+			if (normalizeBooleanFlag(flag) === true) {
+				return true
+			}
+			if (!userId) {
+				return false
+			}
 			return detailArbitrationPayments.some(
 				payment => isDisputePaymentSuccessful(payment) && getDisputePaymentPayerId(payment) === userId
 			)
@@ -782,37 +767,37 @@ export default function AdminDisputeListPage() {
 		(detailEscrowContract && typeof detailEscrowContract.clientId === 'string'
 			? (detailEscrowContract.clientId as string)
 			: null)
-        const detailFreelancerId =
-                detailFreelancer?.id ??
-                detailContract?.freelancerId ??
-                (detailEscrowContract && typeof detailEscrowContract.freelancerId === 'string'
-                        ? (detailEscrowContract.freelancerId as string)
-                        : null)
-        const detailClientEvidenceSubmittedRaw =
-                detailDispute?.clientEvidenceSubmitted ?? detailDispute?.clientEvidenceSubmited ?? null
-        const detailFreelancerEvidenceSubmittedRaw =
-                detailDispute?.freelancerEvidenceSubmitted ?? detailDispute?.freelancerEvidenceSubmited ?? null
-        const detailClientEvidenceSubmitted = normalizeBooleanFlag(detailClientEvidenceSubmittedRaw)
-        const detailFreelancerEvidenceSubmitted = normalizeBooleanFlag(detailFreelancerEvidenceSubmittedRaw)
-        const detailClientEvidenceDone = detailClientEvidenceSubmitted === true
-        const detailFreelancerEvidenceDone = detailFreelancerEvidenceSubmitted === true
-        const detailBothEvidenceSubmitted = detailClientEvidenceDone && detailFreelancerEvidenceDone
-        const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
-        const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
-        const detailClientFeePaid = detailHasPartyPaid(detailDispute?.clientArbFeePaid, detailClientId)
-        const detailFreelancerFeePaid = detailHasPartyPaid(detailDispute?.freelancerArbFeePaid, detailFreelancerId)
-        const detailClientFeeDisplay = detailClientId ? detailClientFeePaid : undefined
-        const detailFreelancerFeeDisplay = detailFreelancerId ? detailFreelancerFeePaid : undefined
-        const detailBothFeesPaid = detailClientFeePaid && detailFreelancerFeePaid
-        const detailLockedAt = detailDispute?.lockedAt ?? null
-        const detailLockedBy = detailDispute?.lockedBy ?? null
-        const detailLockedById = detailDispute?.lockedById ?? null
-        const detailIsLocked = Boolean(detailLockedAt || detailLockedById)
-        const getDetailPaymentPayerLabel = (payment: DisputePayment) => {
-                const payerId = getDisputePaymentPayerId(payment)
+	const detailFreelancerId =
+		detailFreelancer?.id ??
+		detailContract?.freelancerId ??
+		(detailEscrowContract && typeof detailEscrowContract.freelancerId === 'string'
+			? (detailEscrowContract.freelancerId as string)
+			: null)
+	const detailClientEvidenceSubmittedRaw =
+		detailDispute?.clientEvidenceSubmitted ?? detailDispute?.clientEvidenceSubmited ?? null
+	const detailFreelancerEvidenceSubmittedRaw =
+		detailDispute?.freelancerEvidenceSubmitted ?? detailDispute?.freelancerEvidenceSubmited ?? null
+	const detailClientEvidenceSubmitted = normalizeBooleanFlag(detailClientEvidenceSubmittedRaw)
+	const detailFreelancerEvidenceSubmitted = normalizeBooleanFlag(detailFreelancerEvidenceSubmittedRaw)
+	const detailClientEvidenceDone = detailClientEvidenceSubmitted === true
+	const detailFreelancerEvidenceDone = detailFreelancerEvidenceSubmitted === true
+	const detailBothEvidenceSubmitted = detailClientEvidenceDone && detailFreelancerEvidenceDone
+	const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
+	const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
+	const detailClientFeePaid = detailHasPartyPaid(detailDispute?.clientArbFeePaid, detailClientId)
+	const detailFreelancerFeePaid = detailHasPartyPaid(detailDispute?.freelancerArbFeePaid, detailFreelancerId)
+	const detailClientFeeDisplay = detailClientId ? detailClientFeePaid : undefined
+	const detailFreelancerFeeDisplay = detailFreelancerId ? detailFreelancerFeePaid : undefined
+	const detailBothFeesPaid = detailClientFeePaid && detailFreelancerFeePaid
+	const detailLockedAt = detailDispute?.lockedAt ?? null
+	const detailLockedBy = detailDispute?.lockedBy ?? null
+	const detailLockedById = detailDispute?.lockedById ?? null
+	const detailIsLocked = Boolean(detailLockedAt || detailLockedById)
+	const getDetailPaymentPayerLabel = (payment: DisputePayment) => {
+		const payerId = getDisputePaymentPayerId(payment)
 
-                if (payerId && detailClientId && payerId === detailClientId) {
-                        return formatUserName(detailClient ?? null, detailClientId) || `Khách hàng #${detailClientId}`
+		if (payerId && detailClientId && payerId === detailClientId) {
+			return formatUserName(detailClient ?? null, detailClientId) || `Khách hàng #${detailClientId}`
 		}
 
 		if (payerId && detailFreelancerId && payerId === detailFreelancerId) {
@@ -836,78 +821,85 @@ export default function AdminDisputeListPage() {
 	const detailOpenedBy = detailDispute?.openedBy ?? null
 	const detailOpenedAt = detailDispute?.createdAt ?? detailTarget?.createdAt ?? null
 	const detailUpdatedAt = detailDispute?.updatedAt ?? detailTarget?.updatedAt ?? null
-        const detailLatestProposal = detailDispute?.latestProposal ?? null
-        const detailEvidenceSubmissions: DisputeFinalEvidenceSubmission[] =
-                detailData?.evidenceSubmissions?.filter(
-                        (item): item is DisputeFinalEvidenceSubmission => Boolean(item)
-                ) ?? []
-        const detailEvidenceSubmissionCount = detailEvidenceSubmissions.length
-        const detailNegotiationTotal =
-                detailCounts?.negotiations ??
-                detailMetrics?.negotiationCount ??
-                (detailNegotiations ? detailNegotiations.length : null)
-        const detailContractTitle = detailContract?.title || detailEscrow?.milestone?.contract?.title || null
+	const detailLatestProposal = detailDispute?.latestProposal ?? null
+	const detailEvidenceSubmissions: DisputeFinalEvidenceSubmission[] =
+		detailData?.evidenceSubmissions?.filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item)) ?? []
+	const detailEvidenceSubmissionCount = detailEvidenceSubmissions.length
+	const detailNegotiationTotal =
+		detailCounts?.negotiations ??
+		detailMetrics?.negotiationCount ??
+		(detailNegotiations ? detailNegotiations.length : null)
+	const detailContractTitle = detailContract?.title || detailEscrow?.milestone?.contract?.title || null
 	const detailContractId =
-                detailContract?.id ?? detailEscrow?.milestone?.contractId ?? detailEscrow?.milestone?.contract?.id ?? null
-        const detailMilestoneTitle = detailMilestoneSummary?.title ?? detailEscrow?.milestone?.title ?? null
-        const detailMilestoneStatus = detailMilestoneSummary?.status ?? detailEscrow?.milestone?.status ?? null
-        const detailMilestoneStart = detailMilestoneSummary?.startAt ?? detailEscrow?.milestone?.startAt ?? null
-        const detailMilestoneEnd = detailMilestoneSummary?.endAt ?? detailEscrow?.milestone?.endAt ?? null
+		detailContract?.id ?? detailEscrow?.milestone?.contractId ?? detailEscrow?.milestone?.contract?.id ?? null
+	const detailMilestoneTitle = detailMilestoneSummary?.title ?? detailEscrow?.milestone?.title ?? null
+	const detailMilestoneStatus = detailMilestoneSummary?.status ?? detailEscrow?.milestone?.status ?? null
+	const detailMilestoneStart = detailMilestoneSummary?.startAt ?? detailEscrow?.milestone?.startAt ?? null
+	const detailMilestoneEnd = detailMilestoneSummary?.endAt ?? detailEscrow?.milestone?.endAt ?? null
 	const detailCanJoin = hasAdminJoinWindowElapsed(detailOpenedAt)
 	const detailShowJoin = detailHasJoined || detailCanJoin
 	const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
 
-        const detailCanRequestFees = Boolean(
-                detailDisputeId &&
-                detailArbFeePerParty &&
-                detailStatus &&
-                !FINAL_DISPUTE_STATUSES.has(detailStatus) &&
-                ![DisputeStatus.AWAITING_ARBITRATION_FEES, DisputeStatus.ARBITRATION_READY, DisputeStatus.ARBITRATION].includes(
-                                detailStatus as DisputeStatus
-                        ) &&
-                        !detailBothFeesPaid
-        )
-        const detailCanLockDispute = Boolean(
-                detailDisputeId &&
-                        !detailIsLocked &&
-                        detailBothFeesPaid &&
-                        detailBothEvidenceSubmitted &&
-                        detailStatus &&
-                        !FINAL_DISPUTE_STATUSES.has(detailStatus)
-        )
-        const detailLockBlockedReasons: string[] = []
-        if (detailDisputeId) {
-                if (detailIsLocked) {
-                        detailLockBlockedReasons.push('Tranh chấp đã được khóa.')
-                }
-                if (!detailBothFeesPaid) {
-                        detailLockBlockedReasons.push('Cả khách hàng và freelancer đều phải hoàn tất phí trọng tài.')
-                }
-                if (!detailBothEvidenceSubmitted) {
-                        detailLockBlockedReasons.push('Cả hai bên cần nộp chứng cứ cuối cùng trước khi khóa tranh chấp.')
-                }
-                if (!detailStatus) {
-                        detailLockBlockedReasons.push('Không xác định được trạng thái tranh chấp hiện tại.')
-                } else if (FINAL_DISPUTE_STATUSES.has(detailStatus)) {
-                        detailLockBlockedReasons.push('Tranh chấp đã kết thúc và không thể khóa thêm lần nữa.')
-                }
-        }
-        const detailCanGenerateDossier = Boolean(detailDisputeId && detailIsLocked)
-        const detailGenerateDossierBlockedReasons: string[] = []
-        if (detailDisputeId && !detailIsLocked) {
-                detailGenerateDossierBlockedReasons.push('Cần khóa tranh chấp trước khi tạo hồ sơ snapshot.')
-        }
-        const detailDossierVersion = detailDispute?.currentDossierVersion ?? null
-        const detailTabItems = useMemo(
-                () => [
-                        { id: 'overview', label: 'Tổng quan' },
-                        { id: 'negotiations', label: 'Thương lượng' },
-                        { id: 'payments', label: 'Phí & thanh toán' },
-                        { id: 'evidence', label: 'Hồ sơ & chứng cứ' },
-                        { id: 'activity', label: 'Hoạt động' }
-                ] satisfies Array<{ id: AdminDetailTabId; label: string }>,
-                []
-        )
+	const detailCanRequestFees = Boolean(
+		detailDisputeId &&
+			detailArbFeePerParty &&
+			detailStatus &&
+			!FINAL_DISPUTE_STATUSES.has(detailStatus) &&
+			![DisputeStatus.AWAITING_ARBITRATION_FEES, DisputeStatus.ARBITRATION_READY, DisputeStatus.ARBITRATION].includes(
+				detailStatus as DisputeStatus
+			) &&
+			!detailBothFeesPaid
+	)
+	const detailCanLockDispute = Boolean(
+		detailDisputeId &&
+			!detailIsLocked &&
+			detailBothFeesPaid &&
+			detailBothEvidenceSubmitted &&
+			detailStatus &&
+			!FINAL_DISPUTE_STATUSES.has(detailStatus)
+	)
+	console.log(
+		detailDisputeId,
+		detailBothFeesPaid,
+		detailBothEvidenceSubmitted,
+		detailStatus,
+		detailDisputeId,
+		!FINAL_DISPUTE_STATUSES.has(detailStatus)
+	)
+	const detailLockBlockedReasons: string[] = []
+	if (detailDisputeId) {
+		if (detailIsLocked) {
+			detailLockBlockedReasons.push('Tranh chấp đã được khóa.')
+		}
+		if (!detailBothFeesPaid) {
+			detailLockBlockedReasons.push('Cả khách hàng và freelancer đều phải hoàn tất phí trọng tài.')
+		}
+		if (!detailBothEvidenceSubmitted) {
+			detailLockBlockedReasons.push('Cả hai bên cần nộp chứng cứ cuối cùng trước khi khóa tranh chấp.')
+		}
+		if (!detailStatus) {
+			detailLockBlockedReasons.push('Không xác định được trạng thái tranh chấp hiện tại.')
+		} else if (FINAL_DISPUTE_STATUSES.has(detailStatus)) {
+			detailLockBlockedReasons.push('Tranh chấp đã kết thúc và không thể khóa thêm lần nữa.')
+		}
+	}
+	const detailCanGenerateDossier = Boolean(detailDisputeId && detailIsLocked)
+	const detailGenerateDossierBlockedReasons: string[] = []
+	if (detailDisputeId && !detailIsLocked) {
+		detailGenerateDossierBlockedReasons.push('Cần khóa tranh chấp trước khi tạo hồ sơ snapshot.')
+	}
+	const detailDossierVersion = detailDispute?.currentDossierVersion ?? null
+	const detailTabItems = useMemo(
+		() =>
+			[
+				{ id: 'overview', label: 'Tổng quan' },
+				{ id: 'negotiations', label: 'Thương lượng' },
+				{ id: 'payments', label: 'Phí & thanh toán' },
+				{ id: 'evidence', label: 'Hồ sơ & chứng cứ' },
+				{ id: 'activity', label: 'Hoạt động' }
+			] satisfies Array<{ id: AdminDetailTabId; label: string }>,
+		[]
+	)
 
 	return (
 		<div className='space-y-6'>
@@ -1375,38 +1367,38 @@ export default function AdminDisputeListPage() {
 									</div>
 								</div>
 								<div className='flex flex-wrap items-center gap-2'>
-                                                                        {detailShowJoin ? (
-                                                                                <button
-                                                                                        type='button'
-                                                                                        className='btn btn-sm btn-outline'
+									{detailShowJoin ? (
+										<button
+											type='button'
+											className='btn btn-sm btn-outline'
 											disabled={detailJoinDisabled}
 											onClick={() => {
 												if (!detailJoinDisabled && detailTarget) {
 													setDetailTarget(null)
 													setJoinTarget(detailTarget)
 													setJoinReason('')
-                                                                                                }
-                                                                                        }}>
-                                                                                        {detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
-                                                                                </button>
-                                                                        ) : null}
-                                                                        {detailCanRequestFees ? (
-                                                                                <button
-                                                                                        type='button'
-                                                                                        className='btn btn-sm btn-primary'
-                                                                                        onClick={() => {
-                                                                                                resetRequestFeesForm({ deadlineDays: 7 })
-                                                                                                setRequestFeesOpen(true)
-                                                                                        }}
-                                                                                        disabled={requestFeesMutation.isPending}>
-                                                                                        Yêu cầu đóng phí
-                                                                                </button>
-                                                                        ) : null}
-                                                                        <button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
-                                                                                Đóng
-                                                                        </button>
-                                                                </div>
-                                                        </div>
+												}
+											}}>
+											{detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
+										</button>
+									) : null}
+									{detailCanRequestFees ? (
+										<button
+											type='button'
+											className='btn btn-sm btn-primary'
+											onClick={() => {
+												resetRequestFeesForm({ deadlineDays: 7 })
+												setRequestFeesOpen(true)
+											}}
+											disabled={requestFeesMutation.isPending}>
+											Yêu cầu đóng phí
+										</button>
+									) : null}
+									<button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
+										Đóng
+									</button>
+								</div>
+							</div>
 						</header>
 
 						{isDetailLoading ? (
@@ -1426,630 +1418,631 @@ export default function AdminDisputeListPage() {
 								</div>
 							</div>
 						) : (
-                                                        <div className='space-y-6 text-sm'>
-                                                                <div className='flex flex-wrap items-center gap-2'>
-                                                                        {detailTabItems.map(item => {
-                                                                                const isActive = detailActiveTab === item.id
-                                                                                return (
-                                                                                        <button
-                                                                                                key={item.id}
-                                                                                                type='button'
-                                                                                                className={`btn btn-sm ${
-                                                                                                        isActive
-                                                                                                                ? 'btn-primary'
-                                                                                                                : 'btn-ghost border border-base-200 text-base-content/70'
-                                                                                                }`}
-                                                                                                onClick={() => setDetailActiveTab(item.id)}
-                                                                                                aria-pressed={isActive}
-                                                                                        >
-                                                                                                {item.label}
-                                                                                        </button>
-                                                                                )
-                                                                        })}
-                                                                </div>
+							<div className='space-y-6 text-sm'>
+								<div className='flex flex-wrap items-center gap-2'>
+									{detailTabItems.map(item => {
+										const isActive = detailActiveTab === item.id
+										return (
+											<button
+												key={item.id}
+												type='button'
+												className={`btn btn-sm ${
+													isActive ? 'btn-primary' : 'btn-ghost border border-base-200 text-base-content/70'
+												}`}
+												onClick={() => setDetailActiveTab(item.id)}
+												aria-pressed={isActive}>
+												{item.label}
+											</button>
+										)
+									})}
+								</div>
 
-                                                                {detailActiveTab === 'overview' ? (
-                                                                <section className='grid gap-4 lg:grid-cols-2'>
-                                                                        <div className='space-y-3'>
-                                                                                <div className='space-y-3 rounded-2xl border border-base-200 p-4'>
-                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
-                                                                                                <h4 className='font-semibold text-base-content'>Hành động admin</h4>
-                                                                                                {detailIsLocked ? (
-                                                                                                        <span className='badge badge-outline text-xs'>Đã khóa</span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        <div className='flex flex-wrap gap-2'>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-sm btn-secondary'
-                                                                                                        onClick={() => {
-                                                                                                                if (!detailCanLockDispute) return
-                                                                                                                resetLockDisputeForm({ note: '' })
-                                                                                                                setLockDisputeOpen(true)
-                                                                                                        }}
-                                                                                                        disabled={!detailCanLockDispute || lockDisputeMutation.isPending}>
-                                                                                                        {lockDisputeMutation.isPending ? (
-                                                                                                                <span className='loading loading-spinner size-4' />
-                                                                                                        ) : (
-                                                                                                                <Lock className='size-4' />
-                                                                                                        )}{' '}
-                                                                                                        Khóa tranh chấp
-                                                                                                </button>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-sm btn-outline'
-                                                                                                        onClick={() => {
-                                                                                                                if (!detailCanGenerateDossier) return
-                                                                                                                resetGenerateDossierForm({ notes: '', finalize: false })
-                                                                                                                setGenerateDossierOpen(true)
-                                                                                                        }}
-                                                                                                        disabled={!detailCanGenerateDossier || generateDossierMutation.isPending}>
-                                                                                                        {generateDossierMutation.isPending ? (
-                                                                                                                <span className='loading loading-spinner size-4' />
-                                                                                                        ) : (
-                                                                                                                <ScrollText className='size-4' />
-                                                                                                        )}{' '}
-                                                                                                        Tạo hồ sơ
-                                                                                                </button>
-                                                                                        </div>
-                                                                                        {(!detailCanLockDispute || !detailCanGenerateDossier) &&
-                                                                                        (detailLockBlockedReasons.length || detailGenerateDossierBlockedReasons.length) ? (
-                                                                                                <div className='space-y-2 rounded-xl bg-base-200/40 p-3 text-xs text-base-content/70'>
-                                                                                                        {detailLockBlockedReasons.length ? (
-                                                                                                                <div>
-                                                                                                                        <p className='font-medium text-base-content'>Điều kiện khóa:</p>
-                                                                                                                        <ul className='list-disc space-y-1 pl-5'>
-                                                                                                                                {detailLockBlockedReasons.map(reason => (
-                                                                                                                                        <li key={reason}>{reason}</li>
-                                                                                                                                ))}
-                                                                                                                        </ul>
-                                                                                                                </div>
-                                                                                                        ) : null}
-                                                                                                        {detailGenerateDossierBlockedReasons.length ? (
-                                                                                                                <div>
-                                                                                                                        <p className='font-medium text-base-content'>Điều kiện tạo hồ sơ:</p>
-                                                                                                                        <ul className='list-disc space-y-1 pl-5'>
-                                                                                                                                {detailGenerateDossierBlockedReasons.map(reason => (
-                                                                                                                                        <li key={reason}>{reason}</li>
-                                                                                                                                ))}
-                                                                                                                        </ul>
-                                                                                                                </div>
-                                                                                                        ) : null}
-                                                                                                </div>
-                                                                                        ) : null}
-                                                                                </div>
-                                                                                <div className='grid gap-3 sm:grid-cols-2'>
-                                                                                        <div>
-                                                                                                <p className='text-xs uppercase text-base-content/60'>Trạng thái</p>
-                                                                                                        <p className='font-medium text-base-content'>{humanizeStatus(detailStatus)}</p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Admin phụ trách</p>
-                                                                                                        <p className='font-medium text-base-content'>{detailAdminLabel}</p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Tạo lúc</p>
-                                                                                                        <p className='font-medium text-base-content'>{formatDateTime(detailOpenedAt)}</p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Cập nhật</p>
-                                                                                                        <p className='font-medium text-base-content'>{formatDateTime(detailUpdatedAt)}</p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Hạn phản hồi</p>
-                                                                                                        <p className='font-medium text-base-content'>{formatDateTime(detailResponseDeadline)}</p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Hạn trọng tài</p>
-                                                                                                        <p className='font-medium text-base-content'>{formatDateTime(detailArbitrationDeadline)}</p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Khóa tranh chấp</p>
-                                                                                                        <p className='font-medium text-base-content'>
-                                                                                                                {detailIsLocked
-                                                                                                                        ? detailLockedAt
-                                                                                                                                ? `Đã khóa (${formatDateTime(detailLockedAt)})`
-                                                                                                                                : 'Đã khóa'
-                                                                                                                        : 'Chưa khóa'}
-                                                                                                        </p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Admin khóa</p>
-                                                                                                        <p className='font-medium text-base-content'>
-                                                                                                                {detailIsLocked
-                                                                                                                        ? formatUserName(detailLockedBy ?? null, detailLockedById ?? undefined)
-                                                                                                                        : '—'}
-                                                                                                        </p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Phiên bản hồ sơ</p>
-                                                                                                        <p className='font-medium text-base-content'>
-                                                                                                                {detailDossierVersion !== null && detailDossierVersion !== undefined
-                                                                                                                        ? `#${detailDossierVersion}`
-                                                                                                                        : 'Chưa tạo'}
-                                                                                                        </p>
-                                                                                                </div>
-                                                                                        </div>
-                                                                                        {detailOpenedBy ? (
-                                                                                                <div className='text-xs text-base-content/70'>
-                                                                                                        <span className='font-medium text-base-content'>Người mở tranh chấp:</span>{' '}
-                                                                                                        {formatUserName(detailOpenedBy, detailOpenedBy.id)}
-                                                                                                </div>
-                                                                                        ) : null}
-                                                                                        {detailNote ? (
-                                                                                                <div className='rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-base-content/80'>
-                                                                                                        <span className='font-medium text-primary'>Ghi chú:</span> {detailNote}
-                                                                                                </div>
-                                                                                        ) : null}
-                                                                                </div>
-                                                                                <div className='space-y-3'>
-                                                                                        <div className='space-y-2'>
-                                                                                                <p className='text-xs uppercase text-base-content/60'>Các bên liên quan</p>
-                                                                                                <div>
-                                                                                                        <p className='text-xs text-base-content/60'>Khách hàng</p>
-                                                                                                        <p className='font-medium text-base-content'>
-                                                                                                                {formatUserName(detailClient, detailClientId ?? undefined)}
-                                                                                                        </p>
-                                                                                                        <p className='text-xs text-base-content/60'>ID: {detailClientId ?? '—'}</p>
-                                                                                                        <p className='text-xs text-base-content/60'>
-                                                                                                                Chứng cứ:{' '}
-                                                                                                                <span className={`font-medium ${getEvidenceFlagClass(detailClientEvidenceSubmitted)}`}>
-                                                                                                                        {formatBoolean(detailClientEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
-                                                                                                                </span>
-                                                                                                        </p>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                        <p className='text-xs text-base-content/60'>Freelancer</p>
-                                                                                                        <p className='font-medium text-base-content'>
-                                                                                                                {formatUserName(detailFreelancer, detailFreelancerId ?? undefined)}
-                                                                                                        </p>
-                                                                                                        <p className='text-xs text-base-content/60'>ID: {detailFreelancerId ?? '—'}</p>
-                                                                                                        <p className='text-xs text-base-content/60'>
-                                                                                                                Chứng cứ:{' '}
-                                                                                                                <span className={`font-medium ${getEvidenceFlagClass(detailFreelancerEvidenceSubmitted)}`}>
-                                                                                                                        {formatBoolean(detailFreelancerEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
-                                                                                                                </span>
-                                                                                                        </p>
-                                                                                                </div>
-                                                                                        </div>
-                                                                                        <div className='space-y-2'>
-                                                                                                <p className='text-xs uppercase text-base-content/60'>Hợp đồng &amp; mốc</p>
-                                                                                                <div className='space-y-1'>
-                                                                                                        <div>
-                                                                                                                {detailContractTitle ||
-                                                                                                                        (detailContractId ? `Hợp đồng #${detailContractId}` : 'Không rõ hợp đồng')}
-                                                                                                        </div>
-                                                                                                        {detailContractId ? (
-                                                                                                                <Link to={routes.contracts.detail(detailContractId)} className='link link-primary text-xs'>
-                                                                                                                        Xem hợp đồng
-                                                                                                                </Link>
-                                                                                                        ) : null}
-                                                                                                </div>
-                                                                                                <div className='text-sm text-base-content/80'>
-                                                                                                        Mốc:{' '}
-                                                                                                        {detailMilestoneTitle || (detailMilestoneSummary?.id ? `#${detailMilestoneSummary.id}` : '—')}
-                                                                                                </div>
-                                                                                                <div className='grid gap-2 text-xs text-base-content/60 sm:grid-cols-2'>
-                                                                                                        <span>
-                                                                                                                Trạng thái:{' '}
-                                                                                                                <span className='font-medium text-base-content'>{detailMilestoneStatus ?? '—'}</span>
-                                                                                                        </span>
-                                                                                                        <span>
-                                                                                                                Bắt đầu:{' '}
-                                                                                                                <span className='font-medium text-base-content'>{formatDateTime(detailMilestoneStart)}</span>
-                                                                                                        </span>
-                                                                                                        <span>
-                                                                                                                Kết thúc:{' '}
-                                                                                                                <span className='font-medium text-base-content'>{formatDateTime(detailMilestoneEnd)}</span>
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                        </div>
-                                                                                </div>
-                                                                        </section>
-                                                                ) : null}
+								{detailActiveTab === 'overview' ? (
+									<section className='grid gap-4 lg:grid-cols-2'>
+										<div className='space-y-3'>
+											<div className='space-y-3 rounded-2xl border border-base-200 p-4'>
+												<div className='flex flex-wrap items-center justify-between gap-2'>
+													<h4 className='font-semibold text-base-content'>Hành động admin</h4>
+													{detailIsLocked ? <span className='badge badge-outline text-xs'>Đã khóa</span> : null}
+												</div>
+												<div className='flex flex-wrap gap-2'>
+													<button
+														type='button'
+														className='btn btn-sm btn-secondary'
+														onClick={() => {
+															if (!detailCanLockDispute) return
+															resetLockDisputeForm({ note: '' })
+															setLockDisputeOpen(true)
+														}}
+														disabled={!detailCanLockDispute || lockDisputeMutation.isPending}>
+														{lockDisputeMutation.isPending ? (
+															<span className='loading loading-spinner size-4' />
+														) : (
+															<Lock className='size-4' />
+														)}{' '}
+														Khóa tranh chấp
+													</button>
+													<button
+														type='button'
+														className='btn btn-sm btn-outline'
+														onClick={() => {
+															if (!detailCanGenerateDossier) return
+															resetGenerateDossierForm({ notes: '', finalize: false })
+															setGenerateDossierOpen(true)
+														}}
+														disabled={!detailCanGenerateDossier || generateDossierMutation.isPending}>
+														{generateDossierMutation.isPending ? (
+															<span className='loading loading-spinner size-4' />
+														) : (
+															<ScrollText className='size-4' />
+														)}{' '}
+														Tạo hồ sơ
+													</button>
+												</div>
+												{(!detailCanLockDispute || !detailCanGenerateDossier) &&
+												(detailLockBlockedReasons.length || detailGenerateDossierBlockedReasons.length) ? (
+													<div className='space-y-2 rounded-xl bg-base-200/40 p-3 text-xs text-base-content/70'>
+														{detailLockBlockedReasons.length ? (
+															<div>
+																<p className='font-medium text-base-content'>Điều kiện khóa:</p>
+																<ul className='list-disc space-y-1 pl-5'>
+																	{detailLockBlockedReasons.map(reason => (
+																		<li key={reason}>{reason}</li>
+																	))}
+																</ul>
+															</div>
+														) : null}
+														{detailGenerateDossierBlockedReasons.length ? (
+															<div>
+																<p className='font-medium text-base-content'>Điều kiện tạo hồ sơ:</p>
+																<ul className='list-disc space-y-1 pl-5'>
+																	{detailGenerateDossierBlockedReasons.map(reason => (
+																		<li key={reason}>{reason}</li>
+																	))}
+																</ul>
+															</div>
+														) : null}
+													</div>
+												) : null}
+											</div>
+											<div className='grid gap-3 sm:grid-cols-2'>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Trạng thái</p>
+													<p className='font-medium text-base-content'>{humanizeStatus(detailStatus)}</p>
+												</div>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Admin phụ trách</p>
+													<p className='font-medium text-base-content'>{detailAdminLabel}</p>
+												</div>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Tạo lúc</p>
+													<p className='font-medium text-base-content'>{formatDateTime(detailOpenedAt)}</p>
+												</div>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Cập nhật</p>
+													<p className='font-medium text-base-content'>{formatDateTime(detailUpdatedAt)}</p>
+												</div>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Hạn phản hồi</p>
+													<p className='font-medium text-base-content'>{formatDateTime(detailResponseDeadline)}</p>
+												</div>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Hạn trọng tài</p>
+													<p className='font-medium text-base-content'>{formatDateTime(detailArbitrationDeadline)}</p>
+												</div>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Khóa tranh chấp</p>
+													<p className='font-medium text-base-content'>
+														{detailIsLocked
+															? detailLockedAt
+																? `Đã khóa (${formatDateTime(detailLockedAt)})`
+																: 'Đã khóa'
+															: 'Chưa khóa'}
+													</p>
+												</div>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Admin khóa</p>
+													<p className='font-medium text-base-content'>
+														{detailIsLocked
+															? formatUserName(detailLockedBy ?? null, detailLockedById ?? undefined)
+															: '—'}
+													</p>
+												</div>
+												<div>
+													<p className='text-xs uppercase text-base-content/60'>Phiên bản hồ sơ</p>
+													<p className='font-medium text-base-content'>
+														{detailDossierVersion !== null && detailDossierVersion !== undefined
+															? `#${detailDossierVersion}`
+															: 'Chưa tạo'}
+													</p>
+												</div>
+											</div>
+											{detailOpenedBy ? (
+												<div className='text-xs text-base-content/70'>
+													<span className='font-medium text-base-content'>Người mở tranh chấp:</span>{' '}
+													{formatUserName(detailOpenedBy, detailOpenedBy.id)}
+												</div>
+											) : null}
+											{detailNote ? (
+												<div className='rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-base-content/80'>
+													<span className='font-medium text-primary'>Ghi chú:</span> {detailNote}
+												</div>
+											) : null}
+										</div>
+										<div className='space-y-3'>
+											<div className='space-y-2'>
+												<p className='text-xs uppercase text-base-content/60'>Các bên liên quan</p>
+												<div>
+													<p className='text-xs text-base-content/60'>Khách hàng</p>
+													<p className='font-medium text-base-content'>
+														{formatUserName(detailClient, detailClientId ?? undefined)}
+													</p>
+													<p className='text-xs text-base-content/60'>ID: {detailClientId ?? '—'}</p>
+													<p className='text-xs text-base-content/60'>
+														Chứng cứ:{' '}
+														<span className={`font-medium ${getEvidenceFlagClass(detailClientEvidenceSubmitted)}`}>
+															{formatBoolean(detailClientEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
+														</span>
+													</p>
+												</div>
+												<div>
+													<p className='text-xs text-base-content/60'>Freelancer</p>
+													<p className='font-medium text-base-content'>
+														{formatUserName(detailFreelancer, detailFreelancerId ?? undefined)}
+													</p>
+													<p className='text-xs text-base-content/60'>ID: {detailFreelancerId ?? '—'}</p>
+													<p className='text-xs text-base-content/60'>
+														Chứng cứ:{' '}
+														<span className={`font-medium ${getEvidenceFlagClass(detailFreelancerEvidenceSubmitted)}`}>
+															{formatBoolean(detailFreelancerEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
+														</span>
+													</p>
+												</div>
+											</div>
+											<div className='space-y-2'>
+												<p className='text-xs uppercase text-base-content/60'>Hợp đồng &amp; mốc</p>
+												<div className='space-y-1'>
+													<div>
+														{detailContractTitle ||
+															(detailContractId ? `Hợp đồng #${detailContractId}` : 'Không rõ hợp đồng')}
+													</div>
+													{detailContractId ? (
+														<Link to={routes.contracts.detail(detailContractId)} className='link link-primary text-xs'>
+															Xem hợp đồng
+														</Link>
+													) : null}
+												</div>
+												<div className='text-sm text-base-content/80'>
+													Mốc:{' '}
+													{detailMilestoneTitle || (detailMilestoneSummary?.id ? `#${detailMilestoneSummary.id}` : '—')}
+												</div>
+												<div className='grid gap-2 text-xs text-base-content/60 sm:grid-cols-2'>
+													<span>
+														Trạng thái:{' '}
+														<span className='font-medium text-base-content'>{detailMilestoneStatus ?? '—'}</span>
+													</span>
+													<span>
+														Bắt đầu:{' '}
+														<span className='font-medium text-base-content'>
+															{formatDateTime(detailMilestoneStart)}
+														</span>
+													</span>
+													<span>
+														Kết thúc:{' '}
+														<span className='font-medium text-base-content'>{formatDateTime(detailMilestoneEnd)}</span>
+													</span>
+												</div>
+											</div>
+										</div>
+									</section>
+								) : null}
 
-                                                                {detailActiveTab === 'payments' ? (
-                                                                        <section className='grid gap-4 md:grid-cols-2'>
-                                                                                <div className='space-y-2'>
-                                                                                        <p className='text-xs uppercase text-base-content/60'>Tài chính</p>
-                                                                                        <div className='space-y-1'>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span className='text-base-content/70'>Ký quỹ</span>
-                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                {formatCurrencyValue(detailFunded, detailCurrency)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span className='text-base-content/70'>Đã giải ngân</span>
-                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                {formatCurrencyValue(detailReleased, detailCurrency)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span className='text-base-content/70'>Đã hoàn</span>
-                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                {formatCurrencyValue(detailRefunded, detailCurrency)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span className='text-base-content/70'>Đang tranh chấp</span>
-                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                {formatCurrencyValue(detailDisputable, detailCurrency)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span className='text-base-content/70'>Đề xuất trả freelancer</span>
-                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                {formatCurrencyValue(detailProposedRelease, detailCurrency)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span className='text-base-content/70'>Đề xuất trả khách hàng</span>
-                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                {formatCurrencyValue(detailProposedRefund, detailCurrency)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                        </div>
-                                                                                </div>
-                                                                                <div className='space-y-3'>
-                                                                                        <p className='text-xs uppercase text-base-content/60'>Phí trọng tài</p>
-                                                                                        <div className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3 text-xs text-base-content/70'>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span>Phí mỗi bên</span>
-                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                {formatCurrencyValue(detailArbFeePerParty, detailCurrency)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span>Khách đã nộp</span>
-                                                                                                        <span
-                                                                                                                className={`badge ${
-                                                                                                                        detailClientId ? (detailClientFeePaid ? 'badge-success' : 'badge-warning') : 'badge-outline'
-                                                                                                                }`}
-                                                                                                        >
-                                                                                                                {formatBoolean(detailClientFeeDisplay)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                                <div className='flex items-center justify-between gap-3'>
-                                                                                                        <span>Freelancer đã nộp</span>
-                                                                                                        <span
-                                                                                                                className={`badge ${
-                                                                                                                        detailFreelancerId
-                                                                                                                                ? detailFreelancerFeePaid
-                                                                                                                                        ? 'badge-success'
-                                                                                                                                        : 'badge-warning'
-                                                                                                                                : 'badge-outline'
-                                                                                                                }`}
-                                                                                                        >
-                                                                                                                {formatBoolean(detailFreelancerFeeDisplay)}
-                                                                                                        </span>
-                                                                                                </div>
-                                                                                                {detailArbitrationDeadline ? (
-                                                                                                        <div className='flex items-center justify-between gap-3'>
-                                                                                                                <span>Hạn nộp phí</span>
-                                                                                                                <span className='font-medium text-base-content'>
-                                                                                                                        {formatDateTime(detailArbitrationDeadline)}
-                                                                                                                </span>
-                                                                                                        </div>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        {detailBothFeesPaid ? (
-                                                                                                <div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-success'>
-                                                                                                        Cả hai bên đã hoàn tất việc nộp phí trọng tài.
-                                                                                                </div>
-                                                                                        ) : null}
-                                                                                        <div className='space-y-2'>
-                                                                                                <h5 className='text-xs font-semibold uppercase text-base-content/60'>Lịch sử thanh toán</h5>
-                                                                                                {detailArbitrationPayments.length ? (
-                                                                                                        <div className='space-y-2'>
-                                                                                                                {detailArbitrationPayments.map((payment, index) => {
-                                                                                                                        const reference = getDisputePaymentReference(payment)
-                                                                                                                        const identityKey = getDisputePaymentIdentityKey(payment)
-                                                                                                                        const statusLabel = humanizeDisputePaymentStatus(payment.status)
-                                                                                                                        const statusClass = isDisputePaymentSuccessful(payment) ? 'badge-success' : 'badge-ghost'
-                                                                                                                        const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
-                                                                                                                        const key =
-                                                                                                                                payment.id || `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
+								{detailActiveTab === 'payments' ? (
+									<section className='grid gap-4 md:grid-cols-2'>
+										<div className='space-y-2'>
+											<p className='text-xs uppercase text-base-content/60'>Tài chính</p>
+											<div className='space-y-1'>
+												<div className='flex items-center justify-between gap-3'>
+													<span className='text-base-content/70'>Ký quỹ</span>
+													<span className='font-medium text-base-content'>
+														{formatCurrencyValue(detailFunded, detailCurrency)}
+													</span>
+												</div>
+												<div className='flex items-center justify-between gap-3'>
+													<span className='text-base-content/70'>Đã giải ngân</span>
+													<span className='font-medium text-base-content'>
+														{formatCurrencyValue(detailReleased, detailCurrency)}
+													</span>
+												</div>
+												<div className='flex items-center justify-between gap-3'>
+													<span className='text-base-content/70'>Đã hoàn</span>
+													<span className='font-medium text-base-content'>
+														{formatCurrencyValue(detailRefunded, detailCurrency)}
+													</span>
+												</div>
+												<div className='flex items-center justify-between gap-3'>
+													<span className='text-base-content/70'>Đang tranh chấp</span>
+													<span className='font-medium text-base-content'>
+														{formatCurrencyValue(detailDisputable, detailCurrency)}
+													</span>
+												</div>
+												<div className='flex items-center justify-between gap-3'>
+													<span className='text-base-content/70'>Đề xuất trả freelancer</span>
+													<span className='font-medium text-base-content'>
+														{formatCurrencyValue(detailProposedRelease, detailCurrency)}
+													</span>
+												</div>
+												<div className='flex items-center justify-between gap-3'>
+													<span className='text-base-content/70'>Đề xuất trả khách hàng</span>
+													<span className='font-medium text-base-content'>
+														{formatCurrencyValue(detailProposedRefund, detailCurrency)}
+													</span>
+												</div>
+											</div>
+										</div>
+										<div className='space-y-3'>
+											<p className='text-xs uppercase text-base-content/60'>Phí trọng tài</p>
+											<div className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3 text-xs text-base-content/70'>
+												<div className='flex items-center justify-between gap-3'>
+													<span>Phí mỗi bên</span>
+													<span className='font-medium text-base-content'>
+														{formatCurrencyValue(detailArbFeePerParty, detailCurrency)}
+													</span>
+												</div>
+												<div className='flex items-center justify-between gap-3'>
+													<span>Khách đã nộp</span>
+													<span
+														className={`badge ${
+															detailClientId
+																? detailClientFeePaid
+																	? 'badge-success'
+																	: 'badge-warning'
+																: 'badge-outline'
+														}`}>
+														{formatBoolean(detailClientFeeDisplay)}
+													</span>
+												</div>
+												<div className='flex items-center justify-between gap-3'>
+													<span>Freelancer đã nộp</span>
+													<span
+														className={`badge ${
+															detailFreelancerId
+																? detailFreelancerFeePaid
+																	? 'badge-success'
+																	: 'badge-warning'
+																: 'badge-outline'
+														}`}>
+														{formatBoolean(detailFreelancerFeeDisplay)}
+													</span>
+												</div>
+												{detailArbitrationDeadline ? (
+													<div className='flex items-center justify-between gap-3'>
+														<span>Hạn nộp phí</span>
+														<span className='font-medium text-base-content'>
+															{formatDateTime(detailArbitrationDeadline)}
+														</span>
+													</div>
+												) : null}
+											</div>
+											{detailBothFeesPaid ? (
+												<div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-success'>
+													Cả hai bên đã hoàn tất việc nộp phí trọng tài.
+												</div>
+											) : null}
+											<div className='space-y-2'>
+												<h5 className='text-xs font-semibold uppercase text-base-content/60'>Lịch sử thanh toán</h5>
+												{detailArbitrationPayments.length ? (
+													<div className='space-y-2'>
+														{detailArbitrationPayments.map((payment, index) => {
+															const reference = getDisputePaymentReference(payment)
+															const identityKey = getDisputePaymentIdentityKey(payment)
+															const statusLabel = humanizeDisputePaymentStatus(payment.status)
+															const statusClass = isDisputePaymentSuccessful(payment) ? 'badge-success' : 'badge-ghost'
+															const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
+															const key =
+																payment.id || `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
 
-                                                                                                                        return (
-                                                                                                                                <div key={key} className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'>
-                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-3'>
-                                                                                                                                                <div className='space-y-1'>
-                                                                                                                                                        <p className='font-medium text-base-content'>
-                                                                                                                                                                {getDetailPaymentPayerLabel(payment)}
-                                                                                                                                                        </p>
-                                                                                                                                                        <p className='text-[11px] text-base-content/60'>
-                                                                                                                                                                Mã tham chiếu:{' '}
-                                                                                                                                                                <span className='break-all font-medium text-base-content'>
-                                                                                                                                                                        {reference ?? identityKey ?? '—'}
-                                                                                                                                                                </span>
-                                                                                                                                                        </p>
-                                                                                                                                                </div>
-                                                                                                                                                <div className='text-right'>
-                                                                                                                                                        <p className='text-sm font-semibold text-base-content'>
-                                                                                                                                                                {formatCurrencyValue(payment.amount ?? null, payment.currency ?? detailCurrency)}
-                                                                                                                                                        </p>
-                                                                                                                                                        <div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-[11px] text-base-content/60'>
-                                                                                                                                                                <span className={`badge ${statusClass}`}>{statusLabel}</span>
-                                                                                                                                                                <span>{createdAtLabel}</span>
-                                                                                                                                                        </div>
-                                                                                                                                                </div>
-                                                                                                                                        </div>
-                                                                                                                                        {identityKey && reference && identityKey !== reference ? (
-                                                                                                                                                <p className='break-all text-[11px] text-base-content/60'>
-                                                                                                                                                        Mã xác nhận: {identityKey}
-                                                                                                                                                </p>
-                                                                                                                                        ) : null}
-                                                                                                                                        {payment.description ? (
-                                                                                                                                                <p className='text-[11px] text-base-content/60'>Ghi chú: {payment.description}</p>
-                                                                                                                                        ) : null}
-                                                                                                                                </div>
-                                                                                                                        )
-                                                                                                                })}
-                                                                                                        </div>
-                                                                                                ) : (
-                                                                                                        <p className='text-xs text-base-content/60'>Chưa có giao dịch phí trọng tài.</p>
-                                                                                                )}
-                                                                                        </div>
-                                                                                </div>
-                                                                        </section>
-                                                                ) : null}
+															return (
+																<div
+																	key={key}
+																	className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'>
+																	<div className='flex flex-wrap items-center justify-between gap-3'>
+																		<div className='space-y-1'>
+																			<p className='font-medium text-base-content'>
+																				{getDetailPaymentPayerLabel(payment)}
+																			</p>
+																			<p className='text-[11px] text-base-content/60'>
+																				Mã tham chiếu:{' '}
+																				<span className='break-all font-medium text-base-content'>
+																					{reference ?? identityKey ?? '—'}
+																				</span>
+																			</p>
+																		</div>
+																		<div className='text-right'>
+																			<p className='text-sm font-semibold text-base-content'>
+																				{formatCurrencyValue(
+																					payment.amount ?? null,
+																					payment.currency ?? detailCurrency
+																				)}
+																			</p>
+																			<div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-[11px] text-base-content/60'>
+																				<span className={`badge ${statusClass}`}>{statusLabel}</span>
+																				<span>{createdAtLabel}</span>
+																			</div>
+																		</div>
+																	</div>
+																	{identityKey && reference && identityKey !== reference ? (
+																		<p className='break-all text-[11px] text-base-content/60'>
+																			Mã xác nhận: {identityKey}
+																		</p>
+																	) : null}
+																	{payment.description ? (
+																		<p className='text-[11px] text-base-content/60'>Ghi chú: {payment.description}</p>
+																	) : null}
+																</div>
+															)
+														})}
+													</div>
+												) : (
+													<p className='text-xs text-base-content/60'>Chưa có giao dịch phí trọng tài.</p>
+												)}
+											</div>
+										</div>
+									</section>
+								) : null}
 
-                                                                {detailActiveTab === 'evidence' ? (
-                                                                        <section className='space-y-3'>
-                                                                                <div className='flex flex-wrap items-center gap-2'>
-                                                                                        <ScrollText className='size-4 text-primary' />
-                                                                                        <h4 className='text-sm font-semibold text-base-content'>Chứng cứ cuối cùng</h4>
-                                                                                        {detailEvidenceSubmissionCount ? (
-                                                                                                <span className='badge badge-outline text-[11px]'>
-                                                                                                        {detailEvidenceSubmissionCount}
-                                                                                                </span>
-                                                                                        ) : null}
-                                                                                </div>
-                                                                                {detailEvidenceSubmissionCount ? (
-                                                                                        <div className='space-y-3'>
-                                                                                                {detailEvidenceSubmissions.map((submission, submissionIndex) => {
-                                                                                                        const key = submission.id ?? `submission-${submissionIndex}`
-                                                                                                        const submitterLabel = formatSubmissionSubmitterLabel(
-                                                                                                                submission,
-                                                                                                                detailClientId,
-                                                                                                                formatUserName(detailClient, detailClientId ?? undefined),
-                                                                                                                detailFreelancerId,
-                                                                                                                formatUserName(detailFreelancer, detailFreelancerId ?? undefined)
-                                                                                                        )
-                                                                                                        const items = submission.items?.filter(Boolean) ?? []
+								{detailActiveTab === 'evidence' ? (
+									<section className='space-y-3'>
+										<div className='flex flex-wrap items-center gap-2'>
+											<ScrollText className='size-4 text-primary' />
+											<h4 className='text-sm font-semibold text-base-content'>Chứng cứ cuối cùng</h4>
+											{detailEvidenceSubmissionCount ? (
+												<span className='badge badge-outline text-[11px]'>{detailEvidenceSubmissionCount}</span>
+											) : null}
+										</div>
+										{detailEvidenceSubmissionCount ? (
+											<div className='space-y-3'>
+												{detailEvidenceSubmissions.map((submission, submissionIndex) => {
+													const key = submission.id ?? `submission-${submissionIndex}`
+													const submitterLabel = formatSubmissionSubmitterLabel(
+														submission,
+														detailClientId,
+														formatUserName(detailClient, detailClientId ?? undefined),
+														detailFreelancerId,
+														formatUserName(detailFreelancer, detailFreelancerId ?? undefined)
+													)
+													const items = submission.items?.filter(Boolean) ?? []
 
-                                                                                                        return (
-                                                                                                                <div
-                                                                                                                        key={key}
-                                                                                                                        className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'
-                                                                                                                >
-                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
-                                                                                                                                <span className='font-medium text-base-content'>{submitterLabel}</span>
-                                                                                                                                <span>{formatDateTime(submission.submittedAt)}</span>
-                                                                                                                        </div>
-                                                                                                                        {submission.statement ? (
-                                                                                                                                <p className='text-sm text-base-content'>{submission.statement}</p>
-                                                                                                                        ) : null}
-                                                                                                                        {submission.noAdditionalEvidence ? (
-                                                                                                                                <div className='rounded-lg bg-base-100/80 p-2 text-[11px] text-base-content/70'>
-                                                                                                                                        Người gửi xác nhận không có chứng cứ bổ sung.
-                                                                                                                                </div>
-                                                                                                                        ) : null}
-                                                                                                                        {items.length ? (
-                                                                                                                                <div className='space-y-2 text-xs text-base-content/80'>
-                                                                                                                                        {items.map((item, itemIndex) => {
-                                                                                                                                                const itemKey = item?.id ?? `${key}-item-${itemIndex}`
-                                                                                                                                                const itemLabel = item?.label?.trim().length
-                                                                                                                                                        ? item.label.trim()
-                                                                                                                                                        : `Chứng cứ #${itemIndex + 1}`
-                                                                                                                                                const itemSourceLabel = humanizeEvidenceSourceType(item?.sourceType)
-                                                                                                                                                const itemUrl = getEvidenceItemUrl(item)
-                                                                                                                                                const itemCreatedAt = formatDateTime(item?.createdAt ?? null)
+													return (
+														<div
+															key={key}
+															className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'>
+															<div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
+																<span className='font-medium text-base-content'>{submitterLabel}</span>
+																<span>{formatDateTime(submission.submittedAt)}</span>
+															</div>
+															{submission.statement ? (
+																<p className='text-sm text-base-content'>{submission.statement}</p>
+															) : null}
+															{submission.noAdditionalEvidence ? (
+																<div className='rounded-lg bg-base-100/80 p-2 text-[11px] text-base-content/70'>
+																	Người gửi xác nhận không có chứng cứ bổ sung.
+																</div>
+															) : null}
+															{items.length ? (
+																<div className='space-y-2 text-xs text-base-content/80'>
+																	{items.map((item, itemIndex) => {
+																		const itemKey = item?.id ?? `${key}-item-${itemIndex}`
+																		const itemLabel = item?.label?.trim().length
+																			? item.label.trim()
+																			: `Chứng cứ #${itemIndex + 1}`
+																		const itemSourceLabel = humanizeEvidenceSourceType(item?.sourceType)
+																		const itemUrl = getEvidenceItemUrl(item)
+																		const itemCreatedAt = formatDateTime(item?.createdAt ?? null)
 
-                                                                                                                                                return (
-                                                                                                                                                        <div
-                                                                                                                                                                key={itemKey}
-                                                                                                                                                                className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3'
-                                                                                                                                                        >
-                                                                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
-                                                                                                                                                                        <p className='font-medium text-base-content'>{itemLabel}</p>
-                                                                                                                                                                        <span className='badge badge-ghost text-[11px]'>{itemSourceLabel}</span>
-                                                                                                                                                                </div>
-                                                                                                                                                                {item?.description ? (
-                                                                                                                                                                        <p className='text-[11px] text-base-content/70'>{item.description}</p>
-                                                                                                                                                                ) : null}
-                                                                                                                                                                {itemUrl ? (
-                                                                                                                                                                        <a
-                                                                                                                                                                                href={itemUrl}
-                                                                                                                                                                                target='_blank'
-                                                                                                                                                                                rel='noopener noreferrer'
-                                                                                                                                                                                className='inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline'
-                                                                                                                                                                        >
-                                                                                                                                                                                <Link2 className='size-3' /> Mở liên kết
-                                                                                                                                                                        </a>
-                                                                                                                                                                ) : null}
-                                                                                                                                                                {item?.assetId ? (
-                                                                                                                                                                        <p className='text-[11px] text-base-content/60'>Asset ID: {item.assetId}</p>
-                                                                                                                                                                ) : null}
-                                                                                                                                                                {item?.sourceId ? (
-                                                                                                                                                                        <p className='text-[11px] text-base-content/60'>Nguồn: {item.sourceId}</p>
-                                                                                                                                                                ) : null}
-                                                                                                                                                                {itemCreatedAt !== '—' ? (
-                                                                                                                                                                        <p className='text-[11px] text-base-content/60'>Thêm lúc: {itemCreatedAt}</p>
-                                                                                                                                                                ) : null}
-                                                                                                                                                        </div>
-                                                                                                                                                )
-                                                                                                                                        })}
-                                                                                                                                </div>
-                                                                                                                        ) : (
-                                                                                                                                <p className='text-[11px] text-base-content/60'>Không có tài liệu đính kèm.</p>
-                                                                                                                        )}
-                                                                                                                </div>
-                                                                                                        )
-                                                                                                })}
-                                                                                        </div>
-                                                                                ) : (
-                                                                                        <p className='text-xs text-base-content/60'>Chưa có chứng cứ cuối cùng nào được gửi.</p>
-                                                                                )}
-                                                                        </section>
-                                                                ) : null}
+																		return (
+																			<div
+																				key={itemKey}
+																				className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3'>
+																				<div className='flex flex-wrap items-center justify-between gap-2'>
+																					<p className='font-medium text-base-content'>{itemLabel}</p>
+																					<span className='badge badge-ghost text-[11px]'>{itemSourceLabel}</span>
+																				</div>
+																				{item?.description ? (
+																					<p className='text-[11px] text-base-content/70'>{item.description}</p>
+																				) : null}
+																				{itemUrl ? (
+																					<a
+																						href={itemUrl}
+																						target='_blank'
+																						rel='noopener noreferrer'
+																						className='inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline'>
+																						<Link2 className='size-3' /> Mở liên kết
+																					</a>
+																				) : null}
+																				{item?.assetId ? (
+																					<p className='text-[11px] text-base-content/60'>Asset ID: {item.assetId}</p>
+																				) : null}
+																				{item?.sourceId ? (
+																					<p className='text-[11px] text-base-content/60'>Nguồn: {item.sourceId}</p>
+																				) : null}
+																				{itemCreatedAt !== '—' ? (
+																					<p className='text-[11px] text-base-content/60'>Thêm lúc: {itemCreatedAt}</p>
+																				) : null}
+																			</div>
+																		)
+																	})}
+																</div>
+															) : (
+																<p className='text-[11px] text-base-content/60'>Không có tài liệu đính kèm.</p>
+															)}
+														</div>
+													)
+												})}
+											</div>
+										) : (
+											<p className='text-xs text-base-content/60'>Chưa có chứng cứ cuối cùng nào được gửi.</p>
+										)}
+									</section>
+								) : null}
 
-                                                                {detailActiveTab === 'negotiations' ? (
-                                                                        <>
-                                                                                <section className='space-y-2'>
-                                                                                        <div className='flex flex-wrap items-center gap-2'>
-                                                                                                <h4 className='text-sm font-semibold text-base-content'>Đề xuất mới nhất</h4>
-                                                                                                {detailLatestProposal ? (
-                                                                                                        <span
-                                                                                                                className={[
-                                                                                                                        'badge',
-                                                                                                                        detailLatestProposal.status
-                                                                                                                                ? negotiationStatusClassMap[detailLatestProposal.status] ?? 'badge-outline'
-                                                                                                                                : 'badge-outline'
-                                                                                                                ].join(' ')}
-                                                                                                        >
-                                                                                                                {humanizeNegotiationStatus(detailLatestProposal.status)}
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        {detailLatestProposal ? (
-                                                                                                <div className='space-y-2 rounded-xl border border-base-200 bg-base-200/50 p-3 text-base-content'>
-                                                                                                        <div className='grid gap-2 text-xs text-base-content/70 sm:grid-cols-2'>
-                                                                                                                <span>
-                                                                                                                        Trả freelancer:{' '}
-                                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                                {formatCurrencyValue(detailLatestProposal.releaseAmount, detailCurrency)}
-                                                                                                                        </span>
-                                                                                                                </span>
-                                                                                                                <span>
-                                                                                                                        Trả khách hàng:{' '}
-                                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                                {formatCurrencyValue(detailLatestProposal.refundAmount, detailCurrency)}
-                                                                                                                        </span>
-                                                                                                                </span>
-                                                                                                                <span>
-                                                                                                                        Người đề xuất:{' '}
-                                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                                {formatUserName(detailLatestProposal.proposer, detailLatestProposal.proposerId)}
-                                                                                                                        </span>
-                                                                                                                </span>
-                                                                                                                {detailLatestProposal.respondedBy ? (
-                                                                                                                        <span>
-                                                                                                                                Phản hồi bởi:{' '}
-                                                                                                                                <span className='font-medium text-base-content'>
-                                                                                                                                        {formatUserName(detailLatestProposal.respondedBy, detailLatestProposal.respondedById ?? undefined)}
-                                                                                                                                </span>
-                                                                                                                                {detailLatestProposal.respondedAt ? ` (${formatDateTime(detailLatestProposal.respondedAt)})` : ''}
-                                                                                                                        </span>
-                                                                                                                ) : null}
-                                                                                                        </div>
-                                                                                                        {detailLatestProposal.message ? (
-                                                                                                                <p className='whitespace-pre-line text-sm text-base-content/80'>
-                                                                                                                        {detailLatestProposal.message}
-                                                                                                                </p>
-                                                                                                        ) : null}
-                                                                                                        {detailLatestProposal.responseMessage ? (
-                                                                                                                <div className='rounded-lg bg-base-100 p-2 text-xs text-base-content/70'>
-                                                                                                                        <span className='font-medium text-base-content'>Phản hồi:</span>{' '}
-                                                                                                                        {detailLatestProposal.responseMessage}
-                                                                                                                </div>
-                                                                                                        ) : null}
-                                                                                                </div>
-                                                                                        ) : (
-                                                                                                <p className='text-sm text-base-content/70'>Chưa có đề xuất nào.</p>
-                                                                                        )}
-                                                                                </section>
-                                                                                <section className='space-y-2'>
-                                                                                        <div className='flex flex-wrap items-center gap-2'>
-                                                                                                <h4 className='text-sm font-semibold text-base-content'>Lịch sử thương lượng</h4>
-                                                                                                {detailNegotiationTotal != null ? (
-                                                                                                        <span className='badge badge-outline text-xs'>Tổng: {detailNegotiationTotal}</span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        {Array.isArray(detailNegotiations) && detailNegotiations.length ? (
-                                                                                                <div className='space-y-3 max-h-64 overflow-y-auto pr-1'>
-                                                                                                        {detailNegotiations.map(negotiation => (
-                                                                                                                <div key={negotiation.id} className='space-y-2 rounded-xl border border-base-200 p-3'>
-                                                                                                                        <div className='flex flex-wrap items-center gap-2 text-xs text-base-content/70'>
-                                                                                                                                <span>{formatDateTime(negotiation.createdAt)}</span>
-                                                                                                                                <span
-                                                                                                                                        className={[
-                                                                                                                                                'badge badge-sm',
-                                                                                                                                                negotiationStatusClassMap[negotiation.status] ?? 'badge-outline'
-                                                                                                                                        ].join(' ')}
-                                                                                                                                >
-                                                                                                                                        {humanizeNegotiationStatus(negotiation.status)}
-                                                                                                                                </span>
-                                                                                                                                <span>Bởi {formatUserName(negotiation.proposer, negotiation.proposerId)}</span>
-                                                                                                                        </div>
-                                                                                                                        <div className='grid gap-2 text-xs text-base-content/60 sm:grid-cols-2'>
-                                                                                                                                <span>
-                                                                                                                                        Trả freelancer:{' '}
-                                                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                                                {formatCurrencyValue(negotiation.releaseAmount, detailCurrency)}
-                                                                                                                                        </span>
-                                                                                                                                </span>
-                                                                                                                                <span>
-                                                                                                                                        Trả khách hàng:{' '}
-                                                                                                                                        <span className='font-medium text-base-content'>
-                                                                                                                                                {formatCurrencyValue(negotiation.refundAmount, detailCurrency)}
-                                                                                                                                        </span>
-                                                                                                                                </span>
-                                                                                                                        </div>
-                                                                                                                        {negotiation.message ? (
-                                                                                                                                <p className='whitespace-pre-line text-sm text-base-content'>
-                                                                                                                                        {negotiation.message}
-                                                                                                                                </p>
-                                                                                                                        ) : null}
-                                                                                                                        {negotiation.respondedBy ? (
-                                                                                                                                <div className='rounded-lg bg-base-200/60 p-2 text-xs text-base-content/70'>
-                                                                                                                                        <span className='font-medium text-base-content'>Phản hồi:</span>{' '}
-                                                                                                                                        {formatUserName(negotiation.respondedBy, negotiation.respondedById ?? undefined)}
-                                                                                                                                        {negotiation.respondedAt ? ` (${formatDateTime(negotiation.respondedAt)})` : ''}
-                                                                                                                                        {negotiation.responseMessage ? ` — ${negotiation.responseMessage}` : ''}
-                                                                                                                                </div>
-                                                                                                                        ) : null}
-                                                                                                                </div>
-                                                                                                        ))}
-                                                                                                </div>
-                                                                                        ) : (
-                                                                                                <p className='text-sm text-base-content/70'>Chưa có thương lượng nào được ghi nhận.</p>
-                                                                                        )}
-                                                                                </section>
-                                                                        </>
-                                                                ) : null}
+								{detailActiveTab === 'negotiations' ? (
+									<>
+										<section className='space-y-2'>
+											<div className='flex flex-wrap items-center gap-2'>
+												<h4 className='text-sm font-semibold text-base-content'>Đề xuất mới nhất</h4>
+												{detailLatestProposal ? (
+													<span
+														className={[
+															'badge',
+															detailLatestProposal.status
+																? negotiationStatusClassMap[detailLatestProposal.status] ?? 'badge-outline'
+																: 'badge-outline'
+														].join(' ')}>
+														{humanizeNegotiationStatus(detailLatestProposal.status)}
+													</span>
+												) : null}
+											</div>
+											{detailLatestProposal ? (
+												<div className='space-y-2 rounded-xl border border-base-200 bg-base-200/50 p-3 text-base-content'>
+													<div className='grid gap-2 text-xs text-base-content/70 sm:grid-cols-2'>
+														<span>
+															Trả freelancer:{' '}
+															<span className='font-medium text-base-content'>
+																{formatCurrencyValue(detailLatestProposal.releaseAmount, detailCurrency)}
+															</span>
+														</span>
+														<span>
+															Trả khách hàng:{' '}
+															<span className='font-medium text-base-content'>
+																{formatCurrencyValue(detailLatestProposal.refundAmount, detailCurrency)}
+															</span>
+														</span>
+														<span>
+															Người đề xuất:{' '}
+															<span className='font-medium text-base-content'>
+																{formatUserName(detailLatestProposal.proposer, detailLatestProposal.proposerId)}
+															</span>
+														</span>
+														{detailLatestProposal.respondedBy ? (
+															<span>
+																Phản hồi bởi:{' '}
+																<span className='font-medium text-base-content'>
+																	{formatUserName(
+																		detailLatestProposal.respondedBy,
+																		detailLatestProposal.respondedById ?? undefined
+																	)}
+																</span>
+																{detailLatestProposal.respondedAt
+																	? ` (${formatDateTime(detailLatestProposal.respondedAt)})`
+																	: ''}
+															</span>
+														) : null}
+													</div>
+													{detailLatestProposal.message ? (
+														<p className='whitespace-pre-line text-sm text-base-content/80'>
+															{detailLatestProposal.message}
+														</p>
+													) : null}
+													{detailLatestProposal.responseMessage ? (
+														<div className='rounded-lg bg-base-100 p-2 text-xs text-base-content/70'>
+															<span className='font-medium text-base-content'>Phản hồi:</span>{' '}
+															{detailLatestProposal.responseMessage}
+														</div>
+													) : null}
+												</div>
+											) : (
+												<p className='text-sm text-base-content/70'>Chưa có đề xuất nào.</p>
+											)}
+										</section>
+										<section className='space-y-2'>
+											<div className='flex flex-wrap items-center gap-2'>
+												<h4 className='text-sm font-semibold text-base-content'>Lịch sử thương lượng</h4>
+												{detailNegotiationTotal != null ? (
+													<span className='badge badge-outline text-xs'>Tổng: {detailNegotiationTotal}</span>
+												) : null}
+											</div>
+											{Array.isArray(detailNegotiations) && detailNegotiations.length ? (
+												<div className='space-y-3 max-h-64 overflow-y-auto pr-1'>
+													{detailNegotiations.map(negotiation => (
+														<div key={negotiation.id} className='space-y-2 rounded-xl border border-base-200 p-3'>
+															<div className='flex flex-wrap items-center gap-2 text-xs text-base-content/70'>
+																<span>{formatDateTime(negotiation.createdAt)}</span>
+																<span
+																	className={[
+																		'badge badge-sm',
+																		negotiationStatusClassMap[negotiation.status] ?? 'badge-outline'
+																	].join(' ')}>
+																	{humanizeNegotiationStatus(negotiation.status)}
+																</span>
+																<span>Bởi {formatUserName(negotiation.proposer, negotiation.proposerId)}</span>
+															</div>
+															<div className='grid gap-2 text-xs text-base-content/60 sm:grid-cols-2'>
+																<span>
+																	Trả freelancer:{' '}
+																	<span className='font-medium text-base-content'>
+																		{formatCurrencyValue(negotiation.releaseAmount, detailCurrency)}
+																	</span>
+																</span>
+																<span>
+																	Trả khách hàng:{' '}
+																	<span className='font-medium text-base-content'>
+																		{formatCurrencyValue(negotiation.refundAmount, detailCurrency)}
+																	</span>
+																</span>
+															</div>
+															{negotiation.message ? (
+																<p className='whitespace-pre-line text-sm text-base-content'>{negotiation.message}</p>
+															) : null}
+															{negotiation.respondedBy ? (
+																<div className='rounded-lg bg-base-200/60 p-2 text-xs text-base-content/70'>
+																	<span className='font-medium text-base-content'>Phản hồi:</span>{' '}
+																	{formatUserName(negotiation.respondedBy, negotiation.respondedById ?? undefined)}
+																	{negotiation.respondedAt ? ` (${formatDateTime(negotiation.respondedAt)})` : ''}
+																	{negotiation.responseMessage ? ` — ${negotiation.responseMessage}` : ''}
+																</div>
+															) : null}
+														</div>
+													))}
+												</div>
+											) : (
+												<p className='text-sm text-base-content/70'>Chưa có thương lượng nào được ghi nhận.</p>
+											)}
+										</section>
+									</>
+								) : null}
 
-                                                                {detailActiveTab === 'activity' ? (
-                                                                        <section className='space-y-2'>
-                                                                                <div className='flex flex-wrap items-center gap-2'>
-                                                                                        <h4 className='text-sm font-semibold text-base-content'>Nhật ký truy cập phòng chat</h4>
-                                                                                        {Array.isArray(detailChatLogs) && detailChatLogs.length ? (
-                                                                                                <span className='badge badge-outline text-xs'>Số lần: {detailChatLogs.length}</span>
-                                                                                        ) : null}
-                                                                                </div>
-                                                                                {Array.isArray(detailChatLogs) && detailChatLogs.length ? (
-                                                                                        <div className='space-y-3 max-h-48 overflow-y-auto pr-1'>
-                                                                                                {detailChatLogs.map(log => (
-                                                                                                        <div key={log.id} className='rounded-xl border border-base-200 p-3 text-base-content'>
-                                                                                                                <div className='flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
-                                                                                                                        <span>{formatDateTime(log.createdAt)}</span>
-                                                                                                                        {log.action ? <span className='badge badge-sm badge-ghost'>{log.action}</span> : null}
-                                                                                                                </div>
-                                                                                                                <div className='text-sm text-base-content'>
-                                                                                                                        Admin: {formatUserName(log.admin, log.adminId ?? undefined)}
-                                                                                                                </div>
-                                                                                                                {log.reason ? <div className='text-xs text-base-content/70'>Lý do: {log.reason}</div> : null}
-                                                                                                        </div>
-                                                                                                ))}
-                                                                                        </div>
-                                                                                ) : (
-                                                                                        <p className='text-sm text-base-content/70'>Chưa có dữ liệu truy cập phòng chat.</p>
-                                                                                )}
-                                                                        </section>
-                                                                ) : null}
-                                                        </div>
-
+								{detailActiveTab === 'activity' ? (
+									<section className='space-y-2'>
+										<div className='flex flex-wrap items-center gap-2'>
+											<h4 className='text-sm font-semibold text-base-content'>Nhật ký truy cập phòng chat</h4>
+											{Array.isArray(detailChatLogs) && detailChatLogs.length ? (
+												<span className='badge badge-outline text-xs'>Số lần: {detailChatLogs.length}</span>
+											) : null}
+										</div>
+										{Array.isArray(detailChatLogs) && detailChatLogs.length ? (
+											<div className='space-y-3 max-h-48 overflow-y-auto pr-1'>
+												{detailChatLogs.map(log => (
+													<div key={log.id} className='rounded-xl border border-base-200 p-3 text-base-content'>
+														<div className='flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
+															<span>{formatDateTime(log.createdAt)}</span>
+															{log.action ? <span className='badge badge-sm badge-ghost'>{log.action}</span> : null}
+														</div>
+														<div className='text-sm text-base-content'>
+															Admin: {formatUserName(log.admin, log.adminId ?? undefined)}
+														</div>
+														{log.reason ? (
+															<div className='text-xs text-base-content/70'>Lý do: {log.reason}</div>
+														) : null}
+													</div>
+												))}
+											</div>
+										) : (
+											<p className='text-sm text-base-content/70'>Chưa có dữ liệu truy cập phòng chat.</p>
+										)}
+									</section>
+								) : null}
+							</div>
 						)}
 					</div>
 					<form method='dialog' className='modal-backdrop' onClick={() => setDetailTarget(null)}>
@@ -2058,11 +2051,11 @@ export default function AdminDisputeListPage() {
 				</dialog>
 			) : null}
 
-                        {joinTarget ? (
-                                <div className='modal modal-open'>
-                                        <div className='modal-box space-y-4'>
-                                                <h3 className='flex items-center gap-2 text-lg font-semibold'>
-                                                        <ShieldCheck className='size-5 text-primary' /> Tham gia tranh chấp #{joinTarget.id}
+			{joinTarget ? (
+				<div className='modal modal-open'>
+					<div className='modal-box space-y-4'>
+						<h3 className='flex items-center gap-2 text-lg font-semibold'>
+							<ShieldCheck className='size-5 text-primary' /> Tham gia tranh chấp #{joinTarget.id}
 						</h3>
 						<p className='text-sm text-base-content/70'>
 							Bạn có thể để lại ghi chú cho các bên trước khi tham gia phòng tranh chấp.
@@ -2082,114 +2075,110 @@ export default function AdminDisputeListPage() {
 								{joinMutation.isPending ? 'Đang xử lý...' : 'Tham gia tranh chấp'}
 							</button>
 						</div>
-                                        </div>
-                                        <div className='modal-backdrop' onClick={() => !joinMutation.isPending && setJoinTarget(null)}>
-                                                Đóng
-                                        </div>
-                                </div>
-                        ) : null}
+					</div>
+					<div className='modal-backdrop' onClick={() => !joinMutation.isPending && setJoinTarget(null)}>
+						Đóng
+					</div>
+				</div>
+			) : null}
 
-                        {lockDisputeOpen && detailDisputeId ? (
-                                <div className='modal modal-open'>
-                                        <div className='modal-box max-w-md space-y-4'>
-                                                <h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
-                                                        <Lock className='size-5 text-primary' /> Khóa tranh chấp
-                                                </h3>
-                                                <p className='text-sm text-base-content/70'>
-                                                        Chỉ khóa tranh chấp khi cả hai bên đã nộp phí trọng tài và hoàn tất việc gửi chứng cứ.
-                                                </p>
-                                                <form onSubmit={handleLockDisputeSubmit(handleLockDispute)} className='space-y-4'>
-                                                        <div className='space-y-2'>
-                                                                <label className='text-sm font-medium text-base-content'>Ghi chú (tuỳ chọn)</label>
-                                                                <textarea
-                                                                        className='textarea textarea-bordered w-full'
-                                                                        rows={4}
-                                                                        placeholder='Ghi chú nội bộ cho quyết định khóa'
-                                                                        {...lockDisputeRegister('note')}
-                                                                        disabled={lockDisputeMutation.isPending}
-                                                                />
-                                                                {lockDisputeErrors.note ? (
-                                                                        <p className='text-xs text-error'>{lockDisputeErrors.note.message}</p>
-                                                                ) : null}
-                                                        </div>
-                                                        <div className='modal-action'>
-                                                                <button
-                                                                        type='button'
-                                                                        className='btn btn-ghost'
-                                                                        onClick={closeLockDisputeModal}
-                                                                        disabled={lockDisputeMutation.isPending}>
-                                                                        Hủy
-                                                                </button>
-                                                                <button type='submit' className='btn btn-secondary' disabled={lockDisputeMutation.isPending}>
-                                                                        {lockDisputeMutation.isPending ? 'Đang khóa…' : 'Khóa tranh chấp'}
-                                                                </button>
-                                                        </div>
-                                                </form>
-                                        </div>
-                                        <div className='modal-backdrop' onClick={closeLockDisputeModal}>
-                                                Đóng
-                                        </div>
-                                </div>
-                        ) : null}
+			{lockDisputeOpen && detailDisputeId ? (
+				<div className='modal modal-open'>
+					<div className='modal-box max-w-md space-y-4'>
+						<h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
+							<Lock className='size-5 text-primary' /> Khóa tranh chấp
+						</h3>
+						<p className='text-sm text-base-content/70'>
+							Chỉ khóa tranh chấp khi cả hai bên đã nộp phí trọng tài và hoàn tất việc gửi chứng cứ.
+						</p>
+						<form onSubmit={handleLockDisputeSubmit(handleLockDispute)} className='space-y-4'>
+							<div className='space-y-2'>
+								<label className='text-sm font-medium text-base-content'>Ghi chú (tuỳ chọn)</label>
+								<textarea
+									className='textarea textarea-bordered w-full'
+									rows={4}
+									placeholder='Ghi chú nội bộ cho quyết định khóa'
+									{...lockDisputeRegister('note')}
+									disabled={lockDisputeMutation.isPending}
+								/>
+								{lockDisputeErrors.note ? <p className='text-xs text-error'>{lockDisputeErrors.note.message}</p> : null}
+							</div>
+							<div className='modal-action'>
+								<button
+									type='button'
+									className='btn btn-ghost'
+									onClick={closeLockDisputeModal}
+									disabled={lockDisputeMutation.isPending}>
+									Hủy
+								</button>
+								<button type='submit' className='btn btn-secondary' disabled={lockDisputeMutation.isPending}>
+									{lockDisputeMutation.isPending ? 'Đang khóa…' : 'Khóa tranh chấp'}
+								</button>
+							</div>
+						</form>
+					</div>
+					<div className='modal-backdrop' onClick={closeLockDisputeModal}>
+						Đóng
+					</div>
+				</div>
+			) : null}
 
-                        {generateDossierOpen && detailDisputeId ? (
-                                <div className='modal modal-open'>
-                                        <div className='modal-box max-w-md space-y-4'>
-                                                <h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
-                                                        <ScrollText className='size-5 text-primary' /> Tạo hồ sơ tranh chấp
-                                                </h3>
-                                                <p className='text-sm text-base-content/70'>
-                                                        Tạo snapshot hồ sơ tranh chấp để lưu trữ trong hệ thống.
-                                                </p>
-                                                <form onSubmit={handleGenerateDossierSubmit(handleGenerateDossier)} className='space-y-4'>
-                                                        <div className='space-y-2'>
-                                                                <label className='text-sm font-medium text-base-content'>Ghi chú nội bộ (tuỳ chọn)</label>
-                                                                <textarea
-                                                                        className='textarea textarea-bordered w-full'
-                                                                        rows={4}
-                                                                        placeholder='Ghi chú bổ sung cho hồ sơ'
-                                                                        {...generateDossierRegister('notes')}
-                                                                        disabled={generateDossierMutation.isPending}
-                                                                />
-                                                                {generateDossierErrors.notes ? (
-                                                                        <p className='text-xs text-error'>{generateDossierErrors.notes.message}</p>
-                                                                ) : null}
-                                                        </div>
-                                                        <label className='flex items-center gap-2 text-sm text-base-content'>
-                                                                <input
-                                                                        type='checkbox'
-                                                                        className='checkbox'
-                                                                        {...generateDossierRegister('finalize', { valueAsBoolean: true })}
-                                                                        disabled={generateDossierMutation.isPending}
-                                                                />
-                                                                <span>Đánh dấu hồ sơ là bản cuối cùng</span>
-                                                        </label>
-                                                        <p className='text-xs text-base-content/60'>Bản snapshot sẽ được ghi nhận cùng ghi chú của bạn.</p>
-                                                        <div className='modal-action'>
-                                                                <button
-                                                                        type='button'
-                                                                        className='btn btn-ghost'
-                                                                        onClick={closeGenerateDossierModal}
-                                                                        disabled={generateDossierMutation.isPending}>
-                                                                        Hủy
-                                                                </button>
-                                                                <button type='submit' className='btn btn-primary' disabled={generateDossierMutation.isPending}>
-                                                                        {generateDossierMutation.isPending ? 'Đang tạo…' : 'Tạo hồ sơ'}
-                                                                </button>
-                                                        </div>
-                                                </form>
-                                        </div>
-                                        <div className='modal-backdrop' onClick={closeGenerateDossierModal}>
-                                                Đóng
-                                        </div>
-                                </div>
-                        ) : null}
+			{generateDossierOpen && detailDisputeId ? (
+				<div className='modal modal-open'>
+					<div className='modal-box max-w-md space-y-4'>
+						<h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
+							<ScrollText className='size-5 text-primary' /> Tạo hồ sơ tranh chấp
+						</h3>
+						<p className='text-sm text-base-content/70'>Tạo snapshot hồ sơ tranh chấp để lưu trữ trong hệ thống.</p>
+						<form onSubmit={handleGenerateDossierSubmit(handleGenerateDossier)} className='space-y-4'>
+							<div className='space-y-2'>
+								<label className='text-sm font-medium text-base-content'>Ghi chú nội bộ (tuỳ chọn)</label>
+								<textarea
+									className='textarea textarea-bordered w-full'
+									rows={4}
+									placeholder='Ghi chú bổ sung cho hồ sơ'
+									{...generateDossierRegister('notes')}
+									disabled={generateDossierMutation.isPending}
+								/>
+								{generateDossierErrors.notes ? (
+									<p className='text-xs text-error'>{generateDossierErrors.notes.message}</p>
+								) : null}
+							</div>
+							<label className='flex items-center gap-2 text-sm text-base-content'>
+								<input
+									type='checkbox'
+									className='checkbox'
+									{...generateDossierRegister('finalize', { valueAsBoolean: true })}
+									disabled={generateDossierMutation.isPending}
+								/>
+								<span>Đánh dấu hồ sơ là bản cuối cùng</span>
+							</label>
+							<p className='text-xs text-base-content/60'>Bản snapshot sẽ được ghi nhận cùng ghi chú của bạn.</p>
+							<div className='modal-action'>
+								<button
+									type='button'
+									className='btn btn-ghost'
+									onClick={closeGenerateDossierModal}
+									disabled={generateDossierMutation.isPending}>
+									Hủy
+								</button>
+								<button type='submit' className='btn btn-primary' disabled={generateDossierMutation.isPending}>
+									{generateDossierMutation.isPending ? 'Đang tạo…' : 'Tạo hồ sơ'}
+								</button>
+							</div>
+						</form>
+					</div>
+					<div className='modal-backdrop' onClick={closeGenerateDossierModal}>
+						Đóng
+					</div>
+				</div>
+			) : null}
 
-                        {requestFeesOpen && detailDisputeId ? (
-                                <div className='modal modal-open'>
-                                        <div className='modal-box max-w-md space-y-4'>
-                                                <h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
-                                                        <BadgeDollarSign className='size-5 text-primary' /> Yêu cầu đóng phí trọng tài
+			{requestFeesOpen && detailDisputeId ? (
+				<div className='modal modal-open'>
+					<div className='modal-box max-w-md space-y-4'>
+						<h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
+							<BadgeDollarSign className='size-5 text-primary' /> Yêu cầu đóng phí trọng tài
 						</h3>
 						<p className='text-sm text-base-content/70'>
 							Chọn số ngày mà các bên cần hoàn tất việc nộp phí trọng tài. Thời hạn tối đa là 14 ngày.
