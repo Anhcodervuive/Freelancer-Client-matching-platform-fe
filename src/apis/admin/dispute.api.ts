@@ -1,30 +1,30 @@
 import type { ListResponse } from '~/types/api.response'
 import type {
-        AdminDisputeAmounts,
-        AdminDisputeArbitrator,
-        AdminDisputeChatAccessLog,
-        AdminDisputeDetail,
-        AdminDisputeDossier,
-        AdminDisputeEscrow,
-        AdminDisputeListFilters,
-        AdminDisputeListItem,
-        AdminAssignArbitratorInput,
-        AdminDisputeMetrics,
-        AdminDisputeParties,
-        AdminGenerateArbitrationDossierInput,
-        AdminJoinDisputeInput,
-        AdminRequestArbitrationFeesInput,
-        AdminLockDisputeInput,
-        DecimalLike,
-        Dispute,
-        DisputeContractSummary,
-        DisputeEvidenceAsset,
-        DisputeEvidencePerson,
-        DisputeFinalEvidenceSubmission,
-        DisputeFinalEvidenceSubmissionItem,
-        DisputeMilestoneSummary,
-        DisputeNegotiation,
-        DisputeUserSummary
+	AdminDisputeAmounts,
+	AdminDisputeArbitrator,
+	AdminDisputeChatAccessLog,
+	AdminDisputeDetail,
+	AdminDisputeDossier,
+	AdminDisputeEscrow,
+	AdminDisputeListFilters,
+	AdminDisputeListItem,
+	AdminAssignArbitratorInput,
+	AdminDisputeMetrics,
+	AdminDisputeParties,
+	AdminGenerateArbitrationDossierInput,
+	AdminJoinDisputeInput,
+	AdminRequestArbitrationFeesInput,
+	AdminLockDisputeInput,
+	DecimalLike,
+	Dispute,
+	DisputeContractSummary,
+	DisputeEvidenceAsset,
+	DisputeEvidencePerson,
+	DisputeFinalEvidenceSubmission,
+	DisputeFinalEvidenceSubmissionItem,
+	DisputeMilestoneSummary,
+	DisputeNegotiation,
+	DisputeUserSummary
 } from '~/types/dispute'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import { DisputeNegotiationStatus, DisputeStatus } from '~/types/dispute'
@@ -41,39 +41,39 @@ const asRecord = (value: unknown): Record<string, unknown> | null => {
 }
 
 const getString = (value: unknown): string | undefined => {
-        if (typeof value === 'string') {
-                const trimmed = value.trim()
-                return trimmed.length ? trimmed : undefined
-        }
+	if (typeof value === 'string') {
+		const trimmed = value.trim()
+		return trimmed.length ? trimmed : undefined
+	}
 
 	if (typeof value === 'number' && Number.isFinite(value)) {
 		return String(value)
 	}
 
-        return undefined
+	return undefined
 }
 
 const getNumber = (value: unknown): number | undefined => {
-        if (typeof value === 'number') {
-                return Number.isFinite(value) ? value : undefined
-        }
+	if (typeof value === 'number') {
+		return Number.isFinite(value) ? value : undefined
+	}
 
-        if (typeof value === 'string') {
-                const trimmed = value.trim()
-                if (!trimmed.length) return undefined
-                const parsed = Number(trimmed)
-                return Number.isFinite(parsed) ? parsed : undefined
-        }
+	if (typeof value === 'string') {
+		const trimmed = value.trim()
+		if (!trimmed.length) return undefined
+		const parsed = Number(trimmed)
+		return Number.isFinite(parsed) ? parsed : undefined
+	}
 
-        return undefined
+	return undefined
 }
 
 const isDisputeStatusValue = (value: unknown): value is DisputeStatus =>
-        typeof value === 'string' && (Object.values(DisputeStatus) as string[]).includes(value as DisputeStatus)
+	typeof value === 'string' && (Object.values(DisputeStatus) as string[]).includes(value as DisputeStatus)
 
 const isNegotiationStatusValue = (value: unknown): value is DisputeNegotiationStatus =>
-        typeof value === 'string' &&
-        (Object.values(DisputeNegotiationStatus) as string[]).includes(value as DisputeNegotiationStatus)
+	typeof value === 'string' &&
+	(Object.values(DisputeNegotiationStatus) as string[]).includes(value as DisputeNegotiationStatus)
 
 const parseBoolean = (value: unknown): boolean | undefined => {
 	if (typeof value === 'boolean') return value
@@ -119,10 +119,10 @@ const getDecimalLike = (value: unknown): DecimalLike | undefined => {
 }
 
 const normalizeUserSummary = (value: unknown): DisputeUserSummary | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
 	const id =
 		getString(record.id) ??
@@ -181,318 +181,305 @@ const normalizeParties = (value: unknown): AdminDisputeParties => {
 		return null
 	}
 
-        return { 
-                client: client ?? null,
-                freelancer: freelancer ?? null
-        }
+	return {
+		client: client ?? null,
+		freelancer: freelancer ?? null
+	}
 }
 
 const normalizeEvidencePerson = (value: unknown): DisputeEvidencePerson | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id = getString(record.id)
-        if (!id) {
-                return null
-        }
+	const id = getString(record.id)
+	if (!id) {
+		return null
+	}
 
-        const normalized: DisputeEvidencePerson = { id }
+	const normalized: DisputeEvidencePerson = { id }
 
-        if (typeof record.firstName === 'string') {
-                normalized.firstName = record.firstName
-        }
+	if (typeof record.firstName === 'string') {
+		normalized.firstName = record.firstName
+	}
 
-        if (typeof record.lastName === 'string') {
-                normalized.lastName = record.lastName
-        }
+	if (typeof record.lastName === 'string') {
+		normalized.lastName = record.lastName
+	}
 
-        if (typeof record.displayName === 'string' && record.displayName.trim().length) {
-                normalized.displayName = record.displayName.trim()
-        }
+	if (typeof record.displayName === 'string' && record.displayName.trim().length) {
+		normalized.displayName = record.displayName.trim()
+	}
 
-        const fallbackName =
-                getString(record.name) ?? getString(record.fullName ?? record.full_name) ?? undefined
+	const fallbackName = getString(record.name) ?? getString(record.fullName ?? record.full_name) ?? undefined
 
-        if (fallbackName) {
-                normalized.name = fallbackName
-                if (!normalized.displayName) {
-                        normalized.displayName = fallbackName
-                }
-        }
+	if (fallbackName) {
+		normalized.name = fallbackName
+		if (!normalized.displayName) {
+			normalized.displayName = fallbackName
+		}
+	}
 
-        return normalized
+	return normalized
 }
 
 const extractDisputeDossier = (value: unknown): AdminDisputeDossier | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id = getString(record.id)
-        if (!id) {
-                return null
-        }
+	const id = getString(record.id)
+	if (!id) {
+		return null
+	}
 
-        const dossier: AdminDisputeDossier = { id }
-        const version = getNumber(record.version ?? record.versionNumber ?? record.version_number)
-        if (version !== undefined) {
-                dossier.version = version
-        }
+	const dossier: AdminDisputeDossier = { id }
+	const version = getNumber(record.version ?? record.versionNumber ?? record.version_number)
+	if (version !== undefined) {
+		dossier.version = version
+	}
 
-        if (typeof record.notes === 'string' && record.notes.trim().length) {
-                dossier.notes = record.notes.trim()
-        }
+	if (typeof record.notes === 'string' && record.notes.trim().length) {
+		dossier.notes = record.notes.trim()
+	}
 
-        const createdAt = getString(record.createdAt ?? record.created_at)
-        if (createdAt) {
-                dossier.createdAt = createdAt
-        }
+	const createdAt = getString(record.createdAt ?? record.created_at)
+	if (createdAt) {
+		dossier.createdAt = createdAt
+	}
 
-        const finalizedAt = getString(record.finalizedAt ?? record.finalized_at)
-        if (finalizedAt) {
-                dossier.finalizedAt = finalizedAt
-        }
+	const finalizedAt = getString(record.finalizedAt ?? record.finalized_at)
+	if (finalizedAt) {
+		dossier.finalizedAt = finalizedAt
+	}
 
-        const downloadUrl =
-                getString(record.downloadUrl ?? record.download_url ?? record.url) ??
-                getString(record.fileUrl ?? record.file_url)
-        if (downloadUrl) {
-                dossier.downloadUrl = downloadUrl
-        }
+	const downloadUrl =
+		getString(record.downloadUrl ?? record.download_url ?? record.url) ?? getString(record.fileUrl ?? record.file_url)
+	if (downloadUrl) {
+		dossier.downloadUrl = downloadUrl
+	}
 
-        const fileUrl = getString(record.fileUrl ?? record.file_url)
-        if (fileUrl) {
-                dossier.fileUrl = fileUrl
-        }
+	const fileUrl = getString(record.fileUrl ?? record.file_url)
+	if (fileUrl) {
+		dossier.fileUrl = fileUrl
+	}
 
-        const milestoneId = getString(record.milestoneId ?? record.milestone_id)
-        if (milestoneId) {
-                dossier.milestoneId = milestoneId
-        }
+	const milestoneId = getString(record.milestoneId ?? record.milestone_id)
+	if (milestoneId) {
+		dossier.milestoneId = milestoneId
+	}
 
-        const milestoneTitle =
-                getString(record.milestoneTitle ?? record.milestone_title ?? record.milestoneName ?? record.milestone_name)
-        if (milestoneTitle) {
-                dossier.milestoneTitle = milestoneTitle
-        }
+	const milestoneTitle = getString(
+		record.milestoneTitle ?? record.milestone_title ?? record.milestoneName ?? record.milestone_name
+	)
+	if (milestoneTitle) {
+		dossier.milestoneTitle = milestoneTitle
+	}
 
-        const createdBy = normalizeUserSummary(record.createdBy ?? record.creator ?? record.admin)
-        if (createdBy) {
-                dossier.createdBy = createdBy
-        }
+	const createdBy = normalizeUserSummary(record.createdBy ?? record.creator ?? record.admin)
+	if (createdBy) {
+		dossier.createdBy = createdBy
+	}
 
-        return dossier
+	return dossier
 }
 
 const extractArbitrator = (value: unknown): AdminDisputeArbitrator | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id =
-                getString(record.id) ??
-                getString(record.userId ?? record.user_id) ??
-                getString(record.accountId ?? record.account_id)
+	const id =
+		getString(record.id) ??
+		getString(record.userId ?? record.user_id) ??
+		getString(record.accountId ?? record.account_id)
 
-        if (!id) {
-                return null
-        }
+	if (!id) {
+		return null
+	}
 
-        const arbitrator: AdminDisputeArbitrator = { id }
+	const arbitrator: AdminDisputeArbitrator = { id }
 
-        const displayName =
-                getString(record.displayName ?? record.name ?? record.fullName ?? record.full_name) ?? undefined
-        if (displayName) {
-                arbitrator.displayName = displayName
-        }
+	const displayName = getString(record.displayName ?? record.name ?? record.fullName ?? record.full_name) ?? undefined
+	if (displayName) {
+		arbitrator.displayName = displayName
+	}
 
-        if (typeof record.email === 'string' && record.email.trim().length) {
-                arbitrator.email = record.email.trim()
-        }
+	if (typeof record.email === 'string' && record.email.trim().length) {
+		arbitrator.email = record.email.trim()
+	}
 
-        if (typeof record.avatar === 'string' && record.avatar.trim().length) {
-                arbitrator.avatar = record.avatar.trim()
-        }
+	if (typeof record.avatar === 'string' && record.avatar.trim().length) {
+		arbitrator.avatar = record.avatar.trim()
+	}
 
-        return arbitrator
+	return arbitrator
 }
 
 const normalizeEvidenceAsset = (value: unknown): DisputeEvidenceAsset | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id = getString(record.id)
-        if (!id) {
-                return null
-        }
+	const id = getString(record.id)
+	if (!id) {
+		return null
+	}
 
-        const normalized: DisputeEvidenceAsset = {
-                id,
-                kind: getString(record.kind) ?? null,
-                url: getString(record.url ?? record.previewUrl ?? record.preview_url) ?? null,
-                mimeType: getString(record.mimeType ?? record.mime_type) ?? null,
-                bytes: null,
-                status: getString(record.status) ?? null
-        }
+	const normalized: DisputeEvidenceAsset = {
+		id,
+		kind: getString(record.kind) ?? null,
+		url: getString(record.url ?? record.previewUrl ?? record.preview_url) ?? null,
+		mimeType: getString(record.mimeType ?? record.mime_type) ?? null,
+		bytes: null,
+		status: getString(record.status) ?? null
+	}
 
-        const sizeCandidates = [
-                record.bytes,
-                record.size,
-                record.fileSize,
-                record.file_size,
-                record.length
-        ]
+	const sizeCandidates = [record.bytes, record.size, record.fileSize, record.file_size, record.length]
 
-        for (const candidate of sizeCandidates) {
-                if (typeof candidate === 'number' && Number.isFinite(candidate)) {
-                        normalized.bytes = candidate
-                        break
-                }
+	for (const candidate of sizeCandidates) {
+		if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+			normalized.bytes = candidate
+			break
+		}
 
-                if (typeof candidate === 'string') {
-                        const parsed = Number(candidate)
-                        if (Number.isFinite(parsed)) {
-                                normalized.bytes = parsed
-                                break
-                        }
-                }
-        }
+		if (typeof candidate === 'string') {
+			const parsed = Number(candidate)
+			if (Number.isFinite(parsed)) {
+				normalized.bytes = parsed
+				break
+			}
+		}
+	}
 
-        return normalized
+	return normalized
 }
 
-const normalizeEvidenceSubmissionItem = (
-        value: unknown
-): DisputeFinalEvidenceSubmissionItem | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+const normalizeEvidenceSubmissionItem = (value: unknown): DisputeFinalEvidenceSubmissionItem | null => {
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id = getString(record.id)
-        if (!id) {
-                return null
-        }
+	const id = getString(record.id)
+	if (!id) {
+		return null
+	}
 
-        const normalized: DisputeFinalEvidenceSubmissionItem = {
-                id,
-                submissionId: getString(record.submissionId ?? record.submission_id) ?? null,
-                label: getString(record.label ?? record.title) ?? null,
-                description: getString(record.description ?? record.note) ?? null,
-                sourceType: getString(record.sourceType ?? record.source_type) ?? null,
-                sourceId: getString(record.sourceId ?? record.source_id) ?? null,
-                url: getString(record.url ?? record.link ?? record.href) ?? null,
-                assetId: getString(record.assetId ?? record.asset_id) ?? null,
-                asset: normalizeEvidenceAsset(record.asset) ?? null,
-                createdAt: getString(record.createdAt ?? record.created_at) ?? null,
-                updatedAt: getString(record.updatedAt ?? record.updated_at) ?? null
-        }
+	const normalized: DisputeFinalEvidenceSubmissionItem = {
+		id,
+		submissionId: getString(record.submissionId ?? record.submission_id) ?? null,
+		label: getString(record.label ?? record.title) ?? null,
+		description: getString(record.description ?? record.note) ?? null,
+		sourceType: getString(record.sourceType ?? record.source_type) ?? null,
+		sourceId: getString(record.sourceId ?? record.source_id) ?? null,
+		url: getString(record.url ?? record.link ?? record.href) ?? null,
+		assetId: getString(record.assetId ?? record.asset_id) ?? null,
+		asset: normalizeEvidenceAsset(record.asset) ?? null,
+		createdAt: getString(record.createdAt ?? record.created_at) ?? null,
+		updatedAt: getString(record.updatedAt ?? record.updated_at) ?? null
+	}
 
-        return normalized
+	return normalized
 }
 
-const normalizeEvidenceSubmissionItems = (
-        value: unknown
-): DisputeFinalEvidenceSubmissionItem[] | null => {
-        if (!value) {
-                return null
-        }
+const normalizeEvidenceSubmissionItems = (value: unknown): DisputeFinalEvidenceSubmissionItem[] | null => {
+	if (!value) {
+		return null
+	}
 
-        if (Array.isArray(value)) {
-                const normalized = value
-                        .map(item => normalizeEvidenceSubmissionItem(item))
-                        .filter((item): item is DisputeFinalEvidenceSubmissionItem => Boolean(item))
+	if (Array.isArray(value)) {
+		const normalized = value
+			.map(item => normalizeEvidenceSubmissionItem(item))
+			.filter((item): item is DisputeFinalEvidenceSubmissionItem => Boolean(item))
 
-                return normalized.length ? normalized : []
-        }
+		return normalized.length ? normalized : []
+	}
 
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const candidates = ['data', 'items', 'results', 'evidences', 'attachments'] as const
+	const candidates = ['data', 'items', 'results', 'evidences', 'attachments'] as const
 
-        for (const key of candidates) {
-                if (!(key in record)) continue
-                const normalized = normalizeEvidenceSubmissionItems(record[key])
-                if (normalized) {
-                        return normalized
-                }
-        }
+	for (const key of candidates) {
+		if (!(key in record)) continue
+		const normalized = normalizeEvidenceSubmissionItems(record[key])
+		if (normalized) {
+			return normalized
+		}
+	}
 
-        return null
+	return null
 }
 
 const normalizeEvidenceSubmission = (value: unknown): DisputeFinalEvidenceSubmission | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id = getString(record.id)
-        if (!id) {
-                return null
-        }
+	const id = getString(record.id)
+	if (!id) {
+		return null
+	}
 
-        const normalized: DisputeFinalEvidenceSubmission = {
-                id,
-                disputeId: getString(record.disputeId ?? record.dispute_id) ?? null,
-                milestoneId: getString(record.milestoneId ?? record.milestone_id) ?? null,
-                freelancerId: getString(record.freelancerId ?? record.freelancer_id) ?? null,
-                submittedById:
-                        getString(record.submittedById ?? record.submitted_by_id ?? record.submitterId ?? record.submitter_id) ?? null,
-                submittedBy: normalizeEvidencePerson(record.submittedBy ?? record.submitter ?? record.user) ?? null,
-                submittedAt: getString(record.submittedAt ?? record.submitted_at) ?? null,
-                updatedAt: getString(record.updatedAt ?? record.updated_at) ?? null,
-                statement: getString(record.statement ?? record.message ?? record.note) ?? null,
-                noAdditionalEvidence:
-                        parseBoolean(record.noAdditionalEvidence ?? record.no_additional_evidence ?? record.noMoreEvidence) ?? null,
-                items: normalizeEvidenceSubmissionItems(
-                        record.items ?? record.evidenceItems ?? record.evidence_items ?? record.attachments
-                ) ?? []
-        }
+	const normalized: DisputeFinalEvidenceSubmission = {
+		id,
+		disputeId: getString(record.disputeId ?? record.dispute_id) ?? null,
+		milestoneId: getString(record.milestoneId ?? record.milestone_id) ?? null,
+		freelancerId: getString(record.freelancerId ?? record.freelancer_id) ?? null,
+		submittedById:
+			getString(record.submittedById ?? record.submitted_by_id ?? record.submitterId ?? record.submitter_id) ?? null,
+		submittedBy: normalizeEvidencePerson(record.submittedBy ?? record.submitter ?? record.user) ?? null,
+		submittedAt: getString(record.submittedAt ?? record.submitted_at) ?? null,
+		updatedAt: getString(record.updatedAt ?? record.updated_at) ?? null,
+		statement: getString(record.statement ?? record.message ?? record.note) ?? null,
+		noAdditionalEvidence:
+			parseBoolean(record.noAdditionalEvidence ?? record.no_additional_evidence ?? record.noMoreEvidence) ?? null,
+		items:
+			normalizeEvidenceSubmissionItems(
+				record.items ?? record.evidenceItems ?? record.evidence_items ?? record.attachments
+			) ?? []
+	}
 
-        return normalized
+	return normalized
 }
 
-const normalizeEvidenceSubmissions = (
-        value: unknown
-): DisputeFinalEvidenceSubmission[] | null => {
-        if (!value) {
-                return null
-        }
+const normalizeEvidenceSubmissions = (value: unknown): DisputeFinalEvidenceSubmission[] | null => {
+	if (!value) {
+		return null
+	}
 
-        if (Array.isArray(value)) {
-                const normalized = value
-                        .map(item => normalizeEvidenceSubmission(item))
-                        .filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item))
+	if (Array.isArray(value)) {
+		const normalized = value
+			.map(item => normalizeEvidenceSubmission(item))
+			.filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item))
 
-                return normalized.length ? normalized : []
-        }
+		return normalized.length ? normalized : []
+	}
 
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const candidates = ['data', 'items', 'results', 'submissions', 'evidenceSubmissions', 'evidences'] as const
+	const candidates = ['data', 'items', 'results', 'submissions', 'evidenceSubmissions', 'evidences'] as const
 
-        for (const key of candidates) {
-                if (!(key in record)) continue
-                const normalized = normalizeEvidenceSubmissions(record[key])
-                if (normalized) {
-                        return normalized
-                }
-        }
+	for (const key of candidates) {
+		if (!(key in record)) continue
+		const normalized = normalizeEvidenceSubmissions(record[key])
+		if (normalized) {
+			return normalized
+		}
+	}
 
-        return null
+	return null
 }
 
 const normalizeAmounts = (
@@ -577,10 +564,10 @@ const normalizeAmounts = (
 }
 
 const normalizeMetrics = (value: unknown): AdminDisputeMetrics => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
 	const normalized: Partial<NonNullable<AdminDisputeMetrics>> = {}
 
@@ -624,295 +611,300 @@ const normalizeMetrics = (value: unknown): AdminDisputeMetrics => {
 		normalized.lastAdminJoinedAt = lastAdminJoinedAt
 	}
 
-        return Object.keys(normalized).length ? (normalized as AdminDisputeMetrics) : null
+	return Object.keys(normalized).length ? (normalized as AdminDisputeMetrics) : null
 }
 
 const normalizeEscrow = (value: unknown): AdminDisputeEscrow => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id = getString(record.id)
-        if (!id) {
-                return null
-        }
+	const id = getString(record.id)
+	if (!id) {
+		return null
+	}
 
-        const normalized: Partial<NonNullable<AdminDisputeEscrow>> = { id }
+	const normalized: Partial<NonNullable<AdminDisputeEscrow>> = { id }
 
-        const status = getString(record.status)
-        if (status) {
-                normalized.status = status
-        }
+	const status = getString(record.status)
+	if (status) {
+		normalized.status = status
+	}
 
-        const currency =
-                getString(record.currency) ??
-                getString(record.currencyCode ?? record.currency_code ?? record.milestoneCurrency ?? record.milestone_currency)
-        if (currency) {
-                normalized.currency = currency
-        }
+	const currency =
+		getString(record.currency) ??
+		getString(record.currencyCode ?? record.currency_code ?? record.milestoneCurrency ?? record.milestone_currency)
+	if (currency) {
+		normalized.currency = currency
+	}
 
-        const funded =
-                getDecimalLike(record.amountFunded ?? record.amount_funded ?? record.fundedAmount ?? record.funded_amount)
-        if (funded !== undefined) {
-                normalized.amountFunded = funded
-        }
+	const funded = getDecimalLike(
+		record.amountFunded ?? record.amount_funded ?? record.fundedAmount ?? record.funded_amount
+	)
+	if (funded !== undefined) {
+		normalized.amountFunded = funded
+	}
 
-        const released =
-                getDecimalLike(record.amountReleased ?? record.amount_released ?? record.releasedAmount ?? record.released_amount)
-        if (released !== undefined) {
-                normalized.amountReleased = released
-        }
+	const released = getDecimalLike(
+		record.amountReleased ?? record.amount_released ?? record.releasedAmount ?? record.released_amount
+	)
+	if (released !== undefined) {
+		normalized.amountReleased = released
+	}
 
-        const refunded =
-                getDecimalLike(record.amountRefunded ?? record.amount_refunded ?? record.refundedAmount ?? record.refunded_amount)
-        if (refunded !== undefined) {
-                normalized.amountRefunded = refunded
-        }
+	const refunded = getDecimalLike(
+		record.amountRefunded ?? record.amount_refunded ?? record.refundedAmount ?? record.refunded_amount
+	)
+	if (refunded !== undefined) {
+		normalized.amountRefunded = refunded
+	}
 
-        const milestoneRecord = asRecord(record.milestone)
-        if (milestoneRecord) {
-                const milestoneId = getString(milestoneRecord.id)
-                if (milestoneId) {
-                        const milestone: Partial<NonNullable<NonNullable<AdminDisputeEscrow>['milestone']>> = { id: milestoneId }
+	const milestoneRecord = asRecord(record.milestone)
+	if (milestoneRecord) {
+		const milestoneId = getString(milestoneRecord.id)
+		if (milestoneId) {
+			const milestone: Partial<NonNullable<NonNullable<AdminDisputeEscrow>['milestone']>> = { id: milestoneId }
 
-                        const milestoneTitle =
-                                getString(milestoneRecord.title ?? milestoneRecord.name ?? milestoneRecord.label ?? milestoneRecord.description)
-                        if (milestoneTitle) {
-                                milestone.title = milestoneTitle
-                        }
+			const milestoneTitle = getString(
+				milestoneRecord.title ?? milestoneRecord.name ?? milestoneRecord.label ?? milestoneRecord.description
+			)
+			if (milestoneTitle) {
+				milestone.title = milestoneTitle
+			}
 
-                        const milestoneStatus = getString(milestoneRecord.status)
-                        if (milestoneStatus) {
-                                milestone.status = milestoneStatus
-                        }
+			const milestoneStatus = getString(milestoneRecord.status)
+			if (milestoneStatus) {
+				milestone.status = milestoneStatus
+			}
 
-                        const milestoneAmount = getDecimalLike(milestoneRecord.amount)
-                        if (milestoneAmount !== undefined) {
-                                milestone.amount = milestoneAmount
-                        }
+			const milestoneAmount = getDecimalLike(milestoneRecord.amount)
+			if (milestoneAmount !== undefined) {
+				milestone.amount = milestoneAmount
+			}
 
-                        const milestoneCurrency = getString(milestoneRecord.currency)
-                        if (milestoneCurrency) {
-                                milestone.currency = milestoneCurrency
-                        }
+			const milestoneCurrency = getString(milestoneRecord.currency)
+			if (milestoneCurrency) {
+				milestone.currency = milestoneCurrency
+			}
 
-                        const milestoneStart = getString(milestoneRecord.startAt ?? milestoneRecord.start_at)
-                        if (milestoneStart) {
-                                milestone.startAt = milestoneStart
-                        }
+			const milestoneStart = getString(milestoneRecord.startAt ?? milestoneRecord.start_at)
+			if (milestoneStart) {
+				milestone.startAt = milestoneStart
+			}
 
-                        const milestoneEnd = getString(milestoneRecord.endAt ?? milestoneRecord.end_at)
-                        if (milestoneEnd) {
-                                milestone.endAt = milestoneEnd
-                        }
+			const milestoneEnd = getString(milestoneRecord.endAt ?? milestoneRecord.end_at)
+			if (milestoneEnd) {
+				milestone.endAt = milestoneEnd
+			}
 
-                        const milestoneContractId = getString(milestoneRecord.contractId ?? milestoneRecord.contract_id)
-                        if (milestoneContractId) {
-                                milestone.contractId = milestoneContractId
-                        }
+			const milestoneContractId = getString(milestoneRecord.contractId ?? milestoneRecord.contract_id)
+			if (milestoneContractId) {
+				milestone.contractId = milestoneContractId
+			}
 
-                        const contractRecord = asRecord(milestoneRecord.contract)
-                        if (contractRecord) {
-                                const contractId = getString(contractRecord.id)
-                                if (contractId) {
-                                        const contract: Partial<
-                                                NonNullable<NonNullable<NonNullable<AdminDisputeEscrow>['milestone']>['contract']>
-                                        > = {
-                                                id: contractId
-                                        }
+			const contractRecord = asRecord(milestoneRecord.contract)
+			if (contractRecord) {
+				const contractId = getString(contractRecord.id)
+				if (contractId) {
+					const contract: Partial<NonNullable<NonNullable<NonNullable<AdminDisputeEscrow>['milestone']>['contract']>> =
+						{
+							id: contractId
+						}
 
-                                        const contractTitle =
-                                                getString(contractRecord.title ?? contractRecord.name ?? contractRecord.label ?? contractRecord.description)
-                                        if (contractTitle) {
-                                                contract.title = contractTitle
-                                        }
+					const contractTitle = getString(
+						contractRecord.title ?? contractRecord.name ?? contractRecord.label ?? contractRecord.description
+					)
+					if (contractTitle) {
+						contract.title = contractTitle
+					}
 
-                                        const contractClientId = getString(contractRecord.clientId ?? contractRecord.client_id)
-                                        if (contractClientId) {
-                                                contract.clientId = contractClientId
-                                        }
+					const contractClientId = getString(contractRecord.clientId ?? contractRecord.client_id)
+					if (contractClientId) {
+						contract.clientId = contractClientId
+					}
 
-                                        const contractFreelancerId = getString(
-                                                contractRecord.freelancerId ?? contractRecord.freelancer_id
-                                        )
-                                        if (contractFreelancerId) {
-                                                contract.freelancerId = contractFreelancerId
-                                        }
+					const contractFreelancerId = getString(contractRecord.freelancerId ?? contractRecord.freelancer_id)
+					if (contractFreelancerId) {
+						contract.freelancerId = contractFreelancerId
+					}
 
-                                        if (contractRecord.client && typeof contractRecord.client === 'object') {
-                                                contract.client = contractRecord.client as Record<string, unknown>
-                                        }
+					if (contractRecord.client && typeof contractRecord.client === 'object') {
+						contract.client = contractRecord.client as Record<string, unknown>
+					}
 
-                                        if (contractRecord.freelancer && typeof contractRecord.freelancer === 'object') {
-                                                contract.freelancer = contractRecord.freelancer as Record<string, unknown>
-                                        }
+					if (contractRecord.freelancer && typeof contractRecord.freelancer === 'object') {
+						contract.freelancer = contractRecord.freelancer as Record<string, unknown>
+					}
 
-                                        milestone.contract = contract as NonNullable<NonNullable<AdminDisputeEscrow>['milestone']>['contract']
-                                }
-                        }
+					milestone.contract = contract as NonNullable<NonNullable<AdminDisputeEscrow>['milestone']>['contract']
+				}
+			}
 
-                        normalized.milestone = milestone as NonNullable<AdminDisputeEscrow>['milestone']
-                }
-        }
+			normalized.milestone = milestone as NonNullable<AdminDisputeEscrow>['milestone']
+		}
+	}
 
-        return normalized as AdminDisputeEscrow
+	return normalized as AdminDisputeEscrow
 }
 
 const normalizeChatAccessLog = (value: unknown): AdminDisputeChatAccessLog | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id = getString(record.id)
-        if (!id) {
-                return null
-        }
+	const id = getString(record.id)
+	if (!id) {
+		return null
+	}
 
-        const normalized: AdminDisputeChatAccessLog = {
-                id,
-                threadId: getString(record.threadId ?? record.thread_id) ?? null,
-                disputeId: getString(record.disputeId ?? record.dispute_id) ?? null,
-                adminId: getString(record.adminId ?? record.admin_id) ?? null,
-                action: getString(record.action) ?? null,
-                reason: getString(record.reason) ?? null,
-                metadata: record.metadata && typeof record.metadata === 'object' ? (record.metadata as Record<string, unknown>) : null,
-                createdAt: getString(record.createdAt ?? record.created_at) ?? null,
-                admin: normalizeUserSummary(record.admin) ?? null
-        }
+	const normalized: AdminDisputeChatAccessLog = {
+		id,
+		threadId: getString(record.threadId ?? record.thread_id) ?? null,
+		disputeId: getString(record.disputeId ?? record.dispute_id) ?? null,
+		adminId: getString(record.adminId ?? record.admin_id) ?? null,
+		action: getString(record.action) ?? null,
+		reason: getString(record.reason) ?? null,
+		metadata:
+			record.metadata && typeof record.metadata === 'object' ? (record.metadata as Record<string, unknown>) : null,
+		createdAt: getString(record.createdAt ?? record.created_at) ?? null,
+		admin: normalizeUserSummary(record.admin) ?? null
+	}
 
-        return normalized
+	return normalized
 }
 
 const normalizeChatAccessLogs = (value: unknown): AdminDisputeChatAccessLog[] | null => {
-        if (!Array.isArray(value)) {
-                return null
-        }
+	if (!Array.isArray(value)) {
+		return null
+	}
 
-        const normalized = value
-                .map(item => normalizeChatAccessLog(item))
-                .filter((item): item is AdminDisputeChatAccessLog => Boolean(item))
+	const normalized = value
+		.map(item => normalizeChatAccessLog(item))
+		.filter((item): item is AdminDisputeChatAccessLog => Boolean(item))
 
-        return normalized.length ? normalized : []
+	return normalized.length ? normalized : []
 }
 
 const normalizeNegotiation = (value: unknown): DisputeNegotiation | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const id = getString(record.id)
-        const disputeId = getString(record.disputeId ?? record.dispute_id)
-        const proposerId = getString(record.proposerId ?? record.proposer_id)
-        const counterpartyId = getString(record.counterpartyId ?? record.counterparty_id)
-        const statusRaw = getString(record.status ?? record.state)
+	const id = getString(record.id)
+	const disputeId = getString(record.disputeId ?? record.dispute_id)
+	const proposerId = getString(record.proposerId ?? record.proposer_id)
+	const counterpartyId = getString(record.counterpartyId ?? record.counterparty_id)
+	const statusRaw = getString(record.status ?? record.state)
 
-        if (!id || !disputeId || !proposerId || !counterpartyId || !statusRaw) {
-                return null
-        }
+	if (!id || !disputeId || !proposerId || !counterpartyId || !statusRaw) {
+		return null
+	}
 
-        const status = isNegotiationStatusValue(statusRaw) ? (statusRaw as DisputeNegotiationStatus) : null
-        if (!status) {
-                return null
-        }
+	const status = isNegotiationStatusValue(statusRaw) ? (statusRaw as DisputeNegotiationStatus) : null
+	if (!status) {
+		return null
+	}
 
-        const normalized: DisputeNegotiation = {
-                id,
-                disputeId,
-                proposerId,
-                counterpartyId,
-                status,
-                releaseAmount: getDecimalLike(record.releaseAmount ?? record.release_amount) ?? null,
-                refundAmount: getDecimalLike(record.refundAmount ?? record.refund_amount) ?? null,
-                message: getString(record.message) ?? null,
-                respondedById: getString(record.respondedById ?? record.responded_by_id) ?? null,
-                respondedAt: getString(record.respondedAt ?? record.responded_at) ?? null,
-                responseMessage: getString(record.responseMessage ?? record.response_message) ?? null,
-                createdAt: getString(record.createdAt ?? record.created_at) ?? null,
-                updatedAt: getString(record.updatedAt ?? record.updated_at) ?? null,
-                proposer: normalizeUserSummary(record.proposer) ?? null,
-                counterparty: normalizeUserSummary(record.counterparty) ?? null,
-                respondedBy: normalizeUserSummary(record.respondedBy ?? record.responder) ?? null
-        }
+	const normalized: DisputeNegotiation = {
+		id,
+		disputeId,
+		proposerId,
+		counterpartyId,
+		status,
+		releaseAmount: getDecimalLike(record.releaseAmount ?? record.release_amount) ?? null,
+		refundAmount: getDecimalLike(record.refundAmount ?? record.refund_amount) ?? null,
+		message: getString(record.message) ?? null,
+		respondedById: getString(record.respondedById ?? record.responded_by_id) ?? null,
+		respondedAt: getString(record.respondedAt ?? record.responded_at) ?? null,
+		responseMessage: getString(record.responseMessage ?? record.response_message) ?? null,
+		createdAt: getString(record.createdAt ?? record.created_at) ?? null,
+		updatedAt: getString(record.updatedAt ?? record.updated_at) ?? null,
+		proposer: normalizeUserSummary(record.proposer) ?? null,
+		counterparty: normalizeUserSummary(record.counterparty) ?? null,
+		respondedBy: normalizeUserSummary(record.respondedBy ?? record.responder) ?? null
+	}
 
-        return normalized
+	return normalized
 }
 
 const normalizeNegotiations = (value: unknown): DisputeNegotiation[] | null => {
-        if (!Array.isArray(value)) {
-                return null
-        }
+	if (!Array.isArray(value)) {
+		return null
+	}
 
-        const normalized = value
-                .map(item => normalizeNegotiation(item))
-                .filter((item): item is DisputeNegotiation => Boolean(item))
+	const normalized = value
+		.map(item => normalizeNegotiation(item))
+		.filter((item): item is DisputeNegotiation => Boolean(item))
 
-        return normalized.length ? normalized : []
+	return normalized.length ? normalized : []
 }
 
 const normalizeCounts = (value: unknown): AdminDisputeDetail['counts'] => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const normalized: Record<string, unknown> = {}
+	const normalized: Record<string, unknown> = {}
 
-        const negotiations = record.negotiations ?? record.negotiation ?? record.negotiationCount ?? record.negotiations_count
-        if (typeof negotiations === 'number' && Number.isFinite(negotiations)) {
-                normalized.negotiations = negotiations
-        } else if (typeof negotiations === 'string' && negotiations.trim()) {
-                const parsed = Number(negotiations)
-                if (!Number.isNaN(parsed)) {
-                        normalized.negotiations = parsed
-                }
-        }
+	const negotiations = record.negotiations ?? record.negotiation ?? record.negotiationCount ?? record.negotiations_count
+	if (typeof negotiations === 'number' && Number.isFinite(negotiations)) {
+		normalized.negotiations = negotiations
+	} else if (typeof negotiations === 'string' && negotiations.trim()) {
+		const parsed = Number(negotiations)
+		if (!Number.isNaN(parsed)) {
+			normalized.negotiations = parsed
+		}
+	}
 
-        return Object.keys(normalized).length ? (normalized as AdminDisputeDetail['counts']) : null
+	return Object.keys(normalized).length ? (normalized as AdminDisputeDetail['counts']) : null
 }
 
 const extractAdminDisputeDetail = (value: unknown): AdminDisputeDetail | null => {
-        const record = asRecord(value)
-        if (!record) {
-                return null
-        }
+	const record = asRecord(value)
+	if (!record) {
+		return null
+	}
 
-        const disputeRecord = looksLikeDispute(record)
-                ? (record as Record<string, unknown>)
-                : looksLikeDispute(record.dispute)
-                ? (record.dispute as Record<string, unknown>)
-                : null
+	const disputeRecord = looksLikeDispute(record)
+		? (record as Record<string, unknown>)
+		: looksLikeDispute(record.dispute)
+		? (record.dispute as Record<string, unknown>)
+		: null
 
-        const dispute = disputeRecord ? (disputeRecord as Dispute) : null
+	const dispute = disputeRecord ? (disputeRecord as Dispute) : null
 
-        const id = getString(record.id) ?? (disputeRecord ? getString(disputeRecord.id) : undefined)
-        if (!id) {
-                return null
-        }
+	const id = getString(record.id) ?? (disputeRecord ? getString(disputeRecord.id) : undefined)
+	if (!id) {
+		return null
+	}
 
-        const escrow = normalizeEscrow(record.escrow ?? (disputeRecord ? disputeRecord.escrow : undefined))
-        const chatAccessLogs = normalizeChatAccessLogs(
-                record.chatAccessLogs ?? record.chat_access_logs ?? (disputeRecord ? disputeRecord.chatAccessLogs : undefined)
-        )
-        const negotiations = normalizeNegotiations(record.negotiations ?? (disputeRecord ? disputeRecord.negotiations : undefined))
-        const counts = normalizeCounts(record._count ?? (disputeRecord ? disputeRecord._count : undefined))
-        const evidenceSubmissions = normalizeEvidenceSubmissions(
-                record.evidenceSubmissions ??
-                        record.evidence_submissions ??
-                        (disputeRecord ? (disputeRecord as Record<string, unknown>).evidenceSubmissions : undefined)
-        )
+	const escrow = normalizeEscrow(record.escrow ?? (disputeRecord ? disputeRecord.escrow : undefined))
+	const chatAccessLogs = normalizeChatAccessLogs(
+		record.chatAccessLogs ?? record.chat_access_logs ?? (disputeRecord ? disputeRecord.chatAccessLogs : undefined)
+	)
+	const negotiations = normalizeNegotiations(
+		record.negotiations ?? (disputeRecord ? disputeRecord.negotiations : undefined)
+	)
+	const counts = normalizeCounts(record._count ?? (disputeRecord ? disputeRecord._count : undefined))
+	const evidenceSubmissions = normalizeEvidenceSubmissions(
+		record.evidenceSubmissions ??
+			record.evidence_submissions ??
+			(disputeRecord ? (disputeRecord as Record<string, unknown>).evidenceSubmissions : undefined)
+	)
 
-        return {
-                id,
-                dispute,
-                escrow,
-                chatAccessLogs,
-                negotiations,
-                counts,
-                evidenceSubmissions
-        }
+	return {
+		id,
+		dispute,
+		escrow,
+		chatAccessLogs,
+		negotiations,
+		counts,
+		evidenceSubmissions
+	}
 }
 
 const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
@@ -977,37 +969,37 @@ const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
 }
 
 const serializeFilters = (filters: AdminDisputeListFilters = {}) => {
-        const params = new URLSearchParams()
+	const params = new URLSearchParams()
 
-        if (filters.page) params.set('page', String(filters.page))
-        if (filters.limit) params.set('limit', String(filters.limit))
-        if (filters.status && filters.status.length) params.set('status', filters.status.join(','))
-        if (filters.needsAdmin !== undefined) params.set('needsAdmin', String(filters.needsAdmin))
-        if (filters.contractId) params.set('contractId', filters.contractId)
-        if (filters.clientId) params.set('clientId', filters.clientId)
-        if (filters.freelancerId) params.set('freelancerId', filters.freelancerId)
-        if (filters.search) params.set('search', filters.search)
-        if (filters.createdFrom) params.set('createdFrom', filters.createdFrom)
-        if (filters.createdTo) params.set('createdTo', filters.createdTo)
+	if (filters.page) params.set('page', String(filters.page))
+	if (filters.limit) params.set('limit', String(filters.limit))
+	if (filters.status && filters.status.length) params.set('status', filters.status.join(','))
+	if (filters.needsAdmin !== undefined) params.set('needsAdmin', String(filters.needsAdmin))
+	if (filters.contractId) params.set('contractId', filters.contractId)
+	if (filters.clientId) params.set('clientId', filters.clientId)
+	if (filters.freelancerId) params.set('freelancerId', filters.freelancerId)
+	if (filters.search) params.set('search', filters.search)
+	if (filters.createdFrom) params.set('createdFrom', filters.createdFrom)
+	if (filters.createdTo) params.set('createdTo', filters.createdTo)
 
-        return params
+	return params
 }
 
 export const getAdminDisputeDetail = async (disputeId: string): Promise<AdminDisputeDetail> => {
-        const response = await authorizeAxiosInstance.get(`${baseUrl}/${disputeId}`)
-        const payload = response.data as Record<string, unknown> | undefined
-        const rawDetail = payload && 'data' in payload ? (payload.data as unknown) : payload
+	const response = await authorizeAxiosInstance.get(`${baseUrl}/${disputeId}`)
+	const payload = response.data as Record<string, unknown> | undefined
+	const rawDetail = payload && 'data' in payload ? (payload.data as unknown) : payload
 
-        const detail = extractAdminDisputeDetail(rawDetail)
-        if (!detail) {
-                throw new Error('INVALID_ADMIN_DISPUTE_DETAIL_RESPONSE')
-        }
+	const detail = extractAdminDisputeDetail(rawDetail)
+	if (!detail) {
+		throw new Error('INVALID_ADMIN_DISPUTE_DETAIL_RESPONSE')
+	}
 
-        return detail
+	return detail
 }
 
 export const getAdminDisputes = async (
-        filters: AdminDisputeListFilters
+	filters: AdminDisputeListFilters
 ): Promise<ListResponse<AdminDisputeListItem>> => {
 	const response = await authorizeAxiosInstance.get(baseUrl, { params: serializeFilters(filters) })
 	const payload = response.data as RawListResponse
@@ -1029,73 +1021,62 @@ export const getAdminDisputes = async (
 }
 
 export const joinDisputeAsAdmin = async (disputeId: string, payload: AdminJoinDisputeInput = {}) => {
-        const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/join`, payload)
-        return response.data
+	const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/join`, payload)
+	return response.data
 }
 
-export const requestArbitrationFees = async (
-        disputeId: string,
-        payload: AdminRequestArbitrationFeesInput = {}
-) => {
-        const response = await authorizeAxiosInstance.post(
-                `${baseUrl}/${disputeId}/request-arbitration-fees`,
-                payload
-        )
+export const requestArbitrationFees = async (disputeId: string, payload: AdminRequestArbitrationFeesInput = {}) => {
+	const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/request-arbitration-fees`, payload)
 
-        return response.data
+	return response.data
 }
 
 export const lockDispute = async (disputeId: string, payload: AdminLockDisputeInput = {}) => {
-        const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/lock`, payload)
-        return response.data
+	const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/lock`, payload)
+	return response.data
 }
 
 export const generateArbitrationDossier = async (
-        disputeId: string,
-        payload: AdminGenerateArbitrationDossierInput = {}
+	disputeId: string,
+	payload: AdminGenerateArbitrationDossierInput = {}
 ) => {
-        const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/dossiers`, payload)
-        return response.data
+	const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/dossiers`, payload)
+	return response.data
 }
 
 export const listDisputeDossiers = async (disputeId: string): Promise<AdminDisputeDossier[]> => {
-        const response = await authorizeAxiosInstance.get(`${baseUrl}/${disputeId}/dossiers`)
-        const payload = response.data as Record<string, unknown> | undefined
-        const rawItems = (() => {
-                if (!payload) return []
-                if (Array.isArray(payload)) return payload
-                if (Array.isArray(payload.data)) return payload.data
-                if (Array.isArray((payload as Record<string, unknown>).dossiers)) {
-                        return (payload as Record<string, unknown>).dossiers as unknown[]
-                }
-                return []
-        })()
+	const response = await authorizeAxiosInstance.get(`${baseUrl}/${disputeId}/dossiers`)
+	const payload = response.data as Record<string, unknown> | undefined
+	const rawItems = (() => {
+		if (!payload) return []
+		if (Array.isArray(payload)) return payload
+		if (Array.isArray(payload.data)) return payload.data
+		if (Array.isArray((payload as Record<string, unknown>).dossiers)) {
+			return (payload as Record<string, unknown>).dossiers as unknown[]
+		}
+		return []
+	})()
 
-        return rawItems
-                .map(extractDisputeDossier)
-                .filter((item): item is AdminDisputeDossier => Boolean(item))
+	return rawItems.map(extractDisputeDossier).filter((item): item is AdminDisputeDossier => Boolean(item))
 }
 
 export const listDisputeArbitrators = async (): Promise<AdminDisputeArbitrator[]> => {
-        const response = await authorizeAxiosInstance.get(`${baseUrl}/arbitrators`)
-        const payload = response.data as Record<string, unknown> | undefined
-        const rawItems = (() => {
-                if (!payload) return []
-                if (Array.isArray(payload)) return payload
-                if (Array.isArray(payload.data)) return payload.data
-                if (Array.isArray((payload as Record<string, unknown>).arbitrators)) {
-                        return (payload as Record<string, unknown>).arbitrators as unknown[]
-                }
-                return []
-        })()
+	const response = await authorizeAxiosInstance.get(`${baseUrl}/arbitrators`)
+	const payload = response.data as Record<string, unknown> | undefined
+	const rawItems = (() => {
+		if (!payload) return []
+		if (Array.isArray(payload)) return payload
+		if (Array.isArray(payload.data)) return payload.data
+		if (Array.isArray((payload as Record<string, unknown>).arbitrators)) {
+			return (payload as Record<string, unknown>).arbitrators as unknown[]
+		}
+		return []
+	})()
 
-        return rawItems.map(extractArbitrator).filter((item): item is AdminDisputeArbitrator => Boolean(item))
+	return rawItems.map(extractArbitrator).filter((item): item is AdminDisputeArbitrator => Boolean(item))
 }
 
-export const assignArbitratorToDispute = async (
-        disputeId: string,
-        payload: AdminAssignArbitratorInput
-) => {
-        const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/arbitrators`, payload)
-        return response.data
+export const assignArbitratorToDispute = async (disputeId: string, payload: AdminAssignArbitratorInput) => {
+	const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/arbitrator`, payload)
+	return response.data
 }
