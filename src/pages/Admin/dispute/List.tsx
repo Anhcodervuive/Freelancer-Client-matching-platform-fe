@@ -289,13 +289,95 @@ const getEvidenceItemUrl = (
         }
 
         if (item.asset && typeof item.asset.url === 'string') {
-                        const trimmed = item.asset.url.trim()
-                        if (trimmed.length) {
-                                return trimmed
-                        }
+                const trimmed = item.asset.url.trim()
+                if (trimmed.length) {
+                        return trimmed
+                }
         }
 
         return null
+}
+
+const SUBMISSION_PARTICIPANT_ID_KEYS = [
+        'submittedById',
+        'submitted_by_id',
+        'submitterId',
+        'submitter_id',
+        'userId',
+        'user_id',
+        'participantId',
+        'participant_id',
+        'clientId',
+        'client_id',
+        'freelancerId',
+        'freelancer_id',
+        'partyId',
+        'party_id'
+] as const
+
+const addCandidateParticipantId = (target: Set<string>, value: unknown) => {
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                if (trimmed.length) {
+                        target.add(trimmed)
+                }
+                return
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+                const normalized = String(value)
+                if (normalized.length) {
+                        target.add(normalized)
+                }
+        }
+}
+
+const collectSubmissionParticipantIds = (source: unknown, target: Set<string>) => {
+        if (!source || typeof source !== 'object') {
+                return
+        }
+
+        const record = source as Record<string, unknown>
+
+        for (const key of SUBMISSION_PARTICIPANT_ID_KEYS) {
+                if (key in record) {
+                        addCandidateParticipantId(target, record[key])
+                }
+        }
+
+        for (const nestedKey of ['submittedBy', 'submitter', 'user'] as const) {
+                const nested = record[nestedKey]
+                if (nested && typeof nested === 'object') {
+                        collectSubmissionParticipantIds(nested, target)
+                }
+        }
+}
+
+const isFinalEvidenceFromParty = (
+        submission: DisputeFinalEvidenceSubmission | null | undefined,
+        partyId?: string | null
+) => {
+        if (!submission || partyId === null || partyId === undefined) {
+                return false
+        }
+
+        let normalizedPartyId: string | null = null
+
+        if (typeof partyId === 'string') {
+                const trimmed = partyId.trim()
+                normalizedPartyId = trimmed.length ? trimmed : null
+        } else if (typeof partyId === 'number' && Number.isFinite(partyId)) {
+                normalizedPartyId = String(partyId)
+        }
+
+        if (!normalizedPartyId) {
+                return false
+        }
+
+        const participantIds = new Set<string>()
+        collectSubmissionParticipantIds(submission, participantIds)
+
+        return participantIds.has(normalizedPartyId)
 }
 
 const normalizeBooleanFlag = (value: unknown): boolean | null => {
@@ -709,9 +791,13 @@ export default function AdminDisputeListPage() {
 	const detailEscrow = detailData?.escrow ?? null
 	const detailNegotiations = detailData?.negotiations ?? detailDispute?.negotiations ?? null
 	const detailChatLogs = detailData?.chatAccessLogs ?? null
-	const detailCounts = detailData?.counts ?? null
-	const detailStatus = detailDispute?.status ?? detailTarget?.status ?? null
-	const detailNeedsAdmin = Boolean(
+        const detailCounts = detailData?.counts ?? null
+        const detailEvidenceSubmissions: DisputeFinalEvidenceSubmission[] =
+                detailData?.evidenceSubmissions?.filter(
+                        (item): item is DisputeFinalEvidenceSubmission => Boolean(item)
+                ) ?? []
+        const detailStatus = detailDispute?.status ?? detailTarget?.status ?? null
+        const detailNeedsAdmin = Boolean(
 		detailMetrics?.needsAdmin ??
 			(typeof detailTarget?.needsAdmin === 'boolean'
 				? detailTarget.needsAdmin
@@ -794,8 +880,22 @@ export default function AdminDisputeListPage() {
                 detailDispute?.freelancerEvidenceSubmitted ?? detailDispute?.freelancerEvidenceSubmited ?? null
         const detailClientEvidenceSubmitted = normalizeBooleanFlag(detailClientEvidenceSubmittedRaw)
         const detailFreelancerEvidenceSubmitted = normalizeBooleanFlag(detailFreelancerEvidenceSubmittedRaw)
-        const detailClientEvidenceDone = detailClientEvidenceSubmitted === true
-        const detailFreelancerEvidenceDone = detailFreelancerEvidenceSubmitted === true
+        const detailClientEvidenceHasSubmission = detailClientId
+                ? detailEvidenceSubmissions.some(submission => isFinalEvidenceFromParty(submission, detailClientId))
+                : false
+        const detailFreelancerEvidenceHasSubmission = detailFreelancerId
+                ? detailEvidenceSubmissions.some(submission =>
+                                isFinalEvidenceFromParty(submission, detailFreelancerId)
+                        )
+                : false
+        const detailClientEvidenceStatus: boolean | null = detailClientEvidenceHasSubmission
+                ? true
+                : detailClientEvidenceSubmitted
+        const detailFreelancerEvidenceStatus: boolean | null = detailFreelancerEvidenceHasSubmission
+                ? true
+                : detailFreelancerEvidenceSubmitted
+        const detailClientEvidenceDone = detailClientEvidenceStatus === true
+        const detailFreelancerEvidenceDone = detailFreelancerEvidenceStatus === true
         const detailBothEvidenceSubmitted = detailClientEvidenceDone && detailFreelancerEvidenceDone
         const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
         const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
@@ -837,10 +937,6 @@ export default function AdminDisputeListPage() {
 	const detailOpenedAt = detailDispute?.createdAt ?? detailTarget?.createdAt ?? null
 	const detailUpdatedAt = detailDispute?.updatedAt ?? detailTarget?.updatedAt ?? null
         const detailLatestProposal = detailDispute?.latestProposal ?? null
-        const detailEvidenceSubmissions: DisputeFinalEvidenceSubmission[] =
-                detailData?.evidenceSubmissions?.filter(
-                        (item): item is DisputeFinalEvidenceSubmission => Boolean(item)
-                ) ?? []
         const detailEvidenceSubmissionCount = detailEvidenceSubmissions.length
         const detailNegotiationTotal =
                 detailCounts?.negotiations ??
@@ -883,8 +979,11 @@ export default function AdminDisputeListPage() {
                 if (!detailBothFeesPaid) {
                         detailLockBlockedReasons.push('Cả khách hàng và freelancer đều phải hoàn tất phí trọng tài.')
                 }
-                if (!detailBothEvidenceSubmitted) {
-                        detailLockBlockedReasons.push('Cả hai bên cần nộp chứng cứ cuối cùng trước khi khóa tranh chấp.')
+                if (!detailClientEvidenceDone) {
+                        detailLockBlockedReasons.push('Khách hàng chưa nộp chứng cứ cuối cùng.')
+                }
+                if (!detailFreelancerEvidenceDone) {
+                        detailLockBlockedReasons.push('Freelancer chưa nộp chứng cứ cuối cùng.')
                 }
                 if (!detailStatus) {
                         detailLockBlockedReasons.push('Không xác định được trạng thái tranh chấp hiện tại.')
@@ -1593,8 +1692,8 @@ export default function AdminDisputeListPage() {
                                                                                                         <p className='text-xs text-base-content/60'>ID: {detailClientId ?? '—'}</p>
                                                                                                         <p className='text-xs text-base-content/60'>
                                                                                                                 Chứng cứ:{' '}
-                                                                                                                <span className={`font-medium ${getEvidenceFlagClass(detailClientEvidenceSubmitted)}`}>
-                                                                                                                        {formatBoolean(detailClientEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
+                                                                                                                <span className={`font-medium ${getEvidenceFlagClass(detailClientEvidenceStatus)}`}>
+                                                                                                                        {formatBoolean(detailClientEvidenceStatus, 'Đã nộp', 'Chưa nộp')}
                                                                                                                 </span>
                                                                                                         </p>
                                                                                                 </div>
@@ -1606,8 +1705,8 @@ export default function AdminDisputeListPage() {
                                                                                                         <p className='text-xs text-base-content/60'>ID: {detailFreelancerId ?? '—'}</p>
                                                                                                         <p className='text-xs text-base-content/60'>
                                                                                                                 Chứng cứ:{' '}
-                                                                                                                <span className={`font-medium ${getEvidenceFlagClass(detailFreelancerEvidenceSubmitted)}`}>
-                                                                                                                        {formatBoolean(detailFreelancerEvidenceSubmitted, 'Đã nộp', 'Chưa nộp')}
+                                                                                                                <span className={`font-medium ${getEvidenceFlagClass(detailFreelancerEvidenceStatus)}`}>
+                                                                                                                        {formatBoolean(detailFreelancerEvidenceStatus, 'Đã nộp', 'Chưa nộp')}
                                                                                                                 </span>
                                                                                                         </p>
                                                                                                 </div>
