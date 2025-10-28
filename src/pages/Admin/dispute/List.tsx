@@ -821,7 +821,28 @@ export default function AdminDisputeListPage() {
                         detailStatus &&
                         !FINAL_DISPUTE_STATUSES.has(detailStatus)
         )
+        const detailLockBlockedReasons: string[] = []
+        if (detailDisputeId) {
+                if (detailIsLocked) {
+                        detailLockBlockedReasons.push('Tranh chấp đã được khóa.')
+                }
+                if (!detailBothFeesPaid) {
+                        detailLockBlockedReasons.push('Cả khách hàng và freelancer đều phải hoàn tất phí trọng tài.')
+                }
+                if (!detailBothEvidenceSubmitted) {
+                        detailLockBlockedReasons.push('Cả hai bên cần nộp chứng cứ cuối cùng trước khi khóa tranh chấp.')
+                }
+                if (!detailStatus) {
+                        detailLockBlockedReasons.push('Không xác định được trạng thái tranh chấp hiện tại.')
+                } else if (FINAL_DISPUTE_STATUSES.has(detailStatus)) {
+                        detailLockBlockedReasons.push('Tranh chấp đã kết thúc và không thể khóa thêm lần nữa.')
+                }
+        }
         const detailCanGenerateDossier = Boolean(detailDisputeId && detailIsLocked)
+        const detailGenerateDossierBlockedReasons: string[] = []
+        if (detailDisputeId && !detailIsLocked) {
+                detailGenerateDossierBlockedReasons.push('Cần khóa tranh chấp trước khi tạo hồ sơ snapshot.')
+        }
         const detailDossierVersion = detailDispute?.currentDossierVersion ?? null
         const detailTabItems = useMemo(
                 () => [
@@ -1327,30 +1348,6 @@ export default function AdminDisputeListPage() {
                                                                                         Yêu cầu đóng phí
                                                                                 </button>
                                                                         ) : null}
-                                                                        {detailCanLockDispute ? (
-                                                                                <button
-                                                                                        type='button'
-                                                                                        className='btn btn-sm btn-secondary'
-                                                                                        onClick={() => {
-                                                                                                resetLockDisputeForm({ note: '' })
-                                                                                                setLockDisputeOpen(true)
-                                                                                        }}
-                                                                                        disabled={lockDisputeMutation.isPending}>
-                                                                                        <Lock className='size-4' /> Khóa tranh chấp
-                                                                                </button>
-                                                                        ) : null}
-                                                                        {detailCanGenerateDossier ? (
-                                                                                <button
-                                                                                        type='button'
-                                                                                        className='btn btn-sm btn-outline'
-                                                                                        onClick={() => {
-                                                                                                resetGenerateDossierForm({ notes: '', finalize: false })
-                                                                                                setGenerateDossierOpen(true)
-                                                                                        }}
-                                                                                        disabled={generateDossierMutation.isPending}>
-                                                                                        <ScrollText className='size-4' /> Tạo hồ sơ
-                                                                                </button>
-                                                                        ) : null}
                                                                         <button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
                                                                                 Đóng
                                                                         </button>
@@ -1398,11 +1395,78 @@ export default function AdminDisputeListPage() {
                                                                 </div>
 
                                                                 {detailActiveTab === 'overview' ? (
-                                                                        <section className='grid gap-4 lg:grid-cols-2'>
-                                                                                <div className='space-y-3'>
-                                                                                        <div className='grid gap-3 sm:grid-cols-2'>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Trạng thái</p>
+                                                                <section className='grid gap-4 lg:grid-cols-2'>
+                                                                        <div className='space-y-3'>
+                                                                                <div className='space-y-3 rounded-2xl border border-base-200 p-4'>
+                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                <h4 className='font-semibold text-base-content'>Hành động admin</h4>
+                                                                                                {detailIsLocked ? (
+                                                                                                        <span className='badge badge-outline text-xs'>Đã khóa</span>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        <div className='flex flex-wrap gap-2'>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-sm btn-secondary'
+                                                                                                        onClick={() => {
+                                                                                                                if (!detailCanLockDispute) return
+                                                                                                                resetLockDisputeForm({ note: '' })
+                                                                                                                setLockDisputeOpen(true)
+                                                                                                        }}
+                                                                                                        disabled={!detailCanLockDispute || lockDisputeMutation.isPending}>
+                                                                                                        {lockDisputeMutation.isPending ? (
+                                                                                                                <span className='loading loading-spinner size-4' />
+                                                                                                        ) : (
+                                                                                                                <Lock className='size-4' />
+                                                                                                        )}{' '}
+                                                                                                        Khóa tranh chấp
+                                                                                                </button>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-sm btn-outline'
+                                                                                                        onClick={() => {
+                                                                                                                if (!detailCanGenerateDossier) return
+                                                                                                                resetGenerateDossierForm({ notes: '', finalize: false })
+                                                                                                                setGenerateDossierOpen(true)
+                                                                                                        }}
+                                                                                                        disabled={!detailCanGenerateDossier || generateDossierMutation.isPending}>
+                                                                                                        {generateDossierMutation.isPending ? (
+                                                                                                                <span className='loading loading-spinner size-4' />
+                                                                                                        ) : (
+                                                                                                                <ScrollText className='size-4' />
+                                                                                                        )}{' '}
+                                                                                                        Tạo hồ sơ
+                                                                                                </button>
+                                                                                        </div>
+                                                                                        {(!detailCanLockDispute || !detailCanGenerateDossier) &&
+                                                                                        (detailLockBlockedReasons.length || detailGenerateDossierBlockedReasons.length) ? (
+                                                                                                <div className='space-y-2 rounded-xl bg-base-200/40 p-3 text-xs text-base-content/70'>
+                                                                                                        {detailLockBlockedReasons.length ? (
+                                                                                                                <div>
+                                                                                                                        <p className='font-medium text-base-content'>Điều kiện khóa:</p>
+                                                                                                                        <ul className='list-disc space-y-1 pl-5'>
+                                                                                                                                {detailLockBlockedReasons.map(reason => (
+                                                                                                                                        <li key={reason}>{reason}</li>
+                                                                                                                                ))}
+                                                                                                                        </ul>
+                                                                                                                </div>
+                                                                                                        ) : null}
+                                                                                                        {detailGenerateDossierBlockedReasons.length ? (
+                                                                                                                <div>
+                                                                                                                        <p className='font-medium text-base-content'>Điều kiện tạo hồ sơ:</p>
+                                                                                                                        <ul className='list-disc space-y-1 pl-5'>
+                                                                                                                                {detailGenerateDossierBlockedReasons.map(reason => (
+                                                                                                                                        <li key={reason}>{reason}</li>
+                                                                                                                                ))}
+                                                                                                                        </ul>
+                                                                                                                </div>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        ) : null}
+                                                                                </div>
+                                                                                <div className='grid gap-3 sm:grid-cols-2'>
+                                                                                        <div>
+                                                                                                <p className='text-xs uppercase text-base-content/60'>Trạng thái</p>
                                                                                                         <p className='font-medium text-base-content'>{humanizeStatus(detailStatus)}</p>
                                                                                                 </div>
                                                                                                 <div>
