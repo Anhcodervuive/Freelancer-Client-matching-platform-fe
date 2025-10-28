@@ -1,15 +1,17 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import type { AxiosResponse } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import {
-	AlertTriangle,
-	BadgeDollarSign,
+        AlertTriangle,
+        BadgeDollarSign,
         CalendarClock,
         Download,
         ChevronDown,
         Filter,
+        FileDown,
         FileText,
         Lock,
         LifeBuoy,
@@ -25,6 +27,7 @@ import { toast } from 'react-toastify'
 
 import {
         assignArbitratorToDispute,
+        downloadDisputeDossierPdf,
         generateArbitrationDossier,
         getAdminDisputeDetail,
         getAdminDisputes,
@@ -53,12 +56,13 @@ import type {
 } from '~/types/dispute'
 import { DisputeNegotiationStatus, DisputeStatus } from '~/types/dispute'
 import {
-	getDisputePaymentIdentityKey,
-	getDisputePaymentPayerId,
-	getDisputePaymentReference,
-	humanizeDisputePaymentStatus,
-	isDisputePaymentSuccessful
+        getDisputePaymentIdentityKey,
+        getDisputePaymentPayerId,
+        getDisputePaymentReference,
+        humanizeDisputePaymentStatus,
+        isDisputePaymentSuccessful
 } from '~/utils/disputePayments'
+import { downloadBlob, extractFileNameFromContentDisposition } from '~/utils/download'
 import {
 	AdminGenerateArbitrationDossierFormSchema,
 	AdminLockDisputeFormSchema,
@@ -681,6 +685,55 @@ export default function AdminDisputeListPage() {
                 }
         })
 
+        const downloadDossierPdfMutation = useMutation<
+                AxiosResponse<Blob>,
+                unknown,
+                { disputeId: string; dossier: AdminDisputeDossier }
+        >({
+                mutationFn: ({
+                        disputeId,
+                        dossier
+                }: {
+                        disputeId: string
+                        dossier: AdminDisputeDossier
+                }) => downloadDisputeDossierPdf(disputeId, dossier.id),
+                onSuccess: (response, variables) => {
+                        const contentDisposition =
+                                response.headers?.['content-disposition'] ??
+                                response.headers?.['Content-Disposition'] ??
+                                null
+                        const rawFileName = extractFileNameFromContentDisposition(contentDisposition)
+                        const fallbackFileName = (() => {
+                                const version = variables.dossier.version ?? null
+                                const identifier = version !== null ? `v${version}` : variables.dossier.id
+                                return `dispute-${variables.disputeId}-dossier-${identifier}`
+                        })()
+                        const sanitizeFileName = (value: string) =>
+                                value
+                                        .replace(/[\r\n]+/g, ' ')
+                                        .replace(/[<>:"/\\|?*]+/g, '_')
+                                        .trim()
+                        const fileNameBase = sanitizeFileName(rawFileName ?? fallbackFileName)
+                        const fileName = fileNameBase.toLowerCase().endsWith('.pdf')
+                                ? fileNameBase
+                                : `${fileNameBase}.pdf`
+
+                        const blob = response.data instanceof Blob
+                                ? response.data
+                                : new Blob([response.data], { type: 'application/pdf' })
+
+                        downloadBlob(blob, fileName)
+                        toast.success('Đang tải hồ sơ tranh chấp (PDF).')
+                },
+                onError: error => {
+                        const message =
+                                error instanceof Error
+                                        ? error.message
+                                        : 'Không thể tải hồ sơ tranh chấp (PDF).'
+                        toast.error(message)
+                }
+        })
+
 	const closeLockDisputeModal = () => {
 		if (lockDisputeMutation.isPending) return
 		setLockDisputeOpen(false)
@@ -804,6 +857,14 @@ export default function AdminDisputeListPage() {
                 assignArbitratorMutation.mutate({
                         disputeId: detailDisputeId,
                         payload
+                })
+        }
+
+        const handleDownloadDossierPdf = (dossier: AdminDisputeDossier) => {
+                if (!detailDisputeId) return
+                downloadDossierPdfMutation.mutate({
+                        disputeId: detailDisputeId,
+                        dossier
                 })
         }
 
@@ -2008,7 +2069,13 @@ export default function AdminDisputeListPage() {
                                                                                                 const downloadUrl = dossier.downloadUrl ?? dossier.fileUrl ?? null
                                                                                                 const milestoneLabel = dossier.milestoneTitle ?? null
                                                                                                 const milestoneId = dossier.milestoneId ?? null
-                                                                                                const notes = typeof dossier.notes === 'string' && dossier.notes.trim().length ? dossier.notes.trim() : null
+                                                                                                const notes =
+                                                                                                        typeof dossier.notes === 'string' && dossier.notes.trim().length
+                                                                                                                ? dossier.notes.trim()
+                                                                                                                : null
+                                                                                                const isDownloadingPdf =
+                                                                                                        downloadDossierPdfMutation.isPending &&
+                                                                                                        downloadDossierPdfMutation.variables?.dossier?.id === dossier.id
 
                                                                                                 return (
                                                                                                         <article
@@ -2024,15 +2091,29 @@ export default function AdminDisputeListPage() {
                                                                                                                                         </p>
                                                                                                                                 ) : null}
                                                                                                                         </div>
-                                                                                                                        {downloadUrl ? (
-                                                                                                                                <a
-                                                                                                                                        href={downloadUrl}
-                                                                                                                                        target='_blank'
-                                                                                                                                        rel='noopener noreferrer'
-                                                                                                                                        className='btn btn-xs btn-outline gap-2'>
-                                                                                                                                        <Download className='size-3.5' /> Tải xuống
-                                                                                                                                </a>
-                                                                                                                        ) : null}
+                                                                                                                        <div className='flex flex-wrap gap-2'>
+                                                                                                                                {downloadUrl ? (
+                                                                                                                                        <a
+                                                                                                                                                href={downloadUrl}
+                                                                                                                                                target='_blank'
+                                                                                                                                                rel='noopener noreferrer'
+                                                                                                                                                className='btn btn-xs btn-outline gap-2'>
+                                                                                                                                                <Download className='size-3.5' /> Tải xuống
+                                                                                                                                        </a>
+                                                                                                                                ) : null}
+                                                                                                                                <button
+                                                                                                                                        type='button'
+                                                                                                                                        className='btn btn-xs btn-outline gap-2'
+                                                                                                                                        onClick={() => handleDownloadDossierPdf(dossier)}
+                                                                                                                                        disabled={isDownloadingPdf}>
+                                                                                                                                        {isDownloadingPdf ? (
+                                                                                                                                                <span className='loading loading-spinner size-3' />
+                                                                                                                                        ) : (
+                                                                                                                                                <FileDown className='size-3.5' />
+                                                                                                                                        )}
+                                                                                                                                        Xuất PDF
+                                                                                                                                </button>
+                                                                                                                        </div>
                                                                                                                 </div>
                                                                                                                 <div className='grid gap-2 text-xs text-base-content/70 sm:grid-cols-2'>
                                                                                                                         <span>

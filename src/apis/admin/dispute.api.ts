@@ -1,3 +1,4 @@
+import type { AxiosResponse } from 'axios'
 import type { ListResponse } from '~/types/api.response'
 import type {
 	AdminDisputeAmounts,
@@ -1045,26 +1046,40 @@ export const generateArbitrationDossier = async (
 }
 
 export const listDisputeDossiers = async (disputeId: string): Promise<AdminDisputeDossier[]> => {
-	const response = await authorizeAxiosInstance.get(`${baseUrl}/${disputeId}/dossiers`)
-	const payload = response.data as Record<string, unknown> | undefined
-	const rawItems = (() => {
-		if (!payload) return []
-		if (Array.isArray(payload)) return payload
-		if (Array.isArray(payload.data)) return payload.data
-		if (Array.isArray((payload as Record<string, unknown>).dossiers)) {
-			return (payload as Record<string, unknown>).dossiers as unknown[]
-		}
-		return []
-	})()
+        const response = await authorizeAxiosInstance.get(`${baseUrl}/${disputeId}/dossiers`)
+        const payload = response.data as Record<string, unknown> | undefined
+        const rawItems = (() => {
+                if (!payload) return []
+                if (Array.isArray(payload)) return payload
+                if (Array.isArray(payload.data)) return payload.data
+                if (Array.isArray((payload as Record<string, unknown>).dossiers)) {
+                        return (payload as Record<string, unknown>).dossiers as unknown[]
+                }
+                return []
+        })()
 
-	return rawItems.map(extractDisputeDossier).filter((item): item is AdminDisputeDossier => Boolean(item))
+        return rawItems.map(extractDisputeDossier).filter((item): item is AdminDisputeDossier => Boolean(item))
+}
+
+export const downloadDisputeDossierPdf = async (
+        disputeId: string,
+        dossierId: string
+): Promise<AxiosResponse<Blob>> => {
+        const response = await authorizeAxiosInstance.get(
+                `${baseUrl}/${disputeId}/dossiers/${dossierId}/pdf`,
+                {
+                        responseType: 'blob'
+                }
+        )
+
+        return response as AxiosResponse<Blob>
 }
 
 export const listDisputeArbitrators = async (): Promise<AdminDisputeArbitrator[]> => {
-	const response = await authorizeAxiosInstance.get(`${baseUrl}/arbitrators`)
-	const payload = response.data as Record<string, unknown> | undefined
-	const rawItems = (() => {
-		if (!payload) return []
+        const response = await authorizeAxiosInstance.get(`${baseUrl}/arbitrators`)
+        const payload = response.data as Record<string, unknown> | undefined
+        const rawItems = (() => {
+                if (!payload) return []
 		if (Array.isArray(payload)) return payload
 		if (Array.isArray(payload.data)) return payload.data
 		if (Array.isArray((payload as Record<string, unknown>).arbitrators)) {
