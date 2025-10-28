@@ -298,6 +298,58 @@ const getEvidenceItemUrl = (
         return null
 }
 
+const normalizeBooleanFlag = (value: unknown): boolean | null => {
+        if (typeof value === 'boolean') {
+                return value
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+                if (value === 1) {
+                        return true
+                }
+                if (value === 0) {
+                        return false
+                }
+        }
+
+        if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase()
+                if (!normalized.length) {
+                        return null
+                }
+
+                if (
+                        [
+                                'true',
+                                '1',
+                                'yes',
+                                'y',
+                                'done',
+                                'completed',
+                                'complete',
+                                'submitted',
+                                'submited',
+                                'sent',
+                                'uploaded',
+                                'provided',
+                                'delivered',
+                                'paid',
+                                'settled',
+                                'success',
+                                'succeeded'
+                        ].includes(normalized)
+                ) {
+                        return true
+                }
+
+                if (['false', '0', 'no', 'n', 'pending', 'awaiting'].includes(normalized)) {
+                        return false
+                }
+        }
+
+        return null
+}
+
 const getEvidenceFlagClass = (value?: boolean | null) => {
         if (value === true) {
                 return 'text-emerald-600'
@@ -681,26 +733,26 @@ export default function AdminDisputeListPage() {
 		detailMetrics?.isResponseOverdue ??
 			(detailResponseDeadline ? new Date(detailResponseDeadline).getTime() < Date.now() : false)
 	)
-	const detailArbitrationPayments = useMemo<DisputePayment[]>(() => {
-		if (!detailDispute?.arbitrationFeePayments?.length) {
-			return []
-		}
+        const detailArbitrationPayments = useMemo<DisputePayment[]>(() => {
+                if (!detailDispute?.arbitrationFeePayments?.length) {
+                        return []
+                }
 
-		const filtered = detailDispute.arbitrationFeePayments.filter(Boolean) as DisputePayment[]
-		return filtered.sort((a, b) => {
-			const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
-			const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
-			return bTime - aTime
-		})
-	}, [detailDispute?.arbitrationFeePayments])
-	const detailHasPartyPaid = useMemo(
-		() => (flag: boolean | undefined | null, userId?: string | null) => {
-			if (flag === true) {
-				return true
-			}
-			if (!userId) {
-				return false
-			}
+                const filtered = detailDispute.arbitrationFeePayments.filter(Boolean) as DisputePayment[]
+                return filtered.sort((a, b) => {
+                        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                        return bTime - aTime
+                })
+        }, [detailDispute?.arbitrationFeePayments])
+        const detailHasPartyPaid = useMemo(
+                () => (flag: unknown, userId?: string | null) => {
+                        if (normalizeBooleanFlag(flag) === true) {
+                                return true
+                        }
+                        if (!userId) {
+                                return false
+                        }
 			return detailArbitrationPayments.some(
 				payment => isDisputePaymentSuccessful(payment) && getDisputePaymentPayerId(payment) === userId
 			)
@@ -736,10 +788,12 @@ export default function AdminDisputeListPage() {
                 (detailEscrowContract && typeof detailEscrowContract.freelancerId === 'string'
                         ? (detailEscrowContract.freelancerId as string)
                         : null)
-        const detailClientEvidenceSubmitted =
+        const detailClientEvidenceSubmittedRaw =
                 detailDispute?.clientEvidenceSubmitted ?? detailDispute?.clientEvidenceSubmited ?? null
-        const detailFreelancerEvidenceSubmitted =
+        const detailFreelancerEvidenceSubmittedRaw =
                 detailDispute?.freelancerEvidenceSubmitted ?? detailDispute?.freelancerEvidenceSubmited ?? null
+        const detailClientEvidenceSubmitted = normalizeBooleanFlag(detailClientEvidenceSubmittedRaw)
+        const detailFreelancerEvidenceSubmitted = normalizeBooleanFlag(detailFreelancerEvidenceSubmittedRaw)
         const detailClientEvidenceDone = detailClientEvidenceSubmitted === true
         const detailFreelancerEvidenceDone = detailFreelancerEvidenceSubmitted === true
         const detailBothEvidenceSubmitted = detailClientEvidenceDone && detailFreelancerEvidenceDone
