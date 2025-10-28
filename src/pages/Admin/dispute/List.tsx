@@ -858,14 +858,6 @@ export default function AdminDisputeListPage() {
 			detailStatus &&
 			!FINAL_DISPUTE_STATUSES.has(detailStatus)
 	)
-	console.log(
-		detailDisputeId,
-		detailBothFeesPaid,
-		detailBothEvidenceSubmitted,
-		detailStatus,
-		detailDisputeId,
-		!FINAL_DISPUTE_STATUSES.has(detailStatus)
-	)
 	const detailLockBlockedReasons: string[] = []
 	if (detailDisputeId) {
 		if (detailIsLocked) {
