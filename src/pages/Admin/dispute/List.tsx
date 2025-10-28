@@ -9,6 +9,7 @@ import {
         CalendarClock,
         ChevronDown,
         Filter,
+        Lock,
         LifeBuoy,
         Link2,
         RefreshCcw,
@@ -21,16 +22,20 @@ import { toast } from 'react-toastify'
 
 import {
 	getAdminDisputes,
-	getAdminDisputeDetail,
-	joinDisputeAsAdmin,
-	requestArbitrationFees
+        generateArbitrationDossier,
+        getAdminDisputeDetail,
+        joinDisputeAsAdmin,
+        lockDispute,
+        requestArbitrationFees
 } from '~/apis/admin/dispute.api'
 import { routes } from '~/config/routes'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import type {
         AdminDisputeDetail,
         AdminDisputeListItem,
+        AdminGenerateArbitrationDossierInput,
         AdminJoinDisputeInput,
+        AdminLockDisputeInput,
         AdminRequestArbitrationFeesInput,
         DecimalLike,
         DisputeFinalEvidenceSubmission,
@@ -45,7 +50,14 @@ import {
 	humanizeDisputePaymentStatus,
 	isDisputePaymentSuccessful
 } from '~/utils/disputePayments'
-import { AdminRequestArbitrationFeesSchema, type AdminRequestArbitrationFeesFormOutput } from './schemas'
+import {
+        AdminGenerateArbitrationDossierFormSchema,
+        AdminLockDisputeFormSchema,
+        AdminRequestArbitrationFeesSchema,
+        type AdminGenerateArbitrationDossierFormOutput,
+        type AdminLockDisputeFormOutput,
+        type AdminRequestArbitrationFeesFormOutput
+} from './schemas'
 
 const STATUS_OPTIONS = Object.values(DisputeStatus)
 
@@ -330,19 +342,41 @@ export default function AdminDisputeListPage() {
 	const [joinReason, setJoinReason] = useState('')
 	const [detailTarget, setDetailTarget] = useState<AdminDisputeListItem | null>(null)
         const [requestFeesOpen, setRequestFeesOpen] = useState(false)
+        const [lockDisputeOpen, setLockDisputeOpen] = useState(false)
+        const [generateDossierOpen, setGenerateDossierOpen] = useState(false)
         const [detailActiveTab, setDetailActiveTab] = useState<AdminDetailTabId>('overview')
 
 	const queryClient = useQueryClient()
 
-	const {
-		register: requestFeesRegister,
-		handleSubmit: handleRequestFeesSubmit,
-		formState: { errors: requestFeesErrors },
-		reset: resetRequestFeesForm
-	} = useForm<AdminRequestArbitrationFeesFormOutput>({
-		resolver: zodResolver(AdminRequestArbitrationFeesSchema),
-		defaultValues: { deadlineDays: 7 }
-	})
+        const {
+                register: requestFeesRegister,
+                handleSubmit: handleRequestFeesSubmit,
+                formState: { errors: requestFeesErrors },
+                reset: resetRequestFeesForm
+        } = useForm<AdminRequestArbitrationFeesFormOutput>({
+                resolver: zodResolver(AdminRequestArbitrationFeesSchema),
+                defaultValues: { deadlineDays: 7 }
+        })
+
+        const {
+                register: lockDisputeRegister,
+                handleSubmit: handleLockDisputeSubmit,
+                formState: { errors: lockDisputeErrors },
+                reset: resetLockDisputeForm
+        } = useForm<AdminLockDisputeFormOutput>({
+                resolver: zodResolver(AdminLockDisputeFormSchema),
+                defaultValues: { note: '' }
+        })
+
+        const {
+                register: generateDossierRegister,
+                handleSubmit: handleGenerateDossierSubmit,
+                formState: { errors: generateDossierErrors },
+                reset: resetGenerateDossierForm
+        } = useForm<AdminGenerateArbitrationDossierFormOutput>({
+                resolver: zodResolver(AdminGenerateArbitrationDossierFormSchema),
+                defaultValues: { notes: '', finalize: false }
+        })
 
 	const dateRangeError = useMemo(() => {
 		if (!createdFrom || !createdTo) return false
@@ -416,12 +450,14 @@ export default function AdminDisputeListPage() {
 	const total = data?.total ?? 0
 	const pages = Math.max(1, Math.ceil(total / limit))
 
-	const joinMutation = useMutation({
-		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminJoinDisputeInput }) =>
-			joinDisputeAsAdmin(disputeId, payload),
-		onSuccess: async () => {
-			toast.success('Đã tham gia tranh chấp với tư cách admin')
-			setJoinTarget(null)
+        const detailDisputeId = detailTarget?.id ?? null
+
+        const joinMutation = useMutation({
+                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminJoinDisputeInput }) =>
+                        joinDisputeAsAdmin(disputeId, payload),
+                onSuccess: async () => {
+                        toast.success('Đã tham gia tranh chấp với tư cách admin')
+                        setJoinTarget(null)
 			setJoinReason('')
 			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
 		},
@@ -430,11 +466,11 @@ export default function AdminDisputeListPage() {
 		}
 	})
 
-	const requestFeesMutation = useMutation({
-		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminRequestArbitrationFeesInput }) =>
-			requestArbitrationFees(disputeId, payload),
-		onSuccess: async () => {
-			toast.success('Đã yêu cầu các bên nộp phí trọng tài.')
+        const requestFeesMutation = useMutation({
+                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminRequestArbitrationFeesInput }) =>
+                        requestArbitrationFees(disputeId, payload),
+                onSuccess: async () => {
+                        toast.success('Đã yêu cầu các bên nộp phí trọng tài.')
 			resetRequestFeesForm({ deadlineDays: 7 })
 			setRequestFeesOpen(false)
 			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
@@ -443,15 +479,66 @@ export default function AdminDisputeListPage() {
 			}
 		},
 		onError: error => {
-			const message = error instanceof Error ? error.message : 'Không thể yêu cầu đóng phí trọng tài.'
-			toast.error(message)
-		}
-	})
+                        const message = error instanceof Error ? error.message : 'Không thể yêu cầu đóng phí trọng tài.'
+                        toast.error(message)
+                }
+        })
 
-	const detailDisputeId = detailTarget?.id ?? null
+        const lockDisputeMutation = useMutation({
+                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminLockDisputeInput }) =>
+                        lockDispute(disputeId, payload),
+                onSuccess: async () => {
+                        toast.success('Đã khóa tranh chấp.')
+                        resetLockDisputeForm({ note: '' })
+                        setLockDisputeOpen(false)
+                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
+                        if (detailDisputeId) {
+                                await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
+                        }
+                },
+                onError: error => {
+                        const message = error instanceof Error ? error.message : 'Không thể khóa tranh chấp.'
+                        toast.error(message)
+                }
+        })
 
-	const {
-		data: detailData,
+        const generateDossierMutation = useMutation({
+                mutationFn: ({
+                        disputeId,
+                        payload
+                }: {
+                        disputeId: string
+                        payload: AdminGenerateArbitrationDossierInput
+                }) => generateArbitrationDossier(disputeId, payload),
+                onSuccess: async () => {
+                        toast.success('Đã tạo hồ sơ tranh chấp.')
+                        resetGenerateDossierForm({ notes: '', finalize: false })
+                        setGenerateDossierOpen(false)
+                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
+                        if (detailDisputeId) {
+                                await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
+                        }
+                },
+                onError: error => {
+                        const message = error instanceof Error ? error.message : 'Không thể tạo hồ sơ tranh chấp.'
+                        toast.error(message)
+                }
+        })
+
+        const closeLockDisputeModal = () => {
+                if (lockDisputeMutation.isPending) return
+                setLockDisputeOpen(false)
+                resetLockDisputeForm({ note: '' })
+        }
+
+        const closeGenerateDossierModal = () => {
+                if (generateDossierMutation.isPending) return
+                setGenerateDossierOpen(false)
+                resetGenerateDossierForm({ notes: '', finalize: false })
+        }
+
+        const {
+                data: detailData,
 		isLoading: isDetailLoading,
 		isFetching: isDetailFetching,
 		isError: isDetailError,
@@ -492,20 +579,51 @@ export default function AdminDisputeListPage() {
 		})
 	}
 
-	const handleRequestFees = (values: AdminRequestArbitrationFeesFormOutput) => {
-		if (!detailDisputeId) return
-		requestFeesMutation.mutate({
-			disputeId: detailDisputeId,
-			payload: { deadlineDays: values.deadlineDays }
-		})
-	}
+        const handleRequestFees = (values: AdminRequestArbitrationFeesFormOutput) => {
+                if (!detailDisputeId) return
+                requestFeesMutation.mutate({
+                        disputeId: detailDisputeId,
+                        payload: { deadlineDays: values.deadlineDays }
+                })
+        }
+
+        const handleLockDispute = (values: AdminLockDisputeFormOutput) => {
+                if (!detailDisputeId) return
+                const payload: AdminLockDisputeInput = {}
+                if (values.note && values.note.trim().length) {
+                        payload.note = values.note.trim()
+                }
+                lockDisputeMutation.mutate({
+                        disputeId: detailDisputeId,
+                        payload
+                })
+        }
+
+        const handleGenerateDossier = (values: AdminGenerateArbitrationDossierFormOutput) => {
+                if (!detailDisputeId) return
+                const payload: AdminGenerateArbitrationDossierInput = {}
+                if (values.notes && values.notes.trim().length) {
+                        payload.notes = values.notes.trim()
+                }
+                if (values.finalize !== undefined) {
+                        payload.finalize = values.finalize
+                }
+                generateDossierMutation.mutate({
+                        disputeId: detailDisputeId,
+                        payload
+                })
+        }
 
         useEffect(() => {
                 if (!detailTarget) {
                         setRequestFeesOpen(false)
+                        setLockDisputeOpen(false)
+                        setGenerateDossierOpen(false)
                         setDetailActiveTab('overview')
+                        resetLockDisputeForm({ note: '' })
+                        resetGenerateDossierForm({ notes: '', finalize: false })
                 }
-        }, [detailTarget])
+        }, [detailTarget, resetGenerateDossierForm, resetLockDisputeForm])
 
         useEffect(() => {
                 if (!detailDisputeId) {
@@ -622,18 +740,25 @@ export default function AdminDisputeListPage() {
                 detailDispute?.clientEvidenceSubmitted ?? detailDispute?.clientEvidenceSubmited ?? null
         const detailFreelancerEvidenceSubmitted =
                 detailDispute?.freelancerEvidenceSubmitted ?? detailDispute?.freelancerEvidenceSubmited ?? null
+        const detailClientEvidenceDone = detailClientEvidenceSubmitted === true
+        const detailFreelancerEvidenceDone = detailFreelancerEvidenceSubmitted === true
+        const detailBothEvidenceSubmitted = detailClientEvidenceDone && detailFreelancerEvidenceDone
         const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
         const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
         const detailClientFeePaid = detailHasPartyPaid(detailDispute?.clientArbFeePaid, detailClientId)
         const detailFreelancerFeePaid = detailHasPartyPaid(detailDispute?.freelancerArbFeePaid, detailFreelancerId)
         const detailClientFeeDisplay = detailClientId ? detailClientFeePaid : undefined
-	const detailFreelancerFeeDisplay = detailFreelancerId ? detailFreelancerFeePaid : undefined
-	const detailBothFeesPaid = detailClientFeePaid && detailFreelancerFeePaid
-	const getDetailPaymentPayerLabel = (payment: DisputePayment) => {
-		const payerId = getDisputePaymentPayerId(payment)
+        const detailFreelancerFeeDisplay = detailFreelancerId ? detailFreelancerFeePaid : undefined
+        const detailBothFeesPaid = detailClientFeePaid && detailFreelancerFeePaid
+        const detailLockedAt = detailDispute?.lockedAt ?? null
+        const detailLockedBy = detailDispute?.lockedBy ?? null
+        const detailLockedById = detailDispute?.lockedById ?? null
+        const detailIsLocked = Boolean(detailLockedAt || detailLockedById)
+        const getDetailPaymentPayerLabel = (payment: DisputePayment) => {
+                const payerId = getDisputePaymentPayerId(payment)
 
-		if (payerId && detailClientId && payerId === detailClientId) {
-			return formatUserName(detailClient ?? null, detailClientId) || `Khách hàng #${detailClientId}`
+                if (payerId && detailClientId && payerId === detailClientId) {
+                        return formatUserName(detailClient ?? null, detailClientId) || `Khách hàng #${detailClientId}`
 		}
 
 		if (payerId && detailFreelancerId && payerId === detailFreelancerId) {
@@ -663,31 +788,41 @@ export default function AdminDisputeListPage() {
                         (item): item is DisputeFinalEvidenceSubmission => Boolean(item)
                 ) ?? []
         const detailEvidenceSubmissionCount = detailEvidenceSubmissions.length
-	const detailNegotiationTotal =
-		detailCounts?.negotiations ??
-		detailMetrics?.negotiationCount ??
-		(detailNegotiations ? detailNegotiations.length : null)
-	const detailContractTitle = detailContract?.title || detailEscrow?.milestone?.contract?.title || null
+        const detailNegotiationTotal =
+                detailCounts?.negotiations ??
+                detailMetrics?.negotiationCount ??
+                (detailNegotiations ? detailNegotiations.length : null)
+        const detailContractTitle = detailContract?.title || detailEscrow?.milestone?.contract?.title || null
 	const detailContractId =
-		detailContract?.id ?? detailEscrow?.milestone?.contractId ?? detailEscrow?.milestone?.contract?.id ?? null
-	const detailMilestoneTitle = detailMilestoneSummary?.title ?? detailEscrow?.milestone?.title ?? null
-	const detailMilestoneStatus = detailMilestoneSummary?.status ?? detailEscrow?.milestone?.status ?? null
-	const detailMilestoneStart = detailMilestoneSummary?.startAt ?? detailEscrow?.milestone?.startAt ?? null
-	const detailMilestoneEnd = detailMilestoneSummary?.endAt ?? detailEscrow?.milestone?.endAt ?? null
+                detailContract?.id ?? detailEscrow?.milestone?.contractId ?? detailEscrow?.milestone?.contract?.id ?? null
+        const detailMilestoneTitle = detailMilestoneSummary?.title ?? detailEscrow?.milestone?.title ?? null
+        const detailMilestoneStatus = detailMilestoneSummary?.status ?? detailEscrow?.milestone?.status ?? null
+        const detailMilestoneStart = detailMilestoneSummary?.startAt ?? detailEscrow?.milestone?.startAt ?? null
+        const detailMilestoneEnd = detailMilestoneSummary?.endAt ?? detailEscrow?.milestone?.endAt ?? null
 	const detailCanJoin = hasAdminJoinWindowElapsed(detailOpenedAt)
 	const detailShowJoin = detailHasJoined || detailCanJoin
 	const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
 
         const detailCanRequestFees = Boolean(
                 detailDisputeId &&
-                        detailArbFeePerParty &&
-                        detailStatus &&
-                        !FINAL_DISPUTE_STATUSES.has(detailStatus) &&
-                        ![DisputeStatus.AWAITING_ARBITRATION_FEES, DisputeStatus.ARBITRATION_READY, DisputeStatus.ARBITRATION].includes(
+                detailArbFeePerParty &&
+                detailStatus &&
+                !FINAL_DISPUTE_STATUSES.has(detailStatus) &&
+                ![DisputeStatus.AWAITING_ARBITRATION_FEES, DisputeStatus.ARBITRATION_READY, DisputeStatus.ARBITRATION].includes(
                                 detailStatus as DisputeStatus
                         ) &&
                         !detailBothFeesPaid
         )
+        const detailCanLockDispute = Boolean(
+                detailDisputeId &&
+                        !detailIsLocked &&
+                        detailBothFeesPaid &&
+                        detailBothEvidenceSubmitted &&
+                        detailStatus &&
+                        !FINAL_DISPUTE_STATUSES.has(detailStatus)
+        )
+        const detailCanGenerateDossier = Boolean(detailDisputeId && detailIsLocked)
+        const detailDossierVersion = detailDispute?.currentDossierVersion ?? null
         const detailTabItems = useMemo(
                 () => [
                         { id: 'overview', label: 'Tổng quan' },
@@ -1165,38 +1300,62 @@ export default function AdminDisputeListPage() {
 									</div>
 								</div>
 								<div className='flex flex-wrap items-center gap-2'>
-									{detailShowJoin ? (
-										<button
-											type='button'
-											className='btn btn-sm btn-outline'
+                                                                        {detailShowJoin ? (
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-sm btn-outline'
 											disabled={detailJoinDisabled}
 											onClick={() => {
 												if (!detailJoinDisabled && detailTarget) {
 													setDetailTarget(null)
 													setJoinTarget(detailTarget)
 													setJoinReason('')
-												}
-											}}>
-											{detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
-										</button>
-									) : null}
-									{detailCanRequestFees ? (
-										<button
-											type='button'
-											className='btn btn-sm btn-primary'
-											onClick={() => {
-												resetRequestFeesForm({ deadlineDays: 7 })
-												setRequestFeesOpen(true)
-											}}
-											disabled={requestFeesMutation.isPending}>
-											Yêu cầu đóng phí
-										</button>
-									) : null}
-									<button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
-										Đóng
-									</button>
-								</div>
-							</div>
+                                                                                                }
+                                                                                        }}>
+                                                                                        {detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
+                                                                                </button>
+                                                                        ) : null}
+                                                                        {detailCanRequestFees ? (
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-sm btn-primary'
+                                                                                        onClick={() => {
+                                                                                                resetRequestFeesForm({ deadlineDays: 7 })
+                                                                                                setRequestFeesOpen(true)
+                                                                                        }}
+                                                                                        disabled={requestFeesMutation.isPending}>
+                                                                                        Yêu cầu đóng phí
+                                                                                </button>
+                                                                        ) : null}
+                                                                        {detailCanLockDispute ? (
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-sm btn-secondary'
+                                                                                        onClick={() => {
+                                                                                                resetLockDisputeForm({ note: '' })
+                                                                                                setLockDisputeOpen(true)
+                                                                                        }}
+                                                                                        disabled={lockDisputeMutation.isPending}>
+                                                                                        <Lock className='size-4' /> Khóa tranh chấp
+                                                                                </button>
+                                                                        ) : null}
+                                                                        {detailCanGenerateDossier ? (
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-sm btn-outline'
+                                                                                        onClick={() => {
+                                                                                                resetGenerateDossierForm({ notes: '', finalize: false })
+                                                                                                setGenerateDossierOpen(true)
+                                                                                        }}
+                                                                                        disabled={generateDossierMutation.isPending}>
+                                                                                        <ScrollText className='size-4' /> Tạo hồ sơ
+                                                                                </button>
+                                                                        ) : null}
+                                                                        <button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
+                                                                                Đóng
+                                                                        </button>
+                                                                </div>
+                                                        </div>
 						</header>
 
 						{isDetailLoading ? (
@@ -1265,6 +1424,32 @@ export default function AdminDisputeListPage() {
                                                                                                 <div>
                                                                                                         <p className='text-xs uppercase text-base-content/60'>Hạn trọng tài</p>
                                                                                                         <p className='font-medium text-base-content'>{formatDateTime(detailArbitrationDeadline)}</p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Khóa tranh chấp</p>
+                                                                                                        <p className='font-medium text-base-content'>
+                                                                                                                {detailIsLocked
+                                                                                                                        ? detailLockedAt
+                                                                                                                                ? `Đã khóa (${formatDateTime(detailLockedAt)})`
+                                                                                                                                : 'Đã khóa'
+                                                                                                                        : 'Chưa khóa'}
+                                                                                                        </p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Admin khóa</p>
+                                                                                                        <p className='font-medium text-base-content'>
+                                                                                                                {detailIsLocked
+                                                                                                                        ? formatUserName(detailLockedBy ?? null, detailLockedById ?? undefined)
+                                                                                                                        : '—'}
+                                                                                                        </p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Phiên bản hồ sơ</p>
+                                                                                                        <p className='font-medium text-base-content'>
+                                                                                                                {detailDossierVersion !== null && detailDossierVersion !== undefined
+                                                                                                                        ? `#${detailDossierVersion}`
+                                                                                                                        : 'Chưa tạo'}
+                                                                                                        </p>
                                                                                                 </div>
                                                                                         </div>
                                                                                         {detailOpenedBy ? (
@@ -1755,11 +1940,11 @@ export default function AdminDisputeListPage() {
 				</dialog>
 			) : null}
 
-			{joinTarget ? (
-				<div className='modal modal-open'>
-					<div className='modal-box space-y-4'>
-						<h3 className='flex items-center gap-2 text-lg font-semibold'>
-							<ShieldCheck className='size-5 text-primary' /> Tham gia tranh chấp #{joinTarget.id}
+                        {joinTarget ? (
+                                <div className='modal modal-open'>
+                                        <div className='modal-box space-y-4'>
+                                                <h3 className='flex items-center gap-2 text-lg font-semibold'>
+                                                        <ShieldCheck className='size-5 text-primary' /> Tham gia tranh chấp #{joinTarget.id}
 						</h3>
 						<p className='text-sm text-base-content/70'>
 							Bạn có thể để lại ghi chú cho các bên trước khi tham gia phòng tranh chấp.
@@ -1779,18 +1964,114 @@ export default function AdminDisputeListPage() {
 								{joinMutation.isPending ? 'Đang xử lý...' : 'Tham gia tranh chấp'}
 							</button>
 						</div>
-					</div>
-					<div className='modal-backdrop' onClick={() => !joinMutation.isPending && setJoinTarget(null)}>
-						Đóng
-					</div>
-				</div>
-			) : null}
+                                        </div>
+                                        <div className='modal-backdrop' onClick={() => !joinMutation.isPending && setJoinTarget(null)}>
+                                                Đóng
+                                        </div>
+                                </div>
+                        ) : null}
 
-			{requestFeesOpen && detailDisputeId ? (
-				<div className='modal modal-open'>
-					<div className='modal-box max-w-md space-y-4'>
-						<h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
-							<BadgeDollarSign className='size-5 text-primary' /> Yêu cầu đóng phí trọng tài
+                        {lockDisputeOpen && detailDisputeId ? (
+                                <div className='modal modal-open'>
+                                        <div className='modal-box max-w-md space-y-4'>
+                                                <h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
+                                                        <Lock className='size-5 text-primary' /> Khóa tranh chấp
+                                                </h3>
+                                                <p className='text-sm text-base-content/70'>
+                                                        Chỉ khóa tranh chấp khi cả hai bên đã nộp phí trọng tài và hoàn tất việc gửi chứng cứ.
+                                                </p>
+                                                <form onSubmit={handleLockDisputeSubmit(handleLockDispute)} className='space-y-4'>
+                                                        <div className='space-y-2'>
+                                                                <label className='text-sm font-medium text-base-content'>Ghi chú (tuỳ chọn)</label>
+                                                                <textarea
+                                                                        className='textarea textarea-bordered w-full'
+                                                                        rows={4}
+                                                                        placeholder='Ghi chú nội bộ cho quyết định khóa'
+                                                                        {...lockDisputeRegister('note')}
+                                                                        disabled={lockDisputeMutation.isPending}
+                                                                />
+                                                                {lockDisputeErrors.note ? (
+                                                                        <p className='text-xs text-error'>{lockDisputeErrors.note.message}</p>
+                                                                ) : null}
+                                                        </div>
+                                                        <div className='modal-action'>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-ghost'
+                                                                        onClick={closeLockDisputeModal}
+                                                                        disabled={lockDisputeMutation.isPending}>
+                                                                        Hủy
+                                                                </button>
+                                                                <button type='submit' className='btn btn-secondary' disabled={lockDisputeMutation.isPending}>
+                                                                        {lockDisputeMutation.isPending ? 'Đang khóa…' : 'Khóa tranh chấp'}
+                                                                </button>
+                                                        </div>
+                                                </form>
+                                        </div>
+                                        <div className='modal-backdrop' onClick={closeLockDisputeModal}>
+                                                Đóng
+                                        </div>
+                                </div>
+                        ) : null}
+
+                        {generateDossierOpen && detailDisputeId ? (
+                                <div className='modal modal-open'>
+                                        <div className='modal-box max-w-md space-y-4'>
+                                                <h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
+                                                        <ScrollText className='size-5 text-primary' /> Tạo hồ sơ tranh chấp
+                                                </h3>
+                                                <p className='text-sm text-base-content/70'>
+                                                        Tạo snapshot hồ sơ tranh chấp để lưu trữ trong hệ thống.
+                                                </p>
+                                                <form onSubmit={handleGenerateDossierSubmit(handleGenerateDossier)} className='space-y-4'>
+                                                        <div className='space-y-2'>
+                                                                <label className='text-sm font-medium text-base-content'>Ghi chú nội bộ (tuỳ chọn)</label>
+                                                                <textarea
+                                                                        className='textarea textarea-bordered w-full'
+                                                                        rows={4}
+                                                                        placeholder='Ghi chú bổ sung cho hồ sơ'
+                                                                        {...generateDossierRegister('notes')}
+                                                                        disabled={generateDossierMutation.isPending}
+                                                                />
+                                                                {generateDossierErrors.notes ? (
+                                                                        <p className='text-xs text-error'>{generateDossierErrors.notes.message}</p>
+                                                                ) : null}
+                                                        </div>
+                                                        <label className='flex items-center gap-2 text-sm text-base-content'>
+                                                                <input
+                                                                        type='checkbox'
+                                                                        className='checkbox'
+                                                                        {...generateDossierRegister('finalize', { valueAsBoolean: true })}
+                                                                        disabled={generateDossierMutation.isPending}
+                                                                />
+                                                                <span>Đánh dấu hồ sơ là bản cuối cùng</span>
+                                                        </label>
+                                                        <p className='text-xs text-base-content/60'>Bản snapshot sẽ được ghi nhận cùng ghi chú của bạn.</p>
+                                                        <div className='modal-action'>
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-ghost'
+                                                                        onClick={closeGenerateDossierModal}
+                                                                        disabled={generateDossierMutation.isPending}>
+                                                                        Hủy
+                                                                </button>
+                                                                <button type='submit' className='btn btn-primary' disabled={generateDossierMutation.isPending}>
+                                                                        {generateDossierMutation.isPending ? 'Đang tạo…' : 'Tạo hồ sơ'}
+                                                                </button>
+                                                        </div>
+                                                </form>
+                                        </div>
+                                        <div className='modal-backdrop' onClick={closeGenerateDossierModal}>
+                                                Đóng
+                                        </div>
+                                </div>
+                        ) : null}
+
+                        {requestFeesOpen && detailDisputeId ? (
+                                <div className='modal modal-open'>
+                                        <div className='modal-box max-w-md space-y-4'>
+                                                <h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
+                                                        <BadgeDollarSign className='size-5 text-primary' /> Yêu cầu đóng phí trọng tài
 						</h3>
 						<p className='text-sm text-base-content/70'>
 							Chọn số ngày mà các bên cần hoàn tất việc nộp phí trọng tài. Thời hạn tối đa là 14 ngày.

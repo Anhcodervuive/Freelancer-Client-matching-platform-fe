@@ -425,3 +425,12 @@ export type ConfirmArbitrationFeeInput = {
 export type AdminRequestArbitrationFeesInput = {
         deadlineDays?: number
 }
+
+export type AdminLockDisputeInput = {
+        note?: string
+}
+
+export type AdminGenerateArbitrationDossierInput = {
+        notes?: string
+        finalize?: boolean
+}

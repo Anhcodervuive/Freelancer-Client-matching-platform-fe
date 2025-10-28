@@ -8,7 +8,10 @@ import type {
         AdminDisputeListItem,
         AdminDisputeMetrics,
         AdminDisputeParties,
+        AdminGenerateArbitrationDossierInput,
         AdminJoinDisputeInput,
+        AdminRequestArbitrationFeesInput,
+        AdminLockDisputeInput,
         DecimalLike,
         Dispute,
         DisputeContractSummary,
@@ -925,5 +928,18 @@ export const requestArbitrationFees = async (
                 payload
         )
 
+        return response.data
+}
+
+export const lockDispute = async (disputeId: string, payload: AdminLockDisputeInput = {}) => {
+        const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/lock`, payload)
+        return response.data
+}
+
+export const generateArbitrationDossier = async (
+        disputeId: string,
+        payload: AdminGenerateArbitrationDossierInput = {}
+) => {
+        const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/dossiers`, payload)
         return response.data
 }
