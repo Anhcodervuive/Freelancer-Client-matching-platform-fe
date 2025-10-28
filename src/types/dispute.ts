@@ -111,6 +111,9 @@ export type Dispute = {
         responseDeadline?: string | null
         arbitrationDeadline?: string | null
         currentDossierVersion?: number | null
+        arbitratorId?: string | null
+        arbitratorAssignedAt?: string | null
+        arbitrator?: DisputeUserSummary | null
         decidedRelease?: DecimalLike | null
         decidedRefund?: DecimalLike | null
         decidedById?: string | null
@@ -413,8 +416,34 @@ export type AdminDisputeListItem = {
         [key: string]: unknown
 }
 
+export type AdminDisputeDossier = {
+        id: string
+        version?: number | null
+        notes?: string | null
+        createdAt?: string | null
+        finalizedAt?: string | null
+        createdBy?: DisputeUserSummary | null
+        downloadUrl?: string | null
+        fileUrl?: string | null
+        milestoneId?: string | null
+        milestoneTitle?: string | null
+        [key: string]: unknown
+}
+
+export type AdminDisputeArbitrator = {
+        id: string
+        displayName?: string | null
+        email?: string | null
+        avatar?: string | null
+        [key: string]: unknown
+}
+
 export type AdminJoinDisputeInput = {
         reason?: string
+}
+
+export type AdminAssignArbitratorInput = {
+        arbitratorId: string
 }
 
 export type ConfirmArbitrationFeeInput = {

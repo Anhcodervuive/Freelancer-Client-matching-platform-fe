@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -6,37 +6,46 @@ import { Link } from 'react-router-dom'
 import {
 	AlertTriangle,
 	BadgeDollarSign,
-	CalendarClock,
-	ChevronDown,
-	Filter,
-	Lock,
-	LifeBuoy,
-	Link2,
-	RefreshCcw,
-	ScrollText,
-	Search,
-	ShieldCheck,
-	Undo2
+        CalendarClock,
+        Download,
+        ChevronDown,
+        Filter,
+        FileText,
+        Lock,
+        LifeBuoy,
+        Link2,
+        RefreshCcw,
+        Gavel,
+        ScrollText,
+        Search,
+        ShieldCheck,
+        Undo2
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import {
-	getAdminDisputes,
-	generateArbitrationDossier,
-	getAdminDisputeDetail,
-	joinDisputeAsAdmin,
-	lockDispute,
-	requestArbitrationFees
+        assignArbitratorToDispute,
+        generateArbitrationDossier,
+        getAdminDisputeDetail,
+        getAdminDisputes,
+        joinDisputeAsAdmin,
+        listDisputeArbitrators,
+        listDisputeDossiers,
+        lockDispute,
+        requestArbitrationFees
 } from '~/apis/admin/dispute.api'
 import { routes } from '~/config/routes'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import type {
-	AdminDisputeDetail,
-	AdminDisputeListItem,
-	AdminGenerateArbitrationDossierInput,
-	AdminJoinDisputeInput,
-	AdminLockDisputeInput,
-	AdminRequestArbitrationFeesInput,
+        AdminAssignArbitratorInput,
+        AdminDisputeArbitrator,
+        AdminDisputeDetail,
+        AdminDisputeDossier,
+        AdminDisputeListItem,
+        AdminGenerateArbitrationDossierInput,
+        AdminJoinDisputeInput,
+        AdminLockDisputeInput,
+        AdminRequestArbitrationFeesInput,
 	DecimalLike,
 	DisputeFinalEvidenceSubmission,
 	DisputePayment,
@@ -470,11 +479,12 @@ export default function AdminDisputeListPage() {
 
 	const [joinTarget, setJoinTarget] = useState<AdminDisputeListItem | null>(null)
 	const [joinReason, setJoinReason] = useState('')
-	const [detailTarget, setDetailTarget] = useState<AdminDisputeListItem | null>(null)
-	const [requestFeesOpen, setRequestFeesOpen] = useState(false)
-	const [lockDisputeOpen, setLockDisputeOpen] = useState(false)
-	const [generateDossierOpen, setGenerateDossierOpen] = useState(false)
-	const [detailActiveTab, setDetailActiveTab] = useState<AdminDetailTabId>('overview')
+        const [detailTarget, setDetailTarget] = useState<AdminDisputeListItem | null>(null)
+        const [requestFeesOpen, setRequestFeesOpen] = useState(false)
+        const [lockDisputeOpen, setLockDisputeOpen] = useState(false)
+        const [generateDossierOpen, setGenerateDossierOpen] = useState(false)
+        const [detailActiveTab, setDetailActiveTab] = useState<AdminDetailTabId>('overview')
+        const [selectedArbitratorId, setSelectedArbitratorId] = useState('')
 
 	const queryClient = useQueryClient()
 
@@ -632,23 +642,44 @@ export default function AdminDisputeListPage() {
 		}
 	})
 
-	const generateDossierMutation = useMutation({
-		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminGenerateArbitrationDossierInput }) =>
-			generateArbitrationDossier(disputeId, payload),
-		onSuccess: async () => {
-			toast.success('Đã tạo hồ sơ tranh chấp.')
-			resetGenerateDossierForm({ notes: '', finalize: false })
-			setGenerateDossierOpen(false)
-			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-			if (detailDisputeId) {
-				await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
-			}
-		},
-		onError: error => {
-			const message = error instanceof Error ? error.message : 'Không thể tạo hồ sơ tranh chấp.'
-			toast.error(message)
-		}
-	})
+        const generateDossierMutation = useMutation({
+                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminGenerateArbitrationDossierInput }) =>
+                        generateArbitrationDossier(disputeId, payload),
+                onSuccess: async () => {
+                        toast.success('Đã tạo hồ sơ tranh chấp.')
+                        resetGenerateDossierForm({ notes: '', finalize: false })
+                        setGenerateDossierOpen(false)
+                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
+                        if (detailDisputeId) {
+                                await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
+                        }
+                },
+                onError: error => {
+                        const message = error instanceof Error ? error.message : 'Không thể tạo hồ sơ tranh chấp.'
+                        toast.error(message)
+                }
+        })
+
+        const assignArbitratorMutation = useMutation({
+                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminAssignArbitratorInput }) =>
+                        assignArbitratorToDispute(disputeId, payload),
+                onSuccess: async () => {
+                        toast.success('Đã gán trọng tài cho tranh chấp.')
+                        setSelectedArbitratorId('')
+                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
+                        if (detailDisputeId) {
+                                await Promise.all([
+                                        queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] }),
+                                        queryClient.invalidateQueries({ queryKey: ['admin-dispute-dossiers', detailDisputeId] })
+                                ])
+                        }
+                        await queryClient.invalidateQueries({ queryKey: ['admin-dispute-arbitrators'] })
+                },
+                onError: error => {
+                        const message = error instanceof Error ? error.message : 'Không thể gán trọng tài cho tranh chấp.'
+                        toast.error(message)
+                }
+        })
 
 	const closeLockDisputeModal = () => {
 		if (lockDisputeMutation.isPending) return
@@ -662,17 +693,43 @@ export default function AdminDisputeListPage() {
 		resetGenerateDossierForm({ notes: '', finalize: false })
 	}
 
-	const {
-		data: detailData,
-		isLoading: isDetailLoading,
-		isFetching: isDetailFetching,
-		isError: isDetailError,
-		refetch: refetchDetail
-	} = useQuery<AdminDisputeDetail>({
-		queryKey: ['admin-dispute-detail', detailDisputeId],
-		queryFn: () => getAdminDisputeDetail(detailDisputeId!),
-		enabled: Boolean(detailDisputeId)
-	})
+        const {
+                data: detailData,
+                isLoading: isDetailLoading,
+                isFetching: isDetailFetching,
+                isError: isDetailError,
+                refetch: refetchDetail
+        } = useQuery<AdminDisputeDetail>({
+                queryKey: ['admin-dispute-detail', detailDisputeId],
+                queryFn: () => getAdminDisputeDetail(detailDisputeId!),
+                enabled: Boolean(detailDisputeId)
+        })
+
+        const {
+                data: dossierData,
+                isLoading: isDossierLoading,
+                isFetching: isDossierFetching,
+                isError: isDossierError,
+                refetch: refetchDossiers,
+                error: dossierError
+        } = useQuery<AdminDisputeDossier[]>({
+                queryKey: ['admin-dispute-dossiers', detailDisputeId],
+                queryFn: () => listDisputeDossiers(detailDisputeId!),
+                enabled: Boolean(detailDisputeId)
+        })
+
+        const {
+                data: arbitratorsData,
+                isLoading: isArbitratorsLoading,
+                isFetching: isArbitratorsFetching,
+                isError: isArbitratorsError,
+                refetch: refetchArbitrators,
+                error: arbitratorsError
+        } = useQuery<AdminDisputeArbitrator[]>({
+                queryKey: ['admin-dispute-arbitrators'],
+                queryFn: () => listDisputeArbitrators(),
+                enabled: Boolean(detailTarget)
+        })
 
 	const toggleStatus = (status: DisputeStatus) => {
 		setSelectedStatuses(prev => {
@@ -724,44 +781,58 @@ export default function AdminDisputeListPage() {
 		})
 	}
 
-	const handleGenerateDossier = (values: AdminGenerateArbitrationDossierFormOutput) => {
-		if (!detailDisputeId) return
-		const payload: AdminGenerateArbitrationDossierInput = {}
-		if (values.notes && values.notes.trim().length) {
-			payload.notes = values.notes.trim()
-		}
-		if (values.finalize !== undefined) {
-			payload.finalize = values.finalize
-		}
-		generateDossierMutation.mutate({
-			disputeId: detailDisputeId,
-			payload
-		})
-	}
+        const handleGenerateDossier = (values: AdminGenerateArbitrationDossierFormOutput) => {
+                if (!detailDisputeId) return
+                const payload: AdminGenerateArbitrationDossierInput = {}
+                if (values.notes && values.notes.trim().length) {
+                        payload.notes = values.notes.trim()
+                }
+                if (values.finalize !== undefined) {
+                        payload.finalize = values.finalize
+                }
+                generateDossierMutation.mutate({
+                        disputeId: detailDisputeId,
+                        payload
+                })
+        }
 
-	useEffect(() => {
-		if (!detailTarget) {
-			setRequestFeesOpen(false)
-			setLockDisputeOpen(false)
-			setGenerateDossierOpen(false)
-			setDetailActiveTab('overview')
-			resetLockDisputeForm({ note: '' })
-			resetGenerateDossierForm({ notes: '', finalize: false })
-		}
-	}, [detailTarget, resetGenerateDossierForm, resetLockDisputeForm])
+        const handleAssignArbitrator = (event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault()
+                if (!detailDisputeId || !selectedArbitratorId) return
 
-	useEffect(() => {
-		if (!detailDisputeId) {
-			setDetailActiveTab('overview')
-			return
-		}
+                const payload: AdminAssignArbitratorInput = { arbitratorId: selectedArbitratorId }
+                assignArbitratorMutation.mutate({
+                        disputeId: detailDisputeId,
+                        payload
+                })
+        }
 
-		setDetailActiveTab(current => {
-			const allowedTabs: AdminDetailTabId[] = ['overview', 'negotiations', 'payments', 'evidence', 'activity']
+        useEffect(() => {
+                if (!detailTarget) {
+                        setRequestFeesOpen(false)
+                        setLockDisputeOpen(false)
+                        setGenerateDossierOpen(false)
+                        setDetailActiveTab('overview')
+                        resetLockDisputeForm({ note: '' })
+                        resetGenerateDossierForm({ notes: '', finalize: false })
+                        setSelectedArbitratorId('')
+                }
+        }, [detailTarget, resetGenerateDossierForm, resetLockDisputeForm])
 
-			return allowedTabs.includes(current) ? current : 'overview'
-		})
-	}, [detailDisputeId])
+        useEffect(() => {
+                if (!detailDisputeId) {
+                        setDetailActiveTab('overview')
+                        setSelectedArbitratorId('')
+                        return
+                }
+
+                setDetailActiveTab(current => {
+                        const allowedTabs: AdminDetailTabId[] = ['overview', 'negotiations', 'payments', 'evidence', 'activity']
+
+                        return allowedTabs.includes(current) ? current : 'overview'
+                })
+                setSelectedArbitratorId('')
+        }, [detailDisputeId])
 
 	const limitOptions = [10, 20, 50]
 
@@ -773,13 +844,15 @@ export default function AdminDisputeListPage() {
 	const detailFreelancer = detailTarget?.freelancer ?? detailParties?.freelancer ?? null
 	const detailContract = detailTarget?.contract ?? null
 	const detailMilestoneSummary = detailTarget?.milestone ?? null
-	const detailEscrow = detailData?.escrow ?? null
-	const detailNegotiations = detailData?.negotiations ?? detailDispute?.negotiations ?? null
-	const detailChatLogs = detailData?.chatAccessLogs ?? null
-	const detailCounts = detailData?.counts ?? null
-	const detailEvidenceSubmissions: DisputeFinalEvidenceSubmission[] =
-		detailData?.evidenceSubmissions?.filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item)) ?? []
-	const detailStatus = detailDispute?.status ?? detailTarget?.status ?? null
+        const detailEscrow = detailData?.escrow ?? null
+        const detailNegotiations = detailData?.negotiations ?? detailDispute?.negotiations ?? null
+        const detailChatLogs = detailData?.chatAccessLogs ?? null
+        const detailCounts = detailData?.counts ?? null
+        const detailEvidenceSubmissions: DisputeFinalEvidenceSubmission[] =
+                detailData?.evidenceSubmissions?.filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item)) ?? []
+        const detailDossiers = dossierData ?? []
+        const detailArbitrators = arbitratorsData ?? []
+        const detailStatus = detailDispute?.status ?? detailTarget?.status ?? null
 	const detailNeedsAdmin = Boolean(
 		detailMetrics?.needsAdmin ??
 			(typeof detailTarget?.needsAdmin === 'boolean'
@@ -828,12 +901,23 @@ export default function AdminDisputeListPage() {
 		},
 		[detailArbitrationPayments]
 	)
-	const detailAdminUser = detailTarget?.admin ?? null
-	const detailAdminLabel = detailAdminUser
-		? formatUserName(detailAdminUser)
-		: detailHasJoined
-		? 'Đã tham gia'
-		: 'Chưa tham gia'
+        const detailAdminUser = detailTarget?.admin ?? null
+        const detailAdminLabel = detailAdminUser
+                ? formatUserName(detailAdminUser)
+                : detailHasJoined
+                ? 'Đã tham gia'
+                : 'Chưa tham gia'
+        const detailArbitrator = detailDispute?.arbitrator ?? null
+        const detailArbitratorId = detailDispute?.arbitratorId ?? detailArbitrator?.id ?? null
+        const detailArbitratorAssignedAt = detailDispute?.arbitratorAssignedAt ?? null
+        const detailArbitratorLabel = detailArbitrator
+                ? formatUserName(detailArbitrator, detailArbitratorId ?? undefined)
+                : detailArbitratorId ?? null
+        const isDossierBusy = isDossierLoading || isDossierFetching
+        const isArbitratorsBusy = isArbitratorsLoading || isArbitratorsFetching
+        const canAssignArbitrator = detailArbitrators.length > 0
+        const isArbitratorSelectDisabled = isArbitratorsBusy || assignArbitratorMutation.isPending || !canAssignArbitrator
+        const isAssignArbitratorDisabled = assignArbitratorMutation.isPending || !selectedArbitratorId
 	const detailCurrency =
 		detailAmounts?.currency ??
 		detailEscrow?.currency ??
@@ -1880,100 +1964,279 @@ export default function AdminDisputeListPage() {
 									</section>
 								) : null}
 
-								{detailActiveTab === 'evidence' ? (
-									<section className='space-y-3'>
-										<div className='flex flex-wrap items-center gap-2'>
-											<ScrollText className='size-4 text-primary' />
-											<h4 className='text-sm font-semibold text-base-content'>Chứng cứ cuối cùng</h4>
-											{detailEvidenceSubmissionCount ? (
-												<span className='badge badge-outline text-[11px]'>{detailEvidenceSubmissionCount}</span>
-											) : null}
-										</div>
-										{detailEvidenceSubmissionCount ? (
-											<div className='space-y-3'>
-												{detailEvidenceSubmissions.map((submission, submissionIndex) => {
-													const key = submission.id ?? `submission-${submissionIndex}`
-													const submitterLabel = formatSubmissionSubmitterLabel(
-														submission,
-														detailClientId,
-														formatUserName(detailClient, detailClientId ?? undefined),
-														detailFreelancerId,
-														formatUserName(detailFreelancer, detailFreelancerId ?? undefined)
-													)
-													const items = submission.items?.filter(Boolean) ?? []
+                                                                {detailActiveTab === 'evidence' ? (
+                                                                        <div className='space-y-5'>
+                                                                                <section className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'>
+                                                                                        <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                                                                <div className='flex items-center gap-2 text-base font-semibold text-base-content'>
+                                                                                                        <FileText className='size-4 text-primary' /> Hồ sơ tranh chấp
+                                                                                                </div>
+                                                                                                {isDossierBusy ? (
+                                                                                                        <span className='badge badge-outline gap-2 text-xs'>
+                                                                                                                <span className='loading loading-spinner size-3' /> Đang tải
+                                                                                                        </span>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        {isDossierError ? (
+                                                                                                <div className='alert alert-error text-sm'>
+                                                                                                        <AlertTriangle className='size-4' />
+                                                                                                        <div className='flex flex-1 flex-col gap-2'>
+                                                                                                                <p>
+                                                                                                                        {dossierError instanceof Error
+                                                                                                                                ? dossierError.message
+                                                                                                                                : 'Không thể tải hồ sơ tranh chấp.'}
+                                                                                                                </p>
+                                                                                                                <button type='button' className='btn btn-xs' onClick={() => refetchDossiers()}>
+                                                                                                                        Thử lại
+                                                                                                                </button>
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                        ) : null}
+                                                                                        {!isDossierBusy && !isDossierError && detailDossiers.length === 0 ? (
+                                                                                                <p className='text-sm text-base-content/70'>Chưa có hồ sơ tranh chấp nào được tạo.</p>
+                                                                                        ) : null}
+                                                                                        {detailDossiers.map(dossier => {
+                                                                                                const versionLabel =
+                                                                                                        dossier.version !== undefined && dossier.version !== null
+                                                                                                                ? `Phiên bản #${dossier.version}`
+                                                                                                                : 'Hồ sơ tranh chấp'
+                                                                                                const createdAtLabel = formatDateTime(dossier.createdAt)
+                                                                                                const finalizedAtLabel = dossier.finalizedAt ? formatDateTime(dossier.finalizedAt) : null
+                                                                                                const createdByLabel = dossier.createdBy
+                                                                                                        ? formatUserName(dossier.createdBy, dossier.createdBy.id)
+                                                                                                        : null
+                                                                                                const downloadUrl = dossier.downloadUrl ?? dossier.fileUrl ?? null
+                                                                                                const milestoneLabel = dossier.milestoneTitle ?? null
+                                                                                                const milestoneId = dossier.milestoneId ?? null
+                                                                                                const notes = typeof dossier.notes === 'string' && dossier.notes.trim().length ? dossier.notes.trim() : null
 
-													return (
-														<div
-															key={key}
-															className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'>
-															<div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
-																<span className='font-medium text-base-content'>{submitterLabel}</span>
-																<span>{formatDateTime(submission.submittedAt)}</span>
-															</div>
-															{submission.statement ? (
-																<p className='text-sm text-base-content'>{submission.statement}</p>
-															) : null}
-															{submission.noAdditionalEvidence ? (
-																<div className='rounded-lg bg-base-100/80 p-2 text-[11px] text-base-content/70'>
-																	Người gửi xác nhận không có chứng cứ bổ sung.
-																</div>
-															) : null}
-															{items.length ? (
-																<div className='space-y-2 text-xs text-base-content/80'>
-																	{items.map((item, itemIndex) => {
-																		const itemKey = item?.id ?? `${key}-item-${itemIndex}`
-																		const itemLabel = item?.label?.trim().length
-																			? item.label.trim()
-																			: `Chứng cứ #${itemIndex + 1}`
-																		const itemSourceLabel = humanizeEvidenceSourceType(item?.sourceType)
-																		const itemUrl = getEvidenceItemUrl(item)
-																		const itemCreatedAt = formatDateTime(item?.createdAt ?? null)
+                                                                                                return (
+                                                                                                        <article
+                                                                                                                key={dossier.id}
+                                                                                                                className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'>
+                                                                                                                <div className='flex flex-wrap items-start justify-between gap-3'>
+                                                                                                                        <div>
+                                                                                                                                <p className='text-base font-semibold text-base-content'>{versionLabel}</p>
+                                                                                                                                {milestoneLabel ? (
+                                                                                                                                        <p className='text-xs text-base-content/60'>
+                                                                                                                                                Milestone: {milestoneLabel}
+                                                                                                                                                {milestoneId ? ` (${milestoneId})` : ''}
+                                                                                                                                        </p>
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                        {downloadUrl ? (
+                                                                                                                                <a
+                                                                                                                                        href={downloadUrl}
+                                                                                                                                        target='_blank'
+                                                                                                                                        rel='noopener noreferrer'
+                                                                                                                                        className='btn btn-xs btn-outline gap-2'>
+                                                                                                                                        <Download className='size-3.5' /> Tải xuống
+                                                                                                                                </a>
+                                                                                                                        ) : null}
+                                                                                                                </div>
+                                                                                                                <div className='grid gap-2 text-xs text-base-content/70 sm:grid-cols-2'>
+                                                                                                                        <span>
+                                                                                                                                Tạo lúc:{' '}
+                                                                                                                                <span className='font-medium text-base-content'>{createdAtLabel}</span>
+                                                                                                                        </span>
+                                                                                                                        {createdByLabel ? (
+                                                                                                                                <span>
+                                                                                                                                        Người tạo:{' '}
+                                                                                                                                        <span className='font-medium text-base-content'>{createdByLabel}</span>
+                                                                                                                                </span>
+                                                                                                                        ) : null}
+                                                                                                                        {finalizedAtLabel ? (
+                                                                                                                                <span>
+                                                                                                                                        Hoàn tất lúc:{' '}
+                                                                                                                                        <span className='font-medium text-base-content'>{finalizedAtLabel}</span>
+                                                                                                                                </span>
+                                                                                                                        ) : null}
+                                                                                                                </div>
+                                                                                                                {notes ? (
+                                                                                                                        <p className='rounded-lg bg-base-100/80 p-2 text-xs text-base-content/80'>{notes}</p>
+                                                                                                                ) : null}
+                                                                                                        </article>
+                                                                                                )
+                                                                                        })}
+                                                                                </section>
 
-																		return (
-																			<div
-																				key={itemKey}
-																				className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3'>
-																				<div className='flex flex-wrap items-center justify-between gap-2'>
-																					<p className='font-medium text-base-content'>{itemLabel}</p>
-																					<span className='badge badge-ghost text-[11px]'>{itemSourceLabel}</span>
-																				</div>
-																				{item?.description ? (
-																					<p className='text-[11px] text-base-content/70'>{item.description}</p>
-																				) : null}
-																				{itemUrl ? (
-																					<a
-																						href={itemUrl}
-																						target='_blank'
-																						rel='noopener noreferrer'
-																						className='inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline'>
-																						<Link2 className='size-3' /> Mở liên kết
-																					</a>
-																				) : null}
-																				{item?.assetId ? (
-																					<p className='text-[11px] text-base-content/60'>Asset ID: {item.assetId}</p>
-																				) : null}
-																				{item?.sourceId ? (
-																					<p className='text-[11px] text-base-content/60'>Nguồn: {item.sourceId}</p>
-																				) : null}
-																				{itemCreatedAt !== '—' ? (
-																					<p className='text-[11px] text-base-content/60'>Thêm lúc: {itemCreatedAt}</p>
-																				) : null}
-																			</div>
-																		)
-																	})}
-																</div>
-															) : (
-																<p className='text-[11px] text-base-content/60'>Không có tài liệu đính kèm.</p>
-															)}
-														</div>
-													)
-												})}
-											</div>
-										) : (
-											<p className='text-xs text-base-content/60'>Chưa có chứng cứ cuối cùng nào được gửi.</p>
-										)}
-									</section>
-								) : null}
+                                                                                <section className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'>
+                                                                                        <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                                                                <div className='flex items-center gap-2 text-base font-semibold text-base-content'>
+                                                                                                        <Gavel className='size-4 text-primary' /> Trọng tài tranh chấp
+                                                                                                </div>
+                                                                                                {isArbitratorsBusy ? (
+                                                                                                        <span className='badge badge-outline gap-2 text-xs'>
+                                                                                                                <span className='loading loading-spinner size-3' /> Đang tải
+                                                                                                        </span>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        <div className='space-y-2 text-sm text-base-content'>
+                                                                                                <div>
+                                                                                                        <p className='text-xs uppercase text-base-content/60'>Trọng tài hiện tại</p>
+                                                                                                        <p className='font-medium text-base-content'>
+                                                                                                                {detailArbitratorLabel ?? 'Chưa chỉ định'}
+                                                                                                        </p>
+                                                                                                        {detailArbitratorAssignedAt ? (
+                                                                                                                <p className='text-xs text-base-content/60'>
+                                                                                                                        Gán lúc: {formatDateTime(detailArbitratorAssignedAt)}
+                                                                                                                </p>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        </div>
+                                                                                        {isArbitratorsError ? (
+                                                                                                <div className='alert alert-error text-sm'>
+                                                                                                        <AlertTriangle className='size-4' />
+                                                                                                        <div className='flex flex-1 flex-col gap-2'>
+                                                                                                                <p>
+                                                                                                                        {arbitratorsError instanceof Error
+                                                                                                                                ? arbitratorsError.message
+                                                                                                                                : 'Không thể tải danh sách trọng tài.'}
+                                                                                                                </p>
+                                                                                                                <button type='button' className='btn btn-xs' onClick={() => refetchArbitrators()}>
+                                                                                                                        Thử lại
+                                                                                                                </button>
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                        ) : null}
+                                                                                        {!isArbitratorsBusy && !isArbitratorsError && !canAssignArbitrator ? (
+                                                                                                <p className='text-xs text-base-content/60'>Chưa có trọng tài nào khả dụng để gán.</p>
+                                                                                        ) : null}
+                                                                                        <form className='flex flex-col gap-3 sm:flex-row sm:items-end' onSubmit={handleAssignArbitrator}>
+                                                                                                <label className='form-control flex-1'>
+                                                                                                        <span className='label-text text-sm font-medium'>Chọn trọng tài</span>
+                                                                                                        <select
+                                                                                                                className='select select-bordered'
+                                                                                                                value={selectedArbitratorId}
+                                                                                                                onChange={event => setSelectedArbitratorId(event.target.value)}
+                                                                                                                disabled={isArbitratorSelectDisabled}
+                                                                                                        >
+                                                                                                                <option value=''>-- Chọn trọng tài --</option>
+                                                                                                                {detailArbitrators.map(arbitrator => {
+                                                                                                                        const optionLabel =
+                                                                                                                                arbitrator.displayName?.trim().length
+                                                                                                                                        ? arbitrator.displayName.trim()
+                                                                                                                                        : arbitrator.email?.trim().length
+                                                                                                                                        ? arbitrator.email.trim()
+                                                                                                                                        : arbitrator.id
+                                                                                                                        const emailLabel =
+                                                                                                                                arbitrator.email && arbitrator.email.trim().length && optionLabel !== arbitrator.email.trim()
+                                                                                                                                        ? arbitrator.email.trim()
+                                                                                                                                        : null
+
+                                                                                                                        return (
+                                                                                                                                <option key={arbitrator.id} value={arbitrator.id}>
+                                                                                                                                        {optionLabel}
+                                                                                                                                        {emailLabel ? ` — ${emailLabel}` : ''}
+                                                                                                                                </option>
+                                                                                                                        )
+                                                                                                                })}
+                                                                                                        </select>
+                                                                                                </label>
+                                                                                                <button
+                                                                                                        type='submit'
+                                                                                                        className='btn btn-primary sm:w-auto'
+                                                                                                        disabled={isAssignArbitratorDisabled || !canAssignArbitrator}
+                                                                                                >
+                                                                                                        {assignArbitratorMutation.isPending ? 'Đang gán…' : 'Gán trọng tài'}
+                                                                                                </button>
+                                                                                        </form>
+                                                                                </section>
+
+                                                                                <section className='space-y-3'>
+                                                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                                                <ScrollText className='size-4 text-primary' />
+                                                                                                <h4 className='text-sm font-semibold text-base-content'>Chứng cứ cuối cùng</h4>
+                                                                                                {detailEvidenceSubmissionCount ? (
+                                                                                                        <span className='badge badge-outline text-[11px]'>{detailEvidenceSubmissionCount}</span>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        {detailEvidenceSubmissionCount ? (
+                                                                                                <div className='space-y-3'>
+                                                                                                        {detailEvidenceSubmissions.map((submission, submissionIndex) => {
+                                                                                                                const key = submission.id ?? `submission-${submissionIndex}`
+                                                                                                                const submitterLabel = formatSubmissionSubmitterLabel(
+                                                                                                                        submission,
+                                                                                                                        detailClientId,
+                                                                                                                        formatUserName(detailClient, detailClientId ?? undefined),
+                                                                                                                        detailFreelancerId,
+                                                                                                                        formatUserName(detailFreelancer, detailFreelancerId ?? undefined)
+                                                                                                                )
+                                                                                                                const items = submission.items?.filter(Boolean) ?? []
+
+                                                                                                                return (
+                                                                                                                        <div
+                                                                                                                                key={key}
+                                                                                                                                className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'>
+                                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
+                                                                                                                                        <span className='font-medium text-base-content'>{submitterLabel}</span>
+                                                                                                                                        <span>{formatDateTime(submission.submittedAt)}</span>
+                                                                                                                                </div>
+                                                                                                                                {submission.statement ? (
+                                                                                                                                        <p className='text-sm text-base-content'>{submission.statement}</p>
+                                                                                                                                ) : null}
+                                                                                                                                {submission.noAdditionalEvidence ? (
+                                                                                                                                        <div className='rounded-lg bg-base-100/80 p-2 text-[11px] text-base-content/70'>
+                                                                                                                                                Người gửi xác nhận không có chứng cứ bổ sung.
+                                                                                                                                        </div>
+                                                                                                                                ) : null}
+                                                                                                                                {items.length ? (
+                                                                                                                                        <div className='space-y-2 text-xs text-base-content/80'>
+                                                                                                                                                {items.map((item, itemIndex) => {
+                                                                                                                                                        const itemKey = item?.id ?? `${key}-item-${itemIndex}`
+                                                                                                                                                        const itemLabel = item?.label?.trim().length
+                                                                                                                                                                ? item.label.trim()
+                                                                                                                                                                : `Chứng cứ #${itemIndex + 1}`
+                                                                                                                                                        const itemSourceLabel = humanizeEvidenceSourceType(item?.sourceType)
+                                                                                                                                                        const itemUrl = getEvidenceItemUrl(item)
+                                                                                                                                                        const itemCreatedAt = formatDateTime(item?.createdAt ?? null)
+
+                                                                                                                                                        return (
+                                                                                                                                                                <div
+                                                                                                                                                                        key={itemKey}
+                                                                                                                                                                        className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3'>
+                                                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                                                                                                <p className='font-medium text-base-content'>{itemLabel}</p>
+                                                                                                                                                                                <span className='badge badge-ghost text-[11px]'>{itemSourceLabel}</span>
+                                                                                                                                                                        </div>
+                                                                                                                                                                        {item?.description ? (
+                                                                                                                                                                                <p className='text-[11px] text-base-content/70'>{item.description}</p>
+                                                                                                                                                                        ) : null}
+                                                                                                                                                                        {itemUrl ? (
+                                                                                                                                                                                <a
+                                                                                                                                                                                        href={itemUrl}
+                                                                                                                                                                                        target='_blank'
+                                                                                                                                                                                        rel='noopener noreferrer'
+                                                                                                                                                                                        className='inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline'>
+                                                                                                                                                                                        <Link2 className='size-3' /> Mở liên kết
+                                                                                                                                                                                </a>
+                                                                                                                                                                        ) : null}
+                                                                                                                                                                        {item?.assetId ? (
+                                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Asset ID: {item.assetId}</p>
+                                                                                                                                                                        ) : null}
+                                                                                                                                                                        {item?.sourceId ? (
+                                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Nguồn: {item.sourceId}</p>
+                                                                                                                                                                        ) : null}
+                                                                                                                                                                        {itemCreatedAt !== '—' ? (
+                                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Thêm lúc: {itemCreatedAt}</p>
+                                                                                                                                                                        ) : null}
+                                                                                                                                                                </div>
+                                                                                                                                                        )
+                                                                                                                                                })}
+                                                                                                                                        </div>
+                                                                                                                                ) : (
+                                                                                                                                        <p className='text-[11px] text-base-content/60'>Không có tài liệu đính kèm.</p>
+                                                                                                                                )}
+                                                                                                                        </div>
+                                                                                                                )
+                                                                                                        })}
+                                                                                                </div>
+                                                                                        ) : (
+                                                                                                <p className='text-xs text-base-content/60'>Chưa có chứng cứ cuối cùng nào được gửi.</p>
+                                                                                        )}
+                                                                                </section>
+                                                                        </div>
+                                                                ) : null}
 
 								{detailActiveTab === 'negotiations' ? (
 									<>

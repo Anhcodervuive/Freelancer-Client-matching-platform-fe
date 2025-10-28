@@ -1,11 +1,14 @@
 import type { ListResponse } from '~/types/api.response'
 import type {
         AdminDisputeAmounts,
+        AdminDisputeArbitrator,
         AdminDisputeChatAccessLog,
         AdminDisputeDetail,
+        AdminDisputeDossier,
         AdminDisputeEscrow,
         AdminDisputeListFilters,
         AdminDisputeListItem,
+        AdminAssignArbitratorInput,
         AdminDisputeMetrics,
         AdminDisputeParties,
         AdminGenerateArbitrationDossierInput,
@@ -38,16 +41,31 @@ const asRecord = (value: unknown): Record<string, unknown> | null => {
 }
 
 const getString = (value: unknown): string | undefined => {
-	if (typeof value === 'string') {
-		const trimmed = value.trim()
-		return trimmed.length ? trimmed : undefined
-	}
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                return trimmed.length ? trimmed : undefined
+        }
 
 	if (typeof value === 'number' && Number.isFinite(value)) {
 		return String(value)
 	}
 
-	return undefined
+        return undefined
+}
+
+const getNumber = (value: unknown): number | undefined => {
+        if (typeof value === 'number') {
+                return Number.isFinite(value) ? value : undefined
+        }
+
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                if (!trimmed.length) return undefined
+                const parsed = Number(trimmed)
+                return Number.isFinite(parsed) ? parsed : undefined
+        }
+
+        return undefined
 }
 
 const isDisputeStatusValue = (value: unknown): value is DisputeStatus =>
@@ -205,6 +223,102 @@ const normalizeEvidencePerson = (value: unknown): DisputeEvidencePerson | null =
         }
 
         return normalized
+}
+
+const extractDisputeDossier = (value: unknown): AdminDisputeDossier | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        const dossier: AdminDisputeDossier = { id }
+        const version = getNumber(record.version ?? record.versionNumber ?? record.version_number)
+        if (version !== undefined) {
+                dossier.version = version
+        }
+
+        if (typeof record.notes === 'string' && record.notes.trim().length) {
+                dossier.notes = record.notes.trim()
+        }
+
+        const createdAt = getString(record.createdAt ?? record.created_at)
+        if (createdAt) {
+                dossier.createdAt = createdAt
+        }
+
+        const finalizedAt = getString(record.finalizedAt ?? record.finalized_at)
+        if (finalizedAt) {
+                dossier.finalizedAt = finalizedAt
+        }
+
+        const downloadUrl =
+                getString(record.downloadUrl ?? record.download_url ?? record.url) ??
+                getString(record.fileUrl ?? record.file_url)
+        if (downloadUrl) {
+                dossier.downloadUrl = downloadUrl
+        }
+
+        const fileUrl = getString(record.fileUrl ?? record.file_url)
+        if (fileUrl) {
+                dossier.fileUrl = fileUrl
+        }
+
+        const milestoneId = getString(record.milestoneId ?? record.milestone_id)
+        if (milestoneId) {
+                dossier.milestoneId = milestoneId
+        }
+
+        const milestoneTitle =
+                getString(record.milestoneTitle ?? record.milestone_title ?? record.milestoneName ?? record.milestone_name)
+        if (milestoneTitle) {
+                dossier.milestoneTitle = milestoneTitle
+        }
+
+        const createdBy = normalizeUserSummary(record.createdBy ?? record.creator ?? record.admin)
+        if (createdBy) {
+                dossier.createdBy = createdBy
+        }
+
+        return dossier
+}
+
+const extractArbitrator = (value: unknown): AdminDisputeArbitrator | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const id =
+                getString(record.id) ??
+                getString(record.userId ?? record.user_id) ??
+                getString(record.accountId ?? record.account_id)
+
+        if (!id) {
+                return null
+        }
+
+        const arbitrator: AdminDisputeArbitrator = { id }
+
+        const displayName =
+                getString(record.displayName ?? record.name ?? record.fullName ?? record.full_name) ?? undefined
+        if (displayName) {
+                arbitrator.displayName = displayName
+        }
+
+        if (typeof record.email === 'string' && record.email.trim().length) {
+                arbitrator.email = record.email.trim()
+        }
+
+        if (typeof record.avatar === 'string' && record.avatar.trim().length) {
+                arbitrator.avatar = record.avatar.trim()
+        }
+
+        return arbitrator
 }
 
 const normalizeEvidenceAsset = (value: unknown): DisputeEvidenceAsset | null => {
@@ -941,5 +1055,47 @@ export const generateArbitrationDossier = async (
         payload: AdminGenerateArbitrationDossierInput = {}
 ) => {
         const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/dossiers`, payload)
+        return response.data
+}
+
+export const listDisputeDossiers = async (disputeId: string): Promise<AdminDisputeDossier[]> => {
+        const response = await authorizeAxiosInstance.get(`${baseUrl}/${disputeId}/dossiers`)
+        const payload = response.data as Record<string, unknown> | undefined
+        const rawItems = (() => {
+                if (!payload) return []
+                if (Array.isArray(payload)) return payload
+                if (Array.isArray(payload.data)) return payload.data
+                if (Array.isArray((payload as Record<string, unknown>).dossiers)) {
+                        return (payload as Record<string, unknown>).dossiers as unknown[]
+                }
+                return []
+        })()
+
+        return rawItems
+                .map(extractDisputeDossier)
+                .filter((item): item is AdminDisputeDossier => Boolean(item))
+}
+
+export const listDisputeArbitrators = async (): Promise<AdminDisputeArbitrator[]> => {
+        const response = await authorizeAxiosInstance.get(`${baseUrl}/arbitrators`)
+        const payload = response.data as Record<string, unknown> | undefined
+        const rawItems = (() => {
+                if (!payload) return []
+                if (Array.isArray(payload)) return payload
+                if (Array.isArray(payload.data)) return payload.data
+                if (Array.isArray((payload as Record<string, unknown>).arbitrators)) {
+                        return (payload as Record<string, unknown>).arbitrators as unknown[]
+                }
+                return []
+        })()
+
+        return rawItems.map(extractArbitrator).filter((item): item is AdminDisputeArbitrator => Boolean(item))
+}
+
+export const assignArbitratorToDispute = async (
+        disputeId: string,
+        payload: AdminAssignArbitratorInput
+) => {
+        const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/arbitrators`, payload)
         return response.data
 }
