@@ -16,9 +16,7 @@ export default function ArbitratorLayout() {
 
                         <div className='drawer-side'>
                                 <label htmlFor='arbitrator-drawer' aria-label='close sidebar' className='drawer-overlay' />
-                                <aside className='bg-base-100 border-r border-base-200'>
-                                        <ArbitratorSidebar />
-                                </aside>
+                                <ArbitratorSidebar />
                         </div>
                 </div>
         )

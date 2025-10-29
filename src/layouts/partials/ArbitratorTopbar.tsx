@@ -1,11 +1,16 @@
 import { Menu, Bell } from 'lucide-react'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 
-import { selectCurrentUser } from '~/redux/user/userSlice'
+import { selectCurrentUser, logoutUserAPI } from '~/redux/user/userSlice'
 import { DEFAULT_AVATAR } from '~/constants/image'
+import type { AppDispatch } from '~/redux/store'
+import { routes } from '~/config/routes'
 
 export default function ArbitratorTopbar() {
         const user = useSelector(selectCurrentUser)
+        const dispatch = useDispatch<AppDispatch>()
+        const navigate = useNavigate()
 
         const displayName = (() => {
                 const nameFromProfile = [
@@ -32,6 +37,11 @@ export default function ArbitratorTopbar() {
 
         const avatarSrc = user?.avatar?.trim() ? user.avatar : DEFAULT_AVATAR
 
+        const handleLogout = async () => {
+                await dispatch(logoutUserAPI(false)).unwrap()
+                navigate(routes.auth.signin)
+        }
+
         return (
                 <header className='sticky top-0 z-20 bg-base-100 border-b border-base-200'>
                         <div className='flex items-center gap-3 px-4 py-3'>
@@ -51,17 +61,44 @@ export default function ArbitratorTopbar() {
                                                 <Bell size={18} />
                                         </button>
 
-                                        <div className='avatar placeholder'>
-                                                <div className='w-9 rounded-full ring ring-base-300'>
-                                                        <img
-                                                                alt={displayName}
-                                                                src={avatarSrc}
-                                                                onError={event => {
-                                                                        event.currentTarget.onerror = null
-                                                                        event.currentTarget.src = DEFAULT_AVATAR
-                                                                }}
-                                                        />
-                                                </div>
+                                        <div className='dropdown dropdown-end'>
+                                                <label tabIndex={0} className='btn btn-ghost btn-circle avatar'>
+                                                        <div className='w-9 rounded-full ring ring-base-300'>
+                                                                <img
+                                                                        alt={displayName}
+                                                                        src={avatarSrc}
+                                                                        onError={event => {
+                                                                                event.currentTarget.onerror = null
+                                                                                event.currentTarget.src = DEFAULT_AVATAR
+                                                                        }}
+                                                                />
+                                                        </div>
+                                                </label>
+                                                <ul tabIndex={0} className='menu dropdown-content mt-3 w-60 rounded-2xl bg-base-100 p-3 text-sm shadow-lg'>
+                                                        <li className='pb-2'>
+                                                                <div>
+                                                                        <p className='font-semibold text-base-content'>{displayName}</p>
+                                                                        {user?.email ? (
+                                                                                <p className='text-xs text-base-content/60'>{user.email}</p>
+                                                                        ) : null}
+                                                                </div>
+                                                        </li>
+                                                        <li>
+                                                                <button type='button' onClick={() => navigate(routes.arbitrator.dashboard)}>
+                                                                        Bảng điều khiển
+                                                                </button>
+                                                        </li>
+                                                        <li>
+                                                                <button type='button' onClick={() => navigate(routes.arbitrator.disputes.list)}>
+                                                                        Hồ sơ tranh chấp
+                                                                </button>
+                                                        </li>
+                                                        <li>
+                                                                <button type='button' className='text-error' onClick={handleLogout}>
+                                                                        Đăng xuất
+                                                                </button>
+                                                        </li>
+                                                </ul>
                                         </div>
                                 </div>
                         </div>
