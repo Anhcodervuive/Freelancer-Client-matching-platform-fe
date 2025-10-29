@@ -428,11 +428,6 @@ export default function ArbitratorDisputeDetailPage() {
                 }
         }, [awardType, disputableAmount, setValue])
 
-        useEffect(() => {
-                setShowFullTimeline(false)
-        }, [disputeId, timelineEntries.length])
-
-
         const decisionMutation = useMutation({
                 mutationFn: (values: ArbitrationDecisionFormValues) => {
                         if (!disputeId) {
@@ -482,6 +477,10 @@ export default function ArbitratorDisputeDetailPage() {
         )
         const canToggleTimeline = timelineEntries.length > TIMELINE_PREVIEW_COUNT
         const hiddenTimelineCount = Math.max(timelineEntries.length - timelineToRender.length, 0)
+
+        useEffect(() => {
+                setShowFullTimeline(false)
+        }, [disputeId, timelineEntries.length])
         const decisionAttachments = (disputeDetail?.decisionAttachments ?? []) as AdminDisputeDecisionAttachment[]
         const arbitrationDossiers = (disputeDetail?.arbitrationDossiers ?? []) as AdminDisputeDossier[]
         const sortedDossiers = [...arbitrationDossiers].sort(
