@@ -1,8 +1,15 @@
 import type {
         AdminDisputeDetail,
         ArbitrationContext,
-        ArbitrationContextResponse,
+        ArbitrationContextEvidenceItem,
+        ArbitrationContextEvidenceSubmission,
+        ArbitrationContextFinancials,
         ArbitrationContextMeta,
+        ArbitrationContextMilestone,
+        ArbitrationContextMilestoneSubmission,
+        ArbitrationContextMilestoneSubmissionAttachment,
+        ArbitrationContextParty,
+        ArbitrationContextResponse,
         ArbitrationDecisionAwardType,
         ArbitrationTimelineEntry,
         ArbitratorDisputeListItem,
@@ -254,6 +261,495 @@ const parseMeta = (value: unknown): ArbitrationContextMeta => {
         return meta
 }
 
+const getBoolean = (value: unknown): boolean | undefined => {
+        if (typeof value === 'boolean') {
+                return value
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+                if (value === 1) return true
+                if (value === 0) return false
+        }
+
+        if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase()
+                if (!normalized.length) return undefined
+                if (['true', '1', 'yes', 'y'].includes(normalized)) return true
+                if (['false', '0', 'no', 'n'].includes(normalized)) return false
+        }
+
+        return undefined
+}
+
+const parseParties = (value: unknown): ArbitrationContextParty[] => {
+        if (!Array.isArray(value)) {
+                return []
+        }
+
+        return value
+                .map(item => {
+                        const record = asRecord(item)
+                        if (!record) return null
+
+                        const userId =
+                                getString(record.userId ?? record.user_id ?? record.uid ?? record.id ?? record.userIdRef) ??
+                                undefined
+                        if (!userId) return null
+
+                        const role =
+                                getString(
+                                        record.role ??
+                                                record.participantRole ??
+                                                record.participant_role ??
+                                                record.type ??
+                                                record.userRole ??
+                                                record.user_role
+                                ) ?? 'UNKNOWN'
+
+                        const displayName =
+                                getFirstString(
+                                        record.displayName,
+                                        record.display_name,
+                                        record.name,
+                                        record.fullName,
+                                        record.full_name,
+                                        record.label
+                                ) ?? null
+
+                        const feePaid =
+                                getBoolean(record.feePaid ?? record.fee_paid ?? record.hasPaidFee ?? record.feeStatus) ??
+                                null
+
+                        return {
+                                role,
+                                userId,
+                                displayName,
+                                feePaid,
+                                ...record
+                        } as ArbitrationContextParty
+                })
+                .filter((party): party is ArbitrationContextParty => Boolean(party))
+}
+
+const parseFinancials = (value: unknown): ArbitrationContextFinancials | null => {
+        const record = asRecord(value)
+        if (!record) {
+                        return null
+        }
+
+        const financials: ArbitrationContextFinancials = {
+                ...record
+        }
+
+        const currency = getString(record.currency ?? record.currencyCode ?? record.currency_code)
+        if (currency) {
+                financials.currency = currency
+        }
+
+        const escrowAmount = getNumber(record.escrowAmount ?? record.escrow_amount ?? record.totalEscrow ?? record.total)
+        if (escrowAmount !== undefined) {
+                financials.escrowAmount = escrowAmount
+        }
+
+        const released = getNumber(record.released ?? record.amountReleased ?? record.amount_released)
+        if (released !== undefined) {
+                financials.released = released
+        }
+
+        const refunded = getNumber(record.refunded ?? record.amountRefunded ?? record.amount_refunded)
+        if (refunded !== undefined) {
+                financials.refunded = refunded
+        }
+
+        const disputed = getNumber(record.disputed ?? record.disputable ?? record.disputedAmount ?? record.disputed_amount)
+        if (disputed !== undefined) {
+                financials.disputed = disputed
+        }
+
+        const requestedRecord = asRecord(record.requested ?? record.requestedAllocation ?? record.requested_allocation)
+        if (requestedRecord) {
+                financials.requested = {
+                        ...requestedRecord,
+                        client: getNumber(requestedRecord.client ?? requestedRecord.clientAmount ?? requestedRecord.client_amount),
+                        freelancer: getNumber(
+                                requestedRecord.freelancer ??
+                                        requestedRecord.freelancerAmount ??
+                                        requestedRecord.freelancer_amount ??
+                                        requestedRecord.contractor ??
+                                        requestedRecord.contractorAmount
+                        )
+                }
+        }
+
+        const decidedRecord = asRecord(record.decided ?? record.decidedAllocation ?? record.decided_allocation)
+        if (decidedRecord) {
+                financials.decided = {
+                        ...decidedRecord,
+                        client: getNumber(decidedRecord.client ?? decidedRecord.clientAmount ?? decidedRecord.client_amount),
+                        freelancer: getNumber(
+                                decidedRecord.freelancer ??
+                                        decidedRecord.freelancerAmount ??
+                                        decidedRecord.freelancer_amount ??
+                                        decidedRecord.contractor ??
+                                        decidedRecord.contractorAmount
+                        )
+                }
+        }
+
+        return financials
+}
+
+const parseMilestone = (value: unknown): ArbitrationContextMilestone | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const id = getString(record.id ?? record.milestoneId ?? record.milestone_id)
+        if (!id) {
+                return null
+        }
+
+        const milestone: ArbitrationContextMilestone = {
+                ...record,
+                id
+        }
+
+        const title = getString(record.title ?? record.name ?? record.label)
+        if (title) {
+                milestone.title = title
+        }
+
+        const status = getString(record.status ?? record.milestoneStatus ?? record.milestone_status)
+        if (status) {
+                milestone.status = status
+        }
+
+        const amount = getNumber(record.amount ?? record.value ?? record.budget)
+        if (amount !== undefined) {
+                milestone.amount = amount
+        }
+
+        const currency = getString(record.currency ?? record.currencyCode ?? record.currency_code)
+        if (currency) {
+                milestone.currency = currency
+        }
+
+        const startAt = getString(record.startAt ?? record.start_at ?? record.startedAt ?? record.started_at)
+        if (startAt) {
+                milestone.startAt = startAt
+        }
+
+        const endAt = getString(record.endAt ?? record.end_at ?? record.endedAt ?? record.ended_at)
+        if (endAt) {
+                milestone.endAt = endAt
+        }
+
+        const contractId = getString(record.contractId ?? record.contract_id)
+        if (contractId) {
+                milestone.contractId = contractId
+        }
+
+        const contractTitle = getString(record.contractTitle ?? record.contract_title)
+        if (contractTitle) {
+                milestone.contractTitle = contractTitle
+        }
+
+        return milestone
+}
+
+const parseSubmissionAttachments = (
+        value: unknown
+): ArbitrationContextMilestoneSubmissionAttachment[] => {
+        if (!Array.isArray(value)) {
+                return []
+        }
+
+        return value
+                .map(item => {
+                        const record = asRecord(item)
+                        if (!record) return null
+
+                        const id = getString(record.id ?? record.attachmentId ?? record.attachment_id)
+                        if (!id) return null
+
+                        const attachment: ArbitrationContextMilestoneSubmissionAttachment = {
+                                ...record,
+                                id
+                        }
+
+                        const name = getString(record.name ?? record.label ?? record.title)
+                        if (name) {
+                                attachment.name = name
+                        }
+
+                        const url = getString(record.url ?? record.href ?? record.downloadUrl ?? record.download_url)
+                        if (url) {
+                                attachment.url = url
+                        }
+
+                        const mimeType = getString(record.mimeType ?? record.mime_type ?? record.type)
+                        if (mimeType) {
+                                attachment.mimeType = mimeType
+                        }
+
+                        const size = getNumber(record.size ?? record.bytes ?? record.length)
+                        if (size !== undefined) {
+                                attachment.size = size
+                        }
+
+                        const assetId = getString(record.assetId ?? record.asset_id)
+                        if (assetId) {
+                                attachment.assetId = assetId
+                        }
+
+                        const createdAt = getString(record.createdAt ?? record.created_at)
+                        if (createdAt) {
+                                attachment.createdAt = createdAt
+                        }
+
+                        return attachment
+                })
+                .filter((attachment): attachment is ArbitrationContextMilestoneSubmissionAttachment => Boolean(attachment))
+}
+
+const parseMilestoneSubmissions = (value: unknown): ArbitrationContextMilestoneSubmission[] => {
+        if (!Array.isArray(value)) {
+                return []
+        }
+
+        return value
+                .map(item => {
+                        const record = asRecord(item)
+                        if (!record) return null
+
+                        const id = getString(record.id ?? record.submissionId ?? record.submission_id)
+                        if (!id) return null
+
+                        const submission: ArbitrationContextMilestoneSubmission = {
+                                ...record,
+                                id
+                        }
+
+                        const milestoneId = getString(record.milestoneId ?? record.milestone_id)
+                        if (milestoneId) {
+                                submission.milestoneId = milestoneId
+                        }
+
+                        const freelancerId = getString(
+                                record.freelancerId ?? record.freelancer_id ?? record.contractorId ?? record.contractor_id
+                        )
+                        if (freelancerId) {
+                                submission.freelancerId = freelancerId
+                        }
+
+                        const freelancer = getString(record.freelancer ?? record.freelancerName ?? record.freelancer_name)
+                        if (freelancer) {
+                                submission.freelancer = freelancer
+                        }
+
+                        const status = getString(record.status ?? record.reviewStatus ?? record.review_status)
+                        if (status) {
+                                submission.status = status
+                        }
+
+                        const message = getString(record.message ?? record.title ?? record.summary)
+                        if (message) {
+                                submission.message = message
+                        }
+
+                        const reviewNote = getString(record.reviewNote ?? record.review_note ?? record.feedback)
+                        if (reviewNote) {
+                                submission.reviewNote = reviewNote
+                        }
+
+                        const reviewRating = getNumber(record.reviewRating ?? record.review_rating ?? record.rating)
+                        if (reviewRating !== undefined) {
+                                submission.reviewRating = reviewRating
+                        }
+
+                        const reviewedAt = getString(record.reviewedAt ?? record.reviewed_at)
+                        if (reviewedAt) {
+                                submission.reviewedAt = reviewedAt
+                        }
+
+                        const reviewedById = getString(record.reviewedById ?? record.reviewed_by_id)
+                        if (reviewedById) {
+                                submission.reviewedById = reviewedById
+                        }
+
+                        const reviewedBy = getString(record.reviewedBy ?? record.reviewed_by ?? record.reviewer)
+                        if (reviewedBy) {
+                                submission.reviewedBy = reviewedBy
+                        }
+
+                        const createdAt = getString(record.createdAt ?? record.created_at)
+                        if (createdAt) {
+                                submission.createdAt = createdAt
+                        }
+
+                        const updatedAt = getString(record.updatedAt ?? record.updated_at)
+                        if (updatedAt) {
+                                submission.updatedAt = updatedAt
+                        }
+
+                        const attachments = parseSubmissionAttachments(record.attachments ?? record.files ?? record.assets)
+                        if (attachments.length) {
+                                submission.attachments = attachments
+                        }
+
+                        return submission
+                })
+                .filter((submission): submission is ArbitrationContextMilestoneSubmission => Boolean(submission))
+}
+
+const parseEvidenceItems = (value: unknown): ArbitrationContextEvidenceItem[] => {
+        if (!Array.isArray(value)) {
+                return []
+        }
+
+        return value
+                .map(item => {
+                        const record = asRecord(item)
+                        if (!record) return null
+
+                        const id = getString(record.id ?? record.itemId ?? record.item_id)
+                        if (!id) return null
+
+                        const evidenceItem: ArbitrationContextEvidenceItem = {
+                                ...record,
+                                id
+                        }
+
+                        const label = getString(record.label ?? record.name ?? record.title)
+                        if (label) {
+                                evidenceItem.label = label
+                        }
+
+                        const description = getString(record.description ?? record.note ?? record.details)
+                        if (description) {
+                                evidenceItem.description = description
+                        }
+
+                        const sourceType = getString(record.sourceType ?? record.source_type ?? record.origin)
+                        if (sourceType) {
+                                evidenceItem.sourceType = sourceType
+                        }
+
+                        const sourceId = getString(record.sourceId ?? record.source_id)
+                        if (sourceId) {
+                                evidenceItem.sourceId = sourceId
+                        }
+
+                        const url = getString(record.url ?? record.href ?? record.downloadUrl ?? record.download_url)
+                        if (url) {
+                                evidenceItem.url = url
+                        }
+
+                        const assetId = getString(record.assetId ?? record.asset_id)
+                        if (assetId) {
+                                evidenceItem.assetId = assetId
+                        }
+
+                        const createdAt = getString(record.createdAt ?? record.created_at)
+                        if (createdAt) {
+                                evidenceItem.createdAt = createdAt
+                        }
+
+                        const assetRecord = asRecord(record.asset ?? record.file ?? record.attachment)
+                        if (assetRecord) {
+                                evidenceItem.asset = {
+                                        ...assetRecord,
+                                        id: getString(assetRecord.id ?? assetRecord.assetId ?? assetRecord.asset_id) ?? ''
+                                }
+                        }
+
+                        const referenceRecord = asRecord(record.reference ?? record.ref)
+                        if (referenceRecord) {
+                                evidenceItem.reference = referenceRecord
+                        }
+
+                        return evidenceItem
+                })
+                .filter((item): item is ArbitrationContextEvidenceItem => Boolean(item))
+}
+
+const parseEvidenceSubmissions = (value: unknown): ArbitrationContextEvidenceSubmission[] => {
+        if (!Array.isArray(value)) {
+                return []
+        }
+
+        return value
+                .map(item => {
+                        const record = asRecord(item)
+                        if (!record) return null
+
+                        const id = getString(record.id ?? record.submissionId ?? record.submission_id)
+                        if (!id) return null
+
+                        const submittedById = getString(record.submittedById ?? record.submitted_by_id ?? record.userId ?? record.user_id)
+                        if (!submittedById) return null
+
+                        const submission: ArbitrationContextEvidenceSubmission = {
+                                ...record,
+                                id,
+                                submittedById
+                        }
+
+                        const disputeId = getString(record.disputeId ?? record.dispute_id)
+                        if (disputeId) {
+                                submission.disputeId = disputeId
+                        }
+
+                        const submittedByRecord = asRecord(record.submittedBy ?? record.submitted_by ?? record.user)
+                        if (submittedByRecord) {
+                                submission.submittedBy = {
+                                        ...submittedByRecord,
+                                        id:
+                                                getString(
+                                                        submittedByRecord.id ??
+                                                                submittedByRecord.userId ??
+                                                                submittedByRecord.user_id ??
+                                                                submittedByRecord.uid
+                                                ) ?? submittedById
+                                }
+                        }
+
+                        const statement = getString(record.statement ?? record.summary ?? record.note)
+                        if (statement) {
+                                submission.statement = statement
+                        }
+
+                        const noAdditionalEvidence = getBoolean(
+                                record.noAdditionalEvidence ??
+                                        record.no_additional_evidence ??
+                                        record.noEvidence ??
+                                        record.no_evidence
+                        )
+                        if (noAdditionalEvidence !== undefined) {
+                                submission.noAdditionalEvidence = noAdditionalEvidence
+                        }
+
+                        const submittedAt = getString(record.submittedAt ?? record.submitted_at ?? record.createdAt ?? record.created_at)
+                        if (submittedAt) {
+                                submission.submittedAt = submittedAt
+                        }
+
+                        const updatedAt = getString(record.updatedAt ?? record.updated_at)
+                        if (updatedAt) {
+                                submission.updatedAt = updatedAt
+                        }
+
+                        const items = parseEvidenceItems(record.items ?? record.evidence ?? record.attachments)
+                        if (items.length) {
+                                submission.items = items
+                        }
+
+                        return submission
+                })
+                .filter((submission): submission is ArbitrationContextEvidenceSubmission => Boolean(submission))
+}
+
 const parseArbitrationContext = (value: unknown): ArbitrationContext => {
         const record = asRecord(value)
         if (!record) {
@@ -263,13 +759,88 @@ const parseArbitrationContext = (value: unknown): ArbitrationContext => {
         const meta = parseMeta(record.meta ?? record.overview)
         const timeline = parseTimeline(record.timeline)
 
+        const context: ArbitrationContext = { meta, timeline }
+
+        const parties =
+                parseParties(
+                        record.parties ??
+                                record.participants ??
+                                record.people ??
+                                record.involved ??
+                                record.stakeholders ??
+                                record.roles
+                )
+        if (parties.length) {
+                context.parties = parties
+        }
+
+        const financials = parseFinancials(record.financials ?? record.amounts ?? record.financial ?? record.summary)
+        if (financials) {
+                context.financials = financials
+        }
+
+        const milestone = parseMilestone(record.milestone ?? record.task ?? record.scope)
+        if (milestone) {
+                context.milestone = milestone
+        }
+
+        const milestoneSubmissions = parseMilestoneSubmissions(
+                record.milestoneSubmissions ??
+                        record.milestone_submissions ??
+                        record.submissions ??
+                        record.deliveries ??
+                        record.handovers
+        )
+        if (milestoneSubmissions.length) {
+                context.milestoneSubmissions = milestoneSubmissions
+        }
+
+        const evidence = parseEvidenceSubmissions(
+                record.evidence ?? record.evidenceSubmissions ?? record.evidence_submissions ?? record.proofs
+        )
+        if (evidence.length) {
+                context.evidence = evidence
+        }
+
         const sections: Record<string, unknown> = {}
         for (const [key, val] of Object.entries(record)) {
-                if (key === 'meta' || key === 'overview' || key === 'timeline') continue
+                if (['meta', 'overview', 'timeline'].includes(key)) continue
+                if (
+                        [
+                                'parties',
+                                'participants',
+                                'people',
+                                'involved',
+                                'stakeholders',
+                                'roles',
+                                'financials',
+                                'amounts',
+                                'financial',
+                                'summary',
+                                'milestone',
+                                'task',
+                                'scope',
+                                'milestoneSubmissions',
+                                'milestone_submissions',
+                                'submissions',
+                                'deliveries',
+                                'handovers',
+                                'evidence',
+                                'evidenceSubmissions',
+                                'evidence_submissions',
+                                'proofs'
+                        ].includes(key)
+                ) {
+                        continue
+                }
                 sections[key] = val
         }
 
-        return { meta, timeline, sections }
+        if (Object.keys(sections).length) {
+                context.sections = sections
+        }
+
+        return context
 }
 
 export const listArbitratorDisputes = async (): Promise<ArbitratorDisputeListItem[]> => {
