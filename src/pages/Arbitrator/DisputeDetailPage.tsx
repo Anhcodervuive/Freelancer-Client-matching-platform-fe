@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -8,7 +8,10 @@ import { toast } from 'react-toastify'
 import {
         AlertCircle,
         CalendarDays,
+        ChevronDown,
+        ChevronUp,
         Clock,
+        FileDown,
         FileText,
         Gavel,
         Loader2,
@@ -283,6 +286,8 @@ const mapTimelineEntries = (entries: ArbitrationTimelineEntry[]): TimelineEntry[
                 id: `${entry.at}-${entry.action}-${index}`
         }))
 
+const TIMELINE_PREVIEW_COUNT = 6
+
 export default function ArbitratorDisputeDetailPage() {
         const { disputeId } = useParams<{ disputeId: string }>()
         const queryClient = useQueryClient()
@@ -387,6 +392,28 @@ export default function ArbitratorDisputeDetailPage() {
                 return disputable >= 0 ? disputable : 0
         }, [contextDisputed, funded, released, refunded])
 
+        const financialSummaryItems = [
+                {
+                        label: 'Tổng số tiền tranh chấp',
+                        value: formatCurrency(funded, currency)
+                },
+                {
+                        label: 'Đã giải ngân',
+                        value: formatCurrency(released, currency)
+                },
+                {
+                        label: 'Đã hoàn trả',
+                        value: formatCurrency(refunded, currency)
+                },
+                {
+                        label: 'Giá trị còn tranh chấp',
+                        value:
+                                disputableAmount !== null
+                                        ? formatCurrency(disputableAmount, currency)
+                                        : '—'
+                }
+        ]
+
         useEffect(() => {
                 if (disputableAmount === null) return
 
@@ -400,6 +427,10 @@ export default function ArbitratorDisputeDetailPage() {
                         setValue('refundAmount', disputableAmount, { shouldValidate: true })
                 }
         }, [awardType, disputableAmount, setValue])
+
+        useEffect(() => {
+                setShowFullTimeline(false)
+        }, [disputeId, timelineEntries.length])
 
 
         const decisionMutation = useMutation({
@@ -441,8 +472,26 @@ export default function ArbitratorDisputeDetailPage() {
                 () => mapTimelineEntries(arbitrationContext?.timeline ?? []),
                 [arbitrationContext?.timeline]
         )
+        const [showFullTimeline, setShowFullTimeline] = useState(false)
+        const timelineToRender = useMemo(
+                () =>
+                        showFullTimeline
+                                ? timelineEntries
+                                : timelineEntries.slice(0, TIMELINE_PREVIEW_COUNT),
+                [showFullTimeline, timelineEntries]
+        )
+        const canToggleTimeline = timelineEntries.length > TIMELINE_PREVIEW_COUNT
+        const hiddenTimelineCount = Math.max(timelineEntries.length - timelineToRender.length, 0)
         const decisionAttachments = (disputeDetail?.decisionAttachments ?? []) as AdminDisputeDecisionAttachment[]
         const arbitrationDossiers = (disputeDetail?.arbitrationDossiers ?? []) as AdminDisputeDossier[]
+        const sortedDossiers = [...arbitrationDossiers].sort(
+                (first, second) => (second.version ?? 0) - (first.version ?? 0)
+        )
+        const latestDossier = sortedDossiers[0]
+        const dossierExportUrl =
+                latestDossier && disputeId
+                        ? `/api/arbitrator/disputes/${disputeId}/dossiers/${latestDossier.id}/pdf`
+                        : null
         const contractClient = (contract?.client as Record<string, unknown> | undefined) ?? null
         const contractFreelancer = (contract?.freelancer as Record<string, unknown> | undefined) ?? null
 
@@ -547,6 +596,30 @@ export default function ArbitratorDisputeDetailPage() {
                         <span>Trạng thái: {statusLabel}</span>
                 </span>
         )
+        const handleExportDossier = () => {
+                if (!dossierExportUrl) {
+                        toast.info('Chưa có hồ sơ trọng tài để xuất PDF.')
+                        return
+                }
+
+                window.open(dossierExportUrl, '_blank', 'noopener,noreferrer')
+        }
+        const exportAction = (
+                <button
+                        type='button'
+                        className='btn btn-outline btn-sm gap-2'
+                        onClick={handleExportDossier}
+                        disabled={!dossierExportUrl}
+                >
+                        <FileDown size={16} /> Xuất hồ sơ PDF
+                </button>
+        )
+        const headerActions = (
+                <>
+                        {exportAction}
+                        {statusBadge}
+                </>
+        )
         const headerMeta = (
                 <>
                         <div className='flex items-center gap-2'>
@@ -582,12 +655,12 @@ export default function ArbitratorDisputeDetailPage() {
                                         Mã tranh chấp: <strong>{disputeId}</strong>
                                 </span>
                         }
-                        actions={statusBadge}
+                        actions={headerActions}
                         meta={headerMeta}
                         breadcrumbs={breadcrumbs}
                 >
-                        <section className='grid gap-6 lg:grid-cols-3'>
-                                <article className='lg:col-span-2 space-y-6'>
+                        <section className='grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start'>
+                                <article className='space-y-6 xl:pr-2'>
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
                                                 <div className='flex flex-wrap items-start justify-between gap-4'>
                                                         <div>
@@ -601,49 +674,54 @@ export default function ArbitratorDisputeDetailPage() {
                                                                 </span>
                                                         ) : null}
                                                 </div>
-                                                <dl className='mt-4 grid gap-4 sm:grid-cols-2'>
-                                                        <div>
-                                                                <dt className='text-sm text-base-content/60'>Tổng số tiền tranh chấp</dt>
-                                                                <dd className='text-lg font-semibold'>{formatCurrency(funded, currency)}</dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-sm text-base-content/60'>Đã giải ngân</dt>
-                                                                <dd className='text-lg font-semibold'>{formatCurrency(released, currency)}</dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-sm text-base-content/60'>Đã hoàn trả</dt>
-                                                                <dd className='text-lg font-semibold'>{formatCurrency(refunded, currency)}</dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-sm text-base-content/60'>Giá trị còn tranh chấp</dt>
-                                                                <dd className='text-lg font-semibold'>
-                                                                        {disputableAmount !== null
-                                                                                ? formatCurrency(disputableAmount, currency)
-                                                                                : '—'}
-                                                                </dd>
-                                                        </div>
-                                                </dl>
+                                                <div className='mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
+                                                        {financialSummaryItems.map(item => (
+                                                                <div
+                                                                        key={item.label}
+                                                                        className='rounded-xl border border-base-200 bg-base-200/60 p-4 shadow-sm'
+                                                                >
+                                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                {item.label}
+                                                                        </p>
+                                                                        <p className='mt-2 text-xl font-semibold text-base-content'>
+                                                                                {item.value}
+                                                                        </p>
+                                                                </div>
+                                                        ))}
+                                                </div>
                                                 {hasRequestedBreakdown || hasDecidedBreakdown ? (
-                                                        <div className='mt-6 grid gap-4 border-t border-base-200 pt-6 sm:grid-cols-2'>
+                                                        <div className='mt-6 grid gap-4 border-t border-dashed border-base-200 pt-6 sm:grid-cols-2'>
                                                                 {hasRequestedBreakdown ? (
-                                                                        <div className='rounded-xl bg-base-200/60 p-4'>
-                                                                                <p className='text-xs uppercase text-base-content/60'>Yêu cầu từ các bên</p>
-                                                                                <p className='mt-2 text-sm font-medium text-base-content/80'>
-                                                                                        Client: <span className='font-semibold'>{formatCurrency(requestedClient, currency)}</span>
+                                                                        <div className='rounded-xl border border-base-200 bg-base-100/60 p-4'>
+                                                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Yêu cầu từ các bên</p>
+                                                                                <p className='mt-2 text-sm font-medium text-base-content'>
+                                                                                        Client:{' '}
+                                                                                        <span className='font-semibold'>
+                                                                                                {formatCurrency(requestedClient, currency)}
+                                                                                        </span>
                                                                                 </p>
-                                                                                <p className='mt-1 text-sm font-medium text-base-content/80'>
-                                                                                        Freelancer: <span className='font-semibold'>{formatCurrency(requestedFreelancer, currency)}</span>
+                                                                                <p className='mt-1 text-sm font-medium text-base-content'>
+                                                                                        Freelancer:{' '}
+                                                                                        <span className='font-semibold'>
+                                                                                                {formatCurrency(requestedFreelancer, currency)}
+                                                                                        </span>
                                                                                 </p>
                                                                         </div>
                                                                 ) : null}
                                                                 {hasDecidedBreakdown ? (
-                                                                        <div className='rounded-xl bg-base-200/60 p-4'>
-                                                                                <p className='text-xs uppercase text-base-content/60'>Phân bổ đã quyết định</p>
-                                                                                <p className='mt-2 text-sm font-medium text-base-content/80'>
-                                                                                        Client: <span className='font-semibold'>{formatCurrency(decidedClient, currency)}</span>
+                                                                        <div className='rounded-xl border border-base-200 bg-base-100/60 p-4'>
+                                                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Phân bổ đã quyết định</p>
+                                                                                <p className='mt-2 text-sm font-medium text-base-content'>
+                                                                                        Client:{' '}
+                                                                                        <span className='font-semibold'>
+                                                                                                {formatCurrency(decidedClient, currency)}
+                                                                                        </span>
                                                                                 </p>
-                                                                                <p className='mt-1 text-sm font-medium text-base-content/80'>
-                                                                                        Freelancer: <span className='font-semibold'>{formatCurrency(decidedFreelancer, currency)}</span>
+                                                                                <p className='mt-1 text-sm font-medium text-base-content'>
+                                                                                        Freelancer:{' '}
+                                                                                        <span className='font-semibold'>
+                                                                                                {formatCurrency(decidedFreelancer, currency)}
+                                                                                        </span>
                                                                                 </p>
                                                                         </div>
                                                                 ) : null}
@@ -654,38 +732,59 @@ export default function ArbitratorDisputeDetailPage() {
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
                                                 <h2 className='text-lg font-semibold'>Dòng thời gian trọng tài</h2>
                                                 {timelineEntries.length ? (
-                                                        <ul className='mt-4 space-y-4'>
-                                                                {timelineEntries.map(entry => {
-                                                                        const actorLabel = resolveActorName(entry.actor)
-                                                                        return (
-                                                                                <li key={entry.id} className='rounded-xl border border-base-200 p-4'>
-                                                                                        <div className='flex flex-wrap items-center gap-2 text-sm text-base-content/70'>
-                                                                                                <CalendarDays size={16} />
-                                                                                                <span>{formatDateTime(entry.at)}</span>
-                                                                                                {actorLabel ? (
-                                                                                                        <>
-                                                                                                                <span>•</span>
-                                                                                                                <span className='flex items-center gap-1'>
-                                                                                                                        <UserCircle2 size={16} />
-                                                                                                                        <span className='font-medium text-base-content'>{actorLabel}</span>
+                                                        <>
+                                                                <ul className='mt-4 space-y-5'>
+                                                                        {timelineToRender.map(entry => {
+                                                                                const actorLabel = resolveActorName(entry.actor)
+                                                                                return (
+                                                                                        <li key={entry.id} className='relative border-l-2 border-base-200 pl-6'>
+                                                                                                <span className='absolute -left-[5px] top-2 inline-flex size-3 items-center justify-center rounded-full bg-primary ring-4 ring-primary/20'></span>
+                                                                                                <div className='flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-base-content/60'>
+                                                                                                        <CalendarDays size={16} />
+                                                                                                        <span>{formatDateTime(entry.at)}</span>
+                                                                                                        {actorLabel ? (
+                                                                                                                <span className='flex items-center gap-1 text-[11px] text-base-content/70'>
+                                                                                                                        <UserCircle2 size={14} />
+                                                                                                                        <span className='font-semibold normal-case text-base-content'>{actorLabel}</span>
                                                                                                                 </span>
-                                                                                                        </>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        <p className='mt-2 text-base font-semibold text-base-content'>{formatTimelineAction(entry.action)}</p>
-                                                                                        {entry.details ? (
-                                                                                                typeof entry.details === 'string' ? (
-                                                                                                        <p className='mt-2 text-sm text-base-content/70'>{entry.details}</p>
-                                                                                                ) : (
-                                                                                                        <pre className='mt-3 max-h-48 overflow-auto rounded-lg bg-base-200/60 p-3 text-xs leading-relaxed'>
-                                                                                                                {JSON.stringify(entry.details, null, 2)}
-                                                                                                        </pre>
-                                                                                                )
-                                                                                        ) : null}
-                                                                                </li>
-                                                                        )
-                                                                })}
-                                                        </ul>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                                <div className='mt-2 rounded-xl border border-base-200 bg-base-100 p-4 shadow-sm'>
+                                                                                                        <p className='text-base font-semibold text-base-content'>
+                                                                                                                {formatTimelineAction(entry.action)}
+                                                                                                        </p>
+                                                                                                        {entry.details ? (
+                                                                                                                typeof entry.details === 'string' ? (
+                                                                                                                        <p className='mt-2 text-sm text-base-content/70'>{entry.details}</p>
+                                                                                                                ) : (
+                                                                                                                        <pre className='mt-3 max-h-48 overflow-auto rounded-lg bg-base-200/60 p-3 text-xs leading-relaxed'>
+                                                                                                                                {JSON.stringify(entry.details, null, 2)}
+                                                                                                                        </pre>
+                                                                                                                )
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        </li>
+                                                                                )
+                                                                        })}
+                                                                </ul>
+                                                                {canToggleTimeline ? (
+                                                                        <button
+                                                                                type='button'
+                                                                                className='btn btn-ghost btn-sm mt-2 gap-2'
+                                                                                onClick={() => setShowFullTimeline(previous => !previous)}
+                                                                        >
+                                                                                {showFullTimeline ? (
+                                                                                        <>
+                                                                                                <ChevronUp size={16} /> Thu gọn dòng thời gian
+                                                                                        </>
+                                                                                ) : (
+                                                                                        <>
+                                                                                                <ChevronDown size={16} /> Xem thêm {hiddenTimelineCount} hoạt động
+                                                                                        </>
+                                                                                )}
+                                                                        </button>
+                                                                ) : null}
+                                                        </>
                                                 ) : (
                                                         <p className='mt-4 text-sm text-base-content/70'>Chưa có dữ liệu dòng thời gian.</p>
                                                 )}
@@ -914,7 +1013,7 @@ export default function ArbitratorDisputeDetailPage() {
                                         </div>
                                 </article>
 
-                                <aside className='space-y-6'>
+                                <aside className='space-y-6 xl:pl-2'>
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
                                                 <h2 className='text-lg font-semibold'>Các bên tham gia</h2>
                                                 {parties.length ? (
@@ -954,12 +1053,15 @@ export default function ArbitratorDisputeDetailPage() {
 
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
                                                 <h2 className='text-lg font-semibold'>Hồ sơ trọng tài gần đây</h2>
-                                                {arbitrationDossiers.length ? (
+                                                {sortedDossiers.length ? (
                                                         <ul className='mt-4 space-y-3 text-sm text-base-content/70'>
-                                                                {arbitrationDossiers.map(dossier => {
+                                                                {sortedDossiers.map(dossier => {
                                                                         const status = (dossier as { status?: string | null }).status
                                                                         const generatedAt = (dossier as { generatedAt?: string | null }).generatedAt
                                                                         const hash = (dossier as { hash?: string | null }).hash
+                                                                        const dossierUrl = disputeId
+                                                                                ? `/api/arbitrator/disputes/${disputeId}/dossiers/${dossier.id}/pdf`
+                                                                                : null
 
                                                                         return (
                                                                                 <li key={dossier.id} className='rounded-lg border border-base-200 p-3'>
@@ -980,6 +1082,23 @@ export default function ArbitratorDisputeDetailPage() {
                                                                                         {hash ? (
                                                                                                 <p className='mt-1 truncate text-[10px] text-base-content/50'>Hash: {hash}</p>
                                                                                         ) : null}
+                                                                                        <div className='mt-3 flex items-center justify-end'>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-ghost btn-xs gap-2'
+                                                                                                        onClick={() => {
+                                                                                                                if (!dossierUrl) {
+                                                                                                                        toast.info('Không tìm thấy đường dẫn xuất PDF cho hồ sơ này.')
+                                                                                                                        return
+                                                                                                                }
+
+                                                                                                                window.open(dossierUrl, '_blank', 'noopener,noreferrer')
+                                                                                                        }}
+                                                                                                        disabled={!dossierUrl}
+                                                                                                >
+                                                                                                        <FileDown size={14} /> Tải PDF
+                                                                                                </button>
+                                                                                        </div>
                                                                                 </li>
                                                                         )
                                                                 })}
