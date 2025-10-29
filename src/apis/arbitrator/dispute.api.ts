@@ -125,8 +125,8 @@ const extractArbitratorDisputeListItem = (value: unknown): ArbitratorDisputeList
         }
 }
 
-const extractListItems = (value: unknown): unknown[] => {
-        if (!value) {
+const extractListItems = (value: unknown, depth = 0): unknown[] => {
+        if (!value || depth > 3) {
                 return []
         }
 
@@ -134,13 +134,33 @@ const extractListItems = (value: unknown): unknown[] => {
                 return value
         }
 
-        if (typeof value === 'object') {
-                const record = value as Record<string, unknown>
-                const candidates = [record.data, record.items, record.disputes, record.results]
-                for (const candidate of candidates) {
-                        if (Array.isArray(candidate)) {
-                                return candidate
-                        }
+        const record = asRecord(value)
+        if (!record) {
+                return []
+        }
+
+        const directCandidates = [
+                record.items,
+                record.results,
+                record.disputes,
+                record.list,
+                record.collection,
+                record.data,
+                record.payload,
+                record.response,
+                record.result
+        ]
+        for (const candidate of directCandidates) {
+                if (Array.isArray(candidate)) {
+                        return candidate
+                }
+        }
+
+        const nestedSources = [record.data, record.payload, record.response, record.result]
+        for (const source of nestedSources) {
+                const extracted = extractListItems(source, depth + 1)
+                if (extracted.length) {
+                        return extracted
                 }
         }
 
