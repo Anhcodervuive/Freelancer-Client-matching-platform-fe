@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
+import type { LucideIcon } from 'lucide-react'
 import {
         AlertCircle,
         CalendarDays,
@@ -13,9 +14,13 @@ import {
         Clock,
         FileDown,
         FileText,
+        FolderOpen,
         Gavel,
+        LayoutDashboard,
+        Layers,
         Loader2,
         Lock,
+        ScrollText,
         ShieldCheck,
         UserCircle2
 } from 'lucide-react'
@@ -494,6 +499,18 @@ export default function ArbitratorDisputeDetailPage() {
         const contractClient = (contract?.client as Record<string, unknown> | undefined) ?? null
         const contractFreelancer = (contract?.freelancer as Record<string, unknown> | undefined) ?? null
 
+        type DetailTabKey = 'overview' | 'timeline' | 'milestone' | 'evidence' | 'documents'
+
+        const detailTabs: { key: DetailTabKey; label: string; icon: LucideIcon }[] = [
+                { key: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
+                { key: 'timeline', label: 'Hoạt động', icon: CalendarDays },
+                { key: 'milestone', label: 'Bàn giao', icon: Layers },
+                { key: 'evidence', label: 'Chứng cứ', icon: ScrollText },
+                { key: 'documents', label: 'Hồ sơ', icon: FolderOpen }
+        ]
+
+        const [activeTab, setActiveTab] = useState<DetailTabKey>('overview')
+
         const resolveActorName = (actorId?: string | null) => {
                 if (!actorId) return null
 
@@ -661,354 +678,478 @@ export default function ArbitratorDisputeDetailPage() {
                         <section className='grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start'>
                                 <article className='space-y-6 xl:pr-2'>
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <div className='flex flex-wrap items-start justify-between gap-4'>
-                                                        <div>
-                                                                <h2 className='text-lg font-semibold'>Thông tin tài chính</h2>
-                                                                <p className='mt-1 text-sm text-base-content/70'>Tổng quan giá trị tranh chấp và phân bổ theo hồ sơ trọng tài.</p>
-                                                        </div>
-                                                        {currency ? (
-                                                                <span className='inline-flex items-center gap-1 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
-                                                                        <span>Đơn vị</span>
-                                                                        <strong>{currency}</strong>
-                                                                </span>
-                                                        ) : null}
-                                                </div>
-                                                <div className='mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
-                                                        {financialSummaryItems.map(item => (
-                                                                <div
-                                                                        key={item.label}
-                                                                        className='rounded-xl border border-base-200 bg-base-200/60 p-4 shadow-sm'
-                                                                >
-                                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                {item.label}
-                                                                        </p>
-                                                                        <p className='mt-2 text-xl font-semibold text-base-content'>
-                                                                                {item.value}
-                                                                        </p>
-                                                                </div>
-                                                        ))}
-                                                </div>
-                                                {hasRequestedBreakdown || hasDecidedBreakdown ? (
-                                                        <div className='mt-6 grid gap-4 border-t border-dashed border-base-200 pt-6 sm:grid-cols-2'>
-                                                                {hasRequestedBreakdown ? (
-                                                                        <div className='rounded-xl border border-base-200 bg-base-100/60 p-4'>
-                                                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Yêu cầu từ các bên</p>
-                                                                                <p className='mt-2 text-sm font-medium text-base-content'>
-                                                                                        Client:{' '}
-                                                                                        <span className='font-semibold'>
-                                                                                                {formatCurrency(requestedClient, currency)}
-                                                                                        </span>
-                                                                                </p>
-                                                                                <p className='mt-1 text-sm font-medium text-base-content'>
-                                                                                        Freelancer:{' '}
-                                                                                        <span className='font-semibold'>
-                                                                                                {formatCurrency(requestedFreelancer, currency)}
-                                                                                        </span>
-                                                                                </p>
-                                                                        </div>
-                                                                ) : null}
-                                                                {hasDecidedBreakdown ? (
-                                                                        <div className='rounded-xl border border-base-200 bg-base-100/60 p-4'>
-                                                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Phân bổ đã quyết định</p>
-                                                                                <p className='mt-2 text-sm font-medium text-base-content'>
-                                                                                        Client:{' '}
-                                                                                        <span className='font-semibold'>
-                                                                                                {formatCurrency(decidedClient, currency)}
-                                                                                        </span>
-                                                                                </p>
-                                                                                <p className='mt-1 text-sm font-medium text-base-content'>
-                                                                                        Freelancer:{' '}
-                                                                                        <span className='font-semibold'>
-                                                                                                {formatCurrency(decidedFreelancer, currency)}
-                                                                                        </span>
-                                                                                </p>
-                                                                        </div>
-                                                                ) : null}
-                                                        </div>
-                                                ) : null}
-                                        </div>
-
-                                        <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <h2 className='text-lg font-semibold'>Dòng thời gian trọng tài</h2>
-                                                {timelineEntries.length ? (
-                                                        <>
-                                                                <ul className='mt-4 space-y-5'>
-                                                                        {timelineToRender.map(entry => {
-                                                                                const actorLabel = resolveActorName(entry.actor)
-                                                                                return (
-                                                                                        <li key={entry.id} className='relative border-l-2 border-base-200 pl-6'>
-                                                                                                <span className='absolute -left-[5px] top-2 inline-flex size-3 items-center justify-center rounded-full bg-primary ring-4 ring-primary/20'></span>
-                                                                                                <div className='flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-base-content/60'>
-                                                                                                        <CalendarDays size={16} />
-                                                                                                        <span>{formatDateTime(entry.at)}</span>
-                                                                                                        {actorLabel ? (
-                                                                                                                <span className='flex items-center gap-1 text-[11px] text-base-content/70'>
-                                                                                                                        <UserCircle2 size={14} />
-                                                                                                                        <span className='font-semibold normal-case text-base-content'>{actorLabel}</span>
-                                                                                                                </span>
-                                                                                                        ) : null}
-                                                                                                </div>
-                                                                                                <div className='mt-2 rounded-xl border border-base-200 bg-base-100 p-4 shadow-sm'>
-                                                                                                        <p className='text-base font-semibold text-base-content'>
-                                                                                                                {formatTimelineAction(entry.action)}
-                                                                                                        </p>
-                                                                                                        {entry.details ? (
-                                                                                                                typeof entry.details === 'string' ? (
-                                                                                                                        <p className='mt-2 text-sm text-base-content/70'>{entry.details}</p>
-                                                                                                                ) : (
-                                                                                                                        <pre className='mt-3 max-h-48 overflow-auto rounded-lg bg-base-200/60 p-3 text-xs leading-relaxed'>
-                                                                                                                                {JSON.stringify(entry.details, null, 2)}
-                                                                                                                        </pre>
-                                                                                                                )
-                                                                                                        ) : null}
-                                                                                                </div>
-                                                                                        </li>
-                                                                                )
-                                                                        })}
-                                                                </ul>
-                                                                {canToggleTimeline ? (
+                                                <div className='flex flex-wrap gap-2 rounded-2xl border border-base-200 bg-base-200/50 p-1.5'>
+                                                        {detailTabs.map(tab => {
+                                                                const Icon = tab.icon
+                                                                const isActive = activeTab === tab.key
+                                                                return (
                                                                         <button
+                                                                                key={tab.key}
                                                                                 type='button'
-                                                                                className='btn btn-ghost btn-sm mt-2 gap-2'
-                                                                                onClick={() => setShowFullTimeline(previous => !previous)}
+                                                                                onClick={() => setActiveTab(tab.key)}
+                                                                                className={`flex min-w-[120px] flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:flex-none sm:px-4 ${
+                                                                                        isActive
+                                                                                                ? 'bg-primary text-primary-content shadow'
+                                                                                                : 'bg-base-100 text-base-content/70 hover:bg-base-100/80'
+                                                                                }`}
                                                                         >
-                                                                                {showFullTimeline ? (
-                                                                                        <>
-                                                                                                <ChevronUp size={16} /> Thu gọn dòng thời gian
-                                                                                        </>
-                                                                                ) : (
-                                                                                        <>
-                                                                                                <ChevronDown size={16} /> Xem thêm {hiddenTimelineCount} hoạt động
-                                                                                        </>
-                                                                                )}
+                                                                                <Icon size={16} />
+                                                                                <span>{tab.label}</span>
                                                                         </button>
-                                                                ) : null}
-                                                        </>
-                                                ) : (
-                                                        <p className='mt-4 text-sm text-base-content/70'>Chưa có dữ liệu dòng thời gian.</p>
-                                                )}
-                                        </div>
-
-                                        <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <div className='flex flex-wrap items-start justify-between gap-4'>
-                                                        <div>
-                                                                <h2 className='text-lg font-semibold'>Milestone tranh chấp</h2>
-                                                                <p className='mt-1 text-sm text-base-content/70'>Thông tin mốc thanh toán và các lần bàn giao liên quan tới hồ sơ này.</p>
-                                                        </div>
-                                                        {(milestoneContext?.status ?? milestone?.status) ? (
-                                                                <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
-                                                                        {formatMilestoneStatus(milestoneContext?.status ?? milestone?.status)}
-                                                                </span>
-                                                        ) : null}
+                                                                )
+                                                        })}
                                                 </div>
-                                                <dl className='mt-4 grid gap-4 sm:grid-cols-2'>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Tiêu đề milestone</dt>
-                                                                <dd className='mt-1 text-sm font-medium text-base-content'>
-                                                                        {milestoneContext?.title ?? milestone?.title ?? '—'}
-                                                                </dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Thuộc hợp đồng</dt>
-                                                                <dd className='mt-1 text-sm font-medium text-base-content'>
-                                                                        {contractTitle ?? '—'}
-                                                                </dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Giá trị mốc</dt>
-                                                                <dd className='mt-1 text-sm font-medium text-base-content'>
-                                                                        {formatCurrency(
-                                                                                milestoneContext?.amount ?? milestone?.amount ?? null,
-                                                                                milestoneContext?.currency ?? currency
-                                                                        )}
-                                                                </dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Thời gian</dt>
-                                                                <dd className='mt-1 text-sm font-medium text-base-content'>
-                                                                        Bắt đầu: {formatDateTime(milestoneContext?.startAt ?? milestone?.startAt ?? null)}
-                                                                        <br />
-                                                                        Kết thúc: {formatDateTime(milestoneContext?.endAt ?? milestone?.endAt ?? null)}
-                                                                </dd>
-                                                        </div>
-                                                </dl>
-                                                {milestoneSubmissions.length ? (
-                                                        <div className='mt-6'>
-                                                                <h3 className='text-sm font-semibold uppercase tracking-wide text-base-content/60'>Các lần bàn giao</h3>
-                                                                <ul className='mt-3 space-y-4'>
-                                                                        {milestoneSubmissions.map(submission => {
-                                                                                const attachments = submission.attachments ?? []
-                                                                                const submissionLabel =
-                                                                                        submission.message && submission.message.trim().length
-                                                                                                ? submission.message.trim()
-                                                                                                : 'Bàn giao không có tiêu đề'
-                                                                                const freelancerLabel =
-                                                                                        submission.freelancer?.trim().length
-                                                                                                ? submission.freelancer?.trim()
-                                                                                                : submission.freelancerId
-                                                                                                ? `Freelancer ${formatShortId(submission.freelancerId)}`
-                                                                                                : 'Không rõ người gửi'
 
-                                                                                return (
-                                                                                        <li key={submission.id} className='rounded-xl border border-base-200 p-4'>
-                                                                                                <div className='flex flex-wrap items-start justify-between gap-3'>
-                                                                                                        <div>
-                                                                                                                <p className='text-sm font-semibold text-base-content'>{submissionLabel}</p>
-                                                                                                                <p className='mt-1 text-xs text-base-content/60'>
-                                                                                                                        {freelancerLabel} • {formatDateTime(submission.createdAt)}
-                                                                                                                </p>
-                                                                                                                {submission.reviewedBy ? (
-                                                                                                                        <p className='mt-1 text-xs text-base-content/60'>
-                                                                                                                                Đánh giá bởi {submission.reviewedBy}
-                                                                                                                                {submission.reviewedAt ? ` • ${formatDateTime(submission.reviewedAt)}` : ''}
-                                                                                                                        </p>
-                                                                                                                ) : null}
-                                                                                                        </div>
-                                                                                                        {submission.status ? (
-                                                                                                                <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
-                                                                                                                        {formatSubmissionStatus(submission.status)}
-                                                                                                                </span>
-                                                                                                        ) : null}
-                                                                                                </div>
-                                                                                                {typeof submission.reviewRating === 'number' ? (
-                                                                                                        <p className='mt-2 text-xs text-base-content/60'>Điểm đánh giá: {submission.reviewRating}/5</p>
-                                                                                                ) : null}
-                                                                                                {submission.reviewNote ? (
-                                                                                                        <p className='mt-2 text-sm text-base-content/70'>Nhận xét: {submission.reviewNote}</p>
-                                                                                                ) : null}
-                                                                                                {attachments.length ? (
-                                                                                                        <ul className='mt-3 space-y-2'>
-                                                                                                                {attachments.map(attachment => {
-                                                                                                                        const href = attachment.url ?? null
-                                                                                                                        const sizeLabel =
-                                                                                                                                typeof attachment.size === 'number'
-                                                                                                                                        ? formatFileSize(attachment.size)
-                                                                                                                                        : null
-
-                                                                                                                        return (
-                                                                                                                                <li key={attachment.id} className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-xs text-base-content/70'>
-                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
-                                                                                                                                                <span className='font-medium text-base-content'>{attachment.name ?? 'Tệp đính kèm'}</span>
-                                                                                                                                                {sizeLabel ? <span className='text-[10px] uppercase tracking-wide text-base-content/60'>{sizeLabel}</span> : null}
-                                                                                                                                        </div>
-                                                                                                                                        {href ? (
-                                                                                                                                                <a
-                                                                                                                                                        href={href}
-                                                                                                                                                        target='_blank'
-                                                                                                                                                        rel='noreferrer'
-                                                                                                                                                        className='mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline'
-                                                                                                                                                >
-                                                                                                                                                        <FileText size={14} /> Xem tệp
-                                                                                                                                                </a>
-                                                                                                                                        ) : null}
-                                                                                                                                </li>
-                                                                                                                        )
-                                                                                                                })}
-                                                                                                        </ul>
-                                                                                                ) : null}
-                                                                                        </li>
-                                                                                )
-                                                                        })}
-                                                                </ul>
-                                                        </div>
-                                                ) : (
-                                                        <p className='mt-4 text-sm text-base-content/70'>Chưa ghi nhận bàn giao nào.</p>
-                                                )}
-                                        </div>
-
-                                        <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <h2 className='text-lg font-semibold'>Chứng cứ được nộp</h2>
-                                                {evidenceSubmissions.length ? (
-                                                        <div className='mt-4 space-y-4'>
-                                                                {evidenceSubmissions.map(submission => {
-                                                                        const attachments = submission.items ?? []
-                                                                        const submitterName =
-                                                                                submission.submittedBy?.displayName?.trim()
-                                                                                        ? submission.submittedBy?.displayName?.trim()
-                                                                                        : submission.submittedBy?.name?.trim()
-                                                                                        ? submission.submittedBy?.name?.trim()
-                                                                                        : `Người dùng ${formatShortId(submission.submittedById)}`
-                                                                        const badgeLabel = submission.noAdditionalEvidence
-                                                                                ? 'Không gửi tài liệu bổ sung'
-                                                                                : attachments.length
-                                                                                ? `Tài liệu: ${attachments.length}`
-                                                                                : null
-
-                                                                        return (
-                                                                                <div key={submission.id} className='rounded-xl border border-base-200 p-4'>
-                                                                                        <div className='flex flex-wrap items-start justify-between gap-3'>
-                                                                                                <div>
-                                                                                                        <p className='text-sm font-semibold text-base-content'>{submitterName}</p>
-                                                                                                        <p className='mt-1 text-xs text-base-content/60'>Nộp lúc {formatDateTime(submission.submittedAt)}</p>
-                                                                                                </div>
-                                                                                                {badgeLabel ? (
-                                                                                                        <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
-                                                                                                                {badgeLabel}
-                                                                                                        </span>
-                                                                                                ) : null}
+                                                <div className='mt-6 space-y-6'>
+                                                        {activeTab === 'overview' ? (
+                                                                <div className='space-y-6'>
+                                                                        <div className='flex flex-wrap items-start justify-between gap-4'>
+                                                                                <div>
+                                                                                        <h2 className='text-lg font-semibold'>Thông tin tài chính</h2>
+                                                                                        <p className='mt-1 text-sm text-base-content/70'>Tổng quan giá trị tranh chấp và phân bổ theo hồ sơ trọng tài.</p>
+                                                                                </div>
+                                                                                {currency ? (
+                                                                                        <span className='inline-flex items-center gap-1 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                                                                                <span>Đơn vị</span>
+                                                                                                <strong>{currency}</strong>
+                                                                                        </span>
+                                                                                ) : null}
+                                                                        </div>
+                                                                        <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
+                                                                                {financialSummaryItems.map(item => (
+                                                                                        <div
+                                                                                                key={item.label}
+                                                                                                className='rounded-xl border border-base-200 bg-base-200/60 p-4 shadow-sm'
+                                                                                        >
+                                                                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        {item.label}
+                                                                                                </p>
+                                                                                                <p className='mt-2 text-xl font-semibold text-base-content'>
+                                                                                                        {item.value}
+                                                                                                </p>
                                                                                         </div>
-                                                                                        {submission.statement ? (
-                                                                                                <p className='mt-2 text-sm text-base-content/70'>{submission.statement}</p>
+                                                                                ))}
+                                                                        </div>
+                                                                        {hasRequestedBreakdown || hasDecidedBreakdown ? (
+                                                                                <div className='grid gap-4 border-t border-dashed border-base-200 pt-6 sm:grid-cols-2'>
+                                                                                        {hasRequestedBreakdown ? (
+                                                                                                <div className='rounded-xl border border-base-200 bg-base-100/60 p-4'>
+                                                                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Yêu cầu từ các bên</p>
+                                                                                                        <p className='mt-2 text-sm font-medium text-base-content'>
+                                                                                                                Client:{' '}
+                                                                                                                <span className='font-semibold'>
+                                                                                                                        {formatCurrency(requestedClient, currency)}
+                                                                                                                </span>
+                                                                                                        </p>
+                                                                                                        <p className='mt-1 text-sm font-medium text-base-content'>
+                                                                                                                Freelancer:{' '}
+                                                                                                                <span className='font-semibold'>
+                                                                                                                        {formatCurrency(requestedFreelancer, currency)}
+                                                                                                                </span>
+                                                                                                        </p>
+                                                                                                </div>
                                                                                         ) : null}
-                                                                                        {attachments.length ? (
-                                                                                                <ul className='mt-3 space-y-3'>
-                                                                                                        {attachments.map((item, index) => {
-                                                                                                                const href = item.url ?? item.asset?.url ?? null
-                                                                                                                const assetBytes = item.asset?.bytes
-                                                                                                                const sizeLabel =
-                                                                                                                        typeof assetBytes === 'number'
-                                                                                                                                ? formatFileSize(assetBytes)
-                                                                                                                                : null
-                                                                                                                const referenceType =
-                                                                                                                        item.reference && typeof item.reference === 'object'
-                                                                                                                                ? (item.reference as { type?: unknown }).type
-                                                                                                                                : undefined
-                                                                                                                const evidenceLabel =
-                                                                                                                        item.label?.trim().length
-                                                                                                                                ? item.label?.trim()
-                                                                                                                                : item.asset?.id?.trim().length
-                                                                                                                                ? item.asset?.id
-                                                                                                                                : `Tài liệu #${index + 1}`
-
-                                                                                                                return (
-                                                                                                                        <li key={item.id} className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-xs text-base-content/70'>
-                                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
-                                                                                                                                        <span className='font-medium text-base-content'>{evidenceLabel}</span>
-                                                                                                                                        <span className='rounded-full bg-base-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-base-content/60'>
-                                                                                                                                                {formatEvidenceSource(item.sourceType)}
-                                                                                                                                        </span>
-                                                                                                                                </div>
-                                                                                                                                {item.description ? (
-                                                                                                                                        <p className='mt-1 text-xs text-base-content/70'>{item.description}</p>
-                                                                                                                                ) : null}
-                                                                                                                                {referenceType ? (
-                                                                                                                                        <p className='mt-1 text-[10px] text-base-content/60'>Tham chiếu: {String(referenceType)}</p>
-                                                                                                                                ) : null}
-                                                                                                                                {href ? (
-                                                                                                                                        <a
-                                                                                                                                                href={href}
-                                                                                                                                                target='_blank'
-                                                                                                                                                rel='noreferrer'
-                                                                                                                                                className='mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline'
-                                                                                                                                        >
-                                                                                                                                                <FileText size={14} /> Xem tài liệu
-                                                                                                                                        </a>
-                                                                                                                                ) : null}
-                                                                                                                                {sizeLabel ? (
-                                                                                                                                        <p className='mt-1 text-[10px] text-base-content/60'>Dung lượng: {sizeLabel}</p>
-                                                                                                                                ) : null}
-                                                                                                                        </li>
-                                                                                                                )
-                                                                                                        })}
-                                                                                                </ul>
+                                                                                        {hasDecidedBreakdown ? (
+                                                                                                <div className='rounded-xl border border-base-200 bg-base-100/60 p-4'>
+                                                                                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Phân bổ đã quyết định</p>
+                                                                                                        <p className='mt-2 text-sm font-medium text-base-content'>
+                                                                                                                Client:{' '}
+                                                                                                                <span className='font-semibold'>
+                                                                                                                        {formatCurrency(decidedClient, currency)}
+                                                                                                                </span>
+                                                                                                        </p>
+                                                                                                        <p className='mt-1 text-sm font-medium text-base-content'>
+                                                                                                                Freelancer:{' '}
+                                                                                                                <span className='font-semibold'>
+                                                                                                                        {formatCurrency(decidedFreelancer, currency)}
+                                                                                                                </span>
+                                                                                                        </p>
+                                                                                                </div>
                                                                                         ) : null}
                                                                                 </div>
-                                                                        )
-                                                                })}
-                                                        </div>
-                                                ) : (
-                                                        <p className='mt-4 text-sm text-base-content/70'>Chưa có chứng cứ nào được nộp.</p>
-                                                )}
+                                                                        ) : null}
+                                                                </div>
+                                                        ) : null}
+
+                                                        {activeTab === 'timeline' ? (
+                                                                <div>
+                                                                        <h2 className='text-lg font-semibold'>Dòng thời gian trọng tài</h2>
+                                                                        {timelineEntries.length ? (
+                                                                                <>
+                                                                                        <ul className='mt-4 space-y-5'>
+                                                                                                {timelineToRender.map(entry => {
+                                                                                                        const actorLabel = resolveActorName(entry.actor)
+                                                                                                        return (
+                                                                                                                <li key={entry.id} className='relative border-l-2 border-base-200 pl-6'>
+                                                                                                                        <span className='absolute -left-[5px] top-2 inline-flex size-3 items-center justify-center rounded-full bg-primary ring-4 ring-primary/20'></span>
+                                                                                                                        <div className='flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-base-content/60'>
+                                                                                                                                <CalendarDays size={16} />
+                                                                                                                                <span>{formatDateTime(entry.at)}</span>
+                                                                                                                                {actorLabel ? (
+                                                                                                                                        <span className='flex items-center gap-1 text-[11px] text-base-content/70'>
+                                                                                                                                                <UserCircle2 size={14} />
+                                                                                                                                                <span className='font-semibold normal-case text-base-content'>{actorLabel}</span>
+                                                                                                                                        </span>
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                        <div className='mt-2 rounded-xl border border-base-200 bg-base-100 p-4 shadow-sm'>
+                                                                                                                                <p className='text-base font-semibold text-base-content'>
+                                                                                                                                        {formatTimelineAction(entry.action)}
+                                                                                                                                </p>
+                                                                                                                                {entry.details ? (
+                                                                                                                                        typeof entry.details === 'string' ? (
+                                                                                                                                                <p className='mt-2 text-sm text-base-content/70'>{entry.details}</p>
+                                                                                                                                        ) : (
+                                                                                                                                                <pre className='mt-3 max-h-48 overflow-auto rounded-lg bg-base-200/60 p-3 text-xs leading-relaxed'>
+                                                                                                                                                        {JSON.stringify(entry.details, null, 2)}
+                                                                                                                                                </pre>
+                                                                                                                                        )
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                </li>
+                                                                                                        )
+                                                                                                })}
+                                                                                        </ul>
+                                                                                        {canToggleTimeline ? (
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-ghost btn-sm mt-2 gap-2'
+                                                                                                        onClick={() => setShowFullTimeline(previous => !previous)}
+                                                                                                >
+                                                                                                        {showFullTimeline ? (
+                                                                                                                <>
+                                                                                                                        <ChevronUp size={16} /> Thu gọn dòng thời gian
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <ChevronDown size={16} /> Xem thêm {hiddenTimelineCount} hoạt động
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </button>
+                                                                                        ) : null}
+                                                                                </>
+                                                                        ) : (
+                                                                                <p className='mt-4 text-sm text-base-content/70'>Chưa có dữ liệu dòng thời gian.</p>
+                                                                        )}
+                                                                </div>
+                                                        ) : null}
+
+                                                        {activeTab === 'milestone' ? (
+                                                                <div className='space-y-6'>
+                                                                        <div className='flex flex-wrap items-start justify-between gap-4'>
+                                                                                <div>
+                                                                                        <h2 className='text-lg font-semibold'>Milestone tranh chấp</h2>
+                                                                                        <p className='mt-1 text-sm text-base-content/70'>Thông tin mốc thanh toán và các lần bàn giao liên quan tới hồ sơ này.</p>
+                                                                                </div>
+                                                                                {(milestoneContext?.status ?? milestone?.status) ? (
+                                                                                        <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                                                                                {formatMilestoneStatus(milestoneContext?.status ?? milestone?.status)}
+                                                                                        </span>
+                                                                                ) : null}
+                                                                        </div>
+                                                                        <dl className='grid gap-4 sm:grid-cols-2'>
+                                                                                <div>
+                                                                                        <dt className='text-xs uppercase text-base-content/60'>Tiêu đề milestone</dt>
+                                                                                        <dd className='mt-1 text-sm font-medium text-base-content'>
+                                                                                                {milestoneContext?.title ?? milestone?.title ?? '—'}
+                                                                                        </dd>
+                                                                                </div>
+                                                                                <div>
+                                                                                        <dt className='text-xs uppercase text-base-content/60'>Thuộc hợp đồng</dt>
+                                                                                        <dd className='mt-1 text-sm font-medium text-base-content'>
+                                                                                                {contractTitle ?? '—'}
+                                                                                        </dd>
+                                                                                </div>
+                                                                                <div>
+                                                                                        <dt className='text-xs uppercase text-base-content/60'>Giá trị mốc</dt>
+                                                                                        <dd className='mt-1 text-sm font-medium text-base-content'>
+                                                                                                {formatCurrency(
+                                                                                                        milestoneContext?.amount ?? milestone?.amount ?? null,
+                                                                                                        milestoneContext?.currency ?? currency
+                                                                                                )}
+                                                                                        </dd>
+                                                                                </div>
+                                                                                <div>
+                                                                                        <dt className='text-xs uppercase text-base-content/60'>Thời gian</dt>
+                                                                                        <dd className='mt-1 text-sm font-medium text-base-content'>
+                                                                                                Bắt đầu: {formatDateTime(milestoneContext?.startAt ?? milestone?.startAt ?? null)}
+                                                                                                <br />
+                                                                                                Kết thúc: {formatDateTime(milestoneContext?.endAt ?? milestone?.endAt ?? null)}
+                                                                                        </dd>
+                                                                                </div>
+                                                                        </dl>
+                                                                        {milestoneSubmissions.length ? (
+                                                                                <div>
+                                                                                        <h3 className='text-sm font-semibold uppercase tracking-wide text-base-content/60'>Các lần bàn giao</h3>
+                                                                                        <ul className='mt-3 space-y-4'>
+                                                                                                {milestoneSubmissions.map(submission => {
+                                                                                                        const attachments = submission.attachments ?? []
+                                                                                                        const submissionLabel =
+                                                                                                                submission.message && submission.message.trim().length
+                                                                                                                        ? submission.message.trim()
+                                                                                                                        : 'Bàn giao không có tiêu đề'
+                                                                                                        const freelancerLabel =
+                                                                                                                submission.freelancer?.trim().length
+                                                                                                                        ? submission.freelancer?.trim()
+                                                                                                                        : submission.freelancerId
+                                                                                                                        ? `Freelancer ${formatShortId(submission.freelancerId)}`
+                                                                                                                        : 'Không rõ người gửi'
+
+                                                                                                        return (
+                                                                                                                <li key={submission.id} className='rounded-xl border border-base-200 p-4'>
+                                                                                                                        <div className='flex flex-wrap items-start justify-between gap-3'>
+                                                                                                                                <div>
+                                                                                                                                        <p className='text-sm font-semibold text-base-content'>{submissionLabel}</p>
+                                                                                                                                        <p className='mt-1 text-xs text-base-content/60'>
+                                                                                                                                                {freelancerLabel} • {formatDateTime(submission.createdAt)}
+                                                                                                                                        </p>
+                                                                                                                                        {submission.reviewedBy ? (
+                                                                                                                                                <p className='mt-1 text-xs text-base-content/60'>
+                                                                                                                                                        Đánh giá bởi {submission.reviewedBy}
+                                                                                                                                                        {submission.reviewedAt ? ` • ${formatDateTime(submission.reviewedAt)}` : ''}
+                                                                                                                                                </p>
+                                                                                                                                        ) : null}
+                                                                                                                                </div>
+                                                                                                                                {submission.status ? (
+                                                                                                                                        <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                                                                                                                                {formatSubmissionStatus(submission.status)}
+                                                                                                                                        </span>
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                        {typeof submission.reviewRating === 'number' ? (
+                                                                                                                                <p className='mt-2 text-xs text-base-content/60'>Điểm đánh giá: {submission.reviewRating}/5</p>
+                                                                                                                        ) : null}
+                                                                                                                        {submission.reviewNote ? (
+                                                                                                                                <p className='mt-2 text-sm text-base-content/70'>Nhận xét: {submission.reviewNote}</p>
+                                                                                                                        ) : null}
+                                                                                                                        {attachments.length ? (
+                                                                                                                                <ul className='mt-3 space-y-2'>
+                                                                                                                                        {attachments.map(attachment => {
+                                                                                                                                                const href = attachment.url ?? null
+                                                                                                                                                const sizeLabel =
+                                                                                                                                                        typeof attachment.size === 'number'
+                                                                                                                                                                ? formatFileSize(attachment.size)
+                                                                                                                                                                : null
+
+                                                                                                                                                return (
+                                                                                                                                                        <li key={attachment.id} className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-xs text-base-content/70'>
+                                                                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                                                                                        <span className='font-medium text-base-content'>{attachment.name ?? 'Tệp đính kèm'}</span>
+                                                                                                                                                                        {sizeLabel ? <span className='text-[10px] uppercase tracking-wide text-base-content/60'>{sizeLabel}</span> : null}
+                                                                                                                                                                </div>
+                                                                                                                                                                {href ? (
+                                                                                                                                                                        <a
+                                                                                                                                                                                href={href}
+                                                                                                                                                                                target='_blank'
+                                                                                                                                                                                rel='noreferrer'
+                                                                                                                                                                                className='mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline'
+                                                                                                                                                                        >
+                                                                                                                                                                                <FileText size={14} /> Xem tệp
+                                                                                                                                                                        </a>
+                                                                                                                                                                ) : null}
+                                                                                                                                                        </li>
+                                                                                                                                                )
+                                                                                                                                        })}
+                                                                                                                                </ul>
+                                                                                                                        ) : null}
+                                                                                                                </li>
+                                                                                                        )
+                                                                                                })}
+                                                                                        </ul>
+                                                                                </div>
+                                                                        ) : (
+                                                                                <p className='text-sm text-base-content/70'>Chưa ghi nhận bàn giao nào.</p>
+                                                                        )}
+                                                                </div>
+                                                        ) : null}
+
+                                                        {activeTab === 'evidence' ? (
+                                                                <div>
+                                                                        <h2 className='text-lg font-semibold'>Chứng cứ được nộp</h2>
+                                                                        {evidenceSubmissions.length ? (
+                                                                                <div className='mt-4 space-y-4'>
+                                                                                        {evidenceSubmissions.map(submission => {
+                                                                                                const attachments = submission.items ?? []
+                                                                                                const submitterName =
+                                                                                                        submission.submittedBy?.displayName?.trim()
+                                                                                                                ? submission.submittedBy?.displayName?.trim()
+                                                                                                                : submission.submittedBy?.name?.trim()
+                                                                                                                ? submission.submittedBy?.name?.trim()
+                                                                                                                : `Người dùng ${formatShortId(submission.submittedById)}`
+                                                                                                const badgeLabel = submission.noAdditionalEvidence
+                                                                                                        ? 'Không gửi tài liệu bổ sung'
+                                                                                                        : attachments.length
+                                                                                                        ? `Tài liệu: ${attachments.length}`
+                                                                                                        : null
+
+                                                                                                return (
+                                                                                                        <div key={submission.id} className='rounded-xl border border-base-200 p-4'>
+                                                                                                                <div className='flex flex-wrap items-start justify-between gap-3'>
+                                                                                                                        <div>
+                                                                                                                                <p className='text-sm font-semibold text-base-content'>{submitterName}</p>
+                                                                                                                                <p className='mt-1 text-xs text-base-content/60'>Nộp lúc {formatDateTime(submission.submittedAt)}</p>
+                                                                                                                        </div>
+                                                                                                                        {badgeLabel ? (
+                                                                                                                                <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                                                                                                                        {badgeLabel}
+                                                                                                                                </span>
+                                                                                                                        ) : null}
+                                                                                                                </div>
+                                                                                                                {submission.statement ? (
+                                                                                                                        <p className='mt-2 text-sm text-base-content/70'>{submission.statement}</p>
+                                                                                                                ) : null}
+                                                                                                                {attachments.length ? (
+                                                                                                                        <ul className='mt-3 space-y-3'>
+                                                                                                                                {attachments.map((item, index) => {
+                                                                                                                                        const href = item.url ?? item.asset?.url ?? null
+                                                                                                                                        const assetBytes = item.asset?.bytes
+                                                                                                                                        const sizeLabel =
+                                                                                                                                                typeof assetBytes === 'number'
+                                                                                                                                                        ? formatFileSize(assetBytes)
+                                                                                                                                                        : null
+                                                                                                                                        const referenceType =
+                                                                                                                                                item.reference && typeof item.reference === 'object'
+                                                                                                                                                        ? (item.reference as { type?: unknown }).type
+                                                                                                                                                        : undefined
+                                                                                                                                        const evidenceLabel =
+                                                                                                                                                item.label?.trim().length
+                                                                                                                                                        ? item.label?.trim()
+                                                                                                                                                        : item.asset?.id?.trim().length
+                                                                                                                                                        ? item.asset?.id
+                                                                                                                                                        : `Tài liệu #${index + 1}`
+
+                                                                                                                                        return (
+                                                                                                                                                <li key={item.id} className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-xs text-base-content/70'>
+                                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                                                                                <span className='font-medium text-base-content'>{evidenceLabel}</span>
+                                                                                                                                                                <span className='rounded-full bg-base-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-base-content/60'>
+                                                                                                                                                                        {formatEvidenceSource(item.sourceType)}
+                                                                                                                                                                </span>
+                                                                                                                                                        </div>
+                                                                                                                                                        {item.description ? (
+                                                                                                                                                                <p className='mt-1 text-xs text-base-content/70'>{item.description}</p>
+                                                                                                                                                        ) : null}
+                                                                                                                                                        {referenceType ? (
+                                                                                                                                                                <p className='mt-1 text-[10px] text-base-content/60'>Tham chiếu: {String(referenceType)}</p>
+                                                                                                                                                        ) : null}
+                                                                                                                                                        {href ? (
+                                                                                                                                                                <a
+                                                                                                                                                                        href={href}
+                                                                                                                                                                        target='_blank'
+                                                                                                                                                                        rel='noreferrer'
+                                                                                                                                                                        className='mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline'
+                                                                                                                                                                >
+                                                                                                                                                                        <FileText size={14} /> Xem tài liệu
+                                                                                                                                                                </a>
+                                                                                                                                                        ) : null}
+                                                                                                                                                        {sizeLabel ? (
+                                                                                                                                                                <p className='mt-1 text-[10px] text-base-content/60'>Dung lượng: {sizeLabel}</p>
+                                                                                                                                                        ) : null}
+                                                                                                                                                </li>
+                                                                                                                                        )
+                                                                                                                                })}
+                                                                                                                        </ul>
+                                                                                                                ) : null}
+                                                                                                        </div>
+                                                                                                )
+                                                                                        })}
+                                                                                </div>
+                                                                        ) : (
+                                                                                <p className='mt-4 text-sm text-base-content/70'>Chưa có chứng cứ nào được nộp.</p>
+                                                                        )}
+                                                                </div>
+                                                        ) : null}
+
+                                                        {activeTab === 'documents' ? (
+                                                                <div className='space-y-6'>
+                                                                        <div>
+                                                                                <h2 className='text-lg font-semibold'>Hồ sơ trọng tài</h2>
+                                                                                {sortedDossiers.length ? (
+                                                                                        <ul className='mt-4 space-y-3 text-sm text-base-content/70'>
+                                                                                                {sortedDossiers.map(dossier => {
+                                                                                                        const status = (dossier as { status?: string | null }).status
+                                                                                                        const generatedAt = (dossier as { generatedAt?: string | null }).generatedAt
+                                                                                                        const hash = (dossier as { hash?: string | null }).hash
+                                                                                                        const dossierUrl = disputeId
+                                                                                                                ? `/api/arbitrator/disputes/${disputeId}/dossiers/${dossier.id}/pdf`
+                                                                                                                : null
+
+                                                                                                        return (
+                                                                                                                <li key={dossier.id} className='rounded-lg border border-base-200 p-3'>
+                                                                                                                        <div className='flex items-center justify-between text-xs uppercase text-base-content/60'>
+                                                                                                                                <span>Phiên bản v{dossier.version ?? '—'}</span>
+                                                                                                                                {status ? (
+                                                                                                                                        <span className='rounded-full bg-base-200/60 px-2 py-0.5 text-[10px] font-semibold text-base-content/70'>
+                                                                                                                                                {status}
+                                                                                                                                        </span>
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                        <div className='mt-2 text-sm font-semibold text-base-content'>
+                                                                                                                                {dossier.milestoneTitle ?? contractTitle ?? 'Hồ sơ tranh chấp'}
+                                                                                                                        </div>
+                                                                                                                        <div className='mt-1 text-xs text-base-content/60'>
+                                                                                                                                Tạo lúc: {formatDateTime(generatedAt ?? dossier.createdAt)}
+                                                                                                                        </div>
+                                                                                                                        {hash ? (
+                                                                                                                                <p className='mt-1 truncate text-[10px] text-base-content/50'>Hash: {hash}</p>
+                                                                                                                        ) : null}
+                                                                                                                        <div className='mt-3 flex items-center justify-end'>
+                                                                                                                                <button
+                                                                                                                                        type='button'
+                                                                                                                                        className='btn btn-ghost btn-xs gap-2'
+                                                                                                                                        onClick={() => {
+                                                                                                                                                if (!dossierUrl) {
+                                                                                                                                                        toast.info('Không tìm thấy đường dẫn xuất PDF cho hồ sơ này.')
+                                                                                                                                                        return
+                                                                                                                                                }
+
+                                                                                                                                                window.open(dossierUrl, '_blank', 'noopener,noreferrer')
+                                                                                                                                        }}
+                                                                                                                                        disabled={!dossierUrl}
+                                                                                                                                >
+                                                                                                                                        <FileDown size={14} /> Tải PDF
+                                                                                                                                </button>
+                                                                                                                        </div>
+                                                                                                                </li>
+                                                                                                        )
+                                                                                                })}
+                                                                                        </ul>
+                                                                                ) : (
+                                                                                        <p className='mt-4 text-sm text-base-content/70'>Chưa có hồ sơ trọng tài được tạo.</p>
+                                                                                )}
+                                                                        </div>
+
+                                                                        <div>
+                                                                                <h2 className='text-lg font-semibold'>Tài liệu đã đính kèm phán quyết</h2>
+                                                                                {decisionAttachments.length ? (
+                                                                                        <ul className='mt-4 space-y-3 text-sm text-base-content/70'>
+                                                                                                {decisionAttachments.map(attachment => (
+                                                                                                        <li key={attachment.id} className='rounded-lg border border-base-200 p-3'>
+                                                                                                                <p className='font-medium'>{attachment.name ?? 'Tài liệu'}</p>
+                                                                                                                <p className='text-xs text-base-content/60'>
+                                                                                                                        Cập nhật: {formatDateTime(attachment.updatedAt ?? attachment.createdAt)}
+                                                                                                                </p>
+                                                                                                                {attachment.url ? (
+                                                                                                                        <a
+                                                                                                                                href={attachment.url}
+                                                                                                                                target='_blank'
+                                                                                                                                rel='noreferrer'
+                                                                                                                                className='mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline'
+                                                                                                                        >
+                                                                                                                                <FileText size={14} />
+                                                                                                                                Tải xuống
+                                                                                                                        </a>
+                                                                                                                ) : null}
+                                                                                                        </li>
+                                                                                                ))}
+                                                                                        </ul>
+                                                                                ) : (
+                                                                                        <p className='mt-4 text-sm text-base-content/70'>Chưa có tài liệu nào được đính kèm.</p>
+                                                                                )}
+                                                                        </div>
+                                                                </div>
+                                                        ) : null}
+                                                </div>
                                         </div>
                                 </article>
 
@@ -1051,89 +1192,85 @@ export default function ArbitratorDisputeDetailPage() {
                                         </div>
 
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <h2 className='text-lg font-semibold'>Hồ sơ trọng tài gần đây</h2>
-                                                {sortedDossiers.length ? (
-                                                        <ul className='mt-4 space-y-3 text-sm text-base-content/70'>
-                                                                {sortedDossiers.map(dossier => {
-                                                                        const status = (dossier as { status?: string | null }).status
-                                                                        const generatedAt = (dossier as { generatedAt?: string | null }).generatedAt
-                                                                        const hash = (dossier as { hash?: string | null }).hash
-                                                                        const dossierUrl = disputeId
-                                                                                ? `/api/arbitrator/disputes/${disputeId}/dossiers/${dossier.id}/pdf`
-                                                                                : null
-
-                                                                        return (
-                                                                                <li key={dossier.id} className='rounded-lg border border-base-200 p-3'>
-                                                                                        <div className='flex items-center justify-between text-xs uppercase text-base-content/60'>
-                                                                                                <span>Phiên bản v{dossier.version ?? '—'}</span>
-                                                                                                {status ? (
-                                                                                                        <span className='rounded-full bg-base-200/60 px-2 py-0.5 text-[10px] font-semibold text-base-content/70'>
-                                                                                                                {status}
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        <div className='mt-2 text-sm font-semibold text-base-content'>
-                                                                                                {dossier.milestoneTitle ?? contractTitle ?? 'Hồ sơ tranh chấp'}
-                                                                                        </div>
-                                                                                        <div className='mt-1 text-xs text-base-content/60'>
-                                                                                                Tạo lúc: {formatDateTime(generatedAt ?? dossier.createdAt)}
-                                                                                        </div>
-                                                                                        {hash ? (
-                                                                                                <p className='mt-1 truncate text-[10px] text-base-content/50'>Hash: {hash}</p>
-                                                                                        ) : null}
-                                                                                        <div className='mt-3 flex items-center justify-end'>
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-ghost btn-xs gap-2'
-                                                                                                        onClick={() => {
-                                                                                                                if (!dossierUrl) {
-                                                                                                                        toast.info('Không tìm thấy đường dẫn xuất PDF cho hồ sơ này.')
-                                                                                                                        return
-                                                                                                                }
-
-                                                                                                                window.open(dossierUrl, '_blank', 'noopener,noreferrer')
-                                                                                                        }}
-                                                                                                        disabled={!dossierUrl}
-                                                                                                >
-                                                                                                        <FileDown size={14} /> Tải PDF
-                                                                                                </button>
-                                                                                        </div>
-                                                                                </li>
-                                                                        )
-                                                                })}
-                                                        </ul>
+                                                <h2 className='text-lg font-semibold'>Tổng hợp hồ sơ</h2>
+                                                {latestDossier ? (
+                                                        <div className='mt-4 space-y-3 rounded-xl border border-base-200 bg-base-200/50 p-4 text-sm text-base-content/80'>
+                                                                <div className='flex items-center justify-between text-xs uppercase text-base-content/60'>
+                                                                        <span>Phiên bản mới nhất</span>
+                                                                        <span className='rounded-full bg-base-100 px-2 py-0.5 text-[10px] font-semibold text-base-content/70'>
+                                                                                v{latestDossier.version ?? '—'}
+                                                                        </span>
+                                                                </div>
+                                                                <p className='font-semibold text-base-content'>
+                                                                        {latestDossier.milestoneTitle ?? contractTitle ?? 'Hồ sơ tranh chấp'}
+                                                                </p>
+                                                                <p className='text-xs text-base-content/60'>
+                                                                        Cập nhật: {formatDateTime(latestDossier.generatedAt ?? latestDossier.createdAt)}
+                                                                </p>
+                                                                {latestDossier.hash ? (
+                                                                        <p className='truncate text-[10px] text-base-content/50'>Hash: {latestDossier.hash}</p>
+                                                                ) : null}
+                                                        </div>
                                                 ) : (
                                                         <p className='mt-4 text-sm text-base-content/70'>Chưa có hồ sơ trọng tài được tạo.</p>
                                                 )}
+                                                <dl className='mt-4 grid gap-3 rounded-xl bg-base-200/40 p-4 text-xs uppercase tracking-wide text-base-content/60 sm:grid-cols-2'>
+                                                        <div>
+                                                                <dt>Hồ sơ đã tạo</dt>
+                                                                <dd className='mt-1 text-base font-semibold normal-case text-base-content'>
+                                                                        {sortedDossiers.length}
+                                                                </dd>
+                                                        </div>
+                                                        <div>
+                                                                <dt>Tài liệu phán quyết</dt>
+                                                                <dd className='mt-1 text-base font-semibold normal-case text-base-content'>
+                                                                        {decisionAttachments.length}
+                                                                </dd>
+                                                        </div>
+                                                </dl>
+                                                <div className='mt-4 flex flex-wrap gap-2'>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-primary btn-sm gap-2'
+                                                                onClick={() => setActiveTab('documents')}
+                                                        >
+                                                                <FolderOpen size={16} /> Xem chi tiết
+                                                        </button>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-ghost btn-sm gap-2'
+                                                                onClick={handleExportDossier}
+                                                                disabled={!dossierExportUrl}
+                                                        >
+                                                                <FileDown size={16} /> Xuất PDF mới nhất
+                                                        </button>
+                                                </div>
                                         </div>
 
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <h2 className='text-lg font-semibold'>Tài liệu đã đính kèm phán quyết</h2>
-                                                {decisionAttachments.length ? (
-                                                        <ul className='mt-4 space-y-3 text-sm text-base-content/70'>
-                                                                {decisionAttachments.map(attachment => (
-                                                                        <li key={attachment.id} className='rounded-lg border border-base-200 p-3'>
-                                                                                <p className='font-medium'>{attachment.name ?? 'Tài liệu'}</p>
-                                                                                <p className='text-xs text-base-content/60'>
-                                                                                        Cập nhật: {formatDateTime(attachment.updatedAt ?? attachment.createdAt)}
-                                                                                </p>
-                                                                                {attachment.url ? (
-                                                                                        <a
-                                                                                                href={attachment.url}
-                                                                                                target='_blank'
-                                                                                                rel='noreferrer'
-                                                                                                className='mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline'
-                                                                                        >
-                                                                                                <FileText size={14} />
-                                                                                                Tải xuống
-                                                                                        </a>
-                                                                                ) : null}
-                                                                        </li>
-                                                                ))}
-                                                        </ul>
-                                                ) : (
-                                                        <p className='mt-4 text-sm text-base-content/70'>Chưa có tài liệu nào được đính kèm.</p>
-                                                )}
+                                                <h2 className='text-lg font-semibold'>Tổng quan chứng cứ</h2>
+                                                <p className='mt-2 text-sm text-base-content/70'>
+                                                        Đã ghi nhận <span className='font-semibold text-base-content'>{evidenceSubmissions.length}</span> lần nộp chứng cứ và{' '}
+                                                        <span className='font-semibold text-base-content'>{milestoneSubmissions.length}</span> lần bàn giao.
+                                                </p>
+                                                <div className='mt-4 flex flex-wrap gap-2'>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-outline btn-sm gap-2'
+                                                                onClick={() => setActiveTab('evidence')}
+                                                        >
+                                                                <ScrollText size={16} /> Xem chứng cứ
+                                                        </button>
+                                                        {milestoneSubmissions.length ? (
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-outline btn-sm gap-2'
+                                                                        onClick={() => setActiveTab('milestone')}
+                                                                >
+                                                                        <Layers size={16} /> Bàn giao
+                                                                </button>
+                                                        ) : null}
+                                                </div>
                                         </div>
                                 </aside>
                         </section>
