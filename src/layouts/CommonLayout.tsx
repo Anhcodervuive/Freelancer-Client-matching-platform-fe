@@ -6,6 +6,7 @@ import ClientNavbar from './partials/ClientNavbar'
 import FreelancerNavbar from './partials/FreelancerNavbar'
 import PublicFooter from './partials/PublicFooter'
 import AdminNavbar from './partials/AdminNavbar'
+import ArbitratorNavbar from './partials/ArbitratorNavbar'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import { Role } from '~/types/user'
 
@@ -20,6 +21,8 @@ export default function CommonLayout({ children }: prop) {
         const Navbar =
                 role === Role.ADMIN
                         ? AdminNavbar
+                        : role === Role.ARBITRATOR
+                        ? ArbitratorNavbar
                         : role === Role.CLIENT
                         ? ClientNavbar
                         : role === Role.FREELANCER

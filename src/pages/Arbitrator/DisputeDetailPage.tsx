@@ -17,6 +17,7 @@ import {
         UserCircle2
 } from 'lucide-react'
 
+import { routes } from '~/config/routes'
 import { getArbitratorDisputeContext, recordArbitrationDecision } from '~/apis/arbitrator/dispute.api'
 import type {
         AdminDisputeDetail,
@@ -28,6 +29,7 @@ import type {
         DecimalLike
 } from '~/types/dispute'
 import { DisputeStatus } from '~/types/dispute'
+import ArbitratorDisputeLayout from './components/DisputeLayout'
 
 const ArbitrationDecisionFormSchema = z
         .object({
@@ -335,46 +337,57 @@ export default function ArbitratorDisputeDetailPage() {
                 )
         }
 
-        return (
-                <div className='space-y-6'>
-                        <section className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
-                                        <div>
-                                                <div className='flex items-center gap-2 text-sm uppercase tracking-wide text-base-content/60'>
-                                                        <Gavel size={16} />
-                                                        <span>Mã tranh chấp</span>
-                                                </div>
-                                                <h1 className='mt-1 text-2xl font-semibold'>{disputeId}</h1>
-                                                <p className='mt-2 text-sm text-base-content/70'>
-                                                        Trạng thái: <strong>{baseDispute?.status ?? 'Không xác định'}</strong>
-                                                </p>
-                                        </div>
-                                        <div className='flex flex-col gap-3 text-sm text-base-content/70'>
-                                                <div className='flex items-center gap-2'>
-                                                        <Lock size={16} />
-                                                        <span>
-                                                                Khóa hồ sơ: <strong>{formatDateTime(arbitrationContext.meta.lockedAt)}</strong>
-                                                        </span>
-                                                </div>
-                                                <div className='flex items-center gap-2'>
-                                                        <Clock size={16} />
-                                                        <span>
-                                                                Hạn ra phán quyết:{' '}
-                                                                <strong>{formatDateTime(arbitrationContext.meta.arbitrationDeadline)}</strong>
-                                                        </span>
-                                                </div>
-                                                {arbitrationContext.meta.currentDossierVersion !== undefined ? (
-                                                        <div className='flex items-center gap-2'>
-                                                                <FileText size={16} />
-                                                                <span>
-                                                                        Hồ sơ mới nhất: <strong>v{arbitrationContext.meta.currentDossierVersion}</strong>
-                                                                </span>
-                                                        </div>
-                                                ) : null}
-                                        </div>
+        const statusLabel = baseDispute?.status ?? 'Không xác định'
+        const breadcrumbs = [
+                { label: 'Trang chủ', to: routes.arbitrator.dashboard },
+                { label: 'Tranh chấp', to: routes.arbitrator.disputes.list },
+                { label: disputeId }
+        ]
+        const statusBadge = (
+                <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-base-content/80'>
+                        <Gavel size={14} />
+                        <span>Trạng thái: {statusLabel}</span>
+                </span>
+        )
+        const headerMeta = (
+                <>
+                        <div className='flex items-center gap-2'>
+                                <Lock size={16} />
+                                <span>
+                                        Khóa hồ sơ: <strong>{formatDateTime(arbitrationContext.meta.lockedAt)}</strong>
+                                </span>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                                <Clock size={16} />
+                                <span>
+                                        Hạn ra phán quyết:{' '}
+                                        <strong>{formatDateTime(arbitrationContext.meta.arbitrationDeadline)}</strong>
+                                </span>
+                        </div>
+                        {arbitrationContext.meta.currentDossierVersion !== undefined ? (
+                                <div className='flex items-center gap-2'>
+                                        <FileText size={16} />
+                                        <span>
+                                                Hồ sơ mới nhất: <strong>v{arbitrationContext.meta.currentDossierVersion}</strong>
+                                        </span>
                                 </div>
-                        </section>
+                        ) : null}
+                </>
+        )
 
+        return (
+                <ArbitratorDisputeLayout
+                        icon={<Gavel className='h-6 w-6' />}
+                        title='Hồ sơ tranh chấp'
+                        description={
+                                <span>
+                                        Mã tranh chấp: <strong>{disputeId}</strong>
+                                </span>
+                        }
+                        actions={statusBadge}
+                        meta={headerMeta}
+                        breadcrumbs={breadcrumbs}
+                >
                         <section className='grid gap-6 lg:grid-cols-3'>
                                 <article className='lg:col-span-2 space-y-6'>
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
@@ -656,6 +669,6 @@ export default function ArbitratorDisputeDetailPage() {
                                         </div>
                                 </form>
                         </section>
-                </div>
+                </ArbitratorDisputeLayout>
         )
 }
