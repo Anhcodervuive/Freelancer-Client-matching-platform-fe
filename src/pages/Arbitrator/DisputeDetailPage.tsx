@@ -23,6 +23,11 @@ import type {
         AdminDisputeDetail,
         AdminDisputeDecisionAttachment,
         AdminDisputeDossier,
+        ArbitrationContextEvidenceSubmission,
+        ArbitrationContextFinancials,
+        ArbitrationContextMilestone,
+        ArbitrationContextMilestoneSubmission,
+        ArbitrationContextParty,
         ArbitrationContextResponse,
         ArbitrationDecisionAwardType,
         ArbitrationTimelineEntry,
@@ -158,6 +163,116 @@ const formatUserName = (user?: unknown) => {
         return id ? `Người dùng #${id.slice(0, 8)}` : '—'
 }
 
+const formatShortId = (value?: string | null) => {
+        if (!value || typeof value !== 'string') return 'Không xác định'
+        return `#${value.slice(0, 8)}`
+}
+
+const formatPartyRole = (role?: string | null) => {
+        if (!role) return 'Không rõ vai trò'
+        switch (role) {
+                case 'CLIENT':
+                        return 'Khách hàng'
+                case 'FREELANCER':
+                        return 'Freelancer'
+                case 'ADMIN':
+                        return 'Quản trị viên'
+                case 'ARBITRATOR':
+                        return 'Trọng tài viên'
+                case 'ARBITRATION_OFFICER':
+                        return 'Điều phối trọng tài'
+                default:
+                        return role
+        }
+}
+
+const getFeeBadgeClass = (feePaid?: boolean | null) => {
+        if (feePaid === true) {
+                return 'border-success/40 bg-success/10 text-success'
+        }
+
+        if (feePaid === false) {
+                return 'border-warning/40 bg-warning/10 text-warning'
+        }
+
+        return 'border-base-300 bg-base-200/60 text-base-content/70'
+}
+
+const formatFeeStatus = (feePaid?: boolean | null) => {
+        if (feePaid === true) return 'Đã nộp phí'
+        if (feePaid === false) return 'Chưa nộp phí'
+        return 'Không áp dụng'
+}
+
+const formatMilestoneStatus = (status?: string | null) => {
+        if (!status) return 'Không rõ trạng thái'
+        switch (status) {
+                case 'OPEN':
+                        return 'Đang mở'
+                case 'SUBMITTED':
+                        return 'Đã gửi bài'
+                case 'IN_REVIEW':
+                        return 'Đang đánh giá'
+                case 'COMPLETED':
+                        return 'Hoàn thành'
+                case 'RELEASED':
+                        return 'Đã giải ngân'
+                case 'CANCELED':
+                        return 'Đã hủy'
+                default:
+                        return status
+        }
+}
+
+const formatSubmissionStatus = (status?: string | null) => {
+        if (!status) return 'Không rõ trạng thái'
+        switch (status) {
+                case 'PENDING':
+                        return 'Chờ duyệt'
+                case 'APPROVED':
+                        return 'Đã chấp nhận'
+                case 'REJECTED':
+                        return 'Đã từ chối'
+                case 'REVISION_REQUIRED':
+                        return 'Yêu cầu chỉnh sửa'
+                default:
+                        return status
+        }
+}
+
+const formatFileSize = (bytes?: number | null) => {
+        if (typeof bytes !== 'number' || Number.isNaN(bytes) || bytes < 0) return null
+        if (bytes === 0) return '0 B'
+        const units = ['B', 'KB', 'MB', 'GB', 'TB']
+        const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+        const value = bytes / 1024 ** index
+        const formatted = value >= 100 ? value.toFixed(0) : value.toFixed(1)
+        return `${formatted.replace(/\.0$/, '')} ${units[index]}`
+}
+
+const formatEvidenceSource = (source?: string | null) => {
+        if (!source) return 'Nguồn không xác định'
+        switch (source) {
+                case 'MILESTONE_ATTACHMENT':
+                        return 'Tệp đính kèm milestone'
+                case 'CHAT_ATTACHMENT':
+                        return 'Tệp đính kèm hội thoại'
+                case 'ASSET':
+                        return 'Tài nguyên hệ thống'
+                case 'EXTERNAL_URL':
+                        return 'Đường dẫn bên ngoài'
+                default:
+                        return source
+        }
+}
+
+const formatTimelineAction = (action: string) =>
+        action
+                .split('_')
+                .filter(Boolean)
+                .map(part => part.charAt(0) + part.slice(1).toLowerCase())
+                .join(' ')
+
 type ArbitrationDecisionFormValues = z.infer<typeof ArbitrationDecisionFormSchema>
 
 type TimelineEntry = ArbitrationTimelineEntry & { id: string }
@@ -166,12 +281,6 @@ const mapTimelineEntries = (entries: ArbitrationTimelineEntry[]): TimelineEntry[
         entries.map((entry, index) => ({
                 ...entry,
                 id: `${entry.at}-${entry.action}-${index}`
-        }))
-
-const summarizeSections = (sections: Record<string, unknown>) =>
-        Object.entries(sections).map(([key, value]) => ({
-                key,
-                value
         }))
 
 export default function ArbitratorDisputeDetailPage() {
@@ -211,16 +320,61 @@ export default function ArbitratorDisputeDetailPage() {
         const milestone = escrow?.milestone ?? null
         const contract = milestone?.contract ?? null
 
+        const arbitrationContext = data?.arbitrationContext ?? null
+        const parties = (arbitrationContext?.parties ?? []) as ArbitrationContextParty[]
+        const financials: ArbitrationContextFinancials | null = arbitrationContext?.financials ?? null
+        const milestoneContext: ArbitrationContextMilestone | null = arbitrationContext?.milestone ?? null
+        const milestoneSubmissions = (arbitrationContext?.milestoneSubmissions ?? []) as ArbitrationContextMilestoneSubmission[]
+        const evidenceSubmissions = (arbitrationContext?.evidence ?? []) as ArbitrationContextEvidenceSubmission[]
+
+        const disputeParties = useMemo(() => {
+                if (!disputeDetail || typeof disputeDetail !== 'object') return null
+                const raw = (disputeDetail as { parties?: unknown }).parties
+                if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+                return raw as Record<string, unknown>
+        }, [disputeDetail])
+
+        const detailAmounts =
+                disputeDetail && typeof disputeDetail === 'object'
+                        ? (disputeDetail as {
+                                  amounts?: {
+                                          funded?: DecimalLike | null
+                                          released?: DecimalLike | null
+                                          refunded?: DecimalLike | null
+                                          disputed?: DecimalLike | null
+                                  }
+                          }).amounts
+                        : undefined
+
+        const contextCurrency = financials?.currency ?? null
         const currency =
+                contextCurrency ??
                 escrow?.currency ??
                 milestone?.currency ??
                 (typeof contract?.currency === 'string' ? (contract.currency as string) : undefined)
 
-        const funded = escrow?.amountFunded ?? disputeDetail?.dispute?.proposedRelease ?? null
-        const released = escrow?.amountReleased ?? null
-        const refunded = escrow?.amountRefunded ?? null
+        const funded = financials?.escrowAmount ?? escrow?.amountFunded ?? detailAmounts?.funded ?? null
+        const released = financials?.released ?? escrow?.amountReleased ?? detailAmounts?.released ?? null
+        const refunded = financials?.refunded ?? escrow?.amountRefunded ?? detailAmounts?.refunded ?? null
+
+        const contextDisputed = toNumber(financials?.disputed ?? detailAmounts?.disputed)
+        const contractTitle =
+                (typeof milestoneContext?.contractTitle === 'string' && milestoneContext.contractTitle.trim().length
+                        ? milestoneContext.contractTitle.trim()
+                        : null) ?? contract?.title ?? null
+
+        const requestedClient = financials?.requested?.client ?? null
+        const requestedFreelancer = financials?.requested?.freelancer ?? null
+        const decidedClient = financials?.decided?.client ?? null
+        const decidedFreelancer = financials?.decided?.freelancer ?? null
+        const hasRequestedBreakdown = requestedClient !== null || requestedFreelancer !== null
+        const hasDecidedBreakdown = decidedClient !== null || decidedFreelancer !== null
 
         const disputableAmount = useMemo(() => {
+                if (contextDisputed !== null) {
+                        return contextDisputed
+                }
+
                 const fundedNumber = toNumber(funded)
                 const releasedNumber = toNumber(released) ?? 0
                 const refundedNumber = toNumber(refunded) ?? 0
@@ -231,7 +385,7 @@ export default function ArbitratorDisputeDetailPage() {
 
                 const disputable = fundedNumber - releasedNumber - refundedNumber
                 return disputable >= 0 ? disputable : 0
-        }, [funded, released, refunded])
+        }, [contextDisputed, funded, released, refunded])
 
         useEffect(() => {
                 if (disputableAmount === null) return
@@ -283,16 +437,60 @@ export default function ArbitratorDisputeDetailPage() {
                 decisionMutation.mutate(values)
         }
 
-        const arbitrationContext = data?.arbitrationContext ?? null
-        const timelineEntries = useMemo(() => mapTimelineEntries(arbitrationContext?.timeline ?? []), [arbitrationContext?.timeline])
-        const sectionSummaries = useMemo(
-                () => summarizeSections(arbitrationContext?.sections ?? {}),
-                [arbitrationContext?.sections]
+        const timelineEntries = useMemo(
+                () => mapTimelineEntries(arbitrationContext?.timeline ?? []),
+                [arbitrationContext?.timeline]
         )
         const decisionAttachments = (disputeDetail?.decisionAttachments ?? []) as AdminDisputeDecisionAttachment[]
         const arbitrationDossiers = (disputeDetail?.arbitrationDossiers ?? []) as AdminDisputeDossier[]
         const contractClient = (contract?.client as Record<string, unknown> | undefined) ?? null
         const contractFreelancer = (contract?.freelancer as Record<string, unknown> | undefined) ?? null
+
+        const resolveActorName = (actorId?: string | null) => {
+                if (!actorId) return null
+
+                const partyMatch = parties.find(party => party.userId === actorId)
+                if (partyMatch) {
+                        const label = partyMatch.displayName?.trim()
+                        if (label) return label
+                        return `Người dùng ${formatShortId(actorId)}`
+                }
+
+                const potentialRecords: unknown[] = []
+
+                if (disputeParties) {
+                        const clientRecord = (disputeParties['client'] as unknown) ?? null
+                        const freelancerRecord = (disputeParties['freelancer'] as unknown) ?? null
+                        if (clientRecord && typeof clientRecord === 'object') {
+                                potentialRecords.push(clientRecord)
+                        }
+                        if (freelancerRecord && typeof freelancerRecord === 'object') {
+                                potentialRecords.push(freelancerRecord)
+                        }
+                }
+
+                if (contractClient) potentialRecords.push(contractClient)
+                if (contractFreelancer) potentialRecords.push(contractFreelancer)
+                if (baseDispute?.lockedBy && typeof baseDispute.lockedBy === 'object') {
+                        potentialRecords.push(baseDispute.lockedBy as Record<string, unknown>)
+                }
+                if (baseDispute?.arbitrator && typeof baseDispute.arbitrator === 'object') {
+                        potentialRecords.push(baseDispute.arbitrator as Record<string, unknown>)
+                }
+
+                for (const record of potentialRecords) {
+                        if (!record || typeof record !== 'object') continue
+                        const id = (record as { id?: unknown }).id
+                        if (typeof id === 'string' && id === actorId) {
+                                const label = formatUserName(record)
+                                if (label && label !== '—') {
+                                        return label
+                                }
+                        }
+                }
+
+                return `Người dùng ${formatShortId(actorId)}`
+        }
 
         if (!disputeId) {
                 return (
@@ -391,7 +589,18 @@ export default function ArbitratorDisputeDetailPage() {
                         <section className='grid gap-6 lg:grid-cols-3'>
                                 <article className='lg:col-span-2 space-y-6'>
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <h2 className='text-lg font-semibold'>Thông tin tài chính</h2>
+                                                <div className='flex flex-wrap items-start justify-between gap-4'>
+                                                        <div>
+                                                                <h2 className='text-lg font-semibold'>Thông tin tài chính</h2>
+                                                                <p className='mt-1 text-sm text-base-content/70'>Tổng quan giá trị tranh chấp và phân bổ theo hồ sơ trọng tài.</p>
+                                                        </div>
+                                                        {currency ? (
+                                                                <span className='inline-flex items-center gap-1 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                                                        <span>Đơn vị</span>
+                                                                        <strong>{currency}</strong>
+                                                                </span>
+                                                        ) : null}
+                                                </div>
                                                 <dl className='mt-4 grid gap-4 sm:grid-cols-2'>
                                                         <div>
                                                                 <dt className='text-sm text-base-content/60'>Tổng số tiền tranh chấp</dt>
@@ -414,37 +623,68 @@ export default function ArbitratorDisputeDetailPage() {
                                                                 </dd>
                                                         </div>
                                                 </dl>
+                                                {hasRequestedBreakdown || hasDecidedBreakdown ? (
+                                                        <div className='mt-6 grid gap-4 border-t border-base-200 pt-6 sm:grid-cols-2'>
+                                                                {hasRequestedBreakdown ? (
+                                                                        <div className='rounded-xl bg-base-200/60 p-4'>
+                                                                                <p className='text-xs uppercase text-base-content/60'>Yêu cầu từ các bên</p>
+                                                                                <p className='mt-2 text-sm font-medium text-base-content/80'>
+                                                                                        Client: <span className='font-semibold'>{formatCurrency(requestedClient, currency)}</span>
+                                                                                </p>
+                                                                                <p className='mt-1 text-sm font-medium text-base-content/80'>
+                                                                                        Freelancer: <span className='font-semibold'>{formatCurrency(requestedFreelancer, currency)}</span>
+                                                                                </p>
+                                                                        </div>
+                                                                ) : null}
+                                                                {hasDecidedBreakdown ? (
+                                                                        <div className='rounded-xl bg-base-200/60 p-4'>
+                                                                                <p className='text-xs uppercase text-base-content/60'>Phân bổ đã quyết định</p>
+                                                                                <p className='mt-2 text-sm font-medium text-base-content/80'>
+                                                                                        Client: <span className='font-semibold'>{formatCurrency(decidedClient, currency)}</span>
+                                                                                </p>
+                                                                                <p className='mt-1 text-sm font-medium text-base-content/80'>
+                                                                                        Freelancer: <span className='font-semibold'>{formatCurrency(decidedFreelancer, currency)}</span>
+                                                                                </p>
+                                                                        </div>
+                                                                ) : null}
+                                                        </div>
+                                                ) : null}
                                         </div>
 
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
                                                 <h2 className='text-lg font-semibold'>Dòng thời gian trọng tài</h2>
                                                 {timelineEntries.length ? (
                                                         <ul className='mt-4 space-y-4'>
-                                                                {timelineEntries.map(entry => (
-                                                                        <li key={entry.id} className='rounded-xl border border-base-200 p-4'>
-                                                                                <div className='flex flex-wrap items-center gap-2 text-sm text-base-content/70'>
-                                                                                        <CalendarDays size={16} />
-                                                                                        <span>{formatDateTime(entry.at)}</span>
-                                                                                        {entry.actor ? (
-                                                                                                <>
-                                                                                                        <span>•</span>
-                                                                                                        <span className='flex items-center gap-1'>
-                                                                                                                <UserCircle2 size={16} />
-                                                                                                                {entry.actor}
-                                                                                                        </span>
-                                                                                                </>
+                                                                {timelineEntries.map(entry => {
+                                                                        const actorLabel = resolveActorName(entry.actor)
+                                                                        return (
+                                                                                <li key={entry.id} className='rounded-xl border border-base-200 p-4'>
+                                                                                        <div className='flex flex-wrap items-center gap-2 text-sm text-base-content/70'>
+                                                                                                <CalendarDays size={16} />
+                                                                                                <span>{formatDateTime(entry.at)}</span>
+                                                                                                {actorLabel ? (
+                                                                                                        <>
+                                                                                                                <span>•</span>
+                                                                                                                <span className='flex items-center gap-1'>
+                                                                                                                        <UserCircle2 size={16} />
+                                                                                                                        <span className='font-medium text-base-content'>{actorLabel}</span>
+                                                                                                                </span>
+                                                                                                        </>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        <p className='mt-2 text-base font-semibold text-base-content'>{formatTimelineAction(entry.action)}</p>
+                                                                                        {entry.details ? (
+                                                                                                typeof entry.details === 'string' ? (
+                                                                                                        <p className='mt-2 text-sm text-base-content/70'>{entry.details}</p>
+                                                                                                ) : (
+                                                                                                        <pre className='mt-3 max-h-48 overflow-auto rounded-lg bg-base-200/60 p-3 text-xs leading-relaxed'>
+                                                                                                                {JSON.stringify(entry.details, null, 2)}
+                                                                                                        </pre>
+                                                                                                )
                                                                                         ) : null}
-                                                                                </div>
-                                                                                <p className='mt-2 text-base font-medium'>{entry.action}</p>
-                                                                                {entry.details ? (
-                                                                                        <pre className='mt-3 max-h-48 overflow-auto rounded-lg bg-base-200/60 p-3 text-xs leading-relaxed'>
-                                                                                                {typeof entry.details === 'string'
-                                                                                                        ? entry.details
-                                                                                                        : JSON.stringify(entry.details, null, 2)}
-                                                                                        </pre>
-                                                                                ) : null}
-                                                                        </li>
-                                                                ))}
+                                                                                </li>
+                                                                        )
+                                                                })}
                                                         </ul>
                                                 ) : (
                                                         <p className='mt-4 text-sm text-base-content/70'>Chưa có dữ liệu dòng thời gian.</p>
@@ -452,71 +692,297 @@ export default function ArbitratorDisputeDetailPage() {
                                         </div>
 
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <h2 className='text-lg font-semibold'>Tổng quan hồ sơ</h2>
-                                                {sectionSummaries.length ? (
-                                                        <div className='mt-4 space-y-4'>
-                                                                {sectionSummaries.map(section => (
-                                                                        <details key={section.key} className='group rounded-xl border border-base-200'>
-                                                                                <summary className='cursor-pointer px-4 py-3 text-sm font-medium group-open:bg-base-200/60'>
-                                                                                        {section.key}
-                                                                                </summary>
-                                                                                <pre className='max-h-60 overflow-auto px-4 py-3 text-xs leading-relaxed'>
-                                                                                        {JSON.stringify(section.value, null, 2)}
-                                                                                </pre>
-                                                                        </details>
-                                                                ))}
+                                                <div className='flex flex-wrap items-start justify-between gap-4'>
+                                                        <div>
+                                                                <h2 className='text-lg font-semibold'>Milestone tranh chấp</h2>
+                                                                <p className='mt-1 text-sm text-base-content/70'>Thông tin mốc thanh toán và các lần bàn giao liên quan tới hồ sơ này.</p>
+                                                        </div>
+                                                        {(milestoneContext?.status ?? milestone?.status) ? (
+                                                                <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                                                        {formatMilestoneStatus(milestoneContext?.status ?? milestone?.status)}
+                                                                </span>
+                                                        ) : null}
+                                                </div>
+                                                <dl className='mt-4 grid gap-4 sm:grid-cols-2'>
+                                                        <div>
+                                                                <dt className='text-xs uppercase text-base-content/60'>Tiêu đề milestone</dt>
+                                                                <dd className='mt-1 text-sm font-medium text-base-content'>
+                                                                        {milestoneContext?.title ?? milestone?.title ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div>
+                                                                <dt className='text-xs uppercase text-base-content/60'>Thuộc hợp đồng</dt>
+                                                                <dd className='mt-1 text-sm font-medium text-base-content'>
+                                                                        {contractTitle ?? '—'}
+                                                                </dd>
+                                                        </div>
+                                                        <div>
+                                                                <dt className='text-xs uppercase text-base-content/60'>Giá trị mốc</dt>
+                                                                <dd className='mt-1 text-sm font-medium text-base-content'>
+                                                                        {formatCurrency(
+                                                                                milestoneContext?.amount ?? milestone?.amount ?? null,
+                                                                                milestoneContext?.currency ?? currency
+                                                                        )}
+                                                                </dd>
+                                                        </div>
+                                                        <div>
+                                                                <dt className='text-xs uppercase text-base-content/60'>Thời gian</dt>
+                                                                <dd className='mt-1 text-sm font-medium text-base-content'>
+                                                                        Bắt đầu: {formatDateTime(milestoneContext?.startAt ?? milestone?.startAt ?? null)}
+                                                                        <br />
+                                                                        Kết thúc: {formatDateTime(milestoneContext?.endAt ?? milestone?.endAt ?? null)}
+                                                                </dd>
+                                                        </div>
+                                                </dl>
+                                                {milestoneSubmissions.length ? (
+                                                        <div className='mt-6'>
+                                                                <h3 className='text-sm font-semibold uppercase tracking-wide text-base-content/60'>Các lần bàn giao</h3>
+                                                                <ul className='mt-3 space-y-4'>
+                                                                        {milestoneSubmissions.map(submission => {
+                                                                                const attachments = submission.attachments ?? []
+                                                                                const submissionLabel =
+                                                                                        submission.message && submission.message.trim().length
+                                                                                                ? submission.message.trim()
+                                                                                                : 'Bàn giao không có tiêu đề'
+                                                                                const freelancerLabel =
+                                                                                        submission.freelancer?.trim().length
+                                                                                                ? submission.freelancer?.trim()
+                                                                                                : submission.freelancerId
+                                                                                                ? `Freelancer ${formatShortId(submission.freelancerId)}`
+                                                                                                : 'Không rõ người gửi'
+
+                                                                                return (
+                                                                                        <li key={submission.id} className='rounded-xl border border-base-200 p-4'>
+                                                                                                <div className='flex flex-wrap items-start justify-between gap-3'>
+                                                                                                        <div>
+                                                                                                                <p className='text-sm font-semibold text-base-content'>{submissionLabel}</p>
+                                                                                                                <p className='mt-1 text-xs text-base-content/60'>
+                                                                                                                        {freelancerLabel} • {formatDateTime(submission.createdAt)}
+                                                                                                                </p>
+                                                                                                                {submission.reviewedBy ? (
+                                                                                                                        <p className='mt-1 text-xs text-base-content/60'>
+                                                                                                                                Đánh giá bởi {submission.reviewedBy}
+                                                                                                                                {submission.reviewedAt ? ` • ${formatDateTime(submission.reviewedAt)}` : ''}
+                                                                                                                        </p>
+                                                                                                                ) : null}
+                                                                                                        </div>
+                                                                                                        {submission.status ? (
+                                                                                                                <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                                                                                                        {formatSubmissionStatus(submission.status)}
+                                                                                                                </span>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                                {typeof submission.reviewRating === 'number' ? (
+                                                                                                        <p className='mt-2 text-xs text-base-content/60'>Điểm đánh giá: {submission.reviewRating}/5</p>
+                                                                                                ) : null}
+                                                                                                {submission.reviewNote ? (
+                                                                                                        <p className='mt-2 text-sm text-base-content/70'>Nhận xét: {submission.reviewNote}</p>
+                                                                                                ) : null}
+                                                                                                {attachments.length ? (
+                                                                                                        <ul className='mt-3 space-y-2'>
+                                                                                                                {attachments.map(attachment => {
+                                                                                                                        const href = attachment.url ?? null
+                                                                                                                        const sizeLabel =
+                                                                                                                                typeof attachment.size === 'number'
+                                                                                                                                        ? formatFileSize(attachment.size)
+                                                                                                                                        : null
+
+                                                                                                                        return (
+                                                                                                                                <li key={attachment.id} className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-xs text-base-content/70'>
+                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                                                                <span className='font-medium text-base-content'>{attachment.name ?? 'Tệp đính kèm'}</span>
+                                                                                                                                                {sizeLabel ? <span className='text-[10px] uppercase tracking-wide text-base-content/60'>{sizeLabel}</span> : null}
+                                                                                                                                        </div>
+                                                                                                                                        {href ? (
+                                                                                                                                                <a
+                                                                                                                                                        href={href}
+                                                                                                                                                        target='_blank'
+                                                                                                                                                        rel='noreferrer'
+                                                                                                                                                        className='mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline'
+                                                                                                                                                >
+                                                                                                                                                        <FileText size={14} /> Xem tệp
+                                                                                                                                                </a>
+                                                                                                                                        ) : null}
+                                                                                                                                </li>
+                                                                                                                        )
+                                                                                                                })}
+                                                                                                        </ul>
+                                                                                                ) : null}
+                                                                                        </li>
+                                                                                )
+                                                                        })}
+                                                                </ul>
                                                         </div>
                                                 ) : (
-                                                        <p className='mt-4 text-sm text-base-content/70'>Không có dữ liệu bổ sung.</p>
+                                                        <p className='mt-4 text-sm text-base-content/70'>Chưa ghi nhận bàn giao nào.</p>
+                                                )}
+                                        </div>
+
+                                        <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
+                                                <h2 className='text-lg font-semibold'>Chứng cứ được nộp</h2>
+                                                {evidenceSubmissions.length ? (
+                                                        <div className='mt-4 space-y-4'>
+                                                                {evidenceSubmissions.map(submission => {
+                                                                        const attachments = submission.items ?? []
+                                                                        const submitterName =
+                                                                                submission.submittedBy?.displayName?.trim()
+                                                                                        ? submission.submittedBy?.displayName?.trim()
+                                                                                        : submission.submittedBy?.name?.trim()
+                                                                                        ? submission.submittedBy?.name?.trim()
+                                                                                        : `Người dùng ${formatShortId(submission.submittedById)}`
+                                                                        const badgeLabel = submission.noAdditionalEvidence
+                                                                                ? 'Không gửi tài liệu bổ sung'
+                                                                                : attachments.length
+                                                                                ? `Tài liệu: ${attachments.length}`
+                                                                                : null
+
+                                                                        return (
+                                                                                <div key={submission.id} className='rounded-xl border border-base-200 p-4'>
+                                                                                        <div className='flex flex-wrap items-start justify-between gap-3'>
+                                                                                                <div>
+                                                                                                        <p className='text-sm font-semibold text-base-content'>{submitterName}</p>
+                                                                                                        <p className='mt-1 text-xs text-base-content/60'>Nộp lúc {formatDateTime(submission.submittedAt)}</p>
+                                                                                                </div>
+                                                                                                {badgeLabel ? (
+                                                                                                        <span className='inline-flex items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                                                                                                {badgeLabel}
+                                                                                                        </span>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        {submission.statement ? (
+                                                                                                <p className='mt-2 text-sm text-base-content/70'>{submission.statement}</p>
+                                                                                        ) : null}
+                                                                                        {attachments.length ? (
+                                                                                                <ul className='mt-3 space-y-3'>
+                                                                                                        {attachments.map((item, index) => {
+                                                                                                                const href = item.url ?? item.asset?.url ?? null
+                                                                                                                const assetBytes = item.asset?.bytes
+                                                                                                                const sizeLabel =
+                                                                                                                        typeof assetBytes === 'number'
+                                                                                                                                ? formatFileSize(assetBytes)
+                                                                                                                                : null
+                                                                                                                const referenceType =
+                                                                                                                        item.reference && typeof item.reference === 'object'
+                                                                                                                                ? (item.reference as { type?: unknown }).type
+                                                                                                                                : undefined
+                                                                                                                const evidenceLabel =
+                                                                                                                        item.label?.trim().length
+                                                                                                                                ? item.label?.trim()
+                                                                                                                                : item.asset?.id?.trim().length
+                                                                                                                                ? item.asset?.id
+                                                                                                                                : `Tài liệu #${index + 1}`
+
+                                                                                                                return (
+                                                                                                                        <li key={item.id} className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-xs text-base-content/70'>
+                                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                                                                        <span className='font-medium text-base-content'>{evidenceLabel}</span>
+                                                                                                                                        <span className='rounded-full bg-base-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-base-content/60'>
+                                                                                                                                                {formatEvidenceSource(item.sourceType)}
+                                                                                                                                        </span>
+                                                                                                                                </div>
+                                                                                                                                {item.description ? (
+                                                                                                                                        <p className='mt-1 text-xs text-base-content/70'>{item.description}</p>
+                                                                                                                                ) : null}
+                                                                                                                                {referenceType ? (
+                                                                                                                                        <p className='mt-1 text-[10px] text-base-content/60'>Tham chiếu: {String(referenceType)}</p>
+                                                                                                                                ) : null}
+                                                                                                                                {href ? (
+                                                                                                                                        <a
+                                                                                                                                                href={href}
+                                                                                                                                                target='_blank'
+                                                                                                                                                rel='noreferrer'
+                                                                                                                                                className='mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline'
+                                                                                                                                        >
+                                                                                                                                                <FileText size={14} /> Xem tài liệu
+                                                                                                                                        </a>
+                                                                                                                                ) : null}
+                                                                                                                                {sizeLabel ? (
+                                                                                                                                        <p className='mt-1 text-[10px] text-base-content/60'>Dung lượng: {sizeLabel}</p>
+                                                                                                                                ) : null}
+                                                                                                                        </li>
+                                                                                                                )
+                                                                                                        })}
+                                                                                                </ul>
+                                                                                        ) : null}
+                                                                                </div>
+                                                                        )
+                                                                })}
+                                                        </div>
+                                                ) : (
+                                                        <p className='mt-4 text-sm text-base-content/70'>Chưa có chứng cứ nào được nộp.</p>
                                                 )}
                                         </div>
                                 </article>
 
                                 <aside className='space-y-6'>
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                                <h2 className='text-lg font-semibold'>Các bên liên quan</h2>
-                                                <dl className='mt-4 space-y-3 text-sm text-base-content/80'>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Khách hàng</dt>
-                                                                <dd className='font-medium'>{formatUserName(contractClient)}</dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Freelancer</dt>
-                                                                <dd className='font-medium'>{formatUserName(contractFreelancer)}</dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Trọng tài viên</dt>
-                                                                <dd className='font-medium'>{formatUserName(baseDispute?.arbitrator)}</dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Hợp đồng</dt>
-                                                                <dd className='font-medium'>{contract?.title ?? '—'}</dd>
-                                                        </div>
-                                                        <div>
-                                                                <dt className='text-xs uppercase text-base-content/60'>Milestone</dt>
-                                                                <dd className='font-medium'>{milestone?.title ?? '—'}</dd>
-                                                        </div>
-                                                </dl>
+                                                <h2 className='text-lg font-semibold'>Các bên tham gia</h2>
+                                                {parties.length ? (
+                                                        <ul className='mt-4 space-y-3 text-sm text-base-content/80'>
+                                                                {parties.map(party => {
+                                                                        const displayName = party.displayName?.trim().length
+                                                                                ? party.displayName.trim()
+                                                                                : `Người dùng ${formatShortId(party.userId)}`
+
+                                                                        return (
+                                                                                <li key={party.userId} className='rounded-xl border border-base-200 p-3'>
+                                                                                        <div className='flex items-start justify-between gap-3'>
+                                                                                                <div>
+                                                                                                        <p className='text-sm font-semibold text-base-content'>{displayName}</p>
+                                                                                                        <p className='text-xs uppercase tracking-wide text-base-content/60'>{formatPartyRole(party.role)}</p>
+                                                                                                </div>
+                                                                                                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium ${getFeeBadgeClass(party.feePaid)}`}>
+                                                                                                        {formatFeeStatus(party.feePaid)}
+                                                                                                </span>
+                                                                                        </div>
+                                                                                </li>
+                                                                        )
+                                                                })}
+                                                        </ul>
+                                                ) : (
+                                                        <p className='mt-4 text-sm text-base-content/70'>Không có dữ liệu thành phần.</p>
+                                                )}
+                                                <div className='mt-5 rounded-xl bg-base-200/60 p-4 text-xs text-base-content/70'>
+                                                        <p>
+                                                                <span className='font-semibold text-base-content'>Hợp đồng:</span> {contractTitle ?? '—'}
+                                                        </p>
+                                                        <p className='mt-1'>
+                                                                <span className='font-semibold text-base-content'>Milestone:</span> {milestoneContext?.title ?? milestone?.title ?? '—'}
+                                                        </p>
+                                                </div>
                                         </div>
 
                                         <div className='rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
                                                 <h2 className='text-lg font-semibold'>Hồ sơ trọng tài gần đây</h2>
                                                 {arbitrationDossiers.length ? (
                                                         <ul className='mt-4 space-y-3 text-sm text-base-content/70'>
-                                                                {arbitrationDossiers.map(dossier => (
-                                                                        <li key={dossier.id} className='rounded-lg border border-base-200 p-3'>
-                                                                                <div className='flex items-center justify-between text-xs uppercase text-base-content/60'>
-                                                                                        <span>Phiên bản</span>
-                                                                                        <span>{dossier.version ?? '—'}</span>
-                                                                                </div>
-                                                                                <div className='mt-2 text-sm font-medium'>
-                                                                                        {dossier.milestoneTitle ?? 'Không rõ'}
-                                                                                </div>
-                                                                                <div className='mt-1 text-xs text-base-content/60'>
-                                                                                        Cập nhật: {formatDateTime(dossier.createdAt)}
-                                                                                </div>
-                                                                        </li>
-                                                                ))}
+                                                                {arbitrationDossiers.map(dossier => {
+                                                                        const status = (dossier as { status?: string | null }).status
+                                                                        const generatedAt = (dossier as { generatedAt?: string | null }).generatedAt
+                                                                        const hash = (dossier as { hash?: string | null }).hash
+
+                                                                        return (
+                                                                                <li key={dossier.id} className='rounded-lg border border-base-200 p-3'>
+                                                                                        <div className='flex items-center justify-between text-xs uppercase text-base-content/60'>
+                                                                                                <span>Phiên bản v{dossier.version ?? '—'}</span>
+                                                                                                {status ? (
+                                                                                                        <span className='rounded-full bg-base-200/60 px-2 py-0.5 text-[10px] font-semibold text-base-content/70'>
+                                                                                                                {status}
+                                                                                                        </span>
+                                                                                                ) : null}
+                                                                                        </div>
+                                                                                        <div className='mt-2 text-sm font-semibold text-base-content'>
+                                                                                                {dossier.milestoneTitle ?? contractTitle ?? 'Hồ sơ tranh chấp'}
+                                                                                        </div>
+                                                                                        <div className='mt-1 text-xs text-base-content/60'>
+                                                                                                Tạo lúc: {formatDateTime(generatedAt ?? dossier.createdAt)}
+                                                                                        </div>
+                                                                                        {hash ? (
+                                                                                                <p className='mt-1 truncate text-[10px] text-base-content/50'>Hash: {hash}</p>
+                                                                                        ) : null}
+                                                                                </li>
+                                                                        )
+                                                                })}
                                                         </ul>
                                                 ) : (
                                                         <p className='mt-4 text-sm text-base-content/70'>Chưa có hồ sơ trọng tài được tạo.</p>

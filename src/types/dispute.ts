@@ -501,10 +501,123 @@ export type ArbitrationContextMeta = {
         currentDossierVersion?: number | null
 }
 
+export type ArbitrationContextParty = {
+        role: string
+        userId: string
+        displayName?: string | null
+        feePaid?: boolean | null
+        [key: string]: unknown
+}
+
+export type ArbitrationContextFinancials = {
+        escrowAmount?: DecimalLike | null
+        currency?: string | null
+        released?: DecimalLike | null
+        refunded?: DecimalLike | null
+        disputed?: DecimalLike | null
+        requested?: {
+                client?: DecimalLike | null
+                freelancer?: DecimalLike | null
+                [key: string]: unknown
+        } | null
+        decided?: {
+                client?: DecimalLike | null
+                freelancer?: DecimalLike | null
+                [key: string]: unknown
+        } | null
+        [key: string]: unknown
+}
+
+export type ArbitrationContextMilestone = {
+        id: string
+        title?: string | null
+        status?: string | null
+        amount?: DecimalLike | null
+        currency?: string | null
+        startAt?: string | null
+        endAt?: string | null
+        contractId?: string | null
+        contractTitle?: string | null
+        [key: string]: unknown
+}
+
+export type ArbitrationContextMilestoneSubmissionAttachment = {
+        id: string
+        name?: string | null
+        url?: string | null
+        mimeType?: string | null
+        size?: number | null
+        createdAt?: string | null
+        assetId?: string | null
+        [key: string]: unknown
+}
+
+export type ArbitrationContextMilestoneSubmission = {
+        id: string
+        milestoneId?: string | null
+        freelancerId?: string | null
+        freelancer?: string | null
+        status?: string | null
+        message?: string | null
+        reviewNote?: string | null
+        reviewRating?: number | null
+        reviewedAt?: string | null
+        reviewedById?: string | null
+        reviewedBy?: string | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        attachments?: ArbitrationContextMilestoneSubmissionAttachment[] | null
+        [key: string]: unknown
+}
+
+export type ArbitrationContextEvidenceItem = {
+        id: string
+        label?: string | null
+        description?: string | null
+        sourceType?: string | null
+        sourceId?: string | null
+        url?: string | null
+        assetId?: string | null
+        createdAt?: string | null
+        asset?: {
+                id: string
+                url?: string | null
+                mimeType?: string | null
+                bytes?: number | null
+                status?: string | null
+                [key: string]: unknown
+        } | null
+        reference?: Record<string, unknown> | null
+        [key: string]: unknown
+}
+
+export type ArbitrationContextEvidenceSubmission = {
+        id: string
+        disputeId?: string | null
+        submittedById: string
+        submittedBy?: {
+                id: string
+                name?: string | null
+                displayName?: string | null
+                [key: string]: unknown
+        } | null
+        statement?: string | null
+        noAdditionalEvidence?: boolean | null
+        submittedAt?: string | null
+        updatedAt?: string | null
+        items?: ArbitrationContextEvidenceItem[] | null
+        [key: string]: unknown
+}
+
 export type ArbitrationContext = {
         meta: ArbitrationContextMeta
         timeline: ArbitrationTimelineEntry[]
-        sections: Record<string, unknown>
+        parties?: ArbitrationContextParty[] | null
+        financials?: ArbitrationContextFinancials | null
+        milestone?: ArbitrationContextMilestone | null
+        milestoneSubmissions?: ArbitrationContextMilestoneSubmission[] | null
+        evidence?: ArbitrationContextEvidenceSubmission[] | null
+        sections?: Record<string, unknown>
 }
 
 export type ArbitrationContextResponse = {
