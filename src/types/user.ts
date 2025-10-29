@@ -1,7 +1,8 @@
 export enum Role {
-	FREELANCER = 'FREELANCER',
-	CLIENT = 'CLIENT',
-	ADMIN = 'ADMIN'
+        FREELANCER = 'FREELANCER',
+        CLIENT = 'CLIENT',
+        ADMIN = 'ADMIN',
+        ARBITRATOR = 'ARBITRATOR'
 }
 
 export type profile = {

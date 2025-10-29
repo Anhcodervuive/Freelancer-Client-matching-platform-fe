@@ -16,6 +16,7 @@ import {
 	checkWhetherUserLoginMiddleware,
         composeLoaders,
         isAdminUser,
+        isArbitratorUser,
         isClientUser,
         isFreelancerUser,
         requireAuthenticatedUserOrRedirectHome
@@ -44,6 +45,10 @@ import CategorySkillsPage from './pages/Admin/category/CategorySkillsPage'
 import SpecialtySkillsPage from './pages/Admin/specialty/SpecialtySkillPage'
 import AdminDisputeListPage from './pages/Admin/dispute/List'
 import AdminChatPage from './pages/Admin/chat/AdminChatPage'
+import ArbitratorLayout from './layouts/ArbitratorLayout'
+import ArbitratorDashboardPage from './pages/Arbitrator/DashboardPage'
+import ArbitratorDisputeListPage from './pages/Arbitrator/DisputeListPage'
+import ArbitratorDisputeDetailPage from './pages/Arbitrator/DisputeDetailPage'
 import OnboardingWizard from './pages/onBoarding/OnboardingWizard'
 import PolicyLayout from './layouts/PolicyLayout'
 import ConnectAccountPolicyPage from './pages/Comons/policies/ConnectAccountPolicyPage'
@@ -250,11 +255,11 @@ const router = createBrowserRouter([
 				element: <JobChatPage />
 			}
 		]
-	},
-	// Admin
-	{
-		path: '/admin',
-		loader: composeLoaders(checkAuthenticatedUser, isAdminUser),
+        },
+        // Admin
+        {
+                path: '/admin',
+                loader: composeLoaders(checkAuthenticatedUser, isAdminUser),
 		element: <AdminLayout />,
 		children: [
                         {
@@ -304,13 +309,33 @@ const router = createBrowserRouter([
 				path: 'skills',
 				element: <SkillsAdminPage />
 			}
-		]
-	},
-	// Auth
-	{
-		path: routes.auth.signup,
-		loader: checkWhetherUserLoginMiddleware,
-		element: <AuthPage />
+                ]
+        },
+        // Arbitrator
+        {
+                path: '/arbitrator',
+                loader: composeLoaders(checkAuthenticatedUser, isArbitratorUser),
+                element: <ArbitratorLayout />,
+                children: [
+                        {
+                                index: true,
+                                element: <ArbitratorDashboardPage />
+                        },
+                        {
+                                path: 'disputes',
+                                element: <ArbitratorDisputeListPage />
+                        },
+                        {
+                                path: 'disputes/:disputeId',
+                                element: <ArbitratorDisputeDetailPage />
+                        }
+                ]
+        },
+        // Auth
+        {
+                path: routes.auth.signup,
+                loader: checkWhetherUserLoginMiddleware,
+                element: <AuthPage />
 	},
 	{
 		path: routes.auth.signin,

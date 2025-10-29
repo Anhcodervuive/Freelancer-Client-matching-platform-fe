@@ -83,10 +83,18 @@ export const routes = {
 		specialty: {
 			list: '/admin/specialties',
 			specialtySkills: (id: string = 'id') => `/admin/specialties/${id}/skills`
-		},
-		project: '/admin/projects'
-	},
-	error: {
-		notFound: '/404'
-	}
+                },
+                project: '/admin/projects'
+        },
+        arbitrator: {
+                root: '/arbitrator',
+                dashboard: '/arbitrator',
+                disputes: {
+                        list: '/arbitrator/disputes',
+                        detail: (id: string = 'disputeId') => `/arbitrator/disputes/${id}`
+                }
+        },
+        error: {
+                notFound: '/404'
+        }
 }

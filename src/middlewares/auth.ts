@@ -2,6 +2,7 @@ import { redirect } from 'react-router-dom'
 import { routes } from '~/config/routes'
 
 import type { LoaderFunctionArgs } from 'react-router-dom'
+import { Role } from '~/types/user'
 
 type Loader = (_args: LoaderFunctionArgs) => Promise<unknown> | unknown
 
@@ -54,37 +55,49 @@ export const requireAuthenticatedUserOrRedirectHome = () => {
 }
 
 export const isFreelancerUser = () => {
-	const persistedRoot = localStorage.getItem('persist:root')
-	if (!persistedRoot) throw redirect(routes.auth.signin)
-	const state = JSON.parse(persistedRoot)
-	const user = JSON.parse(state.user)
-	const currentUser = user.currentUser
-	if (currentUser.role !== 'FREELANCER') {
-		throw redirect(routes.comons.home)
-	}
-	return null
+        const persistedRoot = localStorage.getItem('persist:root')
+        if (!persistedRoot) throw redirect(routes.auth.signin)
+        const state = JSON.parse(persistedRoot)
+        const user = JSON.parse(state.user)
+        const currentUser = user.currentUser
+        if (currentUser.role !== Role.FREELANCER) {
+                throw redirect(routes.comons.home)
+        }
+        return null
 }
 
 export const isClientUser = () => {
-	const persistedRoot = localStorage.getItem('persist:root')
-	if (!persistedRoot) throw redirect(routes.auth.signin)
-	const state = JSON.parse(persistedRoot)
-	const user = JSON.parse(state.user)
-	const currentUser = user.currentUser
-	if (currentUser.role !== 'CLIENT') {
-		throw redirect(routes.comons.home)
-	}
-	return null
+        const persistedRoot = localStorage.getItem('persist:root')
+        if (!persistedRoot) throw redirect(routes.auth.signin)
+        const state = JSON.parse(persistedRoot)
+        const user = JSON.parse(state.user)
+        const currentUser = user.currentUser
+        if (currentUser.role !== Role.CLIENT) {
+                throw redirect(routes.comons.home)
+        }
+        return null
 }
 
 export const isAdminUser = () => {
-	const persistedRoot = localStorage.getItem('persist:root')
-	if (!persistedRoot) throw redirect(routes.auth.signin)
-	const state = JSON.parse(persistedRoot)
-	const user = JSON.parse(state.user)
-	const currentUser = user.currentUser
-	if (currentUser.role !== 'ADMIN') {
-		throw redirect(routes.comons.home)
-	}
-	return null
+        const persistedRoot = localStorage.getItem('persist:root')
+        if (!persistedRoot) throw redirect(routes.auth.signin)
+        const state = JSON.parse(persistedRoot)
+        const user = JSON.parse(state.user)
+        const currentUser = user.currentUser
+        if (currentUser.role !== Role.ADMIN) {
+                throw redirect(routes.comons.home)
+        }
+        return null
+}
+
+export const isArbitratorUser = () => {
+        const persistedRoot = localStorage.getItem('persist:root')
+        if (!persistedRoot) throw redirect(routes.auth.signin)
+        const state = JSON.parse(persistedRoot)
+        const user = JSON.parse(state.user)
+        const currentUser = user.currentUser
+        if (currentUser.role !== Role.ARBITRATOR) {
+                throw redirect(routes.comons.home)
+        }
+        return null
 }

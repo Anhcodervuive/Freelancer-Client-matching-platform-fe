@@ -1,16 +1,17 @@
 import type { AxiosResponse } from 'axios'
 import type { ListResponse } from '~/types/api.response'
 import type {
-	AdminDisputeAmounts,
-	AdminDisputeArbitrator,
-	AdminDisputeChatAccessLog,
-	AdminDisputeDetail,
-	AdminDisputeDossier,
-	AdminDisputeEscrow,
-	AdminDisputeListFilters,
-	AdminDisputeListItem,
-	AdminAssignArbitratorInput,
-	AdminDisputeMetrics,
+        AdminDisputeAmounts,
+        AdminDisputeArbitrator,
+        AdminDisputeChatAccessLog,
+        AdminDisputeDetail,
+        AdminDisputeDossier,
+        AdminDisputeDecisionAttachment,
+        AdminDisputeEscrow,
+        AdminDisputeListFilters,
+        AdminDisputeListItem,
+        AdminAssignArbitratorInput,
+        AdminDisputeMetrics,
 	AdminDisputeParties,
 	AdminGenerateArbitrationDossierInput,
 	AdminJoinDisputeInput,
@@ -453,34 +454,156 @@ const normalizeEvidenceSubmission = (value: unknown): DisputeFinalEvidenceSubmis
 }
 
 const normalizeEvidenceSubmissions = (value: unknown): DisputeFinalEvidenceSubmission[] | null => {
-	if (!value) {
-		return null
-	}
+        if (!value) {
+                return null
+        }
 
-	if (Array.isArray(value)) {
-		const normalized = value
-			.map(item => normalizeEvidenceSubmission(item))
-			.filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item))
+        if (Array.isArray(value)) {
+                const normalized = value
+                        .map(item => normalizeEvidenceSubmission(item))
+                        .filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item))
 
-		return normalized.length ? normalized : []
-	}
+                return normalized.length ? normalized : []
+        }
 
-	const record = asRecord(value)
-	if (!record) {
-		return null
-	}
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
 
-	const candidates = ['data', 'items', 'results', 'submissions', 'evidenceSubmissions', 'evidences'] as const
+        const candidates = ['data', 'items', 'results', 'submissions', 'evidenceSubmissions', 'evidences'] as const
 
-	for (const key of candidates) {
-		if (!(key in record)) continue
-		const normalized = normalizeEvidenceSubmissions(record[key])
-		if (normalized) {
-			return normalized
-		}
-	}
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const normalized = normalizeEvidenceSubmissions(record[key])
+                if (normalized) {
+                        return normalized
+                }
+        }
 
-	return null
+        return null
+}
+
+const normalizeDecisionAttachment = (value: unknown): AdminDisputeDecisionAttachment | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const id = getString(record.id)
+        if (!id) {
+                return null
+        }
+
+        const attachment: AdminDisputeDecisionAttachment = { id }
+
+        const name =
+                getString(record.name ?? record.title ?? record.fileName ?? record.filename ?? record.label ?? record.fileLabel) ??
+                undefined
+        if (name) {
+                attachment.name = name
+        }
+
+        const description = getString(record.description ?? record.note ?? record.notes)
+        if (description) {
+                attachment.description = description
+        }
+
+        const assetId = getString(record.assetId ?? record.asset_id)
+        if (assetId) {
+                attachment.assetId = assetId
+        }
+
+        if (record.asset && typeof record.asset === 'object') {
+                attachment.asset = record.asset as DisputeEvidenceAsset
+        }
+
+        const url = getString(record.url ?? record.fileUrl ?? record.downloadUrl ?? record.download_url)
+        if (url) {
+                attachment.url = url
+        }
+
+        const mimeType = getString(record.mimeType ?? record.mime_type ?? record.mimetype)
+        if (mimeType) {
+                attachment.mimeType = mimeType
+        }
+
+        const size = getNumber(record.size ?? record.bytes ?? record.fileSize ?? record.file_size)
+        if (size !== undefined) {
+                attachment.size = size
+        }
+
+        const createdAt = getString(record.createdAt ?? record.created_at)
+        if (createdAt) {
+                attachment.createdAt = createdAt
+        }
+
+        const updatedAt = getString(record.updatedAt ?? record.updated_at)
+        if (updatedAt) {
+                attachment.updatedAt = updatedAt
+        }
+
+        return attachment
+}
+
+const normalizeDecisionAttachments = (value: unknown): AdminDisputeDecisionAttachment[] | null => {
+        if (!value) {
+                return null
+        }
+
+        if (Array.isArray(value)) {
+                const normalized = value
+                        .map(item => normalizeDecisionAttachment(item))
+                        .filter((item): item is AdminDisputeDecisionAttachment => Boolean(item))
+
+                return normalized.length ? normalized : []
+        }
+
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const candidates = ['data', 'items', 'attachments', 'decisionAttachments'] as const
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const normalized = normalizeDecisionAttachments(record[key])
+                if (normalized) {
+                        return normalized
+                }
+        }
+
+        return null
+}
+
+const normalizeArbitrationDossiers = (value: unknown): AdminDisputeDossier[] | null => {
+        if (!value) {
+                return null
+        }
+
+        if (Array.isArray(value)) {
+                const normalized = value
+                        .map(item => extractDisputeDossier(item))
+                        .filter((item): item is AdminDisputeDossier => Boolean(item))
+
+                return normalized.length ? normalized : []
+        }
+
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
+
+        const candidates = ['data', 'items', 'dossiers', 'arbitrationDossiers', 'results'] as const
+        for (const key of candidates) {
+                if (!(key in record)) continue
+                const normalized = normalizeArbitrationDossiers(record[key])
+                if (normalized) {
+                        return normalized
+                }
+        }
+
+        return null
 }
 
 const normalizeAmounts = (
@@ -864,11 +987,11 @@ const normalizeCounts = (value: unknown): AdminDisputeDetail['counts'] => {
 	return Object.keys(normalized).length ? (normalized as AdminDisputeDetail['counts']) : null
 }
 
-const extractAdminDisputeDetail = (value: unknown): AdminDisputeDetail | null => {
-	const record = asRecord(value)
-	if (!record) {
-		return null
-	}
+export const extractAdminDisputeDetail = (value: unknown): AdminDisputeDetail | null => {
+        const record = asRecord(value)
+        if (!record) {
+                return null
+        }
 
 	const disputeRecord = looksLikeDispute(record)
 		? (record as Record<string, unknown>)
@@ -891,21 +1014,34 @@ const extractAdminDisputeDetail = (value: unknown): AdminDisputeDetail | null =>
 		record.negotiations ?? (disputeRecord ? disputeRecord.negotiations : undefined)
 	)
 	const counts = normalizeCounts(record._count ?? (disputeRecord ? disputeRecord._count : undefined))
-	const evidenceSubmissions = normalizeEvidenceSubmissions(
-		record.evidenceSubmissions ??
-			record.evidence_submissions ??
-			(disputeRecord ? (disputeRecord as Record<string, unknown>).evidenceSubmissions : undefined)
-	)
+        const evidenceSubmissions = normalizeEvidenceSubmissions(
+                record.evidenceSubmissions ??
+                        record.evidence_submissions ??
+                        (disputeRecord ? (disputeRecord as Record<string, unknown>).evidenceSubmissions : undefined)
+        )
+        const decisionAttachments = normalizeDecisionAttachments(
+                record.decisionAttachments ??
+                        record.decision_attachments ??
+                        (disputeRecord ? (disputeRecord as Record<string, unknown>).decisionAttachments : undefined)
+        )
+        const arbitrationDossiers = normalizeArbitrationDossiers(
+                record.arbitrationDossiers ??
+                        record.arbitration_dossiers ??
+                        record.dossiers ??
+                        (disputeRecord ? (disputeRecord as Record<string, unknown>).arbitrationDossiers : undefined)
+        )
 
-	return {
-		id,
-		dispute,
-		escrow,
-		chatAccessLogs,
-		negotiations,
-		counts,
-		evidenceSubmissions
-	}
+        return {
+                id,
+                dispute,
+                escrow,
+                chatAccessLogs,
+                negotiations,
+                counts,
+                evidenceSubmissions,
+                decisionAttachments,
+                arbitrationDossiers
+        }
 }
 
 const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {

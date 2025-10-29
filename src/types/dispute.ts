@@ -355,6 +355,20 @@ export type AdminDisputeEscrow = {
         [key: string]: unknown
 } | null
 
+export type AdminDisputeDecisionAttachment = {
+        id: string
+        name?: string | null
+        description?: string | null
+        assetId?: string | null
+        asset?: DisputeEvidenceAsset | null
+        url?: string | null
+        mimeType?: string | null
+        size?: number | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        [key: string]: unknown
+}
+
 export type AdminDisputeChatAccessLog = {
         id: string
         threadId?: string | null
@@ -381,6 +395,8 @@ export type AdminDisputeDetail = {
         negotiations?: DisputeNegotiation[] | null
         counts?: AdminDisputeCounts
         evidenceSubmissions?: DisputeFinalEvidenceSubmission[] | null
+        decisionAttachments?: AdminDisputeDecisionAttachment[] | null
+        arbitrationDossiers?: AdminDisputeDossier[] | null
         [key: string]: unknown
 }
 
@@ -462,4 +478,47 @@ export type AdminLockDisputeInput = {
 export type AdminGenerateArbitrationDossierInput = {
         notes?: string
         finalize?: boolean
+}
+
+export type ArbitrationTimelineEntry = {
+        at: string
+        actor?: string | null
+        action: string
+        details?: unknown | null
+}
+
+export type ArbitrationContextMeta = {
+        disputeId: string
+        status: DisputeStatus
+        lockedAt: string
+        arbitrationDeadline?: string | null
+        currentDossierVersion?: number | null
+}
+
+export type ArbitrationContext = {
+        meta: ArbitrationContextMeta
+        timeline: ArbitrationTimelineEntry[]
+        sections: Record<string, unknown>
+}
+
+export type ArbitrationContextResponse = {
+        dispute: AdminDisputeDetail
+        arbitrationContext: ArbitrationContext
+}
+
+export type ArbitrationDecisionAwardType = 'RELEASE_ALL' | 'REFUND_ALL' | 'SPLIT'
+
+export type ArbitrationDecisionAttachmentInput = {
+        assetId: string
+        name?: string | null
+        description?: string | null
+}
+
+export type RecordArbitrationDecisionInput = {
+        awardType: ArbitrationDecisionAwardType
+        releaseAmount: number
+        refundAmount: number
+        summary: string
+        reasoning?: string | null
+        attachments?: ArbitrationDecisionAttachmentInput[]
 }
