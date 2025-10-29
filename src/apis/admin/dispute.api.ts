@@ -1044,7 +1044,7 @@ export const extractAdminDisputeDetail = (value: unknown): AdminDisputeDetail | 
         }
 }
 
-const extractAdminDispute = (value: unknown): AdminDisputeListItem | null => {
+export const extractAdminDisputeListItem = (value: unknown): AdminDisputeListItem | null => {
 	const record = asRecord(value)
 	if (!record) {
 		return null
@@ -1141,7 +1141,9 @@ export const getAdminDisputes = async (
 	const response = await authorizeAxiosInstance.get(baseUrl, { params: serializeFilters(filters) })
 	const payload = response.data as RawListResponse
 	const rawItems = Array.isArray(payload.data) ? payload.data : []
-	const items = rawItems.map(extractAdminDispute).filter((item): item is AdminDisputeListItem => Boolean(item))
+        const items = rawItems
+                .map(extractAdminDisputeListItem)
+                .filter((item): item is AdminDisputeListItem => Boolean(item))
 
 	const total = typeof payload.total === 'number' ? payload.total : undefined
 	const limit = typeof payload.limit === 'number' ? payload.limit : filters.limit

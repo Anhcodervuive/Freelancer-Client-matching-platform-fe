@@ -5,13 +5,14 @@ import type {
         ArbitrationContextMeta,
         ArbitrationDecisionAwardType,
         ArbitrationTimelineEntry,
+        ArbitratorDisputeListItem,
         RecordArbitrationDecisionInput
 } from '~/types/dispute'
 import { DisputeStatus } from '~/types/dispute'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
-import { extractAdminDisputeDetail } from '~/apis/admin/dispute.api'
+import { extractAdminDisputeDetail, extractAdminDisputeListItem } from '~/apis/admin/dispute.api'
 
-const baseUrl = '/admin/disputes'
+const baseUrl = '/arbitrator/disputes'
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
         if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -52,6 +53,99 @@ const getNumber = (value: unknown): number | undefined => {
 
 const isDisputeStatusValue = (value: unknown): value is DisputeStatus =>
         typeof value === 'string' && (Object.values(DisputeStatus) as string[]).includes(value as DisputeStatus)
+
+const getFirstString = (...values: unknown[]): string | null => {
+        for (const value of values) {
+                const str = getString(value)
+                if (str) {
+                        return str
+                }
+        }
+
+        return null
+}
+
+const extractDisputeRecord = (record: Record<string, unknown> | null): Record<string, unknown> | null => {
+        if (!record) return null
+
+        const direct = record.dispute
+        if (direct && typeof direct === 'object' && !Array.isArray(direct)) {
+                return direct as Record<string, unknown>
+        }
+
+        const detail = record.detail ?? record.disputeDetail ?? record.dispute_detail
+        if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+                return detail as Record<string, unknown>
+        }
+
+        return null
+}
+
+const extractArbitratorDisputeListItem = (value: unknown): ArbitratorDisputeListItem | null => {
+        const base = extractAdminDisputeListItem(value)
+        if (!base) {
+                return null
+        }
+
+        const record = asRecord(value)
+        const disputeRecord = extractDisputeRecord(record)
+
+        const lockedAt =
+                getFirstString(
+                        base.dispute?.lockedAt,
+                        record?.lockedAt,
+                        record?.locked_at,
+                        disputeRecord?.lockedAt,
+                        disputeRecord?.locked_at
+                ) ?? null
+
+        const arbitrationDeadline =
+                getFirstString(
+                        base.dispute?.arbitrationDeadline,
+                        record?.arbitrationDeadline,
+                        record?.arbitration_deadline,
+                        disputeRecord?.arbitrationDeadline,
+                        disputeRecord?.arbitration_deadline
+                ) ?? null
+
+        const arbitratorAssignedAt =
+                getFirstString(
+                        base.dispute?.arbitratorAssignedAt,
+                        record?.arbitratorAssignedAt,
+                        record?.arbitrator_assigned_at,
+                        disputeRecord?.arbitratorAssignedAt,
+                        disputeRecord?.arbitrator_assigned_at
+                ) ?? null
+
+        return {
+                ...base,
+                lockedAt,
+                arbitrationDeadline,
+                arbitratorAssignedAt
+        }
+}
+
+const extractListItems = (value: unknown): unknown[] => {
+        if (!value) {
+                return []
+        }
+
+        if (Array.isArray(value)) {
+                return value
+        }
+
+        if (typeof value === 'object') {
+                const record = value as Record<string, unknown>
+                const candidates = [record.data, record.items, record.disputes, record.results]
+                for (const candidate of candidates) {
+                        if (Array.isArray(candidate)) {
+                                return candidate
+                        }
+                }
+        }
+
+        return []
+}
 
 const parseTimelineEntry = (value: unknown): ArbitrationTimelineEntry | null => {
         const record = asRecord(value)
@@ -156,6 +250,17 @@ const parseArbitrationContext = (value: unknown): ArbitrationContext => {
         }
 
         return { meta, timeline, sections }
+}
+
+export const listArbitratorDisputes = async (): Promise<ArbitratorDisputeListItem[]> => {
+        const response = await authorizeAxiosInstance.get(baseUrl)
+        const payload = response.data as Record<string, unknown> | undefined
+
+        const rawItems = extractListItems(payload)
+
+        return rawItems
+                .map(extractArbitratorDisputeListItem)
+                .filter((item): item is ArbitratorDisputeListItem => Boolean(item))
 }
 
 export const getArbitratorDisputeContext = async (

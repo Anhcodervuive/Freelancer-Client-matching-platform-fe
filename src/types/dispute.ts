@@ -432,6 +432,12 @@ export type AdminDisputeListItem = {
         [key: string]: unknown
 }
 
+export type ArbitratorDisputeListItem = AdminDisputeListItem & {
+        lockedAt?: string | null
+        arbitrationDeadline?: string | null
+        arbitratorAssignedAt?: string | null
+}
+
 export type AdminDisputeDossier = {
         id: string
         version?: number | null
