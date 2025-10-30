@@ -1290,10 +1290,10 @@ export default function ArbitratorDisputeDetailPage() {
                                         </div>
 
                                         <div className='grid gap-4 md:grid-cols-3'>
-                                                <label className='form-control w-full'>
+                                                <label className='form-control w-full gap-2'>
                                                         <span className='label-text font-medium'>Kiểu phán quyết</span>
                                                         <select
-                                                                className='select select-bordered mt-2'
+                                                                className='select select-bordered'
                                                                 {...register('awardType')}
                                                                 disabled={decisionMutation.isPending}
                                                         >
@@ -1302,13 +1302,13 @@ export default function ArbitratorDisputeDetailPage() {
                                                                 <option value='SPLIT'>Chia theo tỷ lệ</option>
                                                         </select>
                                                 </label>
-                                                <label className='form-control w-full'>
+                                                <label className='form-control w-full gap-2'>
                                                         <span className='label-text font-medium'>Số tiền trả freelancer</span>
                                                         <input
                                                                 type='number'
                                                                 step='0.01'
                                                                 min={0}
-                                                                className='input input-bordered mt-2'
+                                                                className='input input-bordered'
                                                                 {...register('releaseAmount', { valueAsNumber: true })}
                                                                 disabled={decisionMutation.isPending || awardType === 'REFUND_ALL'}
                                                         />
@@ -1318,13 +1318,13 @@ export default function ArbitratorDisputeDetailPage() {
                                                                 </span>
                                                         ) : null}
                                                 </label>
-                                                <label className='form-control w-full'>
+                                                <label className='form-control w-full gap-2'>
                                                         <span className='label-text font-medium'>Số tiền hoàn cho client</span>
                                                         <input
                                                                 type='number'
                                                                 step='0.01'
                                                                 min={0}
-                                                                className='input input-bordered mt-2'
+                                                                className='input input-bordered'
                                                                 {...register('refundAmount', { valueAsNumber: true })}
                                                                 disabled={decisionMutation.isPending || awardType === 'RELEASE_ALL'}
                                                         />
@@ -1336,11 +1336,11 @@ export default function ArbitratorDisputeDetailPage() {
                                                 </label>
                                         </div>
 
-                                        <label className='form-control'>
+                                        <label className='form-control gap-2'>
                                                 <span className='label-text font-medium'>Tóm tắt phán quyết</span>
                                                 <textarea
                                                         rows={3}
-                                                        className='textarea textarea-bordered mt-2'
+                                                        className='textarea textarea-bordered'
                                                         placeholder='Tóm tắt ngắn gọn lý do và kết quả phán quyết...'
                                                         {...register('summary')}
                                                         disabled={decisionMutation.isPending}
@@ -1352,11 +1352,11 @@ export default function ArbitratorDisputeDetailPage() {
                                                 ) : null}
                                         </label>
 
-                                        <label className='form-control'>
+                                        <label className='form-control gap-2'>
                                                 <span className='label-text font-medium'>Lý do chi tiết (không bắt buộc)</span>
                                                 <textarea
                                                         rows={6}
-                                                        className='textarea textarea-bordered mt-2'
+                                                        className='textarea textarea-bordered'
                                                         placeholder='Mô tả chi tiết cách bạn đánh giá bằng chứng và kết luận cuối cùng.'
                                                         {...register('reasoning')}
                                                         disabled={decisionMutation.isPending}
