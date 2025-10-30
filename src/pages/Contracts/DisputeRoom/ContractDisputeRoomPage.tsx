@@ -669,7 +669,7 @@ const ContractDisputeRoomPage = () => {
       proposedRelease: 0,
       proposedRefund: 0,
       note: undefined,
-      message: undefined,
+      reason: "",
     },
   });
 
@@ -752,7 +752,7 @@ const ContractDisputeRoomPage = () => {
         proposedRelease: values.proposedRelease,
         proposedRefund: values.proposedRefund,
         note: values.note,
-        message: values.message,
+        reason: values.reason,
       };
       return openMilestoneDispute(contractId, milestoneId, payload);
     },
@@ -762,7 +762,7 @@ const ContractDisputeRoomPage = () => {
         proposedRelease: 0,
         proposedRefund: 0,
         note: undefined,
-        message: undefined,
+        reason: "",
       });
       await queryClient.invalidateQueries({ queryKey: disputeQueryKey });
       await queryClient.invalidateQueries({
@@ -2702,10 +2702,10 @@ const ContractDisputeRoomPage = () => {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-base-content">
-                          Thông điệp mở dispute
+                          Lý do mở dispute
                         </label>
                         <Controller
-                          name="message"
+                          name="reason"
                           control={openDisputeControl}
                           render={({ field }) => (
                             <textarea
@@ -2718,9 +2718,9 @@ const ContractDisputeRoomPage = () => {
                             />
                           )}
                         />
-                        {openDisputeErrors.message && (
+                        {openDisputeErrors.reason && (
                           <p className="text-xs text-error">
-                            {openDisputeErrors.message.message}
+                            {openDisputeErrors.reason.message}
                           </p>
                         )}
                       </div>

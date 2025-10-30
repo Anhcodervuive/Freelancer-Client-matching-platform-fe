@@ -132,7 +132,7 @@ export type OpenDisputeInput = {
         proposedRelease: number
         proposedRefund: number
         note?: string
-        message?: string
+        reason: string
 }
 
 export type CreateDisputeNegotiationInput = {
