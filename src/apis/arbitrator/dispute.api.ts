@@ -871,7 +871,7 @@ export const recordArbitrationDecision = async (disputeId: string, payload: Reco
 		body.attachments = payload.attachments
 	}
 
-	const response = await authorizeAxiosInstance.post(`${baseUrl}/${disputeId}/arbitration/decision`, body)
+	const response = await authorizeAxiosInstance.post(`/admin/disputes/${disputeId}/arbitration/decision`, body)
 
 	return response.data
 }
