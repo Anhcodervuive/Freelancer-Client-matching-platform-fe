@@ -23,9 +23,32 @@ export type ContractClient = {
 }
 
 export type ContractFreelancer = {
-	userId: string
-	profile?: ContractParticipantProfile | null
-	title?: string | null
+        userId: string
+        profile?: ContractParticipantProfile | null
+        title?: string | null
+}
+
+export type ContractClosureReasonOption = {
+        id: string
+        label: string
+        description?: string | null
+}
+
+export type ContractFeedback = {
+        id?: string
+        rating?: number | null
+        comment?: string | null
+        wouldHireAgain?: boolean | null
+        reviewerId?: string | null
+        revieweeId?: string | null
+        createdAt?: string | null
+        updatedAt?: string | null
+        [key: string]: unknown
+}
+
+export enum ContractClosureType {
+        AUTO_RELEASED = 'AUTO_RELEASED',
+        MANUAL = 'MANUAL'
 }
 
 export type ContractJobCategory = {
@@ -136,10 +159,10 @@ export type ContractOffer = {
 }
 
 export type Contract = {
-	id: string
-	code?: string | null
-	title?: string | null
-	status?: ContractStatus
+        id: string
+        code?: string | null
+        title?: string | null
+        status?: ContractStatus
 	type?: string | null
 	paymentMode?: string | null
 	hourlyRate?: number | null
@@ -160,9 +183,15 @@ export type Contract = {
 	client: ContractClient
 	freelancer: ContractFreelancer
 	jobPost?: ContractJobPost | null
-	proposal?: ContractProposal | null
-	offer?: ContractOffer | null
-	[key: string]: unknown
+        proposal?: ContractProposal | null
+        offer?: ContractOffer | null
+        closureReasonOptions?: ContractClosureReasonOption[] | null
+        clientFeedback?: ContractFeedback | null
+        freelancerFeedback?: ContractFeedback | null
+        viewerFeedback?: ContractFeedback | null
+        viewerCanSubmitFeedback?: boolean | null
+        viewerSubmittedFeedbackAt?: string | null
+        [key: string]: unknown
 }
 
 export type ContractMilestoneEscrow = {
@@ -268,6 +297,18 @@ export type PayContractMilestoneResponse = {
         paymentIntentId?: string
         payment_intent_id?: string
         [key: string]: unknown
+}
+
+export type EndContractInput = {
+        closureType: ContractClosureType
+        closureReason?: string
+        closureReasonOptionId?: string
+}
+
+export type SubmitContractFeedbackInput = {
+        rating: number
+        comment?: string
+        wouldHireAgain?: boolean
 }
 
 export type CancelContractMilestoneInput = {

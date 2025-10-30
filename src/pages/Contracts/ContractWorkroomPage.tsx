@@ -7,25 +7,28 @@ import {
         AlertTriangle,
         Ban,
         ArrowLeft,
-	CalendarClock,
-	CheckCircle2,
-	CreditCard,
-	Download,
-	Eye,
-	Flag,
-	FolderOpen,
-	ChevronDown,
-	History,
-	LayoutDashboard,
-	Loader2,
-	Paperclip,
-	UploadCloud,
-	XCircle,
-	ShieldCheck,
-	Trash2,
-	Wallet2,
-	Users,
-	Star
+        CalendarClock,
+        CheckCircle2,
+        CreditCard,
+        Download,
+        Eye,
+        Flag,
+        FolderOpen,
+        ChevronDown,
+        History,
+        LayoutDashboard,
+        Loader2,
+        MessageCircle,
+        Paperclip,
+        UploadCloud,
+        XCircle,
+        ShieldCheck,
+        Trash2,
+        Wallet2,
+        Users,
+        Star,
+        ThumbsUp,
+        ThumbsDown
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -42,20 +45,25 @@ import {
         approveMilestoneSubmission,
         declineMilestoneSubmission,
         payMilestone,
-        respondMilestoneCancellation
+        respondMilestoneCancellation,
+        endContract,
+        submitContractFeedback
 } from '~/apis/contract.api'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type {
-	Contract,
-	ContractMilestone,
-	ContractMilestoneSubmission,
-	ContractMilestoneResource,
-	CreateContractMilestoneInput,
-	PayContractMilestoneInput,
-	PayContractMilestoneResponse
+        Contract,
+        ContractMilestone,
+        ContractMilestoneSubmission,
+        ContractMilestoneResource,
+        CreateContractMilestoneInput,
+        PayContractMilestoneInput,
+        PayContractMilestoneResponse,
+        ContractClosureReasonOption,
+        ContractFeedback,
+        ContractClosureType
 } from '~/types/contract'
 import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
@@ -75,7 +83,9 @@ import type {
         ApproveMilestoneSubmissionFormValues,
         CancelMilestoneFormValues,
         DeclineMilestoneSubmissionFormValues,
-        RespondMilestoneCancellationFormValues
+        RespondMilestoneCancellationFormValues,
+        EndContractFormValues,
+        SubmitContractFeedbackFormValues
 } from './schemas'
 import CreateMilestoneDialog from './components/CreateMilestoneDialog'
 import SubmitMilestoneWorkDialog from './components/SubmitMilestoneWorkDialog'
@@ -84,6 +94,8 @@ import FundMilestoneDialog from './components/FundMilestoneDialog'
 import CancelMilestoneDialog from './components/CancelMilestoneDialog'
 import RespondMilestoneCancellationDialog from './components/RespondMilestoneCancellationDialog'
 import ConfirmDelete from '~/components/ConfirmDelete'
+import EndContractDialog from './components/EndContractDialog'
+import SubmitContractFeedbackDialog from './components/SubmitContractFeedbackDialog'
 
 const tabs = [
 	{ id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
@@ -376,6 +388,8 @@ const ContractWorkroomPage = () => {
                 milestone: ContractMilestone
                 action: 'accept' | 'decline'
         } | null>(null)
+        const [isEndContractDialogOpen, setEndContractDialogOpen] = useState(false)
+        const [isSubmitFeedbackOpen, setSubmitFeedbackOpen] = useState(false)
         const pendingPaymentMetaRef = useRef<Record<string, { idempotencyKey?: string; clientSecret?: string }>>({})
 
 	const viewerRole: ViewerRole =
@@ -570,6 +584,61 @@ const ContractWorkroomPage = () => {
                                 extractPaymentErrorMessage(error) ||
                                 'Không thể phản hồi yêu cầu hủy milestone. Vui lòng thử lại.'
                         toast.error(message)
+                }
+        })
+
+        const endContractMutation = useMutation<void, unknown, EndContractFormValues>({
+                mutationFn: async values => {
+                        if (!contractId) throw new Error('Missing contract ID')
+
+                        const payload = {
+                                closureType: ContractClosureType.MANUAL,
+                                ...(values.closureReasonOptionId
+                                        ? { closureReasonOptionId: values.closureReasonOptionId }
+                                        : {}),
+                                ...(values.closureReason?.trim()
+                                        ? { closureReason: values.closureReason.trim() }
+                                        : {})
+                        }
+
+                        await endContract(contractId, payload)
+                },
+                onSuccess: () => {
+                        toast.success('Đã gửi yêu cầu kết thúc hợp đồng')
+                        setEndContractDialogOpen(false)
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể kết thúc hợp đồng. Vui lòng thử lại.')
+                }
+        })
+
+        const submitContractFeedbackMutation = useMutation<
+                void,
+                unknown,
+                SubmitContractFeedbackFormValues
+        >({
+                mutationFn: async values => {
+                        if (!contractId) throw new Error('Missing contract ID')
+
+                        const payload = {
+                                rating: values.rating,
+                                ...(values.comment?.trim() ? { comment: values.comment.trim() } : {}),
+                                ...(typeof values.wouldHireAgain === 'boolean'
+                                        ? { wouldHireAgain: values.wouldHireAgain }
+                                        : {})
+                        }
+
+                        await submitContractFeedback(contractId, payload)
+                },
+                onSuccess: () => {
+                        toast.success('Đã gửi đánh giá hợp đồng')
+                        setSubmitFeedbackOpen(false)
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể gửi đánh giá hợp đồng. Vui lòng thử lại.')
                 }
         })
 
@@ -826,8 +895,42 @@ const ContractWorkroomPage = () => {
 	const outstanding = formatCurrency(contract?.outstandingBalance ?? undefined, currency)
 	const hourlyRate = formatCurrency(contract?.hourlyRate ?? undefined, contract?.hourlyRateCurrency ?? currency)
 	const fixedPrice = formatCurrency(contract?.fixedPrice ?? undefined, contract?.fixedPriceCurrency ?? currency)
-	const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
-	const attachments = useMemo(() => buildAttachmentList(contract), [contract])
+        const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
+        const attachments = useMemo(() => buildAttachmentList(contract), [contract])
+        const closureReasonOptions = useMemo(
+                () =>
+                        Array.isArray(contract?.closureReasonOptions)
+                                ? contract.closureReasonOptions.filter(
+                                          (option): option is ContractClosureReasonOption =>
+                                                  Boolean(option && option.id && option.label)
+                                  )
+                                : [],
+                [contract?.closureReasonOptions]
+        )
+        const viewerFeedback = (contract?.viewerFeedback ?? null) as ContractFeedback | null
+        const partnerFeedback =
+                viewerRole === 'client'
+                        ? ((contract?.freelancerFeedback ?? null) as ContractFeedback | null)
+                        : viewerRole === 'freelancer'
+                        ? ((contract?.clientFeedback ?? null) as ContractFeedback | null)
+                        : null
+        const viewerSubmittedFeedbackAt =
+                contract?.viewerSubmittedFeedbackAt ?? viewerFeedback?.createdAt ?? null
+        const normalizedContractStatus = contract?.status?.toUpperCase() ?? ''
+        const shouldShowEndContractAction =
+                viewerRole !== 'all' &&
+                ['ACTIVE', 'IN_PROGRESS', 'PAUSED', 'COMPLETED'].includes(normalizedContractStatus)
+        const viewerCanSubmitFeedback = Boolean(
+                contract?.viewerCanSubmitFeedback ??
+                        (!viewerFeedback && ['COMPLETED', 'ENDED', 'CLOSED'].includes(normalizedContractStatus))
+        )
+        const shouldShowFeedbackAction = viewerRole !== 'all' && viewerCanSubmitFeedback
+        const partnerDisplayName =
+                viewerRole === 'client'
+                        ? freelancerName ?? 'Freelancer'
+                        : viewerRole === 'freelancer'
+                        ? clientName ?? 'Khách hàng'
+                        : undefined
 
         const requestDeleteMilestone = (milestone: ContractMilestone) => {
                 if (deleteMilestoneMutation.isPending) return
@@ -955,8 +1058,29 @@ const ContractWorkroomPage = () => {
 				: 'Theo dõi hợp đồng với khách hàng của bạn'
 			: `${clientName ?? 'Khách hàng'} · ${freelancerName ?? 'Freelancer'}`
 
-	const renderOverview = () => (
-		<div className='space-y-8'>
+        const renderFeedbackRating = (rating?: number | null) => {
+                if (typeof rating !== 'number' || Number.isNaN(rating)) {
+                        return <span className='text-xs text-slate-400'>Chưa có đánh giá</span>
+                }
+
+                const clamped = Math.max(1, Math.min(5, Math.round(rating)))
+
+                return (
+                        <div className='flex items-center gap-1 text-amber-500'>
+                                {[1, 2, 3, 4, 5].map(value => (
+                                        <Star
+                                                key={value}
+                                                className={`size-4 ${value <= clamped ? '' : 'stroke-[1.5]'}`}
+                                                fill={value <= clamped ? 'currentColor' : 'none'}
+                                        />
+                                ))}
+                                <span className='text-sm font-semibold text-amber-600'>{clamped}/5</span>
+                        </div>
+                )
+        }
+
+        const renderOverview = () => (
+                <div className='space-y-8'>
 			<div className='grid gap-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:grid-cols-3 md:p-8'>
 				<div className='space-y-3'>
 					<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Trạng thái</p>
@@ -1021,6 +1145,114 @@ const ContractWorkroomPage = () => {
 							</span>
 						</li>
 					</ul>
+				</div>
+			</div>
+
+			<div className='space-y-5 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+				<div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+					<div>
+						<h3 className='text-sm font-semibold text-slate-800'>Đánh giá &amp; phản hồi</h3>
+						<p className='text-sm text-slate-600'>Theo dõi đánh giá từ bạn và đối tác sau khi hợp đồng hoàn thành.</p>
+					</div>
+					{shouldShowFeedbackAction && (
+						<button
+							 type='button'
+							 className='btn btn-primary btn-sm gap-2'
+							 onClick={() => setSubmitFeedbackOpen(true)}
+							 disabled={submitContractFeedbackMutation.isPending}
+						>
+							{submitContractFeedbackMutation.isPending ? (
+								<>
+									<Loader2 className='size-4 animate-spin' />
+									Đang mở...
+								</>
+							) : (
+								<>
+									<Star className='size-4' /> Đánh giá hợp đồng
+								</>
+							)}
+						</button>
+					)}
+				</div>
+				<div className='grid gap-4 md:grid-cols-2'>
+					<div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4'>
+						<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá của bạn</p>
+						{viewerFeedback ? (
+							<div className='space-y-3 text-sm text-slate-600'>
+								{renderFeedbackRating(viewerFeedback.rating)}
+								{viewerFeedback.comment ? (
+									<div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
+										<MessageCircle className='mt-0.5 size-4 text-primary' />
+										<p className='text-left'>{viewerFeedback.comment}</p>
+									</div>
+								) : (
+									<p className='text-xs text-slate-400'>Không có nhận xét chi tiết.</p>
+								)}
+								{typeof viewerFeedback.wouldHireAgain === 'boolean' ? (
+									<p className='flex items-center gap-2 text-xs font-medium'>
+										{viewerFeedback.wouldHireAgain ? (
+											<>
+												<ThumbsUp className='size-4 text-emerald-500' /> Sẵn sàng hợp tác tiếp
+											</>
+										) : (
+											<>
+												<ThumbsDown className='size-4 text-rose-500' /> Không dự định hợp tác tiếp
+											</>
+										)}
+									</p>
+								) : null}
+								{viewerSubmittedFeedbackAt ? (
+									<p className='text-xs text-slate-400'>Gửi {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+								) : null}
+							</div>
+						) : (
+							<div className='space-y-2 text-sm text-slate-500'>
+								{shouldShowFeedbackAction ? (
+									<p>Bạn chưa gửi đánh giá cho hợp đồng này. Nhấn “Đánh giá hợp đồng” để chia sẻ trải nghiệm.</p>
+								) : viewerSubmittedFeedbackAt ? (
+									<p>Bạn đã gửi đánh giá vào {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>
+								) : (
+									<p>Chưa có đánh giá nào từ bạn.</p>
+								)}
+							</div>
+						)}
+					</div>
+					<div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4'>
+						<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá từ đối tác</p>
+						{partnerFeedback ? (
+							<div className='space-y-3 text-sm text-slate-600'>
+								{renderFeedbackRating(partnerFeedback.rating)}
+								{partnerFeedback.comment ? (
+									<div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
+										<MessageCircle className='mt-0.5 size-4 text-secondary' />
+										<p className='text-left'>{partnerFeedback.comment}</p>
+									</div>
+								) : (
+									<p className='text-xs text-slate-400'>Đối tác không để lại nhận xét.</p>
+								)}
+								{typeof partnerFeedback.wouldHireAgain === 'boolean' ? (
+									<p className='flex items-center gap-2 text-xs font-medium'>
+										{partnerFeedback.wouldHireAgain ? (
+											<>
+												<ThumbsUp className='size-4 text-emerald-500' /> Muốn tiếp tục hợp tác
+											</>
+										) : (
+											<>
+												<ThumbsDown className='size-4 text-rose-500' /> Không có ý định hợp tác tiếp
+											</>
+										)}
+									</p>
+								) : null}
+								{partnerFeedback.createdAt ? (
+									<p className='text-xs text-slate-400'>Gửi {formatDateTime(partnerFeedback.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+								) : null}
+							</div>
+						) : (
+							<p className='text-sm text-slate-500'>
+								{partnerDisplayName ? `${partnerDisplayName} chưa gửi đánh giá.` : 'Đối tác chưa gửi đánh giá.'}
+							</p>
+						)}
+					</div>
 				</div>
 			</div>
 
@@ -1621,7 +1853,7 @@ const ContractWorkroomPage = () => {
 											)}
                                                                                         {canCancelMilestone && (
                                                                                                 <button
-                                                                                                        type='button'
+                                                                                                       type='button'
                                                                                                         className='btn btn-ghost btn-xs gap-1 text-error'
                                                                                                         onClick={() => requestCancelMilestone(milestone)}
                                                                                                         disabled={cancelMilestoneMutation.isPending}
@@ -1641,7 +1873,7 @@ const ContractWorkroomPage = () => {
                                                                                         )}
                                                                                         {canDeleteMilestone && (
                                                                                                 <button
-                                                                                                        type='button'
+                                                                                                       type='button'
                                                                                                         className='btn btn-ghost btn-xs text-error'
                                                                                                         onClick={() => requestDeleteMilestone(milestone)}
                                                                                                         disabled={deleteMilestoneMutation.isPending}
@@ -1729,7 +1961,7 @@ const ContractWorkroomPage = () => {
                                                                                                 {isCancellationPending && viewerRole === 'freelancer' && (
                                                                                                         <div className='flex flex-shrink-0 flex-wrap items-center justify-end gap-2'>
                                                                                                                 <button
-                                                                                                                        type='button'
+                                                                                                                       type='button'
                                                                                                                         className='btn btn-outline btn-sm border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50'
                                                                                                                         onClick={() => requestRespondCancellation(milestone, 'decline')}
                                                                                                                         disabled={isRespondingCancellation}
@@ -1744,7 +1976,7 @@ const ContractWorkroomPage = () => {
                                                                                                                         )}
                                                                                                                 </button>
                                                                                                                 <button
-                                                                                                                        type='button'
+                                                                                                                       type='button'
                                                                                                                         className='btn btn-success btn-sm gap-2'
                                                                                                                         onClick={() => requestRespondCancellation(milestone, 'accept')}
                                                                                                                         disabled={isRespondingCancellation}
@@ -2454,11 +2686,11 @@ const ContractWorkroomPage = () => {
 						</span>
 					</div>
 				</div>
-				<div className='flex flex-col items-start gap-3 md:items-end'>
-					<div className='flex flex-wrap items-center gap-3'>
-						{jobPostLink && (
-							<Link
-								to={jobPostLink}
+                                <div className='flex flex-col items-start gap-3 md:items-end'>
+                                        <div className='flex flex-wrap items-center gap-3'>
+                                                {jobPostLink && (
+                                                        <Link
+                                                                to={jobPostLink}
 								className='inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'>
 								Xem job post
 							</Link>
@@ -2468,10 +2700,50 @@ const ContractWorkroomPage = () => {
 							className='inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm'
 							disabled>
 							Xuất hợp đồng (sắp ra mắt)
-						</button>
-					</div>
-					{budgetSummary && <p className='text-sm text-slate-600'>Tổng quan: {budgetSummary}</p>}
-				</div>
+                                                </button>
+                                        </div>
+                                        <div className='flex flex-wrap items-center gap-2 md:justify-end'>
+                                                {shouldShowFeedbackAction && (
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-primary btn-sm gap-2'
+                                                                onClick={() => setSubmitFeedbackOpen(true)}
+                                                                disabled={submitContractFeedbackMutation.isPending}
+                                                        >
+                                                                {submitContractFeedbackMutation.isPending ? (
+                                                                        <>
+                                                                                <Loader2 className='size-4 animate-spin' />
+                                                                                Đang mở...
+                                                                        </>
+                                                                ) : (
+                                                                        <>
+                                                                                <Star className='size-4' /> Đánh giá hợp đồng
+                                                                        </>
+                                                                )}
+                                                        </button>
+                                                )}
+                                                {shouldShowEndContractAction && (
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-warning btn-sm gap-2 text-warning-foreground'
+                                                                onClick={() => setEndContractDialogOpen(true)}
+                                                                disabled={endContractMutation.isPending}
+                                                        >
+                                                                {endContractMutation.isPending ? (
+                                                                        <>
+                                                                                <Loader2 className='size-4 animate-spin' />
+                                                                                Đang xử lý...
+                                                                        </>
+                                                                ) : (
+                                                                        <>
+                                                                                <Ban className='size-4' /> Kết thúc hợp đồng
+                                                                        </>
+                                                                )}
+                                                        </button>
+                                                )}
+                                        </div>
+                                        {budgetSummary && <p className='text-sm text-slate-600'>Tổng quan: {budgetSummary}</p>}
+                                </div>
 			</div>
 
 			<nav className='flex flex-wrap items-center gap-2 rounded-[28px] border border-white/70 bg-white/85 p-2 shadow-[0_20px_60px_rgba(15,23,42,0.08)]'>
@@ -2607,6 +2879,37 @@ const ContractWorkroomPage = () => {
                                 onClose={() => {
                                         if (respondMilestoneCancellationMutation.isPending) return
                                         setCancellationResponseState(null)
+                                }}
+                        />
+                        <EndContractDialog
+                                open={isEndContractDialogOpen}
+                                reasonOptions={closureReasonOptions}
+                                isSubmitting={endContractMutation.isPending}
+                                onSubmit={async values => {
+                                        await endContractMutation.mutateAsync(values)
+                                }}
+                                onClose={() => {
+                                        if (endContractMutation.isPending) return
+                                        setEndContractDialogOpen(false)
+                                }}
+                        />
+                        <SubmitContractFeedbackDialog
+                                open={isSubmitFeedbackOpen}
+                                partnerName={partnerDisplayName}
+                                isSubmitting={submitContractFeedbackMutation.isPending}
+                                initialRating={viewerFeedback?.rating ?? null}
+                                initialComment={viewerFeedback?.comment ?? null}
+                                initialWouldHireAgain={
+                                        typeof viewerFeedback?.wouldHireAgain === 'boolean'
+                                                ? viewerFeedback.wouldHireAgain
+                                                : null
+                                }
+                                onSubmit={async values => {
+                                        await submitContractFeedbackMutation.mutateAsync(values)
+                                }}
+                                onClose={() => {
+                                        if (submitContractFeedbackMutation.isPending) return
+                                        setSubmitFeedbackOpen(false)
                                 }}
                         />
                         <ConfirmDelete

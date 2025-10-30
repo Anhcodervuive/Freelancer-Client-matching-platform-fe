@@ -148,3 +148,52 @@ export const RespondMilestoneCancellationSchema = z.object({
 export type RespondMilestoneCancellationFormValues = z.infer<
         typeof RespondMilestoneCancellationSchema
 >
+
+export const EndContractSchema = z
+        .object({
+                closureReasonOptionId: z.preprocess(
+                        sanitizeOptionalText,
+                        z
+                                .string()
+                                .trim()
+                                .min(1, 'Vui lòng chọn lý do kết thúc hợp đồng')
+                                .optional()
+                ),
+                closureReason: z.preprocess(
+                        sanitizeOptionalText,
+                        z
+                                .string()
+                                .min(10, 'Lý do kết thúc hợp đồng tối thiểu 10 ký tự')
+                                .max(2000, 'Lý do kết thúc hợp đồng tối đa 2000 ký tự')
+                                .optional()
+                )
+        })
+        .superRefine((data, ctx) => {
+                const hasOption = Boolean(data.closureReasonOptionId)
+                const hasReason = typeof data.closureReason === 'string' && data.closureReason.trim().length > 0
+
+                if (!hasOption && !hasReason) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'Vui lòng chọn hoặc nhập lý do kết thúc hợp đồng',
+                                path: ['closureReason']
+                        })
+                }
+        })
+
+export type EndContractFormValues = z.infer<typeof EndContractSchema>
+
+export const SubmitContractFeedbackSchema = z.object({
+        rating: ReviewRatingSchema,
+        comment: z.preprocess(
+                sanitizeOptionalText,
+                z
+                        .string()
+                        .min(10, 'Đánh giá tối thiểu 10 ký tự')
+                        .max(2000, 'Đánh giá tối đa 2000 ký tự')
+                        .optional()
+        ),
+        wouldHireAgain: z.boolean().optional()
+})
+
+export type SubmitContractFeedbackFormValues = z.infer<typeof SubmitContractFeedbackSchema>

@@ -4,14 +4,17 @@ import type {
         ApproveMilestoneSubmissionInput,
         CancelContractMilestoneInput,
         Contract,
+        ContractClosureType,
         ContractListFilterInput,
         ContractMilestone,
         CreateContractMilestoneInput,
         DeclineMilestoneSubmissionInput,
-        RespondMilestoneCancellationInput,
+        EndContractInput,
         PaginatedContractResponse,
         PayContractMilestoneInput,
         PayContractMilestoneResponse,
+        RespondMilestoneCancellationInput,
+        SubmitContractFeedbackInput,
         SubmitMilestoneWorkInput
 } from '~/types/contract'
 import type {
@@ -792,4 +795,18 @@ export const submitFinalEvidence = async (
                 `${baseUrl}/${contractId}/milestones/${milestoneId}/disputes/${disputeId}/final-evidence`,
                 payload
         )
+}
+
+export const endContract = async (contractId: string, payload: EndContractInput) => {
+        await authorizeAxiosInstance.post(`${baseUrl}/${contractId}/end`, {
+                ...payload,
+                closureType: payload.closureType ?? ContractClosureType.MANUAL
+        })
+}
+
+export const submitContractFeedback = async (
+        contractId: string,
+        payload: SubmitContractFeedbackInput
+) => {
+        await authorizeAxiosInstance.post(`${baseUrl}/${contractId}/feedback`, payload)
 }
