@@ -174,17 +174,30 @@ export default function JobProposalsPage() {
 
         const handleTabChange = (tab: TabKey) => {
                 if (tab === activeTab) return
-                setActiveTab(tab)
+
                 if (tab === 'invitations') {
+                        setActiveTab(tab)
                         navigate(routes.freelancer.jobs.invitations)
-                } else {
-                        navigate(`${routes.freelancer.jobs.invitations}?tab=${tab}`)
-                }
-                if (tab === 'invitations') {
+                        setSearchParams(prev => {
+                                const next = new URLSearchParams(prev)
+                                next.delete('tab')
+                                return next
+                        }, { replace: true })
                         setInvitationPage(1)
-                } else {
-                        setProposalPage(1)
+                        return
                 }
+
+                if (selectedInvitationId) {
+                        navigate(routes.freelancer.jobs.invitations)
+                }
+
+                setActiveTab(tab)
+                setSearchParams(prev => {
+                        const next = new URLSearchParams(prev)
+                        next.set('tab', tab)
+                        return next
+                }, { replace: true })
+                setProposalPage(1)
         }
 
         const listInvitationQueryKey = useMemo(
@@ -298,6 +311,8 @@ export default function JobProposalsPage() {
         const detailExpired = isExpiredInvitation(detail)
         const canRespond =
                 detail && !detailExpired && (!detailStatus || detailStatus === 'SENT' || detailStatus === 'PENDING')
+        const canSubmitProposal =
+                detail && detailStatus === 'ACCEPTED' && !detailExpired && (detail.job?.id || detail.jobId)
 
         const renderInvitationCard = (invitation: JobInvitation) => {
                 const status = normalizeInvitationStatus(invitation.status)
@@ -461,6 +476,30 @@ export default function JobProposalsPage() {
                                                         )}
                                                         Decline
                                                 </button>
+                                        </div>
+                                ) : canSubmitProposal ? (
+                                        <div className='flex flex-col gap-4 rounded-2xl border border-base-200 bg-base-100/70 p-5 text-sm text-base-content/70'>
+                                                <p>
+                                                        Bạn đã chấp nhận lời mời. Hãy gửi proposal để khách hàng có thể xem xét hồ sơ của bạn.
+                                                </p>
+                                                <div className='flex flex-wrap gap-3'>
+                                                        <Link
+                                                                to={routes.freelancer.jobs.proposalCreate(detail.job?.id ?? detail.jobId)}
+                                                                className='btn btn-primary gap-2'
+                                                        >
+                                                                <FileText className='size-4' />
+                                                                Viết proposal
+                                                        </Link>
+                                                        {detail.job?.id && (
+                                                                <Link
+                                                                        to={routes.freelancer.jobs.detail(detail.job.id)}
+                                                                        className='btn btn-ghost gap-2 text-primary hover:bg-primary/10'
+                                                                >
+                                                                        <ExternalLink className='size-4' />
+                                                                        Xem job
+                                                                </Link>
+                                                        )}
+                                                </div>
                                         </div>
                                 ) : (
                                         <div className='rounded-2xl border border-base-200 bg-base-100/70 p-4 text-sm text-base-content/70'>
