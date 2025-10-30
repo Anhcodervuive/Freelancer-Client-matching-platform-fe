@@ -61,31 +61,37 @@ const EndContractDialog = ({
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
                         <div className='modal-box flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-base-100 p-0 shadow-xl'>
-                                <div className='flex items-start gap-3 rounded-t-3xl bg-warning/10 px-6 py-5'>
-                                        <div className='flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning'>
-                                                <AlertTriangle className='size-5' />
+                                <div className='rounded-t-3xl bg-warning/10 px-6 py-5'>
+                                        <div className='flex flex-wrap items-center gap-4 sm:flex-nowrap'>
+                                                <div className='flex items-center gap-3'>
+                                                        <div className='flex h-11 w-11 items-center justify-center rounded-full bg-warning/15 text-warning'>
+                                                                <AlertTriangle className='size-5' />
+                                                        </div>
+                                                        <div className='min-w-0'>
+                                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-warning/80'>Kết thúc hợp đồng</p>
+                                                                <h3 className='text-lg font-semibold text-base-content'>Xác nhận kết thúc hợp đồng</h3>
+                                                        </div>
+                                                </div>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-ghost btn-sm ml-auto rounded-full self-start sm:self-center'
+                                                        onClick={() => {
+                                                                if (isSubmitting) return
+                                                                onClose()
+                                                        }}
+                                                        aria-label='Đóng kết thúc hợp đồng'
+                                                        disabled={isSubmitting}
+                                                >
+                                                        <X className='size-4' />
+                                                </button>
                                         </div>
-                                        <div className='flex-1'>
-                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-warning/80'>Kết thúc hợp đồng</p>
-                                                <h3 className='text-lg font-semibold text-base-content'>Xác nhận kết thúc hợp đồng</h3>
-                                                <p className='mt-1 text-xs text-base-content/70'>Sau khi kết thúc, hợp đồng sẽ chuyển sang trạng thái đóng và hai bên có thể đánh giá lẫn nhau.</p>
-                                        </div>
-                                        <button
-                                                type='button'
-                                                className='btn btn-ghost btn-sm rounded-full'
-                                                onClick={() => {
-                                                        if (isSubmitting) return
-                                                        onClose()
-                                                }}
-                                                aria-label='Đóng kết thúc hợp đồng'
-                                                disabled={isSubmitting}
-                                        >
-                                                <X className='size-4' />
-                                        </button>
+                                        <p className='mt-3 text-xs leading-relaxed text-base-content/70'>
+                                                Sau khi kết thúc, hợp đồng sẽ chuyển sang trạng thái đóng và hai bên có thể đánh giá lẫn nhau.
+                                        </p>
                                 </div>
 
                                 <form onSubmit={submit} className='flex flex-col gap-0'>
-                                        <div className='space-y-5 px-6 py-6'>
+                                        <div className='space-y-6 px-6 py-6'>
                                                 {normalizedOptions.length > 0 && (
                                                         <Controller
                                                                 control={control}
@@ -132,7 +138,7 @@ const EndContractDialog = ({
                                                         <label className='text-sm font-semibold text-base-content'>Lý do kết thúc chi tiết</label>
                                                         <textarea
                                                                 {...register('closureReason')}
-                                                                className='textarea textarea-bordered min-h-[140px]'
+                                                                className='textarea textarea-bordered min-h-[150px] rounded-2xl border-base-200 bg-base-100 text-base shadow-sm transition focus:border-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/40'
                                                                 placeholder='Chia sẻ kết quả hợp tác, những gì đã hoàn thành và lý do muốn kết thúc hợp đồng.'
                                                                 disabled={isSubmitting}
                                                         />
@@ -158,7 +164,7 @@ const EndContractDialog = ({
                                                         >
                                                                 Hủy
                                                         </button>
-                                                        <button type='submit' className='btn btn-warning btn-sm gap-2 text-warning-foreground' disabled={isSubmitting}>
+                                                        <button type='submit' className='btn btn-warning gap-2 rounded-full px-6 text-warning-content shadow-sm disabled:cursor-not-allowed disabled:opacity-70' disabled={isSubmitting}>
                                                                 {isSubmitting ? (
                                                                         <>
                                                                                 <Loader2 className='size-4 animate-spin' />
