@@ -1148,115 +1148,7 @@ const ContractWorkroomPage = () => {
 				</div>
 			</div>
 
-			<div className='space-y-5 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
-				<div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-					<div>
-						<h3 className='text-sm font-semibold text-slate-800'>Đánh giá &amp; phản hồi</h3>
-						<p className='text-sm text-slate-600'>Theo dõi đánh giá từ bạn và đối tác sau khi hợp đồng hoàn thành.</p>
-					</div>
-					{shouldShowFeedbackAction && (
-						<button
-							 type='button'
-							 className='btn btn-primary btn-sm gap-2'
-							 onClick={() => setSubmitFeedbackOpen(true)}
-							 disabled={submitContractFeedbackMutation.isPending}
-						>
-							{submitContractFeedbackMutation.isPending ? (
-								<>
-									<Loader2 className='size-4 animate-spin' />
-									Đang mở...
-								</>
-							) : (
-								<>
-									<Star className='size-4' /> Đánh giá hợp đồng
-								</>
-							)}
-						</button>
-					)}
-				</div>
-				<div className='grid gap-4 md:grid-cols-2'>
-					<div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4'>
-						<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá của bạn</p>
-						{viewerFeedback ? (
-							<div className='space-y-3 text-sm text-slate-600'>
-								{renderFeedbackRating(viewerFeedback.rating)}
-								{viewerFeedback.comment ? (
-									<div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
-										<MessageCircle className='mt-0.5 size-4 text-primary' />
-										<p className='text-left'>{viewerFeedback.comment}</p>
-									</div>
-								) : (
-									<p className='text-xs text-slate-400'>Không có nhận xét chi tiết.</p>
-								)}
-								{typeof viewerFeedback.wouldHireAgain === 'boolean' ? (
-									<p className='flex items-center gap-2 text-xs font-medium'>
-										{viewerFeedback.wouldHireAgain ? (
-											<>
-												<ThumbsUp className='size-4 text-emerald-500' /> Sẵn sàng hợp tác tiếp
-											</>
-										) : (
-											<>
-												<ThumbsDown className='size-4 text-rose-500' /> Không dự định hợp tác tiếp
-											</>
-										)}
-									</p>
-								) : null}
-								{viewerSubmittedFeedbackAt ? (
-									<p className='text-xs text-slate-400'>Gửi {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
-								) : null}
-							</div>
-						) : (
-							<div className='space-y-2 text-sm text-slate-500'>
-								{shouldShowFeedbackAction ? (
-									<p>Bạn chưa gửi đánh giá cho hợp đồng này. Nhấn “Đánh giá hợp đồng” để chia sẻ trải nghiệm.</p>
-								) : viewerSubmittedFeedbackAt ? (
-									<p>Bạn đã gửi đánh giá vào {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>
-								) : (
-									<p>Chưa có đánh giá nào từ bạn.</p>
-								)}
-							</div>
-						)}
-					</div>
-					<div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4'>
-						<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá từ đối tác</p>
-						{partnerFeedback ? (
-							<div className='space-y-3 text-sm text-slate-600'>
-								{renderFeedbackRating(partnerFeedback.rating)}
-								{partnerFeedback.comment ? (
-									<div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
-										<MessageCircle className='mt-0.5 size-4 text-secondary' />
-										<p className='text-left'>{partnerFeedback.comment}</p>
-									</div>
-								) : (
-									<p className='text-xs text-slate-400'>Đối tác không để lại nhận xét.</p>
-								)}
-								{typeof partnerFeedback.wouldHireAgain === 'boolean' ? (
-									<p className='flex items-center gap-2 text-xs font-medium'>
-										{partnerFeedback.wouldHireAgain ? (
-											<>
-												<ThumbsUp className='size-4 text-emerald-500' /> Muốn tiếp tục hợp tác
-											</>
-										) : (
-											<>
-												<ThumbsDown className='size-4 text-rose-500' /> Không có ý định hợp tác tiếp
-											</>
-										)}
-									</p>
-								) : null}
-								{partnerFeedback.createdAt ? (
-									<p className='text-xs text-slate-400'>Gửi {formatDateTime(partnerFeedback.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
-								) : null}
-							</div>
-						) : (
-							<p className='text-sm text-slate-500'>
-								{partnerDisplayName ? `${partnerDisplayName} chưa gửi đánh giá.` : 'Đối tác chưa gửi đánh giá.'}
-							</p>
-						)}
-					</div>
-				</div>
-			</div>
-
-			<div className={`grid gap-6 ${viewerRole === 'all' ? 'md:grid-cols-2' : ''}`}>
+                        <div className={`grid gap-6 ${viewerRole === 'all' ? 'md:grid-cols-2' : ''}`}>
 				{viewerRole !== 'client' && (
 					<div className='rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
 						<h3 className='text-sm font-semibold text-slate-800'>
@@ -1347,9 +1239,9 @@ const ContractWorkroomPage = () => {
 						)}
 					</div>
 				</div>
-				{attachments.length > 0 && (
-					<div className='mt-6 space-y-3'>
-						<p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Tệp đính kèm</p>
+                                {attachments.length > 0 && (
+                                        <div className='mt-6 space-y-3'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.25em] text-slate-400'>Tệp đính kèm</p>
 						<div className='grid gap-4 md:grid-cols-2'>
 							{attachments.slice(0, 4).map(attachment => {
 								const isImage = isImageAttachment(attachment)
@@ -1411,11 +1303,119 @@ const ContractWorkroomPage = () => {
 								)
 							})}
 						</div>
-					</div>
-				)}
-			</div>
-		</div>
-	)
+                                        </div>
+                                )}
+                        </div>
+
+                        <div className='space-y-5 rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                                        <div className='space-y-1'>
+                                                <h3 className='text-sm font-semibold text-slate-800'>Đánh giá &amp; phản hồi</h3>
+                                                <p className='text-sm text-slate-600'>Theo dõi đánh giá từ bạn và đối tác sau khi hợp đồng hoàn thành.</p>
+                                        </div>
+                                        {shouldShowFeedbackAction && (
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-primary btn-sm gap-2 self-start sm:self-auto'
+                                                        onClick={() => setSubmitFeedbackOpen(true)}
+                                                        disabled={submitContractFeedbackMutation.isPending}
+                                                >
+                                                        {submitContractFeedbackMutation.isPending ? (
+                                                                <>
+                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                        Đang mở...
+                                                                </>
+                                                        ) : (
+                                                                <>
+                                                                        <Star className='size-4' /> Đánh giá hợp đồng
+                                                                </>
+                                                        )}
+                                                </button>
+                                        )}
+                                </div>
+                                <div className='grid gap-4 md:grid-cols-2'>
+                                        <div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/85 p-4'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá của bạn</p>
+                                                {viewerFeedback ? (
+                                                        <div className='space-y-3 text-sm text-slate-600'>
+                                                                {renderFeedbackRating(viewerFeedback.rating)}
+                                                                {viewerFeedback.comment ? (
+                                                                        <div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
+                                                                                <MessageCircle className='mt-0.5 size-4 text-primary' />
+                                                                                <p className='text-left'>{viewerFeedback.comment}</p>
+                                                                        </div>
+                                                                ) : (
+                                                                        <p className='text-xs text-slate-400'>Không có nhận xét chi tiết.</p>
+                                                                )}
+                                                                {typeof viewerFeedback.wouldHireAgain === 'boolean' ? (
+                                                                        <p className='flex items-center gap-2 text-xs font-medium'>
+                                                                                {viewerFeedback.wouldHireAgain ? (
+                                                                                        <>
+                                                                                                <ThumbsUp className='size-4 text-emerald-500' /> Sẵn sàng hợp tác tiếp
+                                                                                        </>
+                                                                                ) : (
+                                                                                        <>
+                                                                                                <ThumbsDown className='size-4 text-rose-500' /> Không dự định hợp tác tiếp
+                                                                                        </>
+                                                                                )}
+                                                                        </p>
+                                                                ) : null}
+                                                                {viewerSubmittedFeedbackAt ? (
+                                                                        <p className='text-xs text-slate-400'>Gửi {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                                                ) : null}
+                                                        </div>
+                                                ) : (
+                                                        <div className='space-y-2 text-sm text-slate-500'>
+                                                                {shouldShowFeedbackAction ? (
+                                                                        <p>Bạn chưa gửi đánh giá cho hợp đồng này. Nhấn “Đánh giá hợp đồng” để chia sẻ trải nghiệm.</p>
+                                                                ) : viewerSubmittedFeedbackAt ? (
+                                                                        <p>Bạn đã gửi đánh giá vào {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>
+                                                                ) : (
+                                                                        <p>Chưa có đánh giá nào từ bạn.</p>
+                                                                )}
+                                                        </div>
+                                                )}
+                                        </div>
+                                        <div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/85 p-4'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá từ đối tác</p>
+                                                {partnerFeedback ? (
+                                                        <div className='space-y-3 text-sm text-slate-600'>
+                                                                {renderFeedbackRating(partnerFeedback.rating)}
+                                                                {partnerFeedback.comment ? (
+                                                                        <div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
+                                                                                <MessageCircle className='mt-0.5 size-4 text-secondary' />
+                                                                                <p className='text-left'>{partnerFeedback.comment}</p>
+                                                                        </div>
+                                                                ) : (
+                                                                        <p className='text-xs text-slate-400'>Đối tác không để lại nhận xét.</p>
+                                                                )}
+                                                                {typeof partnerFeedback.wouldHireAgain === 'boolean' ? (
+                                                                        <p className='flex items-center gap-2 text-xs font-medium'>
+                                                                                {partnerFeedback.wouldHireAgain ? (
+                                                                                        <>
+                                                                                                <ThumbsUp className='size-4 text-emerald-500' /> Muốn tiếp tục hợp tác
+                                                                                        </>
+                                                                                ) : (
+                                                                                        <>
+                                                                                                <ThumbsDown className='size-4 text-rose-500' /> Không có ý định hợp tác tiếp
+                                                                                        </>
+                                                                                )}
+                                                                        </p>
+                                                                ) : null}
+                                                                {partnerFeedback.createdAt ? (
+                                                                        <p className='text-xs text-slate-400'>Gửi {formatDateTime(partnerFeedback.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                                                ) : null}
+                                                        </div>
+                                                ) : (
+                                                        <p className='text-sm text-slate-500'>
+                                                                {partnerDisplayName ? `${partnerDisplayName} chưa gửi đánh giá.` : 'Đối tác chưa gửi đánh giá.'}
+                                                        </p>
+                                                )}
+                                        </div>
+                                </div>
+                        </div>
+                </div>
+        )
 
 	const renderMilestones = () => {
 		if (milestoneQuery.isLoading) {
