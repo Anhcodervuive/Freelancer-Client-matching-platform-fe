@@ -99,11 +99,14 @@ const SubmitMilestoneWorkDialog = ({
         const mergeFiles = (incoming: FileList | null) => {
                 if (!incoming || !incoming.length) return
 
+                const files = Array.from(incoming)
+                if (!files.length) return
+
                 setAttachments(prev => {
                         const existing = new Set(prev.map(item => item.signature))
                         const additions: AttachmentItem[] = []
 
-                        Array.from(incoming).forEach(file => {
+                        files.forEach(file => {
                                 const signature = createFileSignature(file)
                                 if (existing.has(signature)) return
                                 existing.add(signature)
@@ -114,7 +117,7 @@ const SubmitMilestoneWorkDialog = ({
                                 })
                         })
 
-                        return [...prev, ...additions]
+                        return additions.length ? [...prev, ...additions] : prev
                 })
         }
 
