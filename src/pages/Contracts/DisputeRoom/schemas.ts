@@ -46,12 +46,18 @@ const OptionalShortTextSchema = z
                 return trimmed.length > 0 ? trimmed : undefined
         })
 
+const RequiredReasonSchema = z
+        .string({ required_error: 'Lý do mở tranh chấp không được để trống' })
+        .trim()
+        .min(1, 'Lý do mở tranh chấp không được để trống')
+        .max(2000, 'Lý do mở tranh chấp tối đa 2000 ký tự')
+
 export const OpenDisputeSchema = z
         .object({
                 proposedRelease: MoneyFieldSchema,
                 proposedRefund: MoneyFieldSchema,
                 note: OptionalTextSchema,
-                message: OptionalTextSchema
+                reason: RequiredReasonSchema
         })
         .superRefine((data, ctx) => {
                 const total = (data.proposedRelease ?? 0) + (data.proposedRefund ?? 0)
