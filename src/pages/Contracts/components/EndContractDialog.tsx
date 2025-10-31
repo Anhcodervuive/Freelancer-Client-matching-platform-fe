@@ -37,6 +37,8 @@ const EndContractDialog = ({
                 register,
                 handleSubmit,
                 reset,
+                setError,
+                clearErrors,
                 formState: { errors }
         } = useForm<EndContractFormValues>({
                 resolver: zodResolver(EndContractSchema) as Resolver<EndContractFormValues>,
@@ -47,14 +49,26 @@ const EndContractDialog = ({
                 if (!open) return
 
                 reset(defaultValues)
-        }, [open, reset])
+                clearErrors()
+        }, [clearErrors, open, reset])
+
+        const shouldRequireOptionSelection = normalizedOptions.length > 0
 
         const submit = handleSubmit(async values => {
+                if (shouldRequireOptionSelection && !values.closureReasonOptionId) {
+                        setError('closureReasonOptionId', {
+                                type: 'manual',
+                                message: 'Vui lòng chọn lý do kết thúc hợp đồng'
+                        })
+                        return
+                }
+
                 await onSubmit({
                         closureReasonOptionId: values.closureReasonOptionId,
                         closureReason: values.closureReason?.trim() || undefined
                 })
                 reset(defaultValues)
+                clearErrors()
         })
 
         const closureReasonError = errors.closureReason?.message
@@ -108,7 +122,14 @@ const EndContractDialog = ({
                                                                                                         <button
                                                                                                                 key={option.id}
                                                                                                                 type='button'
-                                                                                                                onClick={() => field.onChange(isActive ? undefined : option.id)}
+                                                                                                                onClick={() => {
+                                                                                                                        const nextValue = isActive ? undefined : option.id
+                                                                                                                        field.onChange(nextValue)
+
+                                                                                                                        if (nextValue) {
+                                                                                                                                clearErrors('closureReasonOptionId')
+                                                                                                                        }
+                                                                                                                }}
                                                                                                                 className={`w-full rounded-2xl border px-4 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-warning/60 ${
                                                                                                                         isActive
                                                                                                                                 ? 'border-warning bg-warning/10 text-warning'
@@ -129,7 +150,7 @@ const EndContractDialog = ({
                                                                                 {optionError ? (
                                                                                         <p className='text-xs text-error'>{optionError}</p>
                                                                                 ) : (
-                                                                                        <p className='text-xs text-base-content/60'>Bạn có thể chọn một lý do có sẵn hoặc nhập lý do chi tiết hơn bên dưới.</p>
+                                                                                        <p className='text-xs text-base-content/60'>Hãy chọn một lý do phù hợp và bổ sung chi tiết nếu cần.</p>
                                                                                 )}
                                                                         </div>
                                                                 )}

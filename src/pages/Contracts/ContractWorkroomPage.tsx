@@ -98,16 +98,60 @@ import EndContractDialog from './components/EndContractDialog'
 import SubmitContractFeedbackDialog from './components/SubmitContractFeedbackDialog'
 
 const tabs = [
-	{ id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
-	{ id: 'milestones', label: 'Milestones', icon: Flag },
-	{ id: 'files', label: 'Tệp đính kèm', icon: FolderOpen },
-	{ id: 'payments', label: 'Thanh toán', icon: CreditCard },
-	{ id: 'history', label: 'Lịch sử', icon: History }
+        { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
+        { id: 'milestones', label: 'Milestones', icon: Flag },
+        { id: 'files', label: 'Tệp đính kèm', icon: FolderOpen },
+        { id: 'payments', label: 'Thanh toán', icon: CreditCard },
+        { id: 'history', label: 'Lịch sử', icon: History }
 ] as const
 
 type ViewerRole = 'client' | 'freelancer' | 'all'
 
 const MILESTONES_PER_PAGE = 4
+
+const extractErrorMessage = (value: unknown): string | null => {
+        if (!value) {
+                return null
+        }
+
+        if (typeof value === 'string') {
+                const trimmed = value.trim()
+                return trimmed.length > 0 ? trimmed : null
+        }
+
+        if (Array.isArray(value)) {
+                for (const item of value) {
+                        const message = extractErrorMessage(item)
+                        if (message) {
+                                return message
+                        }
+                }
+
+                return null
+        }
+
+        if (typeof value !== 'object') {
+                return null
+        }
+
+        const record = value as Record<string, unknown>
+        const candidates: unknown[] = []
+
+        if ('message' in record) candidates.push(record.message)
+        if ('error' in record) candidates.push(record.error)
+        if ('detail' in record) candidates.push(record.detail)
+        if ('errors' in record) candidates.push(record.errors)
+        if ('title' in record) candidates.push(record.title)
+
+        for (const candidate of candidates) {
+                const message = extractErrorMessage(candidate)
+                if (message) {
+                        return message
+                }
+        }
+
+        return null
+}
 
 const milestoneStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
 	PENDING: { label: 'Chờ bắt đầu', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
@@ -609,8 +653,16 @@ const ContractWorkroomPage = () => {
                         queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
                         queryClient.invalidateQueries({ queryKey: ['contract-milestones', contractId] })
                 },
-                onError: () => {
-                        toast.error('Không thể kết thúc hợp đồng. Vui lòng thử lại.')
+                onError: error => {
+                        const fallback = 'Không thể kết thúc hợp đồng. Vui lòng thử lại.'
+
+                        if (isAxiosError(error)) {
+                                const message = extractErrorMessage(error.response?.data) ?? fallback
+                                toast.error(message)
+                                return
+                        }
+
+                        toast.error(fallback)
                 }
         })
 
@@ -783,38 +835,33 @@ const ContractWorkroomPage = () => {
 					payload.idempotencyKey = idempotencyKey
 				}
 
-				try {
-					console.log(payload)
-					const response = await payMilestone(contractId, milestoneId, payload)
-					console.log({
-						response,
-						meta: extractPaymentMeta(response)
-					})
-					return {
-						response,
-						meta: extractPaymentMeta(response)
-					}
-				} catch (error) {
-					if (!isAxiosError(error)) {
-						throw error
-					}
+                                try {
+                                        const response = await payMilestone(contractId, milestoneId, payload)
+                                        return {
+                                                response,
+                                                meta: extractPaymentMeta(response)
+                                        }
+                                } catch (error) {
+                                        if (!isAxiosError(error)) {
+                                                throw error
+                                        }
 
-                                    const rawPayload = error.response?.data ?? null
-                                    const meta = extractPaymentMeta(rawPayload as PayContractMilestoneResponse)
+                                        const rawPayload = error.response?.data ?? null
+                                        const meta = extractPaymentMeta(rawPayload as PayContractMilestoneResponse)
 
-					if (meta.requiresAction || meta.clientSecret || meta.idempotencyKey || meta.paymentIntentId) {
-						return {
-							response: rawPayload as PayContractMilestoneResponse,
-							meta
-						}
-					}
+                                        if (meta.requiresAction || meta.clientSecret || meta.idempotencyKey || meta.paymentIntentId) {
+                                                return {
+                                                        response: rawPayload as PayContractMilestoneResponse,
+                                                        meta
+                                                }
+                                        }
 
-                                    throw new Error(
-                                            extractPaymentErrorMessage(error) ||
-                                                    'Không thể giải ngân milestone. Vui lòng thử lại.'
-                                    )
-				}
-			}
+                                        throw new Error(
+                                                extractPaymentErrorMessage(error) ||
+                                                        'Không thể giải ngân milestone. Vui lòng thử lại.'
+                                        )
+                                }
+                        }
 
 			const { meta: initialMeta } = await performPayment(idempotencyKey)
 
