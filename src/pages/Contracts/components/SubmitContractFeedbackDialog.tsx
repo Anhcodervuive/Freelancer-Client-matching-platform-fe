@@ -12,6 +12,9 @@ type SubmitContractFeedbackDialogProps = {
         initialRating?: number | null
         initialComment?: string | null
         initialWouldHireAgain?: boolean | null
+        mode?: 'create' | 'edit'
+        submitLabel?: string
+        footerHint?: string
         onSubmit: (_values: SubmitContractFeedbackFormValues) => Promise<void> | void
         onClose: () => void
 }
@@ -29,6 +32,9 @@ const SubmitContractFeedbackDialog = ({
         initialRating,
         initialComment,
         initialWouldHireAgain,
+        mode = 'create',
+        submitLabel,
+        footerHint,
         onSubmit,
         onClose
 }: SubmitContractFeedbackDialogProps) => {
@@ -87,6 +93,13 @@ const SubmitContractFeedbackDialog = ({
         const trimmedComment = typeof commentValue === 'string' ? commentValue.trim() : ''
         const isExternalSubmitting = isSubmitting || isFormSubmitting
         const isSubmitDisabled = isExternalSubmitting || typeof selectedRating !== 'number'
+        const resolvedSubmitLabel = submitLabel ?? (mode === 'edit' ? 'Lưu thay đổi' : 'Gửi đánh giá')
+        const resolvedFooterHint =
+                footerHint ??
+                (mode === 'edit'
+                        ? 'Bạn chỉ có thể chỉnh sửa hoặc xóa đánh giá trong vòng 2 ngày kể từ khi gửi.'
+                        : 'Bạn có thể chỉnh sửa hoặc xóa đánh giá trong vòng 2 ngày sau khi gửi.')
+        const dialogTitle = mode === 'edit' ? 'Cập nhật đánh giá hợp đồng' : 'Chia sẻ trải nghiệm cộng tác'
 
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
@@ -97,7 +110,7 @@ const SubmitContractFeedbackDialog = ({
                                         </div>
                                         <div className='flex-1'>
                                                 <p className='text-xs font-semibold uppercase tracking-[0.3em] text-primary/80'>Đánh giá hợp đồng</p>
-                                                <h3 className='text-lg font-semibold text-base-content'>Chia sẻ trải nghiệm cộng tác</h3>
+                                                <h3 className='text-lg font-semibold text-base-content'>{dialogTitle}</h3>
                                                 <p className='mt-1 text-xs text-base-content/70'>Đánh giá của bạn giúp cải thiện trải nghiệm làm việc đôi bên và xây dựng niềm tin trong cộng đồng.</p>
                                                 {partnerName && (
                                                         <p className='mt-2 text-sm text-base-content/80'>Đối tác: <span className='font-semibold text-base-content'>{partnerName}</span></p>
@@ -241,7 +254,7 @@ const SubmitContractFeedbackDialog = ({
                                         </div>
 
                                         <div className='flex flex-col gap-3 border-t border-base-200 bg-base-100/90 px-6 py-4 sm:flex-row sm:items-center sm:justify-between'>
-                                                <p className='text-xs text-base-content/60'>Đánh giá sẽ được lưu lại và không thể chỉnh sửa sau khi gửi.</p>
+                                                <p className='text-xs text-base-content/60'>{resolvedFooterHint}</p>
                                                 <div className='flex flex-wrap items-center justify-end gap-2'>
                                                         <button
                                                                 type='button'
@@ -261,7 +274,7 @@ const SubmitContractFeedbackDialog = ({
                                                                                 Đang gửi...
                                                                         </>
                                                                 ) : (
-                                                                        'Gửi đánh giá'
+                                                                        resolvedSubmitLabel
                                                                 )}
                                                         </button>
                                                 </div>

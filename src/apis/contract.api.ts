@@ -5,6 +5,7 @@ import type {
         ApproveMilestoneSubmissionInput,
         CancelContractMilestoneInput,
         Contract,
+        ContractFeedbackListResponse,
         ContractListFilterInput,
         ContractMilestone,
         CreateContractMilestoneInput,
@@ -15,6 +16,7 @@ import type {
         PayContractMilestoneResponse,
         RespondMilestoneCancellationInput,
         SubmitContractFeedbackInput,
+        UpdateContractFeedbackInput,
         SubmitMilestoneWorkInput
 } from '~/types/contract'
 import type {
@@ -809,4 +811,24 @@ export const submitContractFeedback = async (
         payload: SubmitContractFeedbackInput
 ) => {
         await authorizeAxiosInstance.post(`${baseUrl}/${contractId}/feedback`, payload)
+}
+
+export const listContractFeedbacks = async (
+        contractId: string
+): Promise<ContractFeedbackListResponse> => {
+        const response = await authorizeAxiosInstance.get<ContractFeedbackListResponse>(
+                `${baseUrl}/${contractId}/feedback`
+        )
+        return response.data
+}
+
+export const updateContractFeedback = async (
+        contractId: string,
+        payload: UpdateContractFeedbackInput
+) => {
+        await authorizeAxiosInstance.patch(`${baseUrl}/${contractId}/feedback`, payload)
+}
+
+export const deleteContractFeedback = async (contractId: string) => {
+        await authorizeAxiosInstance.delete(`${baseUrl}/${contractId}/feedback`)
 }

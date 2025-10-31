@@ -2,12 +2,25 @@ import type { CategoryLite, SpecialtyLite } from './specialty'
 
 export type LanguageProficiency = 'BASIC' | 'CONVERSATIONAL' | 'FLUENT' | 'NATIVE'
 
+export type SerializedProfile = {
+        id: string
+        firstName?: string | null
+        lastName?: string | null
+        fullName?: string | null
+        avatar?: string | null
+        title?: string | null
+        companyName?: string | null
+        country?: string | null
+        city?: string | null
+        [key: string]: unknown
+}
+
 export type Profile = {
-	id: string
-	firstName: string
-	lastName: string
-	email: string
-	phoneNumber: string
+        id: string
+        firstName: string
+        lastName: string
+        email: string
+        phoneNumber: string
 	country: string
 	city: string
 	district: string

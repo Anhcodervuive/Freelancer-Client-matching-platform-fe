@@ -27,6 +27,7 @@ import {
         Wallet2,
         Users,
         Star,
+        Pencil,
         ThumbsUp,
         ThumbsDown
 } from 'lucide-react'
@@ -47,7 +48,9 @@ import {
         payMilestone,
         respondMilestoneCancellation,
         endContract,
-        submitContractFeedback
+        submitContractFeedback,
+        updateContractFeedback,
+        deleteContractFeedback
 } from '~/apis/contract.api'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
@@ -106,6 +109,7 @@ const tabs = [
 type ViewerRole = 'client' | 'freelancer' | 'all'
 
 const MILESTONES_PER_PAGE = 4
+const FEEDBACK_EDIT_WINDOW_MS = 2 * 24 * 60 * 60 * 1000
 
 const extractErrorMessage = (value: unknown): string | null => {
         if (!value) {
@@ -432,6 +436,8 @@ const ContractWorkroomPage = () => {
         } | null>(null)
         const [isEndContractDialogOpen, setEndContractDialogOpen] = useState(false)
         const [isSubmitFeedbackOpen, setSubmitFeedbackOpen] = useState(false)
+        const [feedbackDialogMode, setFeedbackDialogMode] = useState<'create' | 'edit'>('create')
+        const [isDeleteFeedbackConfirmOpen, setDeleteFeedbackConfirmOpen] = useState(false)
         const pendingPaymentMetaRef = useRef<Record<string, { idempotencyKey?: string; clientSecret?: string }>>({})
 
 	const viewerRole: ViewerRole =
@@ -664,7 +670,7 @@ const ContractWorkroomPage = () => {
                 }
         })
 
-        const submitContractFeedbackMutation = useMutation<
+        const createContractFeedbackMutation = useMutation<
                 void,
                 unknown,
                 SubmitContractFeedbackFormValues
@@ -689,6 +695,49 @@ const ContractWorkroomPage = () => {
                 },
                 onError: () => {
                         toast.error('Không thể gửi đánh giá hợp đồng. Vui lòng thử lại.')
+                }
+        })
+
+        const updateContractFeedbackMutation = useMutation<
+                void,
+                unknown,
+                { payload: SubmitContractFeedbackFormValues }
+        >({
+                mutationFn: async ({ payload }) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+
+                        const normalizedPayload = {
+                                rating: payload.rating,
+                                ...(payload.comment?.trim() ? { comment: payload.comment.trim() } : {}),
+                                ...(typeof payload.wouldHireAgain === 'boolean'
+                                        ? { wouldHireAgain: payload.wouldHireAgain }
+                                        : {})
+                        }
+
+                        await updateContractFeedback(contractId, normalizedPayload)
+                },
+                onSuccess: () => {
+                        toast.success('Đã cập nhật đánh giá hợp đồng')
+                        setSubmitFeedbackOpen(false)
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể cập nhật đánh giá hợp đồng. Vui lòng thử lại.')
+                }
+        })
+
+        const deleteContractFeedbackMutation = useMutation<void, unknown>({
+                mutationFn: async () => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        await deleteContractFeedback(contractId)
+                },
+                onSuccess: () => {
+                        toast.success('Đã xóa đánh giá hợp đồng')
+                        setDeleteFeedbackConfirmOpen(false)
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: () => {
+                        toast.error('Không thể xóa đánh giá hợp đồng. Vui lòng thử lại.')
                 }
         })
 
@@ -971,7 +1020,35 @@ const ContractWorkroomPage = () => {
                 contract?.viewerCanSubmitFeedback ??
                         (!viewerFeedback && ['COMPLETED', 'ENDED', 'CLOSED', 'CANCELLED'].includes(normalizedContractStatus))
         )
-        const shouldShowFeedbackAction = viewerRole !== 'all' && viewerCanSubmitFeedback
+        const parseDate = (value?: string | null) => {
+                if (!value) return null
+                const timestamp = Date.parse(value)
+                return Number.isNaN(timestamp) ? null : timestamp
+        }
+        const viewerFeedbackTimestampMs = parseDate(
+                viewerFeedback?.updatedAt ?? viewerFeedback?.createdAt ?? viewerSubmittedFeedbackAt
+        )
+        const viewerFeedbackEditableUntilMs =
+                viewerFeedbackTimestampMs !== null ? viewerFeedbackTimestampMs + FEEDBACK_EDIT_WINDOW_MS : null
+        const viewerFeedbackEditableUntil =
+                viewerFeedbackEditableUntilMs !== null ? new Date(viewerFeedbackEditableUntilMs).toISOString() : null
+        const viewerCanCreateFeedback = Boolean(!viewerFeedback && viewerCanSubmitFeedback)
+        const viewerCanEditFeedback = Boolean(
+                viewerFeedback && viewerFeedbackEditableUntilMs !== null && Date.now() <= viewerFeedbackEditableUntilMs
+        )
+        const shouldShowFeedbackAction =
+                viewerRole !== 'all' && (viewerCanCreateFeedback || viewerCanEditFeedback)
+        const feedbackActionLabel = viewerFeedback ? 'Cập nhật đánh giá' : 'Đánh giá hợp đồng'
+        const feedbackDeadlineText = viewerFeedbackEditableUntil
+                ? formatDateTime(viewerFeedbackEditableUntil, { dateStyle: 'medium', timeStyle: 'short' })
+                : null
+        const feedbackFooterHint = viewerFeedbackEditableUntil
+                ? `Bạn có thể chỉnh sửa hoặc xóa đánh giá đến ${feedbackDeadlineText}.`
+                : undefined
+        const isFeedbackSubmitting =
+                createContractFeedbackMutation.isPending || updateContractFeedbackMutation.isPending
+        const isDeletingFeedback = deleteContractFeedbackMutation.isPending
+        const isFeedbackMutationPending = isFeedbackSubmitting || isDeletingFeedback
         const partnerDisplayName =
                 viewerRole === 'client'
                         ? freelancerName ?? 'Freelancer'
@@ -1045,9 +1122,15 @@ const ContractWorkroomPage = () => {
                 await deleteMilestoneResourceMutation.mutateAsync({
                         milestoneId: resourceToDelete.milestone.id,
                         resourceId: resourceToDelete.resourceId,
-			resourceName: resourceToDelete.resourceLabel
-		})
-	}
+                        resourceName: resourceToDelete.resourceLabel
+                })
+        }
+
+        const confirmDeleteFeedback = async () => {
+                if (isFeedbackMutationPending) return
+
+                await deleteContractFeedbackMutation.mutateAsync()
+        }
 
 	const toggleMilestoneAttachments = (milestoneId: string) => {
 		setExpandedMilestoneAttachments(prev => ({
@@ -1364,17 +1447,21 @@ const ContractWorkroomPage = () => {
                                                 <button
                                                         type='button'
                                                         className='btn btn-primary btn-sm gap-2 self-start sm:self-auto'
-                                                        onClick={() => setSubmitFeedbackOpen(true)}
-                                                        disabled={submitContractFeedbackMutation.isPending}
+                                                        onClick={() => {
+                                                                if (isFeedbackMutationPending) return
+                                                                setFeedbackDialogMode(viewerFeedback ? 'edit' : 'create')
+                                                                setSubmitFeedbackOpen(true)
+                                                        }}
+                                                        disabled={isFeedbackMutationPending}
                                                 >
-                                                        {submitContractFeedbackMutation.isPending ? (
+                                                        {isFeedbackSubmitting ? (
                                                                 <>
                                                                         <Loader2 className='size-4 animate-spin' />
                                                                         Đang mở...
                                                                 </>
                                                         ) : (
                                                                 <>
-                                                                        <Star className='size-4' /> Đánh giá hợp đồng
+                                                                        <Star className='size-4' /> {feedbackActionLabel}
                                                                 </>
                                                         )}
                                                 </button>
@@ -1385,7 +1472,36 @@ const ContractWorkroomPage = () => {
                                                 <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá của bạn</p>
                                                 {viewerFeedback ? (
                                                         <div className='space-y-3 text-sm text-slate-600'>
-                                                                {renderFeedbackRating(viewerFeedback.rating)}
+                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                        {renderFeedbackRating(viewerFeedback.rating)}
+                                                                        {viewerCanEditFeedback && (
+                                                                                <div className='flex items-center gap-2'>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-ghost btn-xs gap-1'
+                                                                                                onClick={() => {
+                                                                                                        if (isFeedbackMutationPending) return
+                                                                                                        setFeedbackDialogMode('edit')
+                                                                                                        setSubmitFeedbackOpen(true)
+                                                                                                }}
+                                                                                                disabled={isFeedbackMutationPending}
+                                                                                        >
+                                                                                                <Pencil className='size-3.5' /> Chỉnh sửa
+                                                                                        </button>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-ghost btn-xs gap-1 text-rose-600 hover:text-rose-600'
+                                                                                                onClick={() => {
+                                                                                                        if (isFeedbackMutationPending) return
+                                                                                                        setDeleteFeedbackConfirmOpen(true)
+                                                                                                }}
+                                                                                                disabled={isFeedbackMutationPending}
+                                                                                        >
+                                                                                                <Trash2 className='size-3.5' /> Xóa
+                                                                                        </button>
+                                                                                </div>
+                                                                        )}
+                                                                </div>
                                                                 {viewerFeedback.comment ? (
                                                                         <div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
                                                                                 <MessageCircle className='mt-0.5 size-4 text-primary' />
@@ -1409,6 +1525,11 @@ const ContractWorkroomPage = () => {
                                                                 ) : null}
                                                                 {viewerSubmittedFeedbackAt ? (
                                                                         <p className='text-xs text-slate-400'>Gửi {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                                                ) : null}
+                                                                {viewerCanEditFeedback && feedbackFooterHint ? (
+                                                                        <p className='text-xs text-primary/80'>{feedbackFooterHint}</p>
+                                                                ) : !viewerCanEditFeedback && viewerFeedbackEditableUntil ? (
+                                                                        <p className='text-xs text-slate-400'>Thời hạn chỉnh sửa đánh giá đã kết thúc.</p>
                                                                 ) : null}
                                                         </div>
                                                 ) : (
@@ -2768,17 +2889,21 @@ const ContractWorkroomPage = () => {
                                                         <button
                                                                 type='button'
                                                                 className='btn btn-primary btn-sm gap-2'
-                                                                onClick={() => setSubmitFeedbackOpen(true)}
-                                                                disabled={submitContractFeedbackMutation.isPending}
+                                                                onClick={() => {
+                                                                        if (isFeedbackMutationPending) return
+                                                                        setFeedbackDialogMode(viewerFeedback ? 'edit' : 'create')
+                                                                        setSubmitFeedbackOpen(true)
+                                                                }}
+                                                                disabled={isFeedbackMutationPending}
                                                         >
-                                                                {submitContractFeedbackMutation.isPending ? (
+                                                                {isFeedbackSubmitting ? (
                                                                         <>
                                                                                 <Loader2 className='size-4 animate-spin' />
                                                                                 Đang mở...
                                                                         </>
                                                                 ) : (
                                                                         <>
-                                                                                <Star className='size-4' /> Đánh giá hợp đồng
+                                                                                <Star className='size-4' /> {feedbackActionLabel}
                                                                         </>
                                                                 )}
                                                         </button>
@@ -2962,7 +3087,12 @@ const ContractWorkroomPage = () => {
                         <SubmitContractFeedbackDialog
                                 open={isSubmitFeedbackOpen}
                                 partnerName={partnerDisplayName}
-                                isSubmitting={submitContractFeedbackMutation.isPending}
+                                mode={feedbackDialogMode}
+                                isSubmitting={
+                                        feedbackDialogMode === 'edit'
+                                                ? updateContractFeedbackMutation.isPending
+                                                : createContractFeedbackMutation.isPending
+                                }
                                 initialRating={viewerFeedback?.rating ?? null}
                                 initialComment={viewerFeedback?.comment ?? null}
                                 initialWouldHireAgain={
@@ -2970,13 +3100,42 @@ const ContractWorkroomPage = () => {
                                                 ? viewerFeedback.wouldHireAgain
                                                 : null
                                 }
+                                footerHint={feedbackDialogMode === 'edit' ? feedbackFooterHint : undefined}
                                 onSubmit={async values => {
-                                        await submitContractFeedbackMutation.mutateAsync(values)
+                                        if (feedbackDialogMode === 'edit') {
+                                                await updateContractFeedbackMutation.mutateAsync({ payload: values })
+                                        } else {
+                                                await createContractFeedbackMutation.mutateAsync(values)
+                                        }
                                 }}
                                 onClose={() => {
-                                        if (submitContractFeedbackMutation.isPending) return
+                                        if (isFeedbackMutationPending) return
                                         setSubmitFeedbackOpen(false)
+                                        setFeedbackDialogMode('create')
                                 }}
+                        />
+                        <ConfirmDelete
+                                open={isDeleteFeedbackConfirmOpen}
+                                onClose={() => {
+                                        if (isFeedbackMutationPending) return
+                                        setDeleteFeedbackConfirmOpen(false)
+                                }}
+                                onConfirm={confirmDeleteFeedback}
+                                title='Xóa đánh giá'
+                                name='đánh giá hợp đồng'
+                                description={
+                                        <p>
+                                                Đánh giá của bạn sẽ bị gỡ khỏi hợp đồng này và hành động này không thể hoàn tác.
+                                                {viewerCanEditFeedback && feedbackDeadlineText ? (
+                                                        <>
+                                                                {' '}Bạn chỉ có thể thao tác đến {feedbackDeadlineText}.
+                                                        </>
+                                                ) : null}
+                                        </p>
+                                }
+                                confirmLabel='Xóa'
+                                cancelLabel='Hủy'
+                                isProcessing={deleteContractFeedbackMutation.isPending}
                         />
                         <ConfirmDelete
                                 open={Boolean(milestoneToDelete)}

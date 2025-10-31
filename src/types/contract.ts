@@ -1,4 +1,8 @@
+import type { SerializedProfile } from './profile'
+
 export type ContractRole = 'client' | 'freelancer'
+
+export type ContractParticipantRole = 'CLIENT' | 'FREELANCER' | (string & {})
 
 export enum ContractStatus {
 	DRAFT,
@@ -34,15 +38,24 @@ export type ContractClosureReasonOption = {
         description?: string | null
 }
 
+export type ContractFeedbackParticipant = {
+        id: string
+        profile: SerializedProfile | null
+}
+
 export type ContractFeedback = {
         id?: string
+        contractId?: string | null
+        reviewerId?: string | null
+        revieweeId?: string | null
+        role?: ContractParticipantRole | null
         rating?: number | null
         comment?: string | null
         wouldHireAgain?: boolean | null
-        reviewerId?: string | null
-        revieweeId?: string | null
         createdAt?: string | null
         updatedAt?: string | null
+        reviewer?: ContractFeedbackParticipant | null
+        reviewee?: ContractFeedbackParticipant | null
         [key: string]: unknown
 }
 
@@ -310,6 +323,13 @@ export type SubmitContractFeedbackInput = {
         rating: number
         comment?: string
         wouldHireAgain?: boolean
+}
+
+export type UpdateContractFeedbackInput = Partial<SubmitContractFeedbackInput>
+
+export type ContractFeedbackListResponse = {
+        contractId: string
+        feedbacks: ContractFeedback[]
 }
 
 export type CancelContractMilestoneInput = {
