@@ -53,6 +53,7 @@ import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
+import { ContractClosureType, type ContractClosureReasonOption, type ContractFeedback } from '~/types/contract'
 import type {
         Contract,
         ContractMilestone,
@@ -60,10 +61,7 @@ import type {
         ContractMilestoneResource,
         CreateContractMilestoneInput,
         PayContractMilestoneInput,
-        PayContractMilestoneResponse,
-        ContractClosureReasonOption,
-        ContractFeedback,
-        ContractClosureType
+        PayContractMilestoneResponse
 } from '~/types/contract'
 import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
@@ -636,7 +634,7 @@ const ContractWorkroomPage = () => {
                         if (!contractId) throw new Error('Missing contract ID')
 
                         const payload = {
-                                closureType: ContractClosureType.MANUAL,
+                                closureType: ContractClosureType.CANCELLED,
                                 ...(values.closureReasonOptionId
                                         ? { closureReasonOptionId: values.closureReasonOptionId }
                                         : {}),

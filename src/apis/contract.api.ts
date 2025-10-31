@@ -1,10 +1,10 @@
 import { isAxiosError } from 'axios'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
+import { ContractClosureType } from '~/types/contract'
 import type {
         ApproveMilestoneSubmissionInput,
         CancelContractMilestoneInput,
         Contract,
-        ContractClosureType,
         ContractListFilterInput,
         ContractMilestone,
         CreateContractMilestoneInput,
@@ -800,7 +800,7 @@ export const submitFinalEvidence = async (
 export const endContract = async (contractId: string, payload: EndContractInput) => {
         await authorizeAxiosInstance.post(`${baseUrl}/${contractId}/end`, {
                 ...payload,
-                closureType: payload.closureType ?? ContractClosureType.MANUAL
+                closureType: payload.closureType ?? ContractClosureType.CANCELLED
         })
 }
 

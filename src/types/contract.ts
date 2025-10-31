@@ -47,8 +47,9 @@ export type ContractFeedback = {
 }
 
 export enum ContractClosureType {
-        AUTO_RELEASED = 'AUTO_RELEASED',
-        MANUAL = 'MANUAL'
+        COMPLETED = 'COMPLETED',
+        CANCELLED = 'CANCELLED',
+        AUTO_RELEASED = 'AUTO_RELEASED'
 }
 
 export type ContractJobCategory = {
