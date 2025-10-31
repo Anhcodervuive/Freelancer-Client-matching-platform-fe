@@ -1506,7 +1506,7 @@ const ContractWorkroomPage = () => {
                                         {shouldShowFeedbackAction && (
                                                 <button
                                                         type='button'
-                                                        className='btn btn-primary btn-sm gap-2 self-start sm:self-auto'
+                                                        className='btn btn-primary btn-sm gap-2 rounded-full px-4 self-start sm:ml-auto sm:self-auto'
                                                         onClick={() => {
                                                                 if (isFeedbackMutationPending) return
                                                                 setFeedbackDialogMode(viewerFeedback ? 'edit' : 'create')
@@ -2948,7 +2948,7 @@ const ContractWorkroomPage = () => {
                                                 {shouldShowFeedbackAction && (
                                                         <button
                                                                 type='button'
-                                                                className='btn btn-primary btn-sm gap-2'
+                                                                className='btn btn-primary btn-sm gap-2 rounded-full px-4'
                                                                 onClick={() => {
                                                                         if (isFeedbackMutationPending) return
                                                                         setFeedbackDialogMode(viewerFeedback ? 'edit' : 'create')
