@@ -962,12 +962,14 @@ const ContractWorkroomPage = () => {
         const viewerSubmittedFeedbackAt =
                 contract?.viewerSubmittedFeedbackAt ?? viewerFeedback?.createdAt ?? null
         const normalizedContractStatus = contract?.status?.toUpperCase() ?? ''
+        const isContractFinalized = ['COMPLETED', 'CANCELLED'].includes(normalizedContractStatus)
         const shouldShowEndContractAction =
                 viewerRole !== 'all' &&
-                ['ACTIVE', 'IN_PROGRESS', 'PAUSED', 'COMPLETED'].includes(normalizedContractStatus)
+                !isContractFinalized &&
+                ['ACTIVE', 'IN_PROGRESS', 'PAUSED'].includes(normalizedContractStatus)
         const viewerCanSubmitFeedback = Boolean(
                 contract?.viewerCanSubmitFeedback ??
-                        (!viewerFeedback && ['COMPLETED', 'ENDED', 'CLOSED'].includes(normalizedContractStatus))
+                        (!viewerFeedback && ['COMPLETED', 'ENDED', 'CLOSED', 'CANCELLED'].includes(normalizedContractStatus))
         )
         const shouldShowFeedbackAction = viewerRole !== 'all' && viewerCanSubmitFeedback
         const partnerDisplayName =
@@ -978,25 +980,25 @@ const ContractWorkroomPage = () => {
                         : undefined
 
         const requestDeleteMilestone = (milestone: ContractMilestone) => {
-                if (deleteMilestoneMutation.isPending) return
+                if (deleteMilestoneMutation.isPending || isContractFinalized) return
 
                 setMilestoneToDelete(milestone)
         }
 
         const requestCancelMilestone = (milestone: ContractMilestone) => {
-                if (cancelMilestoneMutation.isPending) return
+                if (cancelMilestoneMutation.isPending || isContractFinalized) return
 
                 setMilestoneToCancel(milestone)
         }
 
         const requestRespondCancellation = (milestone: ContractMilestone, action: 'accept' | 'decline') => {
-                if (respondMilestoneCancellationMutation.isPending) return
+                if (respondMilestoneCancellationMutation.isPending || isContractFinalized) return
 
                 setCancellationResponseState({ milestone, action })
         }
 
         const confirmDeleteMilestone = async () => {
-                if (!milestoneToDelete) return
+                if (!milestoneToDelete || isContractFinalized) return
 
                 await deleteMilestoneMutation.mutateAsync({
                         milestoneId: milestoneToDelete.id,
@@ -1005,7 +1007,7 @@ const ContractWorkroomPage = () => {
         }
 
         const confirmCancelMilestone = async (values: CancelMilestoneFormValues) => {
-                if (!milestoneToCancel) return
+                if (!milestoneToCancel || isContractFinalized) return
 
                 await cancelMilestoneMutation.mutateAsync({
                         milestoneId: milestoneToCancel.id,
@@ -1015,7 +1017,7 @@ const ContractWorkroomPage = () => {
         }
 
         const confirmRespondCancellation = async (values: RespondMilestoneCancellationFormValues) => {
-                if (!cancellationResponseState) return
+                if (!cancellationResponseState || isContractFinalized) return
 
                 await respondMilestoneCancellationMutation.mutateAsync({
                         milestoneId: cancellationResponseState.milestone.id,
@@ -1025,24 +1027,24 @@ const ContractWorkroomPage = () => {
                 })
         }
 
-	const requestDeleteMilestoneResource = (milestone: ContractMilestone, resourceId: string, resourceLabel: string) => {
-		if (deleteMilestoneResourceMutation.isPending) return
+        const requestDeleteMilestoneResource = (milestone: ContractMilestone, resourceId: string, resourceLabel: string) => {
+                if (deleteMilestoneResourceMutation.isPending || isContractFinalized) return
 
-		const sanitizedLabel = resourceLabel?.trim()
+                const sanitizedLabel = resourceLabel?.trim()
 
-		setResourceToDelete({
+                setResourceToDelete({
 			milestone,
 			resourceId,
 			resourceLabel: sanitizedLabel || undefined
 		})
 	}
 
-	const confirmDeleteMilestoneResource = async () => {
-		if (!resourceToDelete) return
+        const confirmDeleteMilestoneResource = async () => {
+                if (!resourceToDelete || isContractFinalized) return
 
-		await deleteMilestoneResourceMutation.mutateAsync({
-			milestoneId: resourceToDelete.milestone.id,
-			resourceId: resourceToDelete.resourceId,
+                await deleteMilestoneResourceMutation.mutateAsync({
+                        milestoneId: resourceToDelete.milestone.id,
+                        resourceId: resourceToDelete.resourceId,
 			resourceName: resourceToDelete.resourceLabel
 		})
 	}
@@ -1054,12 +1056,12 @@ const ContractWorkroomPage = () => {
 		}))
 	}
 
-	const handleMilestoneAttachmentUpload = (milestoneId: string, files: FileList | File[]) => {
-		if (!files || uploadMilestoneAttachmentsMutation.isPending) return
+        const handleMilestoneAttachmentUpload = (milestoneId: string, files: FileList | File[]) => {
+                if (!files || uploadMilestoneAttachmentsMutation.isPending || isContractFinalized) return
 
-		const normalizedFiles = Array.from(files).filter((file): file is File => file instanceof File)
+                const normalizedFiles = Array.from(files).filter((file): file is File => file instanceof File)
 
-		if (!normalizedFiles.length) return
+                if (!normalizedFiles.length) return
 
 		uploadMilestoneAttachmentsMutation.mutate({
 			milestoneId,
@@ -1067,17 +1069,17 @@ const ContractWorkroomPage = () => {
 		})
 	}
 
-	const handleMilestoneAttachmentFileChange = (milestoneId: string, event: ChangeEvent<HTMLInputElement>) => {
-		handleMilestoneAttachmentUpload(milestoneId, event.target.files ?? [])
-		event.target.value = ''
-	}
+        const handleMilestoneAttachmentFileChange = (milestoneId: string, event: ChangeEvent<HTMLInputElement>) => {
+                handleMilestoneAttachmentUpload(milestoneId, event.target.files ?? [])
+                event.target.value = ''
+        }
 
-	const handleMilestoneAttachmentDrop = (milestoneId: string, event: DragEvent<HTMLLabelElement>) => {
-		event.preventDefault()
-		if (uploadMilestoneAttachmentsMutation.isPending) return
+        const handleMilestoneAttachmentDrop = (milestoneId: string, event: DragEvent<HTMLLabelElement>) => {
+                event.preventDefault()
+                if (uploadMilestoneAttachmentsMutation.isPending || isContractFinalized) return
 
-		handleMilestoneAttachmentUpload(milestoneId, event.dataTransfer.files ?? [])
-	}
+                handleMilestoneAttachmentUpload(milestoneId, event.dataTransfer.files ?? [])
+        }
 
 	const handleMilestoneAttachmentDragOver = (event: DragEvent<HTMLLabelElement>) => {
 		event.preventDefault()
@@ -1490,15 +1492,15 @@ const ContractWorkroomPage = () => {
 					<Flag className='mx-auto mb-3 size-8 text-primary' />
 					<p className='text-base font-semibold text-slate-700'>Chưa có milestone nào</p>
 					<p className='mt-2 text-sm text-slate-500'>Tạo milestones để chia nhỏ công việc và giải ngân theo tiến độ.</p>
-					{viewerRole === 'client' && (
-						<button
-							type='button'
-							onClick={() => setCreateMilestoneOpen(true)}
-							className='mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-							disabled={createMilestoneMutation.isPending}>
-							<Flag className='size-4' /> Tạo milestone
-						</button>
-					)}
+                                        {viewerRole === 'client' && !isContractFinalized && (
+                                                <button
+                                                        type='button'
+                                                        onClick={() => setCreateMilestoneOpen(true)}
+                                                        className='mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+                                                        disabled={createMilestoneMutation.isPending || isContractFinalized}>
+                                                        <Flag className='size-4' /> Tạo milestone
+                                                </button>
+                                        )}
 				</div>
 			)
 		}
@@ -1560,17 +1562,18 @@ const ContractWorkroomPage = () => {
 											</span>
 										</div>
 										<div className='flex flex-wrap items-center justify-end gap-2'>
-											<button
-												type='button'
-												className='btn btn-success btn-xs gap-2'
-												onClick={() =>
-													setMilestoneReviewState({
-														milestone,
-														submission,
-														mode: 'approve'
-													})
-												}
-												disabled={isReviewingSubmission}>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-success btn-xs gap-2'
+                                                                                                onClick={() => {
+                                                                                                        if (isContractFinalized) return
+                                                                                                        setMilestoneReviewState({
+                                                                                                                milestone,
+                                                                                                                submission,
+                                                                                                                mode: 'approve'
+                                                                                                        })
+                                                                                                }}
+                                                                                                disabled={isReviewingSubmission || isContractFinalized}>
 												{isCurrentReviewTarget && reviewingMode === 'approve' ? (
 													<>
 														<Loader2 className='size-3.5 animate-spin' />
@@ -1583,17 +1586,18 @@ const ContractWorkroomPage = () => {
 													</>
 												)}
 											</button>
-											<button
-												type='button'
-												className='btn btn-warning btn-xs gap-2'
-												onClick={() =>
-													setMilestoneReviewState({
-														milestone,
-														submission,
-														mode: 'decline'
-													})
-												}
-												disabled={isReviewingSubmission}>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-warning btn-xs gap-2'
+                                                                                                onClick={() => {
+                                                                                                        if (isContractFinalized) return
+                                                                                                        setMilestoneReviewState({
+                                                                                                                milestone,
+                                                                                                                submission,
+                                                                                                                mode: 'decline'
+                                                                                                        })
+                                                                                                }}
+                                                                                                disabled={isReviewingSubmission || isContractFinalized}>
 												{isCurrentReviewTarget && reviewingMode === 'decline' ? (
 													<>
 														<Loader2 className='size-3.5 animate-spin' />
@@ -1635,15 +1639,15 @@ const ContractWorkroomPage = () => {
 								Trang {currentPage}/{totalPages}
 							</span>
 						)}
-						{viewerRole === 'client' && (
-							<button
-								type='button'
-								onClick={() => setCreateMilestoneOpen(true)}
-								className='inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-								disabled={createMilestoneMutation.isPending}>
-								{createMilestoneMutation.isPending ? (
-									<>
-										<Loader2 className='size-4 animate-spin' />
+                                                {viewerRole === 'client' && !isContractFinalized && (
+                                                        <button
+                                                                type='button'
+                                                                onClick={() => setCreateMilestoneOpen(true)}
+                                                                className='inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+                                                                disabled={createMilestoneMutation.isPending || isContractFinalized}>
+                                                                {createMilestoneMutation.isPending ? (
+                                                                        <>
+                                                                                <Loader2 className='size-4 animate-spin' />
 										Đang tạo...
 									</>
 								) : (
@@ -1734,6 +1738,7 @@ const ContractWorkroomPage = () => {
                                                         respondMilestoneCancellationMutation.variables?.action
                                                 const canSubmitWork =
                                                         viewerRole === 'freelancer' &&
+                                                        !isContractFinalized &&
                                                         !isMilestoneReleased &&
                                                         normalizedMilestoneStatus !== 'CANCELLED' &&
                                                         !pendingSubmission &&
@@ -1810,6 +1815,7 @@ const ContractWorkroomPage = () => {
 							: undefined
                                                 const canFundMilestone =
                                                         viewerRole === 'client' &&
+                                                        !isContractFinalized &&
                                                         !isMilestoneReleased &&
                                                         !isMilestoneCancelled &&
                                                         (milestone.amount ?? 0) > 0 &&
@@ -1818,12 +1824,14 @@ const ContractWorkroomPage = () => {
                                                 const isFundedMilestone = ['FUNDED', 'PENDING'].includes(normalizedEscrowStatus)
                                                 const canCancelMilestone =
                                                         viewerRole === 'client' &&
+                                                        !isContractFinalized &&
                                                         !isMilestoneReleased &&
                                                         !isMilestoneCancelled &&
                                                         isFundedMilestone &&
                                                         !isCancellationPending
                                                 const canDeleteMilestone =
                                                         viewerRole === 'client' &&
+                                                        !isContractFinalized &&
                                                         !isMilestoneReleased &&
                                                         !isMilestoneCancelled &&
                                                         !isFundedMilestone &&
@@ -1878,11 +1886,14 @@ const ContractWorkroomPage = () => {
                                                                                                 </span>
                                                                                         )}
 											{canFundMilestone && (
-												<button
-													type='button'
-													className='btn btn-primary btn-xs gap-2 shadow-sm'
-													onClick={() => setMilestoneToFund(milestone)}
-													disabled={isFundingMilestone}>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-primary btn-xs gap-2 shadow-sm'
+                                                                                                        onClick={() => {
+                                                                                                                if (isContractFinalized) return
+                                                                                                                setMilestoneToFund(milestone)
+                                                                                                        }}
+                                                                                                        disabled={isFundingMilestone || isContractFinalized}>
 													{isFundingMilestone && milestoneToFund?.id === milestone.id ? (
 														<>
 															<Loader2 className='size-3.5 animate-spin' />
@@ -1899,9 +1910,9 @@ const ContractWorkroomPage = () => {
                                                                                         {canCancelMilestone && (
                                                                                                 <button
                                                                                                        type='button'
-                                                                                                        className='btn btn-ghost btn-xs gap-1 text-error'
-                                                                                                        onClick={() => requestCancelMilestone(milestone)}
-                                                                                                        disabled={cancelMilestoneMutation.isPending}
+                                                                                                       className='btn btn-ghost btn-xs gap-1 text-error'
+                                                                                                       onClick={() => requestCancelMilestone(milestone)}
+                                                                                                        disabled={cancelMilestoneMutation.isPending || isContractFinalized}
                                                                                                         aria-label={`Hủy milestone ${milestone.title}`}>
                                                                                                         {isCancelling ? (
                                                                                                                 <>
@@ -1919,9 +1930,9 @@ const ContractWorkroomPage = () => {
                                                                                         {canDeleteMilestone && (
                                                                                                 <button
                                                                                                        type='button'
-                                                                                                        className='btn btn-ghost btn-xs text-error'
-                                                                                                        onClick={() => requestDeleteMilestone(milestone)}
-                                                                                                        disabled={deleteMilestoneMutation.isPending}
+                                                                                                       className='btn btn-ghost btn-xs text-error'
+                                                                                                       onClick={() => requestDeleteMilestone(milestone)}
+                                                                                                        disabled={deleteMilestoneMutation.isPending || isContractFinalized}
                                                                                                         aria-label={`Xóa milestone ${milestone.title}`}>
                                                                                                         {isDeleting ? <Loader2 className='size-4 animate-spin' /> : <Trash2 className='size-4' />}
                                                                                                 </button>
@@ -2003,13 +2014,13 @@ const ContractWorkroomPage = () => {
                                                                                                                 )}
                                                                                                         </div>
                                                                                                 </div>
-                                                                                                {isCancellationPending && viewerRole === 'freelancer' && (
+                                                                                                {isCancellationPending && viewerRole === 'freelancer' && !isContractFinalized && (
                                                                                                         <div className='flex flex-shrink-0 flex-wrap items-center justify-end gap-2'>
                                                                                                                 <button
                                                                                                                        type='button'
                                                                                                                         className='btn btn-outline btn-sm border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50'
                                                                                                                         onClick={() => requestRespondCancellation(milestone, 'decline')}
-                                                                                                                        disabled={isRespondingCancellation}
+                                                                                                                disabled={isRespondingCancellation || isContractFinalized}
                                                                                                                 >
                                                                                                                         {isRespondingCancellation && respondingCancellationAction === 'decline' ? (
                                                                                                                                 <>
@@ -2024,7 +2035,7 @@ const ContractWorkroomPage = () => {
                                                                                                                        type='button'
                                                                                                                         className='btn btn-success btn-sm gap-2'
                                                                                                                         onClick={() => requestRespondCancellation(milestone, 'accept')}
-                                                                                                                        disabled={isRespondingCancellation}
+                                                                                                                disabled={isRespondingCancellation || isContractFinalized}
                                                                                                                 >
                                                                                                                         {isRespondingCancellation && respondingCancellationAction === 'accept' ? (
                                                                                                                                 <>
@@ -2079,17 +2090,18 @@ const ContractWorkroomPage = () => {
 													)}
 												</div>
 												<div className='flex flex-shrink-0 flex-wrap items-center justify-end gap-2'>
-													<button
-														type='button'
-														className='btn btn-success btn-sm gap-2'
-														onClick={() =>
-															setMilestoneReviewState({
-																milestone,
-																submission: pendingSubmission,
-																mode: 'approve'
-															})
-														}
-														disabled={isReviewingSubmission}>
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                className='btn btn-success btn-sm gap-2'
+                                                                                                                onClick={() => {
+                                                                                                                        if (isContractFinalized) return
+                                                                                                                        setMilestoneReviewState({
+                                                                                                                                milestone,
+                                                                                                                                submission: pendingSubmission,
+                                                                                                                                mode: 'approve'
+                                                                                                                        })
+                                                                                                                }}
+                                                                                                                disabled={isReviewingSubmission || isContractFinalized}>
 														{isReviewingCurrentMilestone && milestoneReviewState?.mode === 'approve' ? (
 															<>
 																<Loader2 className='size-3.5 animate-spin' />
@@ -2102,17 +2114,18 @@ const ContractWorkroomPage = () => {
 															</>
 														)}
 													</button>
-													<button
-														type='button'
-														className='btn btn-warning btn-sm gap-2'
-														onClick={() =>
-															setMilestoneReviewState({
-																milestone,
-																submission: pendingSubmission,
-																mode: 'decline'
-															})
-														}
-														disabled={isReviewingSubmission}>
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                className='btn btn-warning btn-sm gap-2'
+                                                                                                                onClick={() => {
+                                                                                                                        if (isContractFinalized) return
+                                                                                                                        setMilestoneReviewState({
+                                                                                                                                milestone,
+                                                                                                                                submission: pendingSubmission,
+                                                                                                                                mode: 'decline'
+                                                                                                                        })
+                                                                                                                }}
+                                                                                                                disabled={isReviewingSubmission || isContractFinalized}>
 														{isReviewingCurrentMilestone && milestoneReviewState?.mode === 'decline' ? (
 															<>
 																<Loader2 className='size-3.5 animate-spin' />
@@ -2160,16 +2173,19 @@ const ContractWorkroomPage = () => {
 										</div>
 									) : null}
 									{showMilestoneActions && (
-										<div className='flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-3 text-sm text-slate-600'>
-											<span>Hoàn thành công việc? Gửi bàn giao để khách hàng duyệt.</span>
-											<button
-												type='button'
-												className='btn btn-secondary btn-xs gap-2'
-												onClick={() => setMilestoneToSubmit(milestone)}
-												disabled={isSubmittingWork}>
-												{isSubmittingWork && milestoneToSubmit?.id === milestone.id ? (
-													<>
-														<Loader2 className='size-3.5 animate-spin' />
+                                                                                <div className='flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-3 text-sm text-slate-600'>
+                                                                                        <span>Hoàn thành công việc? Gửi bàn giao để khách hàng duyệt.</span>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-secondary btn-xs gap-2'
+                                                                                                onClick={() => {
+                                                                                                        if (isContractFinalized) return
+                                                                                                        setMilestoneToSubmit(milestone)
+                                                                                                }}
+                                                                                                disabled={isSubmittingWork || isContractFinalized}>
+                                                                                                {isSubmittingWork && milestoneToSubmit?.id === milestone.id ? (
+                                                                                                        <>
+                                                                                                                <Loader2 className='size-3.5 animate-spin' />
 														Đang gửi...
 													</>
 												) : (
@@ -2317,8 +2333,8 @@ const ContractWorkroomPage = () => {
 										</button>
 										{isAttachmentsExpanded ? (
 											<div className='mt-4 space-y-4'>
-												{viewerRole === 'client' && (
-													<div className='space-y-2 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-center'>
+                                                                                                {viewerRole === 'client' && !isContractFinalized && (
+                                                                                                        <div className='space-y-2 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-center'>
 														<input
 															id={`milestone-upload-${milestone.id}`}
 															type='file'
@@ -2379,7 +2395,7 @@ const ContractWorkroomPage = () => {
 																typeLabel,
 																uploadedLabel ? `Tải lên ${uploadedLabel}` : undefined
 															].filter((value): value is string => Boolean(value))
-															const canDeleteResource = Boolean(resourceId) && viewerRole === 'client'
+                                                                                                                        const canDeleteResource = Boolean(resourceId) && viewerRole === 'client' && !isContractFinalized
 															const isDeletingResource =
 																deleteMilestoneResourceMutation.isPending &&
 																deleteMilestoneResourceMutation.variables?.resourceId === resourceId
@@ -2436,7 +2452,7 @@ const ContractWorkroomPage = () => {
 																				onClick={() =>
 																					requestDeleteMilestoneResource(milestone, resourceId, attachmentLabel)
 																				}
-																				disabled={deleteMilestoneResourceMutation.isPending}
+                                                                                                                               disabled={deleteMilestoneResourceMutation.isPending || isContractFinalized}
 																				aria-label={`Xóa tệp ${attachmentLabel}`}>
 																				{isDeletingResource ? (
 																					<Loader2 className='size-4 animate-spin' />
@@ -2819,24 +2835,27 @@ const ContractWorkroomPage = () => {
 				{activeTab === 'payments' && renderPayments()}
 				{activeTab === 'history' && renderHistory()}
 			</section>
-			<CreateMilestoneDialog
-				open={isCreateMilestoneOpen}
-				currency={currency}
-				isSubmitting={createMilestoneMutation.isPending}
-				onSubmit={(values, attachments) => createMilestoneMutation.mutateAsync({ values, attachments })}
-				onClose={() => setCreateMilestoneOpen(false)}
-			/>
-			<SubmitMilestoneWorkDialog
-				open={Boolean(milestoneToSubmit)}
-				milestoneTitle={milestoneToSubmit?.title}
-				isSubmitting={submitMilestoneWorkMutation.isPending}
-				onSubmit={async (values, files) => {
-					if (!milestoneToSubmit) return
-					await submitMilestoneWorkMutation.mutateAsync({
-						milestoneId: milestoneToSubmit.id,
-						message: values.message,
-						note: values.note,
-						files
+                        <CreateMilestoneDialog
+                                open={isCreateMilestoneOpen}
+                                currency={currency}
+                                isSubmitting={createMilestoneMutation.isPending}
+                                onSubmit={(values, attachments) => {
+                                        if (isContractFinalized) return
+                                        return createMilestoneMutation.mutateAsync({ values, attachments })
+                                }}
+                                onClose={() => setCreateMilestoneOpen(false)}
+                        />
+                        <SubmitMilestoneWorkDialog
+                                open={Boolean(milestoneToSubmit)}
+                                milestoneTitle={milestoneToSubmit?.title}
+                                isSubmitting={submitMilestoneWorkMutation.isPending}
+                                onSubmit={async (values, files) => {
+                                        if (!milestoneToSubmit || isContractFinalized) return
+                                        await submitMilestoneWorkMutation.mutateAsync({
+                                                milestoneId: milestoneToSubmit.id,
+                                                message: values.message,
+                                                note: values.note,
+                                                files
 					})
 				}}
 				onClose={() => setMilestoneToSubmit(null)}
@@ -2859,13 +2878,15 @@ const ContractWorkroomPage = () => {
 				}
 				isSubmitting={approveMilestoneSubmissionMutation.isPending || declineMilestoneSubmissionMutation.isPending}
 				onSubmit={async values => {
-					if (!milestoneReviewState) return
+                                        if (!milestoneReviewState) return
 
-					if (milestoneReviewState.mode === 'approve') {
-						const { reviewNote, reviewRating } = values as ApproveMilestoneSubmissionFormValues
+                                        if (isContractFinalized) return
 
-						await approveMilestoneSubmissionMutation.mutateAsync({
-							milestoneId: milestoneReviewState.milestone.id,
+                                        if (milestoneReviewState.mode === 'approve') {
+                                                const { reviewNote, reviewRating } = values as ApproveMilestoneSubmissionFormValues
+
+                                                await approveMilestoneSubmissionMutation.mutateAsync({
+                                                        milestoneId: milestoneReviewState.milestone.id,
 							submissionId: milestoneReviewState.submission.id,
 							reviewNote,
 							reviewRating
@@ -2892,7 +2913,7 @@ const ContractWorkroomPage = () => {
                                 isSubmitting={payMilestoneMutation.isPending}
                                 onRefreshPaymentMethods={() => paymentMethodsQuery.refetch()}
                                 onSubmit={async values => {
-                                        if (!milestoneToFund) return
+                                        if (!milestoneToFund || isContractFinalized) return
                                         await payMilestoneMutation.mutateAsync({
                                                 milestoneId: milestoneToFund.id,
                                                 paymentMethodId: values.paymentMethodId,
