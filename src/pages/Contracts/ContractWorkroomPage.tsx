@@ -49,6 +49,7 @@ import {
         respondMilestoneCancellation,
         endContract,
         submitContractFeedback,
+        listContractFeedbacks,
         updateContractFeedback,
         deleteContractFeedback
 } from '~/apis/contract.api'
@@ -463,20 +464,29 @@ const ContractWorkroomPage = () => {
                 }, { replace: true })
         }
 
-	const contractQuery = useQuery({
-		queryKey: ['contract', contractId],
-		queryFn: () => {
-			if (!contractId) throw new Error('Missing contract id')
-			return getContractDetail(contractId)
-		},
-		enabled: Boolean(contractId)
-	})
+        const contractQuery = useQuery({
+                queryKey: ['contract', contractId],
+                queryFn: () => {
+                        if (!contractId) throw new Error('Missing contract id')
+                        return getContractDetail(contractId)
+                },
+                enabled: Boolean(contractId)
+        })
 
-	const milestoneQuery = useQuery({
-		queryKey: ['contract-milestones', contractId],
-		queryFn: () => {
-			if (!contractId) throw new Error('Missing contract ID')
-			return listContractMilestones(contractId as string)
+        const feedbackQuery = useQuery({
+                queryKey: ['contract-feedbacks', contractId],
+                queryFn: () => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        return listContractFeedbacks(contractId)
+                },
+                enabled: Boolean(contractId)
+        })
+
+        const milestoneQuery = useQuery({
+                queryKey: ['contract-milestones', contractId],
+                queryFn: () => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        return listContractMilestones(contractId as string)
 		},
 		enabled: Boolean(contractId) && activeTab === 'milestones'
 	})
@@ -692,6 +702,7 @@ const ContractWorkroomPage = () => {
                         toast.success('Đã gửi đánh giá hợp đồng')
                         setSubmitFeedbackOpen(false)
                         queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract-feedbacks', contractId] })
                 },
                 onError: () => {
                         toast.error('Không thể gửi đánh giá hợp đồng. Vui lòng thử lại.')
@@ -720,6 +731,7 @@ const ContractWorkroomPage = () => {
                         toast.success('Đã cập nhật đánh giá hợp đồng')
                         setSubmitFeedbackOpen(false)
                         queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract-feedbacks', contractId] })
                 },
                 onError: () => {
                         toast.error('Không thể cập nhật đánh giá hợp đồng. Vui lòng thử lại.')
@@ -735,6 +747,7 @@ const ContractWorkroomPage = () => {
                         toast.success('Đã xóa đánh giá hợp đồng')
                         setDeleteFeedbackConfirmOpen(false)
                         queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract-feedbacks', contractId] })
                 },
                 onError: () => {
                         toast.error('Không thể xóa đánh giá hợp đồng. Vui lòng thử lại.')
@@ -974,9 +987,10 @@ const ContractWorkroomPage = () => {
 		? pendingPaymentMetaRef.current[milestoneToFund.id]?.idempotencyKey
 		: undefined
 
-	const contract = contractQuery.data as Contract | undefined
-	const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
-	const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
+        const contract = contractQuery.data as Contract | undefined
+        const feedbacks = useMemo(() => feedbackQuery.data?.feedbacks ?? [], [feedbackQuery.data?.feedbacks])
+        const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
+        const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
 	const clientName = getParticipantName(contract?.client?.profile, contract?.client?.companyName)
 	const freelancerName = getParticipantName(contract?.freelancer?.profile, undefined)
 	const clientLocation = getParticipantLocation(contract?.client?.profile)
@@ -1001,13 +1015,59 @@ const ContractWorkroomPage = () => {
                                 : [],
                 [contract?.closureReasonOptions]
         )
-        const viewerFeedback = (contract?.viewerFeedback ?? null) as ContractFeedback | null
-        const partnerFeedback =
-                viewerRole === 'client'
-                        ? ((contract?.freelancerFeedback ?? null) as ContractFeedback | null)
-                        : viewerRole === 'freelancer'
-                        ? ((contract?.clientFeedback ?? null) as ContractFeedback | null)
-                        : null
+        const viewerFeedback = useMemo(() => {
+                const existing = (contract?.viewerFeedback ?? null) as ContractFeedback | null
+                if (existing) {
+                        return existing
+                }
+
+                const viewerId = currentUser?.id
+                if (!viewerId) {
+                        return null
+                }
+
+                return feedbacks.find(feedback => feedback.reviewerId === viewerId) ?? null
+        }, [contract?.viewerFeedback, feedbacks, currentUser?.id])
+        const partnerFeedback = useMemo(() => {
+                const existing =
+                        viewerRole === 'client'
+                                ? ((contract?.freelancerFeedback ?? null) as ContractFeedback | null)
+                                : viewerRole === 'freelancer'
+                                ? ((contract?.clientFeedback ?? null) as ContractFeedback | null)
+                                : null
+
+                if (existing) {
+                        return existing
+                }
+
+                if (!feedbacks.length) {
+                        return null
+                }
+
+                const viewerId = currentUser?.id
+
+                if (viewerRole === 'client') {
+                        return (
+                                feedbacks.find(feedback => feedback.role === 'FREELANCER') ??
+                                feedbacks.find(
+                                        feedback => Boolean(feedback.reviewerId) && feedback.reviewerId !== viewerId
+                                ) ??
+                                null
+                        )
+                }
+
+                if (viewerRole === 'freelancer') {
+                        return (
+                                feedbacks.find(feedback => feedback.role === 'CLIENT') ??
+                                feedbacks.find(
+                                        feedback => Boolean(feedback.reviewerId) && feedback.reviewerId !== viewerId
+                                ) ??
+                                null
+                        )
+                }
+
+                return null
+        }, [contract?.freelancerFeedback, contract?.clientFeedback, feedbacks, viewerRole, currentUser?.id])
         const viewerSubmittedFeedbackAt =
                 contract?.viewerSubmittedFeedbackAt ?? viewerFeedback?.createdAt ?? null
         const normalizedContractStatus = contract?.status?.toUpperCase() ?? ''
