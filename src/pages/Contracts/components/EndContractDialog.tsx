@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 import { Controller, useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertTriangle, Loader2, X } from 'lucide-react'
@@ -29,6 +29,8 @@ const EndContractDialog = ({
         const normalizedOptions = (reasonOptions ?? []).filter(
                 (option): option is ContractClosureReasonOption => Boolean(option?.id && option?.label)
         )
+
+        const detailedReasonId = useId()
 
         const {
                 control,
@@ -135,10 +137,16 @@ const EndContractDialog = ({
                                                 )}
 
                                                 <div className='space-y-2'>
-                                                        <label className='text-sm font-semibold text-base-content'>Lý do kết thúc chi tiết</label>
+                                                        <label
+                                                                htmlFor={detailedReasonId}
+                                                                className='block text-sm font-semibold text-base-content'
+                                                        >
+                                                                Lý do kết thúc chi tiết
+                                                        </label>
                                                         <textarea
                                                                 {...register('closureReason')}
-                                                                className='textarea textarea-bordered min-h-[150px] rounded-2xl border-base-200 bg-base-100 text-base shadow-sm transition focus:border-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/40'
+                                                                id={detailedReasonId}
+                                                                className='textarea textarea-bordered min-h-[150px] w-full rounded-2xl border-base-200 bg-base-100 text-base shadow-sm transition focus:border-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/40'
                                                                 placeholder='Chia sẻ kết quả hợp tác, những gì đã hoàn thành và lý do muốn kết thúc hợp đồng.'
                                                                 disabled={isSubmitting}
                                                         />
@@ -150,9 +158,9 @@ const EndContractDialog = ({
                                                 </div>
                                         </div>
 
-                                        <div className='flex flex-col gap-3 border-t border-base-200 bg-base-100/90 px-6 py-4 sm:flex-row sm:items-center sm:justify-between'>
+                                        <div className='flex flex-col gap-3 border-t border-base-200 bg-base-100/90 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4'>
                                                 <p className='text-xs text-base-content/60'>Hành động này không thể hoàn tác. Hãy chắc chắn trước khi tiếp tục.</p>
-                                                <div className='flex flex-wrap items-center justify-end gap-2'>
+                                                <div className='flex items-center justify-end gap-2 sm:gap-3'>
                                                         <button
                                                                 type='button'
                                                                 className='btn btn-ghost btn-sm'
