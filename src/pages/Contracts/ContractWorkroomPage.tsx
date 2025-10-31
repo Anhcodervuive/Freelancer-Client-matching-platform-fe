@@ -53,7 +53,7 @@ import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
-import { ContractClosureType, type ContractClosureReasonOption, type ContractFeedback } from '~/types/contract'
+import { type ContractClosureReasonOption, type ContractFeedback } from '~/types/contract'
 import type {
         Contract,
         ContractMilestone,
@@ -634,7 +634,7 @@ const ContractWorkroomPage = () => {
                         if (!contractId) throw new Error('Missing contract ID')
 
                         const payload = {
-                                closureType: ContractClosureType.CANCELLED,
+                                closureType: values.closureType,
                                 ...(values.closureReasonOptionId
                                         ? { closureReasonOptionId: values.closureReasonOptionId }
                                         : {}),

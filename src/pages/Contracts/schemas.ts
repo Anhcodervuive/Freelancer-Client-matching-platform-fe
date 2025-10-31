@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ContractClosureType } from '~/types/contract'
 
 const coerceDate = (value: unknown) => {
         if (value === undefined || value === null || value instanceof Date) return value
@@ -151,6 +152,11 @@ export type RespondMilestoneCancellationFormValues = z.infer<
 
 export const EndContractSchema = z
         .object({
+                closureType: z.nativeEnum(ContractClosureType, {
+                        errorMap: () => ({
+                                message: 'Vui lòng chọn cách kết thúc hợp đồng'
+                        })
+                }),
                 closureReasonOptionId: z.preprocess(
                         sanitizeOptionalText,
                         z
@@ -172,7 +178,7 @@ export const EndContractSchema = z
                 const hasOption = Boolean(data.closureReasonOptionId)
                 const hasReason = typeof data.closureReason === 'string' && data.closureReason.trim().length > 0
 
-                if (!hasOption && !hasReason) {
+                if (data.closureType === ContractClosureType.CANCELLED && !hasOption && !hasReason) {
                         ctx.addIssue({
                                 code: z.ZodIssueCode.custom,
                                 message: 'Vui lòng chọn hoặc nhập lý do kết thúc hợp đồng',

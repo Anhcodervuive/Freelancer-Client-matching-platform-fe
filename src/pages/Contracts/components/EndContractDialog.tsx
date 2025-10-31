@@ -1,9 +1,9 @@
 import { useEffect, useId } from 'react'
-import { Controller, useForm, type Resolver } from 'react-hook-form'
+import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertTriangle, Loader2, X } from 'lucide-react'
 
-import type { ContractClosureReasonOption } from '~/types/contract'
+import { ContractClosureType, type ContractClosureReasonOption } from '~/types/contract'
 import { EndContractSchema, type EndContractFormValues } from '../schemas'
 
 type EndContractDialogProps = {
@@ -15,9 +15,28 @@ type EndContractDialogProps = {
 }
 
 const defaultValues: Partial<EndContractFormValues> = {
+        closureType: ContractClosureType.CANCELLED,
         closureReasonOptionId: undefined,
         closureReason: ''
 }
+
+const closureTypeOptions: Array<{ value: ContractClosureType; label: string; description: string }> = [
+        {
+                value: ContractClosureType.COMPLETED,
+                label: 'Hoàn thành hợp đồng',
+                description: 'Công việc đã hoàn tất và hai bên đồng thuận kết thúc hợp đồng.'
+        },
+        {
+                value: ContractClosureType.CANCELLED,
+                label: 'Hủy hợp đồng sớm',
+                description: 'Dừng hợp tác trước khi hoàn thành toàn bộ phạm vi công việc.'
+        },
+        {
+                value: ContractClosureType.AUTO_RELEASED,
+                label: 'Kết thúc tự động',
+                description: 'Hệ thống tự động đóng hợp đồng theo quy định hoặc do quá hạn.'
+        }
+]
 
 const EndContractDialog = ({
         open,
@@ -37,6 +56,7 @@ const EndContractDialog = ({
                 register,
                 handleSubmit,
                 reset,
+                setValue,
                 setError,
                 clearErrors,
                 formState: { errors }
@@ -45,6 +65,8 @@ const EndContractDialog = ({
                 defaultValues
         })
 
+        const selectedClosureType = useWatch({ control, name: 'closureType' })
+
         useEffect(() => {
                 if (!open) return
 
@@ -52,7 +74,15 @@ const EndContractDialog = ({
                 clearErrors()
         }, [clearErrors, open, reset])
 
-        const shouldRequireOptionSelection = normalizedOptions.length > 0
+        useEffect(() => {
+                if (selectedClosureType !== ContractClosureType.CANCELLED) {
+                        setValue('closureReasonOptionId', undefined, { shouldValidate: false, shouldDirty: false })
+                        clearErrors('closureReasonOptionId')
+                }
+        }, [clearErrors, selectedClosureType, setValue])
+
+        const shouldRequireOptionSelection =
+                selectedClosureType === ContractClosureType.CANCELLED && normalizedOptions.length > 0
 
         const submit = handleSubmit(async values => {
                 if (shouldRequireOptionSelection && !values.closureReasonOptionId) {
@@ -64,6 +94,7 @@ const EndContractDialog = ({
                 }
 
                 await onSubmit({
+                        closureType: values.closureType,
                         closureReasonOptionId: values.closureReasonOptionId,
                         closureReason: values.closureReason?.trim() || undefined
                 })
@@ -71,8 +102,11 @@ const EndContractDialog = ({
                 clearErrors()
         })
 
+        const closureTypeError = errors.closureType?.message
         const closureReasonError = errors.closureReason?.message
         const optionError = errors.closureReasonOptionId?.message
+        const showReasonOptions =
+                selectedClosureType === ContractClosureType.CANCELLED && normalizedOptions.length > 0
 
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
@@ -108,6 +142,46 @@ const EndContractDialog = ({
 
                                 <form onSubmit={submit} className='flex flex-col gap-0'>
                                         <div className='space-y-6 px-6 py-6'>
+                                                <Controller
+                                                        control={control}
+                                                        name='closureType'
+                                                        render={({ field }) => (
+                                                                <div className='space-y-3'>
+                                                                        <label className='text-sm font-semibold text-base-content'>Cách kết thúc</label>
+                                                                        <div className='grid gap-3 sm:grid-cols-3'>
+                                                                                {closureTypeOptions.map(option => {
+                                                                                        const isActive = field.value === option.value
+                                                                                        return (
+                                                                                                <button
+                                                                                                        key={option.value}
+                                                                                                        type='button'
+                                                                                                        onClick={() => {
+                                                                                                                if (isSubmitting) return
+                                                                                                                field.onChange(option.value)
+                                                                                                                clearErrors('closureType')
+                                                                                                        }}
+                                                                                                        className={`rounded-2xl border px-4 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-warning/60 ${
+                                                                                                                isActive
+                                                                                                                        ? 'border-warning bg-warning/10 text-warning'
+                                                                                                                        : 'border-base-200 bg-base-100 hover:border-warning/60 hover:bg-warning/5'
+                                                                                                        }`}
+                                                                                                        disabled={isSubmitting}
+                                                                                                >
+                                                                                                        <p className='text-sm font-semibold'>{option.label}</p>
+                                                                                                        <p className='mt-1 text-xs text-base-content/70'>{option.description}</p>
+                                                                                                </button>
+                                                                                        )
+                                                                                })}
+                                                                        </div>
+                                                                        {closureTypeError ? (
+                                                                                <p className='text-xs text-error'>{closureTypeError}</p>
+                                                                        ) : (
+                                                                                <p className='text-xs text-base-content/60'>Chọn trạng thái phù hợp với kết quả hợp tác.</p>
+                                                                        )}
+                                                                </div>
+                                                        )}
+                                                />
+
                                                 {normalizedOptions.length > 0 && (
                                                         <Controller
                                                                 control={control}
@@ -115,43 +189,48 @@ const EndContractDialog = ({
                                                                 render={({ field }) => (
                                                                         <div className='space-y-3'>
                                                                                 <label className='text-sm font-semibold text-base-content'>Lý do phổ biến</label>
-                                                                                <div className='space-y-2'>
-                                                                                        {normalizedOptions.map(option => {
-                                                                                                const isActive = field.value === option.id
-                                                                                                return (
-                                                                                                        <button
-                                                                                                                key={option.id}
-                                                                                                                type='button'
-                                                                                                                onClick={() => {
-                                                                                                                        const nextValue = isActive ? undefined : option.id
-                                                                                                                        field.onChange(nextValue)
+                                                                                {showReasonOptions ? (
+                                                                                        <div className='space-y-2'>
+                                                                                                {normalizedOptions.map(option => {
+                                                                                                        const isActive = field.value === option.id
+                                                                                                        return (
+                                                                                                                <button
+                                                                                                                        key={option.id}
+                                                                                                                        type='button'
+                                                                                                                        onClick={() => {
+                                                                                                                                if (isSubmitting) return
+                                                                                                                                const nextValue = isActive ? undefined : option.id
+                                                                                                                                field.onChange(nextValue)
 
-                                                                                                                        if (nextValue) {
-                                                                                                                                clearErrors('closureReasonOptionId')
-                                                                                                                        }
-                                                                                                                }}
-                                                                                                                className={`w-full rounded-2xl border px-4 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-warning/60 ${
-                                                                                                                        isActive
-                                                                                                                                ? 'border-warning bg-warning/10 text-warning'
-                                                                                                                                : 'border-base-200 bg-base-100 hover:border-warning/60 hover:bg-warning/5'
-                                                                                                                }`}
-                                                                                                                disabled={isSubmitting}
-                                                                                                        >
-                                                                                                                <p className='text-sm font-semibold'>
-                                                                                                                        {option.label}
-                                                                                                                </p>
-                                                                                                                {option.description ? (
-                                                                                                                        <p className='mt-1 text-xs text-base-content/70'>{option.description}</p>
-                                                                                                                ) : null}
-                                                                                                        </button>
-                                                                                                )
-                                                                                        })}
-                                                                                </div>
+                                                                                                                                if (nextValue) {
+                                                                                                                                        clearErrors('closureReasonOptionId')
+                                                                                                                                }
+                                                                                                                        }}
+                                                                                                                        className={`w-full rounded-2xl border px-4 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-warning/60 ${
+                                                                                                                                isActive
+                                                                                                                                        ? 'border-warning bg-warning/10 text-warning'
+                                                                                                                                        : 'border-base-200 bg-base-100 hover:border-warning/60 hover:bg-warning/5'
+                                                                                                                        }`}
+                                                                                                                        disabled={isSubmitting}
+                                                                                                                >
+                                                                                                                        <p className='text-sm font-semibold'>
+                                                                                                                                {option.label}
+                                                                                                                        </p>
+                                                                                                                        {option.description ? (
+                                                                                                                                <p className='mt-1 text-xs text-base-content/70'>{option.description}</p>
+                                                                                                                        ) : null}
+                                                                                                                </button>
+                                                                                                        )
+                                                                                                })}
+                                                                                        </div>
+                                                                                ) : (
+                                                                                        <p className='text-xs text-base-content/60'>Tuỳ chọn lý do chỉ áp dụng khi hủy hợp đồng sớm.</p>
+                                                                                )}
                                                                                 {optionError ? (
                                                                                         <p className='text-xs text-error'>{optionError}</p>
-                                                                                ) : (
+                                                                                ) : showReasonOptions ? (
                                                                                         <p className='text-xs text-base-content/60'>Hãy chọn một lý do phù hợp và bổ sung chi tiết nếu cần.</p>
-                                                                                )}
+                                                                                ) : null}
                                                                         </div>
                                                                 )}
                                                         />
