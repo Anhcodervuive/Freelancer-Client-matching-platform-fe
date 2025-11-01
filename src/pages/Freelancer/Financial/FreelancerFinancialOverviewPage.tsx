@@ -21,9 +21,8 @@ import { normalizeGranularity } from '~/types/financial'
 import { loadChartJs, withAlpha } from '~/utils/chartjs'
 
 const granularityOptions: Array<{ label: string; value: Granularity }> = [
-        { label: 'Daily', value: 'daily' },
-        { label: 'Weekly', value: 'weekly' },
-        { label: 'Monthly', value: 'monthly' }
+        { label: 'Daily', value: 'day' },
+        { label: 'Monthly', value: 'month' }
 ]
 
 const formatDateInputValue = (date: Date) => {
@@ -998,13 +997,13 @@ export default function FreelancerFinancialOverviewPage() {
         const [formState, setFormState] = useState<FiltersFormState>({
                 from: formatDateInputValue(start),
                 to: formatDateInputValue(end),
-                granularity: 'daily',
+                granularity: 'day',
                 currency: ''
         })
         const [filters, setFilters] = useState(() => buildQueryFilters({
                 from: formatDateInputValue(start),
                 to: formatDateInputValue(end),
-                granularity: 'daily',
+                granularity: 'day',
                 currency: ''
         }))
         const [dateError, setDateError] = useState<string | null>(null)
