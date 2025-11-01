@@ -65,6 +65,7 @@ import ClientFreelancerListPage from './pages/Client/Freelancers/ClientFreelance
 import JobChatPage from './pages/Comons/Chat/JobChatPage'
 import ClientJobOfferListPage from './pages/Client/JobOffers/ClientJobOfferListPage'
 import FreelancerJobOfferListPage from './pages/Freelancer/Jobs/FreelancerJobOfferListPage'
+import FreelancerFinancialOverviewPage from './pages/Freelancer/Financial/FreelancerFinancialOverviewPage'
 import { ChatSocketProvider } from '~/contexts/chat-socket/ChatSocketProvider'
 import ContractListPage from './pages/Contracts/ContractListPage'
 import ContractWorkroomPage from './pages/Contracts/ContractWorkroomPage'
@@ -141,10 +142,15 @@ const router = createBrowserRouter([
 				loader: requireAuthenticatedUserOrRedirectHome,
 				element: <SubmitJobProposalPage />
 			},
-			{
-				path: routes.freelancer.jobs.detail(':jobId'),
-				loader: requireAuthenticatedUserOrRedirectHome,
-				element: <JobMarketplaceDetailPage />
+                        {
+                                path: routes.freelancer.jobs.detail(':jobId'),
+                                loader: requireAuthenticatedUserOrRedirectHome,
+                                element: <JobMarketplaceDetailPage />
+                        },
+                        {
+                                path: routes.freelancer.financial.overview,
+                                loader: composeLoaders(checkAuthenticatedUser, isFreelancerUser),
+                                element: <FreelancerFinancialOverviewPage />
                         },
                         {
                                 path: routes.freelancer.offers.list,

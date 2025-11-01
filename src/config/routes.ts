@@ -32,6 +32,9 @@ export const routes = {
                 },
                 offers: {
                         list: '/freelancer/offers'
+                },
+                financial: {
+                        overview: '/freelancer/financial/overview'
                 }
         },
         auth: {
