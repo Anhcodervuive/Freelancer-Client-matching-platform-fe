@@ -1,4 +1,4 @@
-export type Granularity = 'day' | 'week' | 'month'
+export type Granularity = 'daily' | 'weekly' | 'monthly'
 
 export type SpendingStatisticsQueryInput = {
         from?: string

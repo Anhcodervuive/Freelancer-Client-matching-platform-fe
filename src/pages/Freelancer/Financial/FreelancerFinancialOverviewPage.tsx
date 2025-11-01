@@ -20,9 +20,9 @@ import type {
 import { loadChartJs, withAlpha } from '~/utils/chartjs'
 
 const granularityOptions: Array<{ label: string; value: Granularity }> = [
-        { label: 'Daily', value: 'day' },
-        { label: 'Weekly', value: 'week' },
-        { label: 'Monthly', value: 'month' }
+        { label: 'Daily', value: 'daily' },
+        { label: 'Weekly', value: 'weekly' },
+        { label: 'Monthly', value: 'monthly' }
 ]
 
 const formatDateInputValue = (date: Date) => {
@@ -104,6 +104,35 @@ const timelineSeries: Array<{
         { key: 'reversedAmount', label: 'Reversed', color: '#2563eb' },
         { key: 'totalAmount', label: 'Total', color: '#a855f7' }
 ]
+
+const summaryThemes = [
+        {
+                gradient: 'linear-gradient(140deg, rgba(59,130,246,0.16), rgba(59,130,246,0.04))',
+                ring: 'ring-blue-500/20',
+                iconBg: 'bg-blue-500/15',
+                iconColor: 'text-blue-600',
+                glow: 'rgba(59,130,246,0.18)',
+                accent: 'text-blue-600'
+        },
+        {
+                gradient: 'linear-gradient(140deg, rgba(16,185,129,0.16), rgba(16,185,129,0.04))',
+                ring: 'ring-emerald-500/20',
+                iconBg: 'bg-emerald-500/15',
+                iconColor: 'text-emerald-600',
+                glow: 'rgba(16,185,129,0.16)',
+                accent: 'text-emerald-600'
+        },
+        {
+                gradient: 'linear-gradient(140deg, rgba(250,204,21,0.16), rgba(250,204,21,0.04))',
+                ring: 'ring-amber-500/20',
+                iconBg: 'bg-amber-500/15',
+                iconColor: 'text-amber-600',
+                glow: 'rgba(250,204,21,0.18)',
+                accent: 'text-amber-600'
+        }
+] as const
+
+const getSummaryTheme = (index: number) => summaryThemes[index % summaryThemes.length]
 
 type TimelineChartPoint = {
         period: string
@@ -409,65 +438,139 @@ const TimelineChart = ({ currency, timeline }: { currency: string; timeline: Ear
         )
 }
 
-const TransferBreakdownList = ({ currency, entry }: { currency: string; entry: EarningsSummaryEntry }) => (
-        <dl className='mt-4 grid gap-3 text-sm'>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Escrow holding</dt>
-                        <dd className='font-medium text-base-content'>
-                                {formatCurrency(currency, entry.escrowHoldingAmount)}
-                        </dd>
-                </div>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Pending payout</dt>
-                        <dd className='font-medium text-warning'>
-                                {formatCurrency(currency, entry.pendingPayoutAmount)}
-                        </dd>
-                </div>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Available payout</dt>
-                        <dd className='font-semibold text-success'>
-                                {formatCurrency(currency, entry.availablePayoutAmount)}
-                        </dd>
-                </div>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Failed payout</dt>
-                        <dd className='font-medium text-error'>
-                                {formatCurrency(currency, entry.failedPayoutAmount)}
-                        </dd>
-                </div>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Reversed payout</dt>
-                        <dd className='font-medium text-info'>
-                                {formatCurrency(currency, entry.reversedPayoutAmount)}
-                        </dd>
-                </div>
-        </dl>
-)
+const EarningsSummaryCard = ({ entry, index }: { entry: EarningsSummaryEntry; index: number }) => {
+        const theme = getSummaryTheme(index)
+        const available = formatCurrency(entry.currency, entry.availablePayoutAmount)
 
-const TransferCountList = ({ entry }: { entry: EarningsSummaryEntry }) => (
-        <dl className='mt-4 grid gap-3 rounded-2xl bg-base-200/60 p-4 text-sm'>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Total transfers</dt>
-                        <dd className='font-semibold text-base-content'>{formatCount(entry.transferCount.total)}</dd>
+        return (
+                <article
+                        className={`relative overflow-hidden rounded-3xl border border-base-200 bg-base-100 p-6 shadow-xl ring-1 ring-inset ${theme.ring}`}
+                        style={{ background: theme.gradient }}
+                >
+                        <div
+                                className='pointer-events-none absolute right-0 top-0 h-40 w-40 -translate-y-1/2 translate-x-1/3 rounded-full opacity-60 blur-3xl'
+                                style={{ background: theme.glow }}
+                        />
+
+                        <div className='relative z-10 flex items-start justify-between gap-4'>
+                                <div className='space-y-3'>
+                                        <span className='inline-flex w-fit items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-base-content/70 shadow-sm backdrop-blur-sm'>
+                                                Currency
+                                        </span>
+                                        <h3 className='text-3xl font-semibold text-base-content'>{entry.currency}</h3>
+                                        <div>
+                                                <p className='text-sm text-base-content/70'>Available to payout</p>
+                                                <p className={`text-3xl font-bold ${theme.accent}`}>{available}</p>
+                                        </div>
+                                </div>
+                                <div className={`rounded-2xl p-3 shadow-inner backdrop-blur-sm ${theme.iconBg}`}>
+                                        <Wallet className={`size-8 ${theme.iconColor}`} />
+                                </div>
+                        </div>
+
+                        <div className='relative z-10 mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]'>
+                                <TransferBreakdownList currency={entry.currency} entry={entry} />
+                                <TransferCountList entry={entry} />
+                        </div>
+                </article>
+        )
+}
+
+const TransferBreakdownList = ({ currency, entry }: { currency: string; entry: EarningsSummaryEntry }) => {
+        const metrics = [
+                {
+                        label: 'Escrow holding',
+                        value: entry.escrowHoldingAmount,
+                        accent: 'text-sky-700'
+                },
+                {
+                        label: 'Pending payout',
+                        value: entry.pendingPayoutAmount,
+                        accent: 'text-amber-500'
+                },
+                {
+                        label: 'Available payout',
+                        value: entry.availablePayoutAmount,
+                        accent: 'text-emerald-600'
+                },
+                {
+                        label: 'Failed payout',
+                        value: entry.failedPayoutAmount,
+                        accent: 'text-rose-500'
+                },
+                {
+                        label: 'Reversed payout',
+                        value: entry.reversedPayoutAmount,
+                        accent: 'text-indigo-500'
+                }
+        ]
+
+        return (
+                <div className='grid gap-3 sm:grid-cols-2'>
+                        {metrics.map(metric => (
+                                <div
+                                        key={metric.label}
+                                        className='rounded-2xl border border-white/50 bg-white/60 px-4 py-3 text-sm shadow-sm backdrop-blur'
+                                >
+                                        <p className='text-[11px] uppercase tracking-wide text-base-content/60'>{metric.label}</p>
+                                        <p className={`mt-2 text-lg font-semibold ${metric.accent}`}>
+                                                {formatCurrency(currency, metric.value)}
+                                        </p>
+                                </div>
+                        ))}
                 </div>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Pending</dt>
-                        <dd className='font-medium text-warning'>{formatCount(entry.transferCount.pending)}</dd>
+        )
+}
+
+const TransferCountList = ({ entry }: { entry: EarningsSummaryEntry }) => {
+        const detailCounts = [
+                {
+                        label: 'Pending',
+                        value: entry.transferCount.pending,
+                        accent: 'text-amber-500'
+                },
+                {
+                        label: 'Succeeded',
+                        value: entry.transferCount.succeeded,
+                        accent: 'text-emerald-600'
+                },
+                {
+                        label: 'Failed',
+                        value: entry.transferCount.failed,
+                        accent: 'text-rose-500'
+                },
+                {
+                        label: 'Reversed',
+                        value: entry.transferCount.reversed,
+                        accent: 'text-indigo-500'
+                }
+        ]
+
+        return (
+                <div className='flex flex-col gap-3'>
+                        <div className='rounded-3xl border border-white/50 bg-white/70 px-5 py-6 text-sm shadow-sm backdrop-blur'>
+                                <p className='text-[11px] uppercase tracking-wide text-base-content/60'>Total transfers</p>
+                                <p className='mt-3 text-3xl font-bold text-base-content'>
+                                        {formatCount(entry.transferCount.total)}
+                                </p>
+                                <p className='text-xs text-base-content/60'>Across all payout statuses</p>
+                        </div>
+                        <div className='grid grid-cols-2 gap-3 text-sm lg:grid-cols-4'>
+                                {detailCounts.map(count => (
+                                        <div
+                                                key={count.label}
+                                                className='rounded-2xl border border-white/50 bg-white/60 px-4 py-3 shadow-sm backdrop-blur'
+                                        >
+                                                <p className='text-[11px] uppercase tracking-wide text-base-content/60'>{count.label}</p>
+                                                <p className={`mt-2 text-lg font-semibold ${count.accent}`}>
+                                                        {formatCount(count.value)}
+                                                </p>
+                                        </div>
+                                ))}
+                        </div>
                 </div>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Succeeded</dt>
-                        <dd className='font-medium text-success'>{formatCount(entry.transferCount.succeeded)}</dd>
-                </div>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Failed</dt>
-                        <dd className='font-medium text-error'>{formatCount(entry.transferCount.failed)}</dd>
-                </div>
-                <div className='flex items-center justify-between'>
-                        <dt className='text-base-content/70'>Reversed</dt>
-                        <dd className='font-medium text-info'>{formatCount(entry.transferCount.reversed)}</dd>
-                </div>
-        </dl>
-)
+        )
+}
 
 const spendingSeries = [
         { key: 'gross', label: 'Gross spend', color: '#2563eb' },
@@ -894,13 +997,13 @@ export default function FreelancerFinancialOverviewPage() {
         const [formState, setFormState] = useState<FiltersFormState>({
                 from: formatDateInputValue(start),
                 to: formatDateInputValue(end),
-                granularity: 'day',
+                granularity: 'daily',
                 currency: ''
         })
         const [filters, setFilters] = useState(() => buildQueryFilters({
                 from: formatDateInputValue(start),
                 to: formatDateInputValue(end),
-                granularity: 'day',
+                granularity: 'daily',
                 currency: ''
         }))
         const [dateError, setDateError] = useState<string | null>(null)
@@ -1152,23 +1255,12 @@ export default function FreelancerFinancialOverviewPage() {
                                                                                 description='Balances and payout pipeline grouped by currency.'
                                                                         />
                                                                         <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-                                                                                {earningsSummary.map(entry => (
-                                                                                        <article
+                                                                                {earningsSummary.map((entry, index) => (
+                                                                                        <EarningsSummaryCard
                                                                                                 key={entry.currency}
-                                                                                                className='flex h-full flex-col gap-4 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'
-                                                                                        >
-                                                                                                <div className='flex items-center justify-between gap-2'>
-                                                                                                        <div>
-                                                                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Currency</p>
-                                                                                                                <h3 className='text-2xl font-semibold text-base-content'>{entry.currency}</h3>
-                                                                                                        </div>
-                                                                                                        <div className='rounded-2xl bg-primary/10 p-3 text-primary'>
-                                                                                                                <Wallet className='size-6' />
-                                                                                                        </div>
-                                                                                                </div>
-                                                                                                <TransferBreakdownList currency={entry.currency} entry={entry} />
-                                                                                                <TransferCountList entry={entry} />
-                                                                                        </article>
+                                                                                                entry={entry}
+                                                                                                index={index}
+                                                                                        />
                                                                                 ))}
                                                                         </div>
                                                                 </div>
