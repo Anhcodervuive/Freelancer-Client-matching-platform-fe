@@ -233,7 +233,7 @@ export default function AdminUserDetailModal({
                 return null
         }, [data])
 
-        const isBanActive = useMemo(() => {
+        const hasActiveBan = useMemo(() => {
                 if (!banRecord) return false
                 if (banRecord.unbannedAt) return false
                 if (banRecord.expiresAt) {
@@ -244,6 +244,16 @@ export default function AdminUserDetailModal({
                 }
                 return true
         }, [banRecord])
+
+        const showUnbanForm = useMemo(() => {
+                if (hasActiveBan) return true
+                if (data?.isActive === false && banRecord && !banRecord.unbannedAt) {
+                        return true
+                }
+                return false
+        }, [banRecord, data?.isActive, hasActiveBan])
+
+        const showBanForm = !showUnbanForm
 
         const handleSubmitRole = async (event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault()
@@ -301,7 +311,7 @@ export default function AdminUserDetailModal({
 
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
-                        <div className='modal-box max-w-3xl space-y-6'>
+                        <div className='modal-box w-full max-w-4xl space-y-6'>
                                 <div className='flex items-start justify-between gap-4 border-b border-base-300 pb-4'>
                                         <div className='flex items-start gap-4'>
                                                 <div className='avatar'>
@@ -543,8 +553,8 @@ export default function AdminUserDetailModal({
                                                 </div>
                                         </div>
                                 ) : (
-                                        <div className='space-y-5'>
-                                                <div className='space-y-6 rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm'>
+                                        <div className='w-full space-y-5'>
+                                                <div className='w-full space-y-6 rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm'>
                                                         <div className='flex flex-wrap items-center justify-between gap-2'>
                                                                 <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
                                                                         <Ban className='size-4' /> Quản lý khóa tài khoản
@@ -552,12 +562,12 @@ export default function AdminUserDetailModal({
                                                                 {banRecord && (
                                                                         <span
                                                                                 className={`badge gap-2 border ${
-                                                                                        isBanActive
+                                                                                        hasActiveBan
                                                                                                 ? 'border-error/40 bg-error/10 text-error'
                                                                                                 : 'border-success/40 bg-success/10 text-success'
                                                                                 }`}
                                                                         >
-                                                                                {isBanActive ? (
+                                                                                {hasActiveBan ? (
                                                                                         <>
                                                                                                 <Lock className='size-3.5' />
                                                                                                 <span>Đang khóa</span>
@@ -574,18 +584,18 @@ export default function AdminUserDetailModal({
                                                         {banRecord ? (
                                                                 <div
                                                                         className={`space-y-4 rounded-2xl border p-4 text-sm transition-colors ${
-                                                                                isBanActive
+                                                                                hasActiveBan
                                                                                         ? 'border-error/40 bg-error/5 text-base-content/80'
                                                                                         : 'border-base-200 bg-base-200/40 text-base-content/70'
                                                                         }`}
                                                                 >
                                                                         <div
                                                                                 className={`flex flex-wrap items-center gap-2 text-sm font-semibold ${
-                                                                                        isBanActive ? 'text-error' : 'text-base-content/70'
+                                                                                        hasActiveBan ? 'text-error' : 'text-base-content/70'
                                                                                 }`}
                                                                         >
-                                                                                {isBanActive ? <AlertTriangle className='size-4' /> : <CalendarClock className='size-4' />}
-                                                                                {isBanActive ? 'Lệnh khóa đang hiệu lực' : 'Lịch sử khóa gần nhất'}
+                                                                                {hasActiveBan ? <AlertTriangle className='size-4' /> : <CalendarClock className='size-4' />}
+                                                                                {hasActiveBan ? 'Lệnh khóa đang hiệu lực' : 'Lịch sử khóa gần nhất'}
                                                                         </div>
                                                                         <dl className='grid gap-4 sm:grid-cols-2'>
                                                                                 {banRecord.reason && (
@@ -635,7 +645,7 @@ export default function AdminUserDetailModal({
                                                                                         </div>
                                                                                 )}
                                                                         </dl>
-                                                                        {!isBanActive && (
+                                                                        {!hasActiveBan && (
                                                                                 <div className='rounded-lg border border-success/40 bg-success/5 p-2 text-xs text-success'>
                                                                                         Lệnh khóa đã hết hiệu lực.
                                                                                 </div>
@@ -647,15 +657,15 @@ export default function AdminUserDetailModal({
                                                                 </div>
                                                         )}
                                                         <div className='space-y-5'>
-                                                                {!isBanActive && (
+                                                                {showBanForm && (
                                                                         <form
                                                                                 onSubmit={handleSubmitBan}
-                                                                                className='space-y-4 rounded-xl border border-error/30 bg-error/5 p-5'
+                                                                                className='w-full space-y-5 rounded-xl border border-error/30 bg-error/5 p-5'
                                                                         >
-                                                                        <div className='space-y-2'>
-                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                        Chọn lý do khóa *
-                                                                                </label>
+                                                                                <div className='space-y-2'>
+                                                                                        <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                Chọn lý do khóa *
+                                                                                        </label>
                                                                                 <select
                                                                                         className='select select-bordered w-full'
                                                                                         value={banReasonOption}
@@ -669,80 +679,82 @@ export default function AdminUserDetailModal({
                                                                                         ))}
                                                                                 </select>
                                                                         </div>
-                                                                        <div className='space-y-2'>
-                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                        Chi tiết lý do {isCustomReason ? '*' : ''}
-                                                                                </label>
-                                                                                {isCustomReason ? (
-                                                                                        <>
+                                                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                                                        <div className='md:col-span-2 space-y-2'>
+                                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        Chi tiết lý do {isCustomReason ? '*' : ''}
+                                                                                                </label>
+                                                                                                {isCustomReason ? (
+                                                                                                        <>
+                                                                                                                <textarea
+                                                                                                                        className='textarea textarea-bordered min-h-[110px]'
+                                                                                                                        placeholder='Mô tả lý do khóa tài khoản'
+                                                                                                                        value={banReasonText}
+                                                                                                                        onChange={event => {
+                                                                                                                                if (isCustomReason) {
+                                                                                                                                        setBanReasonCustom(event.target.value)
+                                                                                                                                }
+                                                                                                                        }}
+                                                                                                                        disabled={banningUser || isCurrentUser}
+                                                                                                                />
+                                                                                                                <p className='text-xs text-base-content/60'>Nhập tối thiểu 10 ký tự để mô tả rõ lý do khóa.</p>
+                                                                                                        </>
+                                                                                                ) : (
+                                                                                                        <div className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-sm text-base-content/80'>
+                                                                                                                {banReasonText}
+                                                                                                                <p className='mt-2 text-xs text-base-content/60'>Bạn có thể chọn &quot;Khác (ghi rõ)&quot; nếu muốn nhập lý do riêng.</p>
+                                                                                                        </div>
+                                                                                                )}
+                                                                                                {banErrors.reason && <p className='text-xs text-error'>{banErrors.reason}</p>}
+                                                                                        </div>
+                                                                                        <div className='space-y-2'>
+                                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        Ghi chú nội bộ
+                                                                                                </label>
                                                                                                 <textarea
-                                                                                                        className='textarea textarea-bordered min-h-[110px]'
-                                                                                                        placeholder='Mô tả lý do khóa tài khoản'
-                                                                                                        value={banReasonText}
-                                                                                                        onChange={event => {
-                                                                                                                if (isCustomReason) {
-                                                                                                                        setBanReasonCustom(event.target.value)
-                                                                                                                }
-                                                                                                        }}
+                                                                                                        className='textarea textarea-bordered min-h-[90px]'
+                                                                                                        placeholder='Thông tin bổ sung cho đội ngũ quản trị (tùy chọn)'
+                                                                                                        value={banNote}
+                                                                                                        onChange={event => setBanNote(event.target.value)}
                                                                                                         disabled={banningUser || isCurrentUser}
                                                                                                 />
-                                                                                                <p className='text-xs text-base-content/60'>Nhập tối thiểu 10 ký tự để mô tả rõ lý do khóa.</p>
-                                                                                        </>
-                                                                                ) : (
-                                                                                        <div className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-sm text-base-content/80'>
-                                                                                                {banReasonText}
-                                                                                                <p className='mt-2 text-xs text-base-content/60'>Bạn có thể chọn &quot;Khác (ghi rõ)&quot; nếu muốn nhập lý do riêng.</p>
+                                                                                                {banErrors.note && <p className='text-xs text-error'>{banErrors.note}</p>}
                                                                                         </div>
-                                                                                )}
-                                                                                {banErrors.reason && <p className='text-xs text-error'>{banErrors.reason}</p>}
-                                                                        </div>
-                                                                        <div className='space-y-2'>
-                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                        Ghi chú nội bộ
-                                                                                </label>
-                                                                                <textarea
-                                                                                        className='textarea textarea-bordered min-h-[90px]'
-                                                                                        placeholder='Thông tin bổ sung cho đội ngũ quản trị (tùy chọn)'
-                                                                                        value={banNote}
-                                                                                        onChange={event => setBanNote(event.target.value)}
+                                                                                        <div className='space-y-2'>
+                                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                        Hết hạn (tùy chọn)
+                                                                                                </label>
+                                                                                                <input
+                                                                                                        type='datetime-local'
+                                                                                                        className='input input-bordered w-full'
+                                                                                                        value={banExpiresAt}
+                                                                                                        onChange={event => setBanExpiresAt(event.target.value)}
+                                                                                                        disabled={banningUser || isCurrentUser}
+                                                                                                />
+                                                                                                <p className='text-xs text-base-content/60'>
+                                                                                                        Để trống nếu bạn muốn khóa vô thời hạn. Giờ được tính theo múi giờ trình duyệt.
+                                                                                                </p>
+                                                                                                {banErrors.expiresAt && <p className='text-xs text-error'>{banErrors.expiresAt}</p>}
+                                                                                        </div>
+                                                                                </div>
+                                                                                <button
+                                                                                        type='submit'
+                                                                                        className='btn btn-error w-full gap-2 md:w-auto'
                                                                                         disabled={banningUser || isCurrentUser}
-                                                                                />
-                                                                                {banErrors.note && <p className='text-xs text-error'>{banErrors.note}</p>}
-                                                                        </div>
-                                                                        <div className='space-y-2'>
-                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                        Hết hạn (tùy chọn)
-                                                                                </label>
-                                                                                <input
-                                                                                        type='datetime-local'
-                                                                                        className='input input-bordered w-full'
-                                                                                        value={banExpiresAt}
-                                                                                        onChange={event => setBanExpiresAt(event.target.value)}
-                                                                                        disabled={banningUser || isCurrentUser}
-                                                                                />
-                                                                                <p className='text-xs text-base-content/60'>
-                                                                                        Để trống nếu bạn muốn khóa vô thời hạn. Giờ được tính theo múi giờ trình duyệt.
-                                                                                </p>
-                                                                                {banErrors.expiresAt && <p className='text-xs text-error'>{banErrors.expiresAt}</p>}
-                                                                        </div>
-                                                                        <button
-                                                                                type='submit'
-                                                                                className='btn btn-error w-full gap-2'
-                                                                                disabled={banningUser || isCurrentUser}
-                                                                        >
-                                                                                {banningUser && <span className='loading loading-spinner loading-sm' />}
-                                                                                <Lock className='size-4' />
-                                                                                <span>Khóa tài khoản</span>
-                                                                        </button>
+                                                                                >
+                                                                                        {banningUser && <span className='loading loading-spinner loading-sm' />}
+                                                                                        <Lock className='size-4' />
+                                                                                        <span>Khóa tài khoản</span>
+                                                                                </button>
                                                                         {isCurrentUser && (
                                                                                 <p className='text-xs text-error'>Bạn không thể tự khóa tài khoản của mình.</p>
                                                                         )}
                                                                 </form>
                                                                 )}
-                                                                {isBanActive && (
+                                                                {showUnbanForm && (
                                                                         <form
                                                                                 onSubmit={handleSubmitUnban}
-                                                                                className='flex flex-col justify-between gap-4 rounded-xl border border-success/30 bg-success/5 p-5'
+                                                                                className='flex w-full flex-col justify-between gap-4 rounded-xl border border-success/30 bg-success/5 p-5'
                                                                         >
                                                                                 <div className='space-y-3 text-sm text-base-content/80'>
                                                                                         <p>Người dùng đang bị khóa. Bạn có thể gỡ khóa và kích hoạt lại quyền truy cập.</p>
