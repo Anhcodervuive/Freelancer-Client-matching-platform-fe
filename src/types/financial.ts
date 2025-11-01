@@ -1,18 +1,23 @@
-export const GRANULARITIES = ['daily', 'weekly', 'monthly'] as const
+export const GRANULARITIES = ['day', 'month'] as const
 
 export type Granularity = (typeof GRANULARITIES)[number]
 
+const GRANULARITY_ALIASES: Record<string, Granularity> = {
+        day: 'day',
+        daily: 'day',
+        d: 'day',
+        month: 'month',
+        monthly: 'month',
+        m: 'month'
+}
+
 export const normalizeGranularity = (value?: string | null): Granularity => {
         if (!value) {
-                return 'daily'
+                return 'day'
         }
 
         const lowered = value.toLowerCase()
-        if ((GRANULARITIES as readonly string[]).includes(lowered)) {
-                return lowered as Granularity
-        }
-
-        return 'daily'
+        return GRANULARITY_ALIASES[lowered] ?? 'day'
 }
 
 export type SpendingStatisticsQueryInput = {
