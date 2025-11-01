@@ -30,7 +30,7 @@ const NAV: Item[] = [
         { label: 'Projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },
         { label: 'Disputes', to: routes.admin.dispute.list, icon: <BadgeDollarSign size={18} /> },
         {
-                label: 'Talent library',
+                label: 'Taxonomy',
                 to: '#',
                 icon: <Boxes size={18} />,
                 children: [

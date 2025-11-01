@@ -4,6 +4,8 @@ import {
         AlertCircle,
         ArrowRightLeft,
         Calendar,
+        ChevronDown,
+        ChevronUp,
         Loader2,
         PiggyBank,
         TrendingUp,
@@ -444,7 +446,7 @@ const EarningsSummaryCard = ({ entry, index }: { entry: EarningsSummaryEntry; in
 
         return (
                 <article
-                        className={`relative overflow-hidden rounded-3xl border border-base-200 bg-base-100 p-6 shadow-xl ring-1 ring-inset ${theme.ring}`}
+                        className={`relative w-full min-w-[18.5rem] flex-shrink-0 snap-start overflow-hidden rounded-3xl border border-base-200 bg-base-100 p-6 shadow-xl ring-1 ring-inset ${theme.ring}`}
                         style={{ background: theme.gradient }}
                 >
                         <div
@@ -1000,6 +1002,7 @@ export default function FreelancerFinancialOverviewPage() {
                 granularity: 'day',
                 currency: ''
         })
+        const [isFiltersOpen, setIsFiltersOpen] = useState(true)
         const [filters, setFilters] = useState(() => buildQueryFilters({
                 from: formatDateInputValue(start),
                 to: formatDateInputValue(end),
@@ -1047,6 +1050,7 @@ export default function FreelancerFinancialOverviewPage() {
 
                 if (fromDate && toDate && fromDate > toDate) {
                         setDateError('Start date must be before or equal to the end date.')
+                        setIsFiltersOpen(true)
                         return
                 }
 
@@ -1114,7 +1118,11 @@ export default function FreelancerFinancialOverviewPage() {
                         </div>
 
                         <form onSubmit={applyFilters} className='mt-8 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                <div className='flex flex-wrap items-center justify-between gap-3 border-b border-base-200 pb-4'>
+                                <div
+                                        className={`flex flex-wrap items-center justify-between gap-3 ${
+                                                isFiltersOpen ? 'border-b border-base-200 pb-4' : ''
+                                        }`}
+                                >
                                         <div className='flex items-center gap-3 text-base-content'>
                                                 <Calendar className='size-5 text-primary' />
                                                 <div>
@@ -1124,12 +1132,38 @@ export default function FreelancerFinancialOverviewPage() {
                                                         </p>
                                                 </div>
                                         </div>
-                                        <button type='submit' className='btn btn-primary btn-sm gap-2'>
-                                                <ArrowRightLeft className='size-4' /> Apply filters
-                                        </button>
+                                        <div className='flex items-center gap-2'>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-ghost btn-sm gap-1 text-xs font-semibold uppercase tracking-wide text-base-content'
+                                                        onClick={() => setIsFiltersOpen(open => !open)}
+                                                        aria-expanded={isFiltersOpen}
+                                                        aria-controls='freelancer-financial-filter-fields'
+                                                >
+                                                        {isFiltersOpen ? (
+                                                                <>
+                                                                        <ChevronUp className='size-4' />
+                                                                        <span>Hide filters</span>
+                                                                </>
+                                                        ) : (
+                                                                <>
+                                                                        <ChevronDown className='size-4' />
+                                                                        <span>Show filters</span>
+                                                                </>
+                                                        )}
+                                                </button>
+                                                <button type='submit' className='btn btn-primary btn-sm gap-2'>
+                                                        <ArrowRightLeft className='size-4' /> Apply filters
+                                                </button>
+                                        </div>
                                 </div>
 
-                                <div className='mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+                                <div
+                                        id='freelancer-financial-filter-fields'
+                                        className={
+                                                isFiltersOpen ? 'mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4' : 'hidden'
+                                        }
+                                >
                                         <label className='flex flex-col gap-2 text-sm text-base-content'>
                                                 <span className='font-semibold text-base-content/70'>From</span>
                                                 <input
@@ -1181,14 +1215,18 @@ export default function FreelancerFinancialOverviewPage() {
                                                 />
                                         </label>
                                 </div>
-                                {dateError ? (
+                                {isFiltersOpen && dateError ? (
                                         <div className='mt-4 flex items-center gap-2 rounded-2xl border border-error/40 bg-error/10 p-3 text-sm text-error'>
                                                 <AlertCircle className='size-4' />
                                                 <span>{dateError}</span>
                                         </div>
                                 ) : null}
                                 {overview ? (
-                                        <p className='mt-4 text-xs uppercase tracking-wide text-base-content/50'>
+                                        <p
+                                                className={`mt-4 text-xs uppercase tracking-wide text-base-content/50 ${
+                                                        isFiltersOpen ? '' : 'border-t border-base-200 pt-4'
+                                                }`}
+                                        >
                                                 Showing data from {toDisplayDate(overview.filters.from)} to {toDisplayDate(overview.filters.to)} ·{' '}
                                                 {overview.filters.granularity.toUpperCase()} grouping{' '}
                                                 {overview.filters.currency ? `· ${overview.filters.currency}` : ''}
@@ -1257,7 +1295,7 @@ export default function FreelancerFinancialOverviewPage() {
                                                                                 title='Earnings summary'
                                                                                 description='Balances and payout pipeline grouped by currency.'
                                                                         />
-                                                                        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+                                                                        <div className='flex snap-x snap-mandatory flex-nowrap gap-4 overflow-x-auto pb-2 md:gap-6'>
                                                                                 {earningsSummary.map((entry, index) => (
                                                                                         <EarningsSummaryCard
                                                                                                 key={entry.currency}
