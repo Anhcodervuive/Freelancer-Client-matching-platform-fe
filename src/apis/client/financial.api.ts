@@ -1,5 +1,6 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import type { ClientSpendingStatistics, Granularity, SpendingStatisticsQueryInput } from '~/types/financial'
+import { normalizeGranularity } from '~/types/financial'
 
 const baseUrl = '/client/financial'
 
@@ -24,7 +25,7 @@ const serializeFilters = (filters: SpendingStatisticsQueryInput = {}) => {
 	}
 
 	if (filters.granularity) {
-		params.set('granularity', filters.granularity)
+		params.set('granularity', normalizeGranularity(filters.granularity))
 	}
 
 	if (filters.currency) {

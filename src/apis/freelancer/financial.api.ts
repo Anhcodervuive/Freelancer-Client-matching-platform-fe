@@ -1,9 +1,6 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
-import type {
-        FreelancerFinancialOverview,
-        Granularity,
-        SpendingStatisticsQueryInput
-} from '~/types/financial'
+import type { FreelancerFinancialOverview, Granularity, SpendingStatisticsQueryInput } from '~/types/financial'
+import { normalizeGranularity } from '~/types/financial'
 
 const baseUrl = '/freelancer/financial'
 
@@ -28,7 +25,7 @@ const serializeFilters = (filters: SpendingStatisticsQueryInput = {}) => {
         }
 
         if (filters.granularity) {
-                params.set('granularity', filters.granularity)
+                params.set('granularity', normalizeGranularity(filters.granularity))
         }
 
         if (filters.currency) {
