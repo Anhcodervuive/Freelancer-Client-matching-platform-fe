@@ -105,6 +105,34 @@ const spendingSeries = [
 
 type SpendingSeriesKey = (typeof spendingSeries)[number]['key']
 
+type RefundPoint = {
+        period: string
+        gross: number
+        net: number
+        refund: number
+        refundRate: number
+        refundedPayments: number
+        withRefunds: number
+}
+
+const buildRefundPoints = (timeline: SpendingTimelineEntry[]): RefundPoint[] =>
+        timeline.map(entry => {
+                const gross = parseAmount(entry.grossAmount)
+                const refund = parseAmount(entry.refundAmount)
+                const net = parseAmount(entry.netAmount)
+                const refundRate = gross > 0 ? refund / gross : 0
+
+                return {
+                        period: entry.period,
+                        gross,
+                        net,
+                        refund,
+                        refundRate,
+                        refundedPayments: entry.paymentCount.refunded,
+                        withRefunds: entry.paymentCount.withRefunds
+                }
+        })
+
 const SpendingTimelineChart = ({
         currency,
         timeline
@@ -342,6 +370,235 @@ const SpendingOverviewCards = ({
         </div>
 )
 
+const CurrencySnapshot = ({ summary }: { summary: SpendingSummaryEntry }) => (
+        <div className='grid gap-4 sm:grid-cols-3'>
+                <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
+                        <p className='text-xs uppercase tracking-wide text-base-content/60'>Gross</p>
+                        <p className='mt-1 text-xl font-semibold text-base-content'>
+                                {formatCurrency(summary.currency, summary.grossAmount)}
+                        </p>
+                </div>
+                <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
+                        <p className='text-xs uppercase tracking-wide text-base-content/60'>Net</p>
+                        <p className='mt-1 text-xl font-semibold text-success'>
+                                {formatCurrency(summary.currency, summary.netAmount)}
+                        </p>
+                </div>
+                <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
+                        <p className='text-xs uppercase tracking-wide text-base-content/60'>Refunded</p>
+                        <p className='mt-1 text-xl font-semibold text-error'>
+                                {formatCurrency(summary.currency, summary.refundAmount)}
+                        </p>
+                </div>
+        </div>
+)
+
+const RefundPerformanceChart = ({
+        currency,
+        timeline
+}: {
+        currency: string
+        timeline: SpendingTimelineEntry[]
+}) => {
+        const chartData = useMemo(() => buildRefundPoints(timeline), [timeline])
+        const canvasRef = useRef<HTMLCanvasElement | null>(null)
+        const chartInstanceRef = useRef<any>(null)
+        const [chartReady, setChartReady] = useState(() => typeof window !== 'undefined' && Boolean(window.Chart))
+        const [chartError, setChartError] = useState<string | null>(null)
+
+        const chartConfig = useMemo(() => {
+                const labels = chartData.map(entry => entry.period)
+                const amountFormatter = new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency,
+                        maximumFractionDigits: 2
+                })
+                const rateFormatter = new Intl.NumberFormat('en-US', {
+                        style: 'percent',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 1
+                })
+
+                const maxRate = chartData.reduce((acc, entry) => Math.max(acc, entry.refundRate), 0)
+                const suggestedMaxRate = Math.min(100, Math.max(10, Math.ceil((maxRate * 100) / 10) * 10))
+
+                return {
+                        type: 'bar',
+                        data: {
+                                labels,
+                                datasets: [
+                                        {
+                                                type: 'bar',
+                                                label: 'Gross amount',
+                                                data: chartData.map(point => point.gross),
+                                                backgroundColor: withAlpha('#4f46e5', 0.35),
+                                                borderColor: '#4f46e5',
+                                                borderWidth: 1,
+                                                borderRadius: 12,
+                                                maxBarThickness: 44,
+                                                yAxisID: 'amount'
+                                        },
+                                        {
+                                                type: 'bar',
+                                                label: 'Refunded amount',
+                                                data: chartData.map(point => point.refund),
+                                                backgroundColor: withAlpha('#f97316', 0.45),
+                                                borderColor: '#f97316',
+                                                borderWidth: 1,
+                                                borderRadius: 12,
+                                                maxBarThickness: 44,
+                                                yAxisID: 'amount'
+                                        },
+                                        {
+                                                type: 'line',
+                                                label: 'Refund rate',
+                                                data: chartData.map(point => Number((point.refundRate * 100).toFixed(2))),
+                                                borderColor: '#0ea5e9',
+                                                backgroundColor: withAlpha('#0ea5e9', 0.1),
+                                                fill: false,
+                                                borderWidth: 2,
+                                                tension: 0.35,
+                                                pointRadius: 3,
+                                                pointBackgroundColor: '#ffffff',
+                                                pointBorderColor: '#0ea5e9',
+                                                yAxisID: 'rate'
+                                        }
+                                ]
+                        },
+                        options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: { mode: 'index', intersect: false },
+                                plugins: {
+                                        legend: { position: 'bottom' },
+                                        tooltip: {
+                                                callbacks: {
+                                                        label: (context: any) => {
+                                                                if (context.dataset.yAxisID === 'rate') {
+                                                                        return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`
+                                                                }
+
+                                                                return `${context.dataset.label}: ${amountFormatter.format(context.parsed.y)}`
+                                                        },
+                                                        afterBody: (items: any[]) => {
+                                                                if (!items || items.length === 0) return ''
+                                                                const index = items[0].dataIndex
+                                                                const point = chartData[index]
+
+                                                                return [
+                                                                        `Net: ${amountFormatter.format(point.net)}`,
+                                                                        `Refund rate: ${rateFormatter.format(point.refundRate)}`,
+                                                                        `Refunded payments: ${point.refundedPayments.toLocaleString('en-US')}`,
+                                                                        `Payments w/ refunds: ${point.withRefunds.toLocaleString('en-US')}`
+                                                                ]
+                                                        }
+                                                }
+                                        }
+                                },
+                                scales: {
+                                        amount: {
+                                                position: 'left',
+                                                ticks: {
+                                                        callback: (value: number | string) => amountFormatter.format(Number(value))
+                                                }
+                                        },
+                                        rate: {
+                                                position: 'right',
+                                                beginAtZero: true,
+                                                suggestedMax: suggestedMaxRate,
+                                                grid: {
+                                                        drawOnChartArea: false
+                                                },
+                                                ticks: {
+                                                        callback: (value: number | string) => `${Number(value).toFixed(0)}%`
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }, [chartData, currency])
+
+        useEffect(() => {
+                let mounted = true
+
+                const setup = async () => {
+                        try {
+                                await loadChartJs()
+                                if (!mounted) return
+                                setChartReady(true)
+                        } catch (error) {
+                                if (!mounted) return
+                                setChartError((error as Error).message)
+                        }
+                }
+
+                if (!chartReady && !chartError) {
+                        void setup()
+                }
+
+                return () => {
+                        mounted = false
+                }
+        }, [chartReady, chartError])
+
+        useEffect(() => {
+                if (!chartReady || !canvasRef.current) {
+                        return
+                }
+
+                const ctx = canvasRef.current.getContext('2d')
+                if (!ctx) {
+                        return
+                }
+
+                if (chartInstanceRef.current) {
+                        chartInstanceRef.current.destroy()
+                        chartInstanceRef.current = null
+                }
+
+                chartInstanceRef.current = new window.Chart(ctx, chartConfig)
+
+                return () => {
+                        if (chartInstanceRef.current) {
+                                chartInstanceRef.current.destroy()
+                                chartInstanceRef.current = null
+                        }
+                }
+        }, [chartConfig, chartReady])
+
+        if (chartError) {
+                return (
+                        <div className='flex items-center gap-2 rounded-2xl border border-error/40 bg-error/10 p-3 text-sm text-error'>
+                                <AlertCircle className='size-4' />
+                                <span>{chartError}</span>
+                        </div>
+                )
+        }
+
+        if (!chartReady) {
+                return (
+                        <div className='flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
+                                <Loader2 className='size-5 animate-spin text-primary' />
+                                <span>Preparing refund chart…</span>
+                        </div>
+                )
+        }
+
+        if (chartData.length === 0) {
+                return (
+                        <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
+                                No refund insights available for {currency}.
+                        </div>
+                )
+        }
+
+        return (
+                <div className='relative h-80 w-full'>
+                        <canvas ref={canvasRef} className='h-full w-full' />
+                </div>
+        )
+}
+
 const RefundsTable = ({ currency, timeline }: { currency: string; timeline: SpendingTimelineEntry[] }) => {
         if (timeline.length === 0) {
                 return (
@@ -419,6 +676,7 @@ export default function ClientSpendingStatisticsPage() {
         const [dateError, setDateError] = useState<string | null>(null)
         const [activeTab, setActiveTab] = useState<SpendingTabKey>('overview')
         const [activeCurrency, setActiveCurrency] = useState<string | null>(null)
+        const [showRefundDetails, setShowRefundDetails] = useState(false)
 
         const queryKey = useMemo(() => ['client-spending-statistics', filters], [filters])
 
@@ -451,6 +709,10 @@ export default function ClientSpendingStatisticsPage() {
                 })
         }, [currencies])
 
+        useEffect(() => {
+                setShowRefundDetails(false)
+        }, [activeCurrency])
+
         const activeTimeline = activeCurrency ? timelineByCurrency[activeCurrency] ?? [] : []
         const activeSummary = summary.find(entry => entry.currency === activeCurrency)
 
@@ -478,6 +740,8 @@ export default function ClientSpendingStatisticsPage() {
                 [activeTimeline]
         )
 
+        const averageRefundRate = aggregatedTimeline.gross > 0 ? aggregatedTimeline.refund / aggregatedTimeline.gross : 0
+
         const hasData = summary.length > 0 || Object.values(timelineByCurrency).some(entries => entries.length > 0)
         const errorMessage = error ? (typeof error === 'string' ? error : (error as Error).message) : null
 
@@ -501,7 +765,7 @@ export default function ClientSpendingStatisticsPage() {
         }
 
         return (
-                <div className='relative left-1/2 w-screen max-w-[1440px] -translate-x-1/2 px-4 py-8 sm:px-6 lg:px-10'>
+                <div className='mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-12'>
                         <div className='flex flex-col gap-2'>
                                 <h1 className='text-3xl font-semibold text-base-content'>Spending analytics</h1>
                                 <p className='text-base text-base-content/70'>Monitor project expenses, refunds, and run rates across currencies.</p>
@@ -701,28 +965,7 @@ export default function ClientSpendingStatisticsPage() {
 
                                                                 {activeCurrency ? (
                                                                         <div className='space-y-4'>
-                                                                                {activeSummary ? (
-                                                                                        <div className='grid gap-4 sm:grid-cols-3'>
-                                                                                                <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
-                                                                                                        <p className='text-xs uppercase tracking-wide text-base-content/60'>Gross</p>
-                                                                                                        <p className='mt-1 text-xl font-semibold text-base-content'>
-                                                                                                                {formatCurrency(activeSummary.currency, activeSummary.grossAmount)}
-                                                                                                        </p>
-                                                                                                </div>
-                                                                                                <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
-                                                                                                        <p className='text-xs uppercase tracking-wide text-base-content/60'>Net</p>
-                                                                                                        <p className='mt-1 text-xl font-semibold text-success'>
-                                                                                                                {formatCurrency(activeSummary.currency, activeSummary.netAmount)}
-                                                                                                        </p>
-                                                                                                </div>
-                                                                                                <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
-                                                                                                        <p className='text-xs uppercase tracking-wide text-base-content/60'>Refunded</p>
-                                                                                                        <p className='mt-1 text-xl font-semibold text-error'>
-                                                                                                                {formatCurrency(activeSummary.currency, activeSummary.refundAmount)}
-                                                                                                        </p>
-                                                                                                </div>
-                                                                                        </div>
-                                                                                ) : null}
+                                                                                {activeSummary ? <CurrencySnapshot summary={activeSummary} /> : null}
 
                                                                                 <SpendingTimelineChart currency={activeCurrency} timeline={activeTimeline} />
 
@@ -789,7 +1032,51 @@ export default function ClientSpendingStatisticsPage() {
                                                                 </div>
 
                                                                 {activeCurrency ? (
-                                                                        <RefundsTable currency={activeCurrency} timeline={activeTimeline} />
+                                                                        <div className='space-y-4'>
+                                                                                {activeSummary ? <CurrencySnapshot summary={activeSummary} /> : null}
+
+                                                                                <RefundPerformanceChart currency={activeCurrency} timeline={activeTimeline} />
+
+                                                                                {activeTimeline.length > 0 ? (
+                                                                                        <>
+                                                                                                <div className='grid gap-4 md:grid-cols-3'>
+                                                                                                        <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
+                                                                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Refunded payments</p>
+                                                                                                                <p className='mt-1 text-2xl font-semibold text-error'>
+                                                                                                                        {aggregatedTimeline.refunded.toLocaleString('en-US')}
+                                                                                                                </p>
+                                                                                                        </div>
+                                                                                                        <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
+                                                                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Payments with refunds</p>
+                                                                                                                <p className='mt-1 text-2xl font-semibold text-info'>
+                                                                                                                        {aggregatedTimeline.withRefunds.toLocaleString('en-US')}
+                                                                                                                </p>
+                                                                                                        </div>
+                                                                                                        <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm'>
+                                                                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Average refund rate</p>
+                                                                                                                <p className='mt-1 text-2xl font-semibold text-primary'>
+                                                                                                                        {(averageRefundRate * 100).toFixed(1)}%
+                                                                                                                </p>
+                                                                                                        </div>
+                                                                                                </div>
+
+                                                                                                <div className='flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-base-200 bg-base-100 px-4 py-3 text-sm text-base-content/70'>
+                                                                                                        <p>Need the raw numbers? Toggle the detailed table.</p>
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                onClick={() => setShowRefundDetails(prev => !prev)}
+                                                                                                                className='btn btn-sm btn-outline'
+                                                                                                        >
+                                                                                                                {showRefundDetails ? 'Hide detail table' : 'Show detail table'}
+                                                                                                        </button>
+                                                                                                </div>
+
+                                                                                                {showRefundDetails ? (
+                                                                                                        <RefundsTable currency={activeCurrency} timeline={activeTimeline} />
+                                                                                                ) : null}
+                                                                                        </>
+                                                                                ) : null}
+                                                                        </div>
                                                                 ) : (
                                                                         <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
                                                                                 Select a currency to view refund analytics.
