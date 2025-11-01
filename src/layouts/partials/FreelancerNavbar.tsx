@@ -11,8 +11,7 @@ const secondaryNavItems = [
         { label: 'Workroom', to: routes.contracts.list },
         { label: 'Messages', to: routes.messages.jobs },
         { label: 'Financial Overview', to: routes.freelancer.financial.overview },
-        { label: 'My Profile', to: routes.me.freelancer.profile },
-        { label: 'Readiness', to: routes.comons.onboarding }
+        { label: 'My Profile', to: routes.me.freelancer.profile }
 ]
 
 const findWorkMenuItems = [

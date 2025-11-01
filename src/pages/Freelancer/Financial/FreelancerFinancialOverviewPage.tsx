@@ -94,8 +94,8 @@ const timelineSeries: Array<{
         { key: 'pendingAmount', label: 'Pending', color: '#f59e0b' },
         { key: 'availableAmount', label: 'Available', color: '#22c55e' },
         { key: 'failedAmount', label: 'Failed', color: '#ef4444' },
-        { key: 'reversedAmount', label: 'Reversed', color: '#3b82f6' },
-        { key: 'totalAmount', label: 'Total', color: '#0ea5e9' }
+        { key: 'reversedAmount', label: 'Reversed', color: '#2563eb' },
+        { key: 'totalAmount', label: 'Total', color: '#a855f7' }
 ]
 
 const withAlpha = (hex: string, alpha: number) => {
