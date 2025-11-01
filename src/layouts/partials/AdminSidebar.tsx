@@ -2,10 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
         LayoutDashboard,
         FolderKanban,
-        ListChecks,
-        CalendarDays,
         BadgeDollarSign,
-        ReceiptText,
         PanelLeftOpen,
         Settings,
         ChevronDown,
@@ -28,24 +25,21 @@ type Item = {
 }
 
 const NAV: Item[] = [
-        { label: 'Insights', to: '/admin', icon: <LayoutDashboard size={18} /> },
+        { label: 'Overview', to: '/admin', icon: <LayoutDashboard size={18} /> },
         { label: 'Messages', to: routes.admin.messages, icon: <MessageSquare size={18} /> },
-	{ label: 'Manage projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },
-	{ label: 'Manage task', to: '/admin/tasks', icon: <ListChecks size={18} /> },
-	{ label: 'Manage meetings', to: '/admin/meetings', icon: <CalendarDays size={18} /> },
+        { label: 'Projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },
         { label: 'Disputes', to: routes.admin.dispute.list, icon: <BadgeDollarSign size={18} /> },
-	{ label: 'Invoices', to: '/admin/invoices', icon: <ReceiptText size={18} /> },
-	{
-		label: 'Taxonomy',
-		to: '#',
-		icon: <Boxes size={18} />,
-		children: [
-			{ label: 'Categories', to: '/admin/categories', icon: <Network size={16} /> },
-			{ label: 'Specialties', to: '/admin/specialties', icon: <Tags size={16} /> },
-			{ label: 'Skills', to: '/admin/skills', icon: <Hammer size={16} /> }
-		]
-	},
-	{ label: 'Account settings', to: '/admin/settings', icon: <Settings size={18} /> }
+        {
+                label: 'Talent library',
+                to: '#',
+                icon: <Boxes size={18} />,
+                children: [
+                        { label: 'Categories', to: '/admin/categories', icon: <Network size={16} /> },
+                        { label: 'Specialties', to: '/admin/specialties', icon: <Tags size={16} /> },
+                        { label: 'Skills', to: '/admin/skills', icon: <Hammer size={16} /> }
+                ]
+        },
+        { label: 'Account settings', to: '/admin/settings', icon: <Settings size={18} /> }
 ]
 
 function ItemLink({ item, collapsed }: { item: Item; collapsed: boolean }) {
