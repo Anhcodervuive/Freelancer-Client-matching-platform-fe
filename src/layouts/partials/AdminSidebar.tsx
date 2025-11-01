@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
         LayoutDashboard,
+        Users,
         FolderKanban,
         BadgeDollarSign,
         PanelLeftOpen,
@@ -26,6 +27,7 @@ type Item = {
 
 const NAV: Item[] = [
         { label: 'Overview', to: '/admin', icon: <LayoutDashboard size={18} /> },
+        { label: 'Users', to: routes.admin.users.list, icon: <Users size={18} /> },
         { label: 'Messages', to: routes.admin.messages, icon: <MessageSquare size={18} /> },
         { label: 'Projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },
         { label: 'Disputes', to: routes.admin.dispute.list, icon: <BadgeDollarSign size={18} /> },

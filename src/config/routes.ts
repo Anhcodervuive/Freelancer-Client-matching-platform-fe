@@ -77,6 +77,10 @@ export const routes = {
 		}
 	},
         admin: {
+                users: {
+                        list: '/admin/users',
+                        detail: (id: string = 'userId') => `/admin/users/${id}`
+                },
                 messages: '/admin/messages',
                 dispute: {
                         list: '/admin/disputes'
