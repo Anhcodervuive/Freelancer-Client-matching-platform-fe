@@ -10,7 +10,14 @@ import {
         Wallet
 } from 'lucide-react'
 import { getFreelancerFinancialOverview } from '~/apis/freelancer/financial.api'
-import type { EarningsSummaryEntry, EarningsTimelineEntry, Granularity } from '~/types/financial'
+import type {
+        ClientSpendingStatistics,
+        EarningsSummaryEntry,
+        EarningsTimelineEntry,
+        Granularity,
+        SpendingTimelineEntry
+} from '~/types/financial'
+import { loadChartJs, withAlpha } from '~/utils/chartjs'
 
 const granularityOptions: Array<{ label: string; value: Granularity }> = [
         { label: 'Daily', value: 'day' },
@@ -98,19 +105,6 @@ const timelineSeries: Array<{
         { key: 'totalAmount', label: 'Total', color: '#a855f7' }
 ]
 
-const withAlpha = (hex: string, alpha: number) => {
-        const sanitized = hex.replace('#', '')
-        if (sanitized.length !== 6) {
-                return hex
-        }
-
-        const r = Number.parseInt(sanitized.slice(0, 2), 16)
-        const g = Number.parseInt(sanitized.slice(2, 4), 16)
-        const b = Number.parseInt(sanitized.slice(4, 6), 16)
-
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
 type TimelineChartPoint = {
         period: string
         transferCount: number
@@ -133,48 +127,26 @@ const buildTimelinePoints = (timeline: EarningsTimelineEntry[]): TimelineChartPo
         }))
 }
 
-const CHART_JS_CDN = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js'
-
-let chartJsLoadingPromise: Promise<unknown> | null = null
-
-const loadChartJs = () => {
-        if (typeof window === 'undefined') {
-                return Promise.reject(new Error('Chart.js requires a browser environment.'))
-        }
-
-        if (window.Chart) {
-                return Promise.resolve(window.Chart)
-        }
-
-        if (!chartJsLoadingPromise) {
-                chartJsLoadingPromise = new Promise((resolve, reject) => {
-                        const script = document.createElement('script')
-                        script.src = CHART_JS_CDN
-                        script.async = true
-                        script.onload = () => {
-                                if (window.Chart) {
-                                        resolve(window.Chart)
-                                } else {
-                                        chartJsLoadingPromise = null
-                                        reject(new Error('Chart.js failed to initialise.'))
-                                }
-                        }
-                        script.onerror = () => {
-                                chartJsLoadingPromise = null
-                                reject(new Error('Unable to load the Chart.js library.'))
-                        }
-                        document.head.appendChild(script)
-                })
-        }
-
-        return chartJsLoadingPromise
+type SpendingTimelinePoint = {
+        period: string
+        gross: number
+        refund: number
+        net: number
+        totalPayments: number
+        refundedPayments: number
+        withRefunds: number
 }
 
-declare global {
-        interface Window {
-                Chart?: any
-        }
-}
+const buildSpendingTimelinePoints = (timeline: SpendingTimelineEntry[]): SpendingTimelinePoint[] =>
+        timeline.map(entry => ({
+                period: entry.period,
+                gross: parseAmountToNumber(entry.grossAmount),
+                refund: parseAmountToNumber(entry.refundAmount),
+                net: parseAmountToNumber(entry.netAmount),
+                totalPayments: entry.paymentCount.total,
+                refundedPayments: entry.paymentCount.refunded,
+                withRefunds: entry.paymentCount.withRefunds
+        }))
 
 const TimelineChart = ({ currency, timeline }: { currency: string; timeline: EarningsTimelineEntry[] }) => {
         const chartData = useMemo(() => buildTimelinePoints(timeline), [timeline])
@@ -497,8 +469,231 @@ const TransferCountList = ({ entry }: { entry: EarningsSummaryEntry }) => (
         </dl>
 )
 
-const SpendingSection = ({ spending }: { spending: Record<string, unknown> }) => {
-        if (!spending || Object.keys(spending).length === 0) {
+const spendingSeries = [
+        { key: 'gross', label: 'Gross spend', color: '#2563eb' },
+        { key: 'net', label: 'Net spend', color: '#22c55e' },
+        { key: 'refund', label: 'Refunded', color: '#ef4444' }
+] as const
+
+const SpendingTimelineChart = ({
+        currency,
+        timeline
+}: {
+        currency: string
+        timeline: SpendingTimelineEntry[]
+}) => {
+        const chartData = useMemo(() => buildSpendingTimelinePoints(timeline), [timeline])
+        const canvasRef = useRef<HTMLCanvasElement | null>(null)
+        const chartInstanceRef = useRef<any>(null)
+        const [chartReady, setChartReady] = useState(() => typeof window !== 'undefined' && Boolean(window.Chart))
+        const [chartError, setChartError] = useState<string | null>(null)
+
+        const chartConfig = useMemo(() => {
+                const labels = chartData.map(entry => entry.period)
+                const formatter = new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency,
+                        maximumFractionDigits: 2
+                })
+
+                const datasets = spendingSeries.map(series => ({
+                        label: series.label,
+                        data: chartData.map(point => point[series.key]),
+                        borderColor: series.color,
+                        backgroundColor: withAlpha(series.color, series.key === 'net' ? 0.18 : 0.12),
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: series.color,
+                        fill: series.key === 'net',
+                        tension: 0.34,
+                        borderWidth: 2,
+                        pointRadius: 3
+                }))
+
+                return {
+                        type: 'line',
+                        data: { labels, datasets },
+                        options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: { mode: 'index', intersect: false },
+                                plugins: {
+                                        legend: { position: 'bottom' },
+                                        tooltip: {
+                                                callbacks: {
+                                                        label: (context: any) => {
+                                                                const value = context.parsed.y
+                                                                return `${context.dataset.label}: ${formatter.format(value)}`
+                                                        },
+                                                        afterBody: (items: any[]) => {
+                                                                if (!items || items.length === 0) return ''
+                                                                const index = items[0].dataIndex
+                                                                const point = chartData[index]
+                                                                return [
+                                                                        `Payments: ${point.totalPayments.toLocaleString('en-US')}`,
+                                                                        `Refunded: ${point.refundedPayments.toLocaleString('en-US')}`,
+                                                                        `With refunds: ${point.withRefunds.toLocaleString('en-US')}`
+                                                                ]
+                                                        }
+                                                }
+                                        }
+                                },
+                                scales: {
+                                        y: {
+                                                ticks: {
+                                                        callback: (value: number | string) =>
+                                                                formatter.format(Number(value))
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }, [chartData, currency])
+
+        useEffect(() => {
+                let mounted = true
+
+                const setupChart = async () => {
+                        try {
+                                await loadChartJs()
+                                if (!mounted) return
+                                setChartReady(true)
+                        } catch (error) {
+                                if (!mounted) return
+                                setChartError((error as Error).message)
+                        }
+                }
+
+                if (!chartReady && !chartError) {
+                        void setupChart()
+                }
+
+                return () => {
+                        mounted = false
+                }
+        }, [chartReady, chartError])
+
+        useEffect(() => {
+                if (!chartReady || !canvasRef.current) {
+                        return
+                }
+
+                const ctx = canvasRef.current.getContext('2d')
+                if (!ctx) {
+                        return
+                }
+
+                if (chartInstanceRef.current) {
+                        chartInstanceRef.current.destroy()
+                        chartInstanceRef.current = null
+                }
+
+                chartInstanceRef.current = new window.Chart(ctx, chartConfig)
+
+                return () => {
+                        if (chartInstanceRef.current) {
+                                chartInstanceRef.current.destroy()
+                                chartInstanceRef.current = null
+                        }
+                }
+        }, [chartConfig, chartReady])
+
+        if (chartError) {
+                return (
+                        <div className='flex items-center gap-2 rounded-2xl border border-error/40 bg-error/10 p-3 text-sm text-error'>
+                                <AlertCircle className='size-4' />
+                                <span>{chartError}</span>
+                        </div>
+                )
+        }
+
+        if (!chartReady) {
+                return (
+                        <div className='flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
+                                <Loader2 className='size-5 animate-spin text-primary' />
+                                <span>Loading spending chart…</span>
+                        </div>
+                )
+        }
+
+        if (chartData.length === 0) {
+                return (
+                        <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
+                                No spending data available for {currency} in this range.
+                        </div>
+                )
+        }
+
+        return (
+                <div className='relative h-80 w-full'>
+                        <canvas ref={canvasRef} className='h-full w-full' />
+                </div>
+        )
+}
+
+const SpendingSection = ({ spending }: { spending: ClientSpendingStatistics | null | undefined }) => {
+        const hasSummary = Boolean(spending && Array.isArray(spending.summary) && spending.summary.length > 0)
+        const currencies = useMemo(() => {
+                if (hasSummary && spending) {
+                        return spending.summary.map(entry => entry.currency)
+                }
+                return Object.keys(spending?.timelineByCurrency ?? {})
+        }, [hasSummary, spending])
+
+        const [activeCurrency, setActiveCurrency] = useState(() => currencies[0] ?? '')
+
+        useEffect(() => {
+                if (currencies.length === 0) {
+                        setActiveCurrency('')
+                        return
+                }
+
+                setActiveCurrency(prev => {
+                        if (prev && currencies.includes(prev)) {
+                                return prev
+                        }
+                        return currencies[0]
+                })
+        }, [currencies])
+
+        const activeSummary = useMemo(() => {
+                if (!spending || !activeCurrency) {
+                        return undefined
+                }
+                return spending.summary.find(entry => entry.currency === activeCurrency)
+        }, [spending, activeCurrency])
+
+        const activeTimeline = useMemo(() => {
+                if (!spending || !activeCurrency) {
+                        return [] as SpendingTimelineEntry[]
+                }
+                return spending.timelineByCurrency?.[activeCurrency] ?? []
+        }, [spending, activeCurrency])
+
+        const aggregatedTimeline = useMemo(
+                () =>
+                        activeTimeline.reduce(
+                                (acc, entry) => {
+                                        acc.gross += parseAmountToNumber(entry.grossAmount)
+                                        acc.net += parseAmountToNumber(entry.netAmount)
+                                        acc.refund += parseAmountToNumber(entry.refundAmount)
+                                        acc.totalPayments += entry.paymentCount.total
+                                        acc.refunded += entry.paymentCount.refunded
+                                        acc.withRefunds += entry.paymentCount.withRefunds
+                                        return acc
+                                },
+                                {
+                                        gross: 0,
+                                        net: 0,
+                                        refund: 0,
+                                        totalPayments: 0,
+                                        refunded: 0,
+                                        withRefunds: 0
+                                }
+                        ),
+                [activeTimeline]
+        )
+
+        if (!spending || (!hasSummary && currencies.length === 0)) {
                 return (
                         <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
                                 No spending activity recorded in the selected window.
@@ -506,78 +701,172 @@ const SpendingSection = ({ spending }: { spending: Record<string, unknown> }) =>
                 )
         }
 
-        const summaryCandidates = [spending.summary, spending.totals].find(Array.isArray) as
-                | Array<Record<string, unknown>>
-                | undefined
-
         return (
                 <div className='flex flex-col gap-6 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                        {summaryCandidates ? (
-                                <div>
-                                        <h3 className='text-lg font-semibold text-base-content'>Spending summary</h3>
-                                        <div className='mt-4 overflow-x-auto'>
-                                                <table className='table table-sm w-full text-sm'>
-                                                        <thead className='text-xs uppercase tracking-wide text-base-content/60'>
-                                                                <tr>
-                                                                        {Object.keys(summaryCandidates[0] ?? {}).map(key => (
-                                                                                <th key={key} className='bg-base-100 whitespace-nowrap'>
-                                                                                        {key}
-                                                                                </th>
-                                                                        ))}
-                                                                </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                                {summaryCandidates.map((row, index) => (
-                                                                        <tr key={`spending-summary-${index}`}>
-                                                                                {Object.entries(row).map(([key, value]) => (
-                                                                                        <td key={key} className='whitespace-nowrap'>
-                                                                                                {typeof value === 'number' ? value.toLocaleString('en-US') : String(value ?? '')}
-                                                                                        </td>
-                                                                                ))}
-                                                                        </tr>
-                                                                ))}
-                                                        </tbody>
-                                                </table>
+                        {hasSummary ? (
+                                <div className='space-y-4'>
+                                        <div className='flex items-center justify-between gap-3'>
+                                                <div>
+                                                        <h3 className='text-lg font-semibold text-base-content'>Spending summary</h3>
+                                                        <p className='text-xs uppercase tracking-wide text-base-content/60'>Gross vs net spending by currency</p>
+                                                </div>
+                                                <span className='badge badge-outline badge-sm'>
+                                                        {spending.summary.length} {spending.summary.length === 1 ? 'currency' : 'currencies'}
+                                                </span>
+                                        </div>
+
+                                        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+                                                {spending.summary.map(entry => {
+                                                        const isActive = entry.currency === activeCurrency
+                                                        return (
+                                                                <button
+                                                                        key={entry.currency}
+                                                                        type='button'
+                                                                        onClick={() => setActiveCurrency(entry.currency)}
+                                                                        className={`group flex flex-col rounded-3xl border px-5 py-4 text-left transition focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                                                                                isActive
+                                                                                        ? 'border-primary/70 bg-primary/5 shadow-[0_12px_40px_rgba(79,70,229,0.1)]'
+                                                                                        : 'border-base-200 bg-base-100 hover:border-primary/40 hover:bg-primary/5'
+                                                                        }`}
+                                                                >
+                                                                        <div className='flex items-center justify-between gap-3'>
+                                                                                <span className='text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60'>
+                                                                                        {entry.currency}
+                                                                                </span>
+                                                                                <span className='text-xs font-medium text-base-content/60'>
+                                                                                        {entry.paymentCount.total.toLocaleString('en-US')} payments
+                                                                                </span>
+                                                                        </div>
+                                                                        <div className='mt-3 flex flex-col gap-2'>
+                                                                                <div className='flex items-center justify-between text-sm text-base-content/70'>
+                                                                                        <span>Gross</span>
+                                                                                        <span className='font-semibold text-base-content'>
+                                                                                                {formatCurrency(entry.currency, entry.grossAmount)}
+                                                                                        </span>
+                                                                                </div>
+                                                                                <div className='flex items-center justify-between text-sm text-base-content/70'>
+                                                                                        <span>Net</span>
+                                                                                        <span className='font-semibold text-success'>
+                                                                                                {formatCurrency(entry.currency, entry.netAmount)}
+                                                                                        </span>
+                                                                                </div>
+                                                                                <div className='flex items-center justify-between text-sm text-base-content/70'>
+                                                                                        <span>Refunded</span>
+                                                                                        <span className='font-semibold text-error'>
+                                                                                                {formatCurrency(entry.currency, entry.refundAmount)}
+                                                                                        </span>
+                                                                                </div>
+                                                                        </div>
+                                                                        <div className='mt-4 grid grid-cols-3 gap-2 text-[11px] uppercase tracking-wide text-base-content/60'>
+                                                                                <div>
+                                                                                        <p className='font-semibold text-base-content'>
+                                                                                                {entry.paymentCount.succeeded.toLocaleString('en-US')}
+                                                                                        </p>
+                                                                                        <p>Succeeded</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                        <p className='font-semibold text-warning'>
+                                                                                                {entry.paymentCount.refunded.toLocaleString('en-US')}
+                                                                                        </p>
+                                                                                        <p>Refunded</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                        <p className='font-semibold text-info'>
+                                                                                                {entry.paymentCount.withRefunds.toLocaleString('en-US')}
+                                                                                        </p>
+                                                                                        <p>With refunds</p>
+                                                                                </div>
+                                                                        </div>
+                                                                </button>
+                                                        )
+                                                })}
                                         </div>
                                 </div>
                         ) : null}
 
-                        {Array.isArray(spending.timeline) && spending.timeline.length > 0 ? (
-                                <div className='flex flex-col gap-4'>
-                                        <h3 className='text-lg font-semibold text-base-content'>Spending timeline</h3>
-                                        <div className='overflow-x-auto'>
-                                                <table className='table table-sm w-full text-sm'>
-                                                        <thead className='text-xs uppercase tracking-wide text-base-content/60'>
-                                                                <tr>
-                                                                        {Object.keys(spending.timeline[0] as Record<string, unknown>).map(key => (
-                                                                                <th key={key} className='bg-base-100 whitespace-nowrap'>
-                                                                                        {key}
-                                                                                </th>
-                                                                        ))}
-                                                                </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                                {(spending.timeline as Array<Record<string, unknown>>).map((row, index) => (
-                                                                        <tr key={`spending-timeline-${index}`}>
-                                                                                {Object.entries(row).map(([key, value]) => (
-                                                                                        <td key={key} className='whitespace-nowrap'>
-                                                                                                {typeof value === 'number' ? value.toLocaleString('en-US') : String(value ?? '')}
-                                                                                        </td>
-                                                                                ))}
-                                                                        </tr>
+                        {activeCurrency ? (
+                                <div className='space-y-4'>
+                                        <div className='flex flex-wrap items-center justify-between gap-3'>
+                                                <div className='flex items-center gap-3'>
+                                                        <PiggyBank className='size-5 text-primary' />
+                                                        <div>
+                                                                <h3 className='text-lg font-semibold text-base-content'>{activeCurrency} timeline</h3>
+                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>
+                                                                        Visualising spend across {activeTimeline.length}{' '}
+                                                                        {activeTimeline.length === 1 ? 'period' : 'periods'}
+                                                                </p>
+                                                        </div>
+                                                </div>
+                                                {currencies.length > 1 ? (
+                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                {currencies.map(currency => (
+                                                                        <button
+                                                                                key={currency}
+                                                                                type='button'
+                                                                                onClick={() => setActiveCurrency(currency)}
+                                                                                className={`btn btn-sm ${
+                                                                                        activeCurrency === currency
+                                                                                                ? 'btn-primary'
+                                                                                                : 'btn-ghost text-base-content'
+                                                                                }`}
+                                                                        >
+                                                                                {currency}
+                                                                        </button>
                                                                 ))}
-                                                        </tbody>
-                                                </table>
+                                                        </div>
+                                                ) : null}
                                         </div>
-                                </div>
-                        ) : null}
 
-                        <div>
-                                <h3 className='text-lg font-semibold text-base-content'>Raw data</h3>
-                                <pre className='mt-3 max-h-80 overflow-auto rounded-2xl bg-base-200/60 p-4 text-xs text-base-content/80'>
-                                        {JSON.stringify(spending, null, 2)}
-                                </pre>
-                        </div>
+                                        {activeSummary ? (
+                                                <div className='grid gap-3 rounded-3xl bg-base-200/60 p-5 text-sm sm:grid-cols-3'>
+                                                        <div className='space-y-1'>
+                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Gross</p>
+                                                                <p className='text-base font-semibold text-base-content'>
+                                                                        {formatCurrency(activeSummary.currency, activeSummary.grossAmount)}
+                                                                </p>
+                                                        </div>
+                                                        <div className='space-y-1'>
+                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Net</p>
+                                                                <p className='text-base font-semibold text-success'>
+                                                                        {formatCurrency(activeSummary.currency, activeSummary.netAmount)}
+                                                                </p>
+                                                        </div>
+                                                        <div className='space-y-1'>
+                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Refunded</p>
+                                                                <p className='text-base font-semibold text-error'>
+                                                                        {formatCurrency(activeSummary.currency, activeSummary.refundAmount)}
+                                                                </p>
+                                                        </div>
+                                                </div>
+                                        ) : null}
+
+                                        <SpendingTimelineChart currency={activeCurrency} timeline={activeTimeline} />
+
+                                        {activeTimeline.length > 0 ? (
+                                                <div className='rounded-3xl border border-base-200 bg-base-100 p-4 text-sm text-base-content/70'>
+                                                        <div className='flex flex-wrap items-center gap-4'>
+                                                                <span className='font-semibold text-base-content'>
+                                                                        {aggregatedTimeline.totalPayments.toLocaleString('en-US')} payments
+                                                                </span>
+                                                                <span className='text-error'>
+                                                                        {aggregatedTimeline.refunded.toLocaleString('en-US')} refunded
+                                                                </span>
+                                                                <span className='text-info'>
+                                                                        {aggregatedTimeline.withRefunds.toLocaleString('en-US')} with refunds
+                                                                </span>
+                                                        </div>
+                                                </div>
+                                        ) : (
+                                                <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
+                                                        No timeline entries for {activeCurrency}.
+                                                </div>
+                                        )}
+                                </div>
+                        ) : (
+                                <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
+                                        Select a currency to review its spending activity.
+                                </div>
+                        )}
                 </div>
         )
 }
@@ -629,11 +918,15 @@ export default function FreelancerFinancialOverviewPage() {
         const earningsSummary = overview?.earnings.summary ?? []
         const timelineByCurrency = overview?.earnings.timelineByCurrency ?? {}
         const timelineCurrencies = Object.keys(timelineByCurrency)
-        const spendingData = overview?.spending ?? {}
+        const spendingData = overview?.spending ?? null
 
         const hasSummaryData = earningsSummary.length > 0
         const hasTimelineData = timelineCurrencies.length > 0
-        const hasSpendingData = Object.keys(spendingData ?? {}).length > 0
+        const hasSpendingData = Boolean(
+                spendingData &&
+                ((Array.isArray(spendingData.summary) && spendingData.summary.length > 0) ||
+                        Object.values(spendingData.timelineByCurrency ?? {}).some(entries => entries.length > 0))
+        )
         const hasAnyData = hasSummaryData || hasTimelineData || hasSpendingData
 
         const errorMessage = error ? (typeof error === 'string' ? error : (error as Error).message) : null
@@ -709,7 +1002,7 @@ export default function FreelancerFinancialOverviewPage() {
         }, [hasTimelineData, timelineCurrencies])
 
         return (
-                <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
+                <div className='relative left-1/2 w-screen max-w-[1440px] -translate-x-1/2 px-4 py-8 sm:px-6 lg:px-10'>
                         <div className='flex flex-col gap-2'>
                                 <h1 className='text-3xl font-semibold text-base-content'>Financial overview</h1>
                                 <p className='text-base text-base-content/70'>
@@ -931,7 +1224,7 @@ export default function FreelancerFinancialOverviewPage() {
                                                                                 title='Spending statistics'
                                                                                 description='Understand how outgoing payments trend alongside your earnings.'
                                                                         />
-                                                                        <SpendingSection spending={spendingData as Record<string, unknown>} />
+                                                                        <SpendingSection spending={spendingData} />
                                                                 </div>
                                                         ) : (
                                                                 <div className='rounded-3xl border border-base-200 bg-base-100 p-6 text-sm text-base-content/70'>

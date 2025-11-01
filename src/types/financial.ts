@@ -35,30 +35,44 @@ export type EarningsTimelineEntry = {
         transferCount: TransferCountSummary
 }
 
+export type SpendingPaymentSummary = {
+        total: number
+        succeeded: number
+        refunded: number
+        withRefunds: number
+}
+
+export type SpendingPaymentTimeline = {
+        total: number
+        refunded: number
+        withRefunds: number
+}
+
 export type SpendingSummaryEntry = {
         currency: string
-        totalAmount?: string
-        completedAmount?: string
-        pendingAmount?: string
-        disputedAmount?: string
-        refundedAmount?: string
-        transferCount?: number
-        [key: string]: string | number | undefined
+        grossAmount: string
+        refundAmount: string
+        netAmount: string
+        paymentCount: SpendingPaymentSummary
 }
 
 export type SpendingTimelineEntry = {
         period: string
-        amount: string
-        currency?: string
-        [key: string]: string | number | undefined
+        grossAmount: string
+        refundAmount: string
+        netAmount: string
+        paymentCount: SpendingPaymentTimeline
 }
 
-export type SpendingStatisticsResult = {
-        summary?: SpendingSummaryEntry[]
-        totals?: SpendingSummaryEntry[]
-        timeline?: SpendingTimelineEntry[]
-        breakdowns?: Record<string, unknown>
-        [key: string]: unknown
+export type ClientSpendingStatistics = {
+        filters: {
+                from: string
+                to: string
+                granularity: Granularity
+                currency?: string
+        }
+        summary: SpendingSummaryEntry[]
+        timelineByCurrency: Record<string, SpendingTimelineEntry[]>
 }
 
 export type FreelancerFinancialOverview = {
@@ -72,5 +86,5 @@ export type FreelancerFinancialOverview = {
                 summary: EarningsSummaryEntry[]
                 timelineByCurrency: Record<string, EarningsTimelineEntry[]>
         }
-        spending: SpendingStatisticsResult
+        spending: ClientSpendingStatistics
 }

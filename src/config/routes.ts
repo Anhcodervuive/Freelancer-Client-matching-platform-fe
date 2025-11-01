@@ -45,6 +45,9 @@ export const routes = {
         client: {
                 freelancers: {
                         list: '/client/freelancers'
+                },
+                financial: {
+                        spending: '/client/financial/spending'
                 }
         },
         me: {

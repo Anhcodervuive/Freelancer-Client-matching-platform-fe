@@ -66,6 +66,7 @@ import JobChatPage from './pages/Comons/Chat/JobChatPage'
 import ClientJobOfferListPage from './pages/Client/JobOffers/ClientJobOfferListPage'
 import FreelancerJobOfferListPage from './pages/Freelancer/Jobs/FreelancerJobOfferListPage'
 import FreelancerFinancialOverviewPage from './pages/Freelancer/Financial/FreelancerFinancialOverviewPage'
+import ClientSpendingStatisticsPage from './pages/Client/Financial/ClientSpendingStatisticsPage'
 import { ChatSocketProvider } from '~/contexts/chat-socket/ChatSocketProvider'
 import ContractListPage from './pages/Contracts/ContractListPage'
 import ContractWorkroomPage from './pages/Contracts/ContractWorkroomPage'
@@ -161,6 +162,11 @@ const router = createBrowserRouter([
                                 path: routes.client.freelancers.list,
                                 loader: composeLoaders(checkAuthenticatedUser, isClientUser),
                                 element: <ClientFreelancerListPage />
+                        },
+                        {
+                                path: routes.client.financial.spending,
+                                loader: composeLoaders(checkAuthenticatedUser, isClientUser),
+                                element: <ClientSpendingStatisticsPage />
                         },
 			{
 				path: routes.me.freelancer.profile,
