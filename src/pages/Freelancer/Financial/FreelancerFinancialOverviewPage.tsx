@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
         AlertCircle,
@@ -79,62 +79,229 @@ const SectionTitle = ({ title, description }: { title: string; description?: str
         </div>
 )
 
-const TimelineTable = ({
-        currency,
-        timeline
-}: {
-        currency: string
-        timeline: EarningsTimelineEntry[]
-}) => {
-        if (timeline.length === 0) return null
+type TimelineAmountKey =
+        | 'pendingAmount'
+        | 'availableAmount'
+        | 'failedAmount'
+        | 'reversedAmount'
+        | 'totalAmount'
+
+const timelineSeries: Array<{
+        key: TimelineAmountKey
+        label: string
+        color: string
+}> = [
+        { key: 'pendingAmount', label: 'Pending', color: '#f59e0b' },
+        { key: 'availableAmount', label: 'Available', color: '#22c55e' },
+        { key: 'failedAmount', label: 'Failed', color: '#ef4444' },
+        { key: 'reversedAmount', label: 'Reversed', color: '#3b82f6' },
+        { key: 'totalAmount', label: 'Total', color: '#0ea5e9' }
+]
+
+type TimelineChartPoint = {
+        period: string
+        transferCount: number
+} & Record<TimelineAmountKey, number>
+
+const parseAmountToNumber = (amount: string) => {
+        const numeric = Number(amount)
+        return Number.isFinite(numeric) ? numeric : 0
+}
+
+const buildTimelinePoints = (timeline: EarningsTimelineEntry[]): TimelineChartPoint[] => {
+        return timeline.map(entry => ({
+                period: entry.period,
+                transferCount: entry.transferCount.total,
+                pendingAmount: parseAmountToNumber(entry.pendingAmount),
+                availableAmount: parseAmountToNumber(entry.availableAmount),
+                failedAmount: parseAmountToNumber(entry.failedAmount),
+                reversedAmount: parseAmountToNumber(entry.reversedAmount),
+                totalAmount: parseAmountToNumber(entry.totalAmount)
+        }))
+}
+
+const TimelineChart = ({ currency, timeline }: { currency: string; timeline: EarningsTimelineEntry[] }) => {
+        const chartData = useMemo(() => buildTimelinePoints(timeline), [timeline])
+
+        if (chartData.length === 0) {
+                return (
+                        <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 p-6 text-sm text-base-content/70'>
+                                No timeline data available for {currency} in this range.
+                        </div>
+                )
+        }
+
+        const maxValue = chartData.reduce((max, point) => {
+                return Math.max(
+                        max,
+                        timelineSeries.reduce((innerMax, series) => Math.max(innerMax, point[series.key]), 0)
+                )
+        }, 0)
+
+        const chartWidth = 100
+        const chartHeight = 220
+        const horizontalPadding = 10
+        const verticalPadding = 16
+
+        const getX = (index: number) => {
+                if (chartData.length === 1) return chartWidth / 2
+                const ratio = index / (chartData.length - 1)
+                return horizontalPadding + ratio * (chartWidth - horizontalPadding * 2)
+        }
+
+        const getY = (value: number) => {
+                if (maxValue <= 0) return chartHeight / 2
+                const ratio = value / maxValue
+                const usableHeight = chartHeight - verticalPadding * 2
+                return chartHeight - verticalPadding - ratio * usableHeight
+        }
+
+        const axisSegments = 4
+        const yAxisLabels = Array.from({ length: axisSegments + 1 }, (_, index) => {
+                const value = (maxValue / axisSegments) * index
+                return {
+                        value,
+                        y: getY(value)
+                }
+        })
+
+        const xTickInterval = Math.max(1, Math.ceil(chartData.length / 6))
+        const xAxisLabels = chartData.map((point, index) => ({
+                period: point.period,
+                index,
+                shouldRender: index % xTickInterval === 0 || index === chartData.length - 1
+        }))
+
+        const aggregated = chartData.reduce(
+                (acc, point) => {
+                        for (const series of timelineSeries) {
+                                acc.amounts[series.key] += point[series.key]
+                        }
+                        acc.transfers += point.transferCount
+                        return acc
+                },
+                {
+                        amounts: {
+                                pendingAmount: 0,
+                                availableAmount: 0,
+                                failedAmount: 0,
+                                reversedAmount: 0,
+                                totalAmount: 0
+                        } as Record<TimelineAmountKey, number>,
+                        transfers: 0
+                }
+        )
 
         return (
-                <div className='rounded-3xl border border-base-200 bg-base-100 shadow-sm'>
-                        <div className='flex flex-wrap items-center justify-between gap-2 border-b border-base-200 p-4'>
+                <div className='flex flex-col gap-6 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
+                        <div className='flex flex-wrap items-center justify-between gap-3'>
                                 <div className='flex items-center gap-3'>
                                         <TrendingUp className='size-5 text-primary' />
                                         <div>
                                                 <h3 className='text-lg font-semibold text-base-content'>{currency} timeline</h3>
                                                 <p className='text-xs uppercase tracking-wide text-base-content/60'>
-                                                        Period-by-period transfer movement
+                                                        Visualising transfers across {chartData.length}{' '}
+                                                        {chartData.length === 1 ? 'period' : 'periods'}
                                                 </p>
                                         </div>
                                 </div>
                                 <span className='badge badge-outline badge-sm'>
-                                        {timeline.length} {timeline.length === 1 ? 'period' : 'periods'}
+                                        {chartData.length} {chartData.length === 1 ? 'period' : 'periods'}
                                 </span>
                         </div>
-                        <div className='overflow-x-auto'>
-                                <table className='table table-zebra w-full text-sm'>
-                                        <thead className='text-xs uppercase tracking-wide text-base-content/60'>
-                                                <tr>
-                                                        <th className='bg-base-100'>Period</th>
-                                                        <th className='bg-base-100 text-right'>Pending</th>
-                                                        <th className='bg-base-100 text-right'>Available</th>
-                                                        <th className='bg-base-100 text-right'>Failed</th>
-                                                        <th className='bg-base-100 text-right'>Reversed</th>
-                                                        <th className='bg-base-100 text-right'>Total</th>
-                                                        <th className='bg-base-100 text-right'>Transfers</th>
-                                                </tr>
-                                        </thead>
-                                        <tbody>
-                                                {timeline.map(entry => (
-                                                        <tr key={`${currency}-${entry.period}`}>
-                                                                <td className='font-medium'>{entry.period}</td>
-                                                                <td className='text-right'>{formatCurrency(currency, entry.pendingAmount)}</td>
-                                                                <td className='text-right'>{formatCurrency(currency, entry.availableAmount)}</td>
-                                                                <td className='text-right'>{formatCurrency(currency, entry.failedAmount)}</td>
-                                                                <td className='text-right'>{formatCurrency(currency, entry.reversedAmount)}</td>
-                                                                <td className='text-right font-semibold text-base-content'>
-                                                                        {formatCurrency(currency, entry.totalAmount)}
-                                                                </td>
-                                                                <td className='text-right text-base-content/80'>
-                                                                        {formatCount(entry.transferCount.total)}
-                                                                </td>
-                                                        </tr>
+
+                        <div className='space-y-4'>
+                                <div className='relative h-64 w-full'>
+                                        <svg
+                                                className='h-full w-full'
+                                                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                                                preserveAspectRatio='none'
+                                        >
+                                                {yAxisLabels.map(label => (
+                                                        <line
+                                                                key={`grid-${label.value}`}
+                                                                x1={horizontalPadding}
+                                                                x2={chartWidth - horizontalPadding}
+                                                                y1={label.y}
+                                                                y2={label.y}
+                                                                stroke='currentColor'
+                                                                strokeWidth={0.4}
+                                                                className='text-base-content/10'
+                                                        />
                                                 ))}
-                                        </tbody>
-                                </table>
+
+                                                {timelineSeries.map(series => {
+                                                        const points = chartData
+                                                                .map((point, index) => `${getX(index)},${getY(point[series.key])}`)
+                                                                .join(' ')
+
+                                                        return (
+                                                                <polyline
+                                                                        key={series.key}
+                                                                        points={points}
+                                                                        fill='none'
+                                                                        stroke={series.color}
+                                                                        strokeWidth={2.2}
+                                                                        strokeLinecap='round'
+                                                                        strokeLinejoin='round'
+                                                                />
+                                                        )
+                                                })}
+
+                                                {chartData.map((point, index) => (
+                                                        <g key={`${point.period}-${index}`}>
+                                                                {timelineSeries.map(series => (
+                                                                        <circle
+                                                                                key={`${series.key}-${index}`}
+                                                                                cx={getX(index)}
+                                                                                cy={getY(point[series.key])}
+                                                                                r={1.5}
+                                                                                fill={series.color}
+                                                                        >
+                                                                                <title>
+                                                                                        {series.label}: {formatCurrency(currency, point[series.key].toString())}
+                                                                                </title>
+                                                                        </circle>
+                                                                ))}
+                                                        </g>
+                                                ))}
+                                        </svg>
+                                </div>
+
+                                <div className='grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'>
+                                        {timelineSeries.map(series => (
+                                                <div
+                                                        key={series.key}
+                                                        className='flex items-center justify-between gap-3 rounded-2xl bg-base-200/60 px-3 py-2 text-xs'
+                                                >
+                                                        <div className='flex items-center gap-2 text-base-content'>
+                                                                <span
+                                                                        className='inline-block size-2 rounded-full'
+                                                                        style={{ backgroundColor: series.color }}
+                                                                />
+                                                                <span className='font-medium'>{series.label}</span>
+                                                        </div>
+                                                        <span className='font-semibold text-base-content'>
+                                                                {formatCurrency(currency, aggregated.amounts[series.key].toString())}
+                                                        </span>
+                                                </div>
+                                        ))}
+                                </div>
+
+                                <div className='flex items-center gap-2 rounded-2xl bg-base-200/40 px-4 py-3 text-xs font-medium uppercase tracking-wide text-base-content/70'>
+                                        <ArrowRightLeft className='size-4 text-primary' />
+                                        {formatCount(aggregated.transfers)} total transfers represented in this chart
+                                </div>
+
+                                <div className='flex flex-wrap items-center justify-between gap-2 text-xs uppercase tracking-wide text-base-content/60'>
+                                        {xAxisLabels
+                                                .filter(label => label.shouldRender)
+                                                .map(label => (
+                                                        <span key={`${label.period}-${label.index}`} className='whitespace-nowrap'>
+                                                                {label.period}
+                                                        </span>
+                                                ))}
+                                </div>
                         </div>
                 </div>
         )
@@ -301,6 +468,8 @@ type FiltersFormState = {
         currency: string
 }
 
+type OverviewTabKey = 'summary' | 'timeline' | 'spending'
+
 export default function FreelancerFinancialOverviewPage() {
         const { start, end } = useMemo(() => buildDefaultDates(), [])
         const [formState, setFormState] = useState<FiltersFormState>({
@@ -316,6 +485,8 @@ export default function FreelancerFinancialOverviewPage() {
                 currency: ''
         }))
         const [dateError, setDateError] = useState<string | null>(null)
+        const [activeSection, setActiveSection] = useState<OverviewTabKey>('summary')
+        const [activeTimelineCurrency, setActiveTimelineCurrency] = useState<string | null>(null)
 
         const queryKey = useMemo(() => ['freelancer-financial-overview', filters], [filters])
 
@@ -329,6 +500,11 @@ export default function FreelancerFinancialOverviewPage() {
         const timelineByCurrency = overview?.earnings.timelineByCurrency ?? {}
         const timelineCurrencies = Object.keys(timelineByCurrency)
         const spendingData = overview?.spending ?? {}
+
+        const hasSummaryData = earningsSummary.length > 0
+        const hasTimelineData = timelineCurrencies.length > 0
+        const hasSpendingData = Object.keys(spendingData ?? {}).length > 0
+        const hasAnyData = hasSummaryData || hasTimelineData || hasSpendingData
 
         const errorMessage = error ? (typeof error === 'string' ? error : (error as Error).message) : null
 
@@ -350,6 +526,57 @@ export default function FreelancerFinancialOverviewPage() {
 
                 setFilters(buildQueryFilters(formState))
         }
+
+        const tabConfigs = useMemo(
+                () => [
+                        {
+                                key: 'summary' as const,
+                                label: 'Earnings',
+                                description: 'Balances & payout pipeline',
+                                icon: <Wallet className='size-4' />,
+                                disabled: !hasSummaryData
+                        },
+                        {
+                                key: 'timeline' as const,
+                                label: 'Timeline',
+                                description: 'Transfer trends over time',
+                                icon: <TrendingUp className='size-4' />,
+                                disabled: !hasTimelineData
+                        },
+                        {
+                                key: 'spending' as const,
+                                label: 'Spending',
+                                description: 'Outgoing payment analytics',
+                                icon: <ArrowRightLeft className='size-4' />,
+                                disabled: !hasSpendingData
+                        }
+                ],
+                [hasSummaryData, hasTimelineData, hasSpendingData]
+        )
+
+        useEffect(() => {
+                const activeConfig = tabConfigs.find(tab => tab.key === activeSection)
+                if (activeConfig?.disabled) {
+                        const fallback = tabConfigs.find(tab => !tab.disabled)
+                        if (fallback && fallback.key !== activeSection) {
+                                setActiveSection(fallback.key)
+                        }
+                }
+        }, [activeSection, tabConfigs])
+
+        useEffect(() => {
+                if (!hasTimelineData) {
+                        setActiveTimelineCurrency(null)
+                        return
+                }
+
+                setActiveTimelineCurrency(prev => {
+                        if (prev && timelineCurrencies.includes(prev)) {
+                                return prev
+                        }
+                        return timelineCurrencies[0]
+                })
+        }, [hasTimelineData, timelineCurrencies])
 
         return (
                 <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
@@ -457,62 +684,132 @@ export default function FreelancerFinancialOverviewPage() {
                                 </div>
                         ) : null}
 
-                        {!isLoading && earningsSummary.length === 0 ? <EmptyState /> : null}
+                        {!isLoading && !hasAnyData ? <EmptyState /> : null}
 
-                        {earningsSummary.length > 0 ? (
+                        {hasAnyData ? (
                                 <section className='mt-10 space-y-6'>
-                                        <SectionTitle
-                                                title='Earnings summary'
-                                                description='Balances and payout pipeline grouped by currency.'
-                                        />
-                                        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-                                                {earningsSummary.map(entry => (
-                                                        <article
-                                                                key={entry.currency}
-                                                                className='flex h-full flex-col gap-4 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'
-                                                        >
-                                                                <div className='flex items-center justify-between gap-2'>
-                                                                        <div>
-                                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Currency</p>
-                                                                                <h3 className='text-2xl font-semibold text-base-content'>{entry.currency}</h3>
-                                                                        </div>
-                                                                        <div className='rounded-2xl bg-primary/10 p-3 text-primary'>
-                                                                                <Wallet className='size-6' />
+                                        <div className='space-y-3 rounded-3xl border border-base-200 bg-base-100 p-4 shadow-sm sm:p-6'>
+                                                <div className='text-xs uppercase tracking-wide text-base-content/50'>Financial insights</div>
+                                                <div className='flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between'>
+                                                        <div className='flex flex-wrap gap-3'>
+                                                                {tabConfigs.map(tab => {
+                                                                        const isActive = tab.key === activeSection
+                                                                        return (
+                                                                                <button
+                                                                                        key={tab.key}
+                                                                                        type='button'
+                                                                                        className={`flex min-w-[10rem] flex-1 items-start gap-3 rounded-2xl border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-primary/60 sm:flex-auto lg:min-w-[12rem] ${
+                                                                                                isActive
+                                                                                                        ? 'border-primary/40 bg-primary/10 text-primary'
+                                                                                                        : 'border-base-200 text-base-content'
+                                                                                        } ${tab.disabled ? 'cursor-not-allowed opacity-50' : 'hover:border-primary/30 hover:bg-primary/5'}`}
+                                                                                        onClick={() => (tab.disabled ? null : setActiveSection(tab.key))}
+                                                                                        disabled={tab.disabled}
+                                                                                >
+                                                                                        <div className={`rounded-xl p-2 ${isActive ? 'bg-primary/20 text-primary' : 'bg-base-200/60 text-base-content/70'}`}>
+                                                                                                {tab.icon}
+                                                                                        </div>
+                                                                                        <div className='flex flex-col gap-1'>
+                                                                                                <span className='text-sm font-semibold'>{tab.label}</span>
+                                                                                                <span className='text-xs text-base-content/60'>{tab.description}</span>
+                                                                                        </div>
+                                                                                </button>
+                                                                        )
+                                                                })}
+                                                        </div>
+                                                </div>
+                                        </div>
+
+                                        <div className='space-y-10'>
+                                                {activeSection === 'summary' ? (
+                                                        hasSummaryData ? (
+                                                                <div className='space-y-6'>
+                                                                        <SectionTitle
+                                                                                title='Earnings summary'
+                                                                                description='Balances and payout pipeline grouped by currency.'
+                                                                        />
+                                                                        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+                                                                                {earningsSummary.map(entry => (
+                                                                                        <article
+                                                                                                key={entry.currency}
+                                                                                                className='flex h-full flex-col gap-4 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'
+                                                                                        >
+                                                                                                <div className='flex items-center justify-between gap-2'>
+                                                                                                        <div>
+                                                                                                                <p className='text-xs uppercase tracking-wide text-base-content/60'>Currency</p>
+                                                                                                                <h3 className='text-2xl font-semibold text-base-content'>{entry.currency}</h3>
+                                                                                                        </div>
+                                                                                                        <div className='rounded-2xl bg-primary/10 p-3 text-primary'>
+                                                                                                                <Wallet className='size-6' />
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                                <TransferBreakdownList currency={entry.currency} entry={entry} />
+                                                                                                <TransferCountList entry={entry} />
+                                                                                        </article>
+                                                                                ))}
                                                                         </div>
                                                                 </div>
-                                                                <TransferBreakdownList currency={entry.currency} entry={entry} />
-                                                                <TransferCountList entry={entry} />
-                                                        </article>
-                                                ))}
-                                        </div>
-                                </section>
-                        ) : null}
+                                                        ) : (
+                                                                <EmptyState />
+                                                        )
+                                                ) : null}
 
-                        {timelineCurrencies.length > 0 ? (
-                                <section className='mt-12 space-y-6'>
-                                        <SectionTitle
-                                                title='Earnings timeline'
-                                                description='Monitor how transfers evolve over time in each currency.'
-                                        />
-                                        <div className='space-y-6'>
-                                                {timelineCurrencies.map(currency => (
-                                                        <TimelineTable
-                                                                key={currency}
-                                                                currency={currency}
-                                                                timeline={timelineByCurrency[currency] ?? []}
-                                                        />
-                                                ))}
-                                        </div>
-                                </section>
-                        ) : null}
+                                                {activeSection === 'timeline' ? (
+                                                        hasTimelineData ? (
+                                                                <div className='space-y-6'>
+                                                                        <SectionTitle
+                                                                                title='Earnings timeline'
+                                                                                description='Monitor how transfers evolve over time in each currency.'
+                                                                        />
+                                                                        <div className='flex flex-wrap items-center gap-2'>
+                                                                                {timelineCurrencies.map(currency => {
+                                                                                        const isCurrencyActive = activeTimelineCurrency === currency
+                                                                                        return (
+                                                                                                <button
+                                                                                                        key={currency}
+                                                                                                        type='button'
+                                                                                                        className={`btn btn-sm ${
+                                                                                                                isCurrencyActive
+                                                                                                                        ? 'btn-primary'
+                                                                                                                        : 'btn-outline'
+                                                                                                        }`}
+                                                                                                        onClick={() => setActiveTimelineCurrency(currency)}
+                                                                                                >
+                                                                                                        {currency}
+                                                                                                </button>
+                                                                                        )
+                                                                                })}
+                                                                        </div>
+                                                                        {activeTimelineCurrency ? (
+                                                                                <TimelineChart
+                                                                                        currency={activeTimelineCurrency}
+                                                                                        timeline={timelineByCurrency[activeTimelineCurrency] ?? []}
+                                                                                />
+                                                                        ) : null}
+                                                                </div>
+                                                        ) : (
+                                                                <div className='rounded-3xl border border-base-200 bg-base-100 p-6 text-sm text-base-content/70'>
+                                                                        Timeline data will appear once transfers are recorded in the selected period.
+                                                                </div>
+                                                        )
+                                                ) : null}
 
-                        {overview ? (
-                                <section className='mt-12 space-y-6'>
-                                        <SectionTitle
-                                                title='Spending statistics'
-                                                description='Understand how outgoing payments trend alongside your earnings.'
-                                        />
-                                        <SpendingSection spending={spendingData as Record<string, unknown>} />
+                                                {activeSection === 'spending' ? (
+                                                        hasSpendingData ? (
+                                                                <div className='space-y-6'>
+                                                                        <SectionTitle
+                                                                                title='Spending statistics'
+                                                                                description='Understand how outgoing payments trend alongside your earnings.'
+                                                                        />
+                                                                        <SpendingSection spending={spendingData as Record<string, unknown>} />
+                                                                </div>
+                                                        ) : (
+                                                                <div className='rounded-3xl border border-base-200 bg-base-100 p-6 text-sm text-base-content/70'>
+                                                                        No spending activity recorded in the selected window.
+                                                                </div>
+                                                        )
+                                                ) : null}
+                                        </div>
                                 </section>
                         ) : null}
 
