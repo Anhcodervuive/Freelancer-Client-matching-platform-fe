@@ -130,6 +130,7 @@ export default function AdminUserDetailModal({
         const [banReason, setBanReason] = useState('')
         const [banNote, setBanNote] = useState('')
         const [banExpiresAt, setBanExpiresAt] = useState('')
+        const [activeTab, setActiveTab] = useState<'overview' | 'moderation'>('overview')
         const [banErrors, setBanErrors] = useState<{
                 reason?: string
                 note?: string
@@ -151,6 +152,7 @@ export default function AdminUserDetailModal({
                 setBanExpiresAt('')
                 setBanErrors({})
                 setUnbanReactivate(true)
+                setActiveTab('overview')
         }, [userId, open])
 
         const isCurrentUser = useMemo(() => {
@@ -238,10 +240,20 @@ export default function AdminUserDetailModal({
                         <div className='modal-box max-w-3xl space-y-6'>
                                 <div className='flex items-start justify-between gap-4 border-b border-base-300 pb-4'>
                                         <div className='flex items-start gap-4'>
-                                                <div className='avatar placeholder'>
-                                                        <div className='bg-primary/10 text-primary rounded-full size-14 grid place-items-center text-lg font-semibold uppercase'>
-                                                                {getInitials(data)}
-                                                        </div>
+                                                <div className='avatar'>
+                                                        {data?.avatar ? (
+                                                                <div className='size-16 rounded-full border border-base-200 bg-base-200/60 ring ring-primary/10 ring-offset-2 ring-offset-base-100 overflow-hidden'>
+                                                                        <img
+                                                                                src={data.avatar}
+                                                                                alt={getDisplayName(data)}
+                                                                                className='size-full object-cover'
+                                                                        />
+                                                                </div>
+                                                        ) : (
+                                                                <div className='bg-primary/10 text-primary size-16 rounded-full grid place-items-center text-xl font-semibold uppercase'>
+                                                                        {getInitials(data)}
+                                                                </div>
+                                                        )}
                                                 </div>
                                                 <div>
                                                         <h3 className='text-xl font-semibold leading-tight'>{getDisplayName(data)}</h3>
@@ -288,116 +300,203 @@ export default function AdminUserDetailModal({
                                         </div>
                                 </div>
 
-                                <div className='grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
-                                        <div className='space-y-4'>
-                                                <div className='rounded-2xl border border-base-300 bg-base-200/60 p-4'>
-                                                        <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                <Users className='size-4' /> Thông tin tài khoản
-                                                        </div>
-                                                        <dl className='mt-4 grid gap-3 sm:grid-cols-2'>
-                                                                <div>
-                                                                        <dt className='text-xs text-base-content/60 uppercase tracking-wide'>Tạo lúc</dt>
-                                                                        <dd className='text-sm font-medium text-base-content'>{formatDateTime(data?.createdAt)}</dd>
-                                                                </div>
-                                                                <div>
-                                                                        <dt className='text-xs text-base-content/60 uppercase tracking-wide'>Cập nhật</dt>
-                                                                        <dd className='text-sm font-medium text-base-content'>{formatDateTime(data?.updatedAt)}</dd>
-                                                                </div>
-                                                                <div>
-                                                                        <dt className='text-xs text-base-content/60 uppercase tracking-wide'>Vai trò hiện tại</dt>
-                                                                        <dd className='text-sm font-medium text-base-content'>
-                                                                                {data?.role ? ROLE_LABELS[data.role] : 'Không thiết lập'}
-                                                                        </dd>
-                                                                </div>
-                                                                <div>
-                                                                        <dt className='text-xs text-base-content/60 uppercase tracking-wide'>Trạng thái</dt>
-                                                                        <dd className='text-sm font-medium text-base-content'>
-                                                                                {data?.isActive ? 'Đang hoạt động' : 'Đã khóa'}
-                                                                        </dd>
-                                                                </div>
-                                                        </dl>
-                                                </div>
-
-                                                <form onSubmit={handleSubmitRole} className='rounded-2xl border border-base-300 bg-base-100 p-4 space-y-4'>
-                                                        <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                <UserRound className='size-4' /> Phân quyền
-                                                        </div>
-                                                        <div className='flex flex-col gap-3 sm:flex-row sm:items-end'>
-                                                                <div className='sm:flex-1'>
-                                                                        <label className='text-xs font-semibold text-base-content/60 uppercase tracking-wide'>Chọn vai trò</label>
-                                                                        <select
-                                                                                className='select select-bordered mt-2 w-full'
-                                                                                value={roleValue ?? ''}
-                                                                                onChange={event => {
-                                                                                        const value = event.target.value as Role | ''
-                                                                                        setRoleValue(value === '' ? null : (value as Role))
-                                                                                }}
-                                                                        >
-                                                                                <option value='' disabled>
-                                                                                        Chọn vai trò
-                                                                                </option>
-                                                                                {roleOptions.map(role => (
-                                                                                        <option key={role} value={role}>
-                                                                                                {ROLE_LABELS[role]}
-                                                                                        </option>
-                                                                                ))}
-                                                                        </select>
-                                                                </div>
-                                                                <button
-                                                                        type='submit'
-                                                                        className='btn btn-primary sm:w-auto'
-                                                                        disabled={!canSubmitRole || updatingRole}
-                                                                >
-                                                                        {updatingRole && <span className='loading loading-spinner loading-sm' />}
-                                                                        Cập nhật vai trò
-                                                                </button>
-                                                        </div>
-                                                        <p className='text-xs text-base-content/60'>Thay đổi vai trò sẽ áp dụng ngay lập tức và được ghi nhận trong nhật ký hệ thống.</p>
-                                                </form>
+                                <div className='flex justify-start'>
+                                        <div
+                                                role='tablist'
+                                                className='tabs tabs-boxed rounded-2xl bg-base-200/60 p-1 text-sm font-medium text-base-content/80'
+                                        >
+                                                <button
+                                                        type='button'
+                                                        role='tab'
+                                                        className={`tab gap-2 rounded-xl ${activeTab === 'overview' ? 'tab-active bg-base-100 text-base-content shadow-sm' : ''}`}
+                                                        aria-selected={activeTab === 'overview'}
+                                                        onClick={() => setActiveTab('overview')}
+                                                >
+                                                        <Users className='size-4' />
+                                                        Tổng quan
+                                                </button>
+                                                <button
+                                                        type='button'
+                                                        role='tab'
+                                                        className={`tab gap-2 rounded-xl ${activeTab === 'moderation' ? 'tab-active bg-base-100 text-base-content shadow-sm' : ''}`}
+                                                        aria-selected={activeTab === 'moderation'}
+                                                        onClick={() => setActiveTab('moderation')}
+                                                >
+                                                        <Lock className='size-4' />
+                                                        Khóa tài khoản
+                                                </button>
                                         </div>
+                                </div>
 
-                                        <div className='space-y-4'>
-                                                <div className='rounded-2xl border border-base-300 bg-base-100 p-4 space-y-3'>
-                                                        <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                <Shield className='size-4' /> Trạng thái tài khoản
-                                                        </div>
-                                                        <div className='flex items-center justify-between rounded-xl border border-base-200 bg-base-200/50 p-3'>
-                                                                <div>
-                                                                        <p className='text-sm font-medium text-base-content'>
-                                                                                {data?.isActive ? 'Tài khoản đang hoạt động' : 'Tài khoản đã khóa'}
-                                                                        </p>
-                                                                        <p className='text-xs text-base-content/60'>
-                                                                                {isCurrentUser
-                                                                                        ? 'Bạn không thể tự vô hiệu hóa tài khoản của mình.'
-                                                                                        : 'Sử dụng công tắc để thay đổi trạng thái truy cập.'}
-                                                                        </p>
+                                {activeTab === 'overview' ? (
+                                        <div className='grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
+                                                <div className='space-y-4'>
+                                                        <div className='rounded-2xl border border-base-300 bg-base-200/60 p-4'>
+                                                                <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                        <Users className='size-4' /> Thông tin tài khoản
                                                                 </div>
-                                                                <label className='flex flex-col items-center gap-1'>
-                                                                        <input
-                                                                                type='checkbox'
-                                                                                className='toggle toggle-primary'
-                                                                                checked={data?.isActive ?? false}
-                                                                                onChange={handleToggleStatus}
-                                                                                disabled={updatingStatus || (isCurrentUser && data?.isActive)}
-                                                                                aria-label='Kích hoạt tài khoản'
-                                                                        />
-                                                                        <span className='text-xs text-base-content/60'>
-                                                                                {updatingStatus ? 'Đang cập nhật…' : data?.isActive ? 'Đã bật' : 'Đã tắt'}
-                                                                        </span>
-                                                                </label>
+                                                                <dl className='mt-4 grid gap-3 sm:grid-cols-2'>
+                                                                        <div>
+                                                                                <dt className='text-xs text-base-content/60 uppercase tracking-wide'>Tạo lúc</dt>
+                                                                                <dd className='text-sm font-medium text-base-content'>{formatDateTime(data?.createdAt)}</dd>
+                                                                        </div>
+                                                                        <div>
+                                                                                <dt className='text-xs text-base-content/60 uppercase tracking-wide'>Cập nhật</dt>
+                                                                                <dd className='text-sm font-medium text-base-content'>{formatDateTime(data?.updatedAt)}</dd>
+                                                                        </div>
+                                                                        <div>
+                                                                                <dt className='text-xs text-base-content/60 uppercase tracking-wide'>Vai trò hiện tại</dt>
+                                                                                <dd className='text-sm font-medium text-base-content'>
+                                                                                        {data?.role ? ROLE_LABELS[data.role] : 'Không thiết lập'}
+                                                                                </dd>
+                                                                        </div>
+                                                                        <div>
+                                                                                <dt className='text-xs text-base-content/60 uppercase tracking-wide'>Trạng thái</dt>
+                                                                                <dd className='text-sm font-medium text-base-content'>
+                                                                                        {data?.isActive ? 'Đang hoạt động' : 'Đã khóa'}
+                                                                                </dd>
+                                                                        </div>
+                                                                </dl>
                                                         </div>
+
+                                                        <form onSubmit={handleSubmitRole} className='space-y-4 rounded-2xl border border-base-300 bg-base-100 p-4'>
+                                                                <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                        <UserRound className='size-4' /> Phân quyền
+                                                                </div>
+                                                                <div className='flex flex-col gap-3 sm:flex-row sm:items-end'>
+                                                                        <div className='sm:flex-1'>
+                                                                                <label className='text-xs font-semibold text-base-content/60 uppercase tracking-wide'>Chọn vai trò</label>
+                                                                                <select
+                                                                                        className='select select-bordered mt-2 w-full'
+                                                                                        value={roleValue ?? ''}
+                                                                                        onChange={event => {
+                                                                                                const value = event.target.value as Role | ''
+                                                                                                setRoleValue(value === '' ? null : (value as Role))
+                                                                                        }}
+                                                                                >
+                                                                                        <option value='' disabled>
+                                                                                                Chọn vai trò
+                                                                                        </option>
+                                                                                        {roleOptions.map(role => (
+                                                                                                <option key={role} value={role}>
+                                                                                                        {ROLE_LABELS[role]}
+                                                                                                </option>
+                                                                                        ))}
+                                                                                </select>
+                                                                        </div>
+                                                                        <button
+                                                                                type='submit'
+                                                                                className='btn btn-primary sm:w-auto'
+                                                                                disabled={!canSubmitRole || updatingRole}
+                                                                        >
+                                                                                {updatingRole && <span className='loading loading-spinner loading-sm' />}
+                                                                                Cập nhật vai trò
+                                                                        </button>
+                                                                </div>
+                                                                <p className='text-xs text-base-content/60'>Thay đổi vai trò sẽ áp dụng ngay lập tức và được ghi nhận trong nhật ký hệ thống.</p>
+                                                        </form>
                                                 </div>
 
-                                                <div className='rounded-2xl border border-base-300 bg-base-100 p-4 space-y-4'>
+                                                <div className='space-y-4'>
+                                                        <div className='space-y-3 rounded-2xl border border-base-300 bg-base-100 p-4'>
+                                                                <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                        <Shield className='size-4' /> Trạng thái tài khoản
+                                                                </div>
+                                                                <div className='flex items-center justify-between rounded-xl border border-base-200 bg-base-200/50 p-3'>
+                                                                        <div>
+                                                                                <p className='text-sm font-medium text-base-content'>
+                                                                                        {data?.isActive ? 'Tài khoản đang hoạt động' : 'Tài khoản đã khóa'}
+                                                                                </p>
+                                                                                <p className='text-xs text-base-content/60'>
+                                                                                        {isCurrentUser
+                                                                                                ? 'Bạn không thể tự vô hiệu hóa tài khoản của mình.'
+                                                                                                : 'Sử dụng công tắc để thay đổi trạng thái truy cập.'}
+                                                                                </p>
+                                                                        </div>
+                                                                        <label className='flex flex-col items-center gap-1'>
+                                                                                <input
+                                                                                        type='checkbox'
+                                                                                        className='toggle toggle-primary'
+                                                                                        checked={data?.isActive ?? false}
+                                                                                        onChange={handleToggleStatus}
+                                                                                        disabled={updatingStatus || (isCurrentUser && data?.isActive)}
+                                                                                        aria-label='Kích hoạt tài khoản'
+                                                                                />
+                                                                                <span className='text-xs text-base-content/60'>
+                                                                                        {updatingStatus ? 'Đang cập nhật…' : data?.isActive ? 'Đã bật' : 'Đã tắt'}
+                                                                                </span>
+                                                                        </label>
+                                                                </div>
+                                                        </div>
+
+                                                        <div className='space-y-3 rounded-2xl border border-base-300 bg-base-100 p-4'>
+                                                                <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                        <CalendarClock className='size-4' /> Thông tin hồ sơ
+                                                                </div>
+                                                                {isLoading ? (
+                                                                        <div className='space-y-2'>
+                                                                                <div className='skeleton h-4 w-full' />
+                                                                                <div className='skeleton h-4 w-4/5' />
+                                                                                <div className='skeleton h-4 w-3/4' />
+                                                                        </div>
+                                                                ) : data?.profile ? (
+                                                                        <ul className='space-y-2 text-sm text-base-content/80'>
+                                                                                {data.profile.phoneNumber && (
+                                                                                        <li className='flex items-center gap-2'>
+                                                                                                <Phone className='size-4 opacity-70' />
+                                                                                                {data.profile.phoneNumber}
+                                                                                        </li>
+                                                                                )}
+                                                                                {data.profile.address && (
+                                                                                        <li className='flex items-start gap-2'>
+                                                                                                <MapPin className='size-4 opacity-70' />
+                                                                                                <span className='leading-tight'>{data.profile.address}</span>
+                                                                                        </li>
+                                                                                )}
+                                                                                {(data.profile.city || data.profile.district || data.profile.country) && (
+                                                                                        <li className='flex items-start gap-2'>
+                                                                                                <MapPin className='size-4 opacity-70' />
+                                                                                                <span className='leading-tight'>
+                                                                                                        {[data.profile.city, data.profile.district, data.profile.country]
+                                                                                                                .filter(Boolean)
+                                                                                                                .join(', ')}
+                                                                                                </span>
+                                                                                        </li>
+                                                                                )}
+                                                                                <li className='flex items-center gap-2'>
+                                                                                        <BadgeCheck className='size-4 opacity-70' />
+                                                                                        Hồ sơ khách hàng: {data.hasClientProfile ? 'Có' : 'Không'}
+                                                                                </li>
+                                                                                <li className='flex items-center gap-2'>
+                                                                                        <BadgeCheck className='size-4 opacity-70' />
+                                                                                        Hồ sơ freelancer: {data.hasFreelancerProfile ? 'Có' : 'Không'}
+                                                                                </li>
+                                                                        </ul>
+                                                                ) : (
+                                                                        <p className='text-sm text-base-content/60'>Người dùng chưa cập nhật hồ sơ chi tiết.</p>
+                                                                )}
+                                                        </div>
+                                                </div>
+                                        </div>
+                                ) : (
+                                        <div className='space-y-4'>
+                                                <div className='space-y-5 rounded-2xl border border-base-300 bg-base-100 p-4'>
                                                         <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                <Ban className='size-4' /> Khóa / gỡ khóa tài khoản
+                                                                <Ban className='size-4' /> Quản lý khóa tài khoản
                                                         </div>
                                                         {banRecord ? (
-                                                                <div className='rounded-xl border border-error/30 bg-error/5 p-4 text-sm text-base-content/80'>
-                                                                        <div className='flex items-center gap-2 text-error font-semibold'>
-                                                                                <AlertTriangle className='size-4' /> Lệnh khóa gần nhất
+                                                                <div
+                                                                        className={`space-y-3 rounded-xl border p-4 text-sm ${
+                                                                                isBanActive
+                                                                                        ? 'border-error/30 bg-error/5 text-base-content/80'
+                                                                                        : 'border-base-200 bg-base-200/40 text-base-content/70'
+                                                                        }`}
+                                                                >
+                                                                        <div className={`flex items-center gap-2 text-sm font-semibold ${isBanActive ? 'text-error' : 'text-base-content/70'}`}>
+                                                                                {isBanActive ? <AlertTriangle className='size-4' /> : <CalendarClock className='size-4' />}
+                                                                                {isBanActive ? 'Lệnh khóa đang hiệu lực' : 'Khóa gần nhất'}
                                                                         </div>
-                                                                        <dl className='mt-3 space-y-3'>
+                                                                        <dl className='space-y-3'>
                                                                                 {banRecord.reason && (
                                                                                         <div className='space-y-1'>
                                                                                                 <dt className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Lý do</dt>
@@ -413,7 +512,7 @@ export default function AdminUserDetailModal({
                                                                                                 </dd>
                                                                                         </div>
                                                                                 )}
-                                                                                <div className='grid gap-2 sm:grid-cols-2'>
+                                                                                <div className='grid gap-3 sm:grid-cols-2'>
                                                                                         <div>
                                                                                                 <dt className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Khóa lúc</dt>
                                                                                                 <dd className='flex items-center gap-2 text-sm text-base-content'>
@@ -445,129 +544,83 @@ export default function AdminUserDetailModal({
                                                                         </dl>
                                                                 </div>
                                                         ) : (
-                                                                <p className='text-xs text-base-content/60'>Người dùng chưa có lệnh khóa trước đó.</p>
+                                                                <p className='text-sm text-base-content/60'>Người dùng chưa có lệnh khóa trước đó.</p>
                                                         )}
 
-                                                        <form onSubmit={handleSubmitBan} className='space-y-3'>
-                                                                <div className='space-y-2'>
-                                                                        <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Lý do khóa *</label>
-                                                                        <textarea
-                                                                                className='textarea textarea-bordered min-h-[96px]'
-                                                                                placeholder='Mô tả lý do khóa tài khoản'
-                                                                                value={banReason}
-                                                                                onChange={event => setBanReason(event.target.value)}
-                                                                                disabled={banningUser || isCurrentUser}
-                                                                        />
-                                                                        {banErrors.reason && <p className='text-xs text-error'>{banErrors.reason}</p>}
-                                                                </div>
-                                                                <div className='space-y-2'>
-                                                                        <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ghi chú nội bộ</label>
-                                                                        <textarea
-                                                                                className='textarea textarea-bordered min-h-[72px]'
-                                                                                placeholder='Thông tin bổ sung cho đội ngũ quản trị (tùy chọn)'
-                                                                                value={banNote}
-                                                                                onChange={event => setBanNote(event.target.value)}
-                                                                                disabled={banningUser || isCurrentUser}
-                                                                        />
-                                                                        {banErrors.note && <p className='text-xs text-error'>{banErrors.note}</p>}
-                                                                </div>
-                                                                <div className='space-y-2'>
-                                                                        <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Hết hạn (tùy chọn)</label>
-                                                                        <input
-                                                                                type='datetime-local'
-                                                                                className='input input-bordered w-full'
-                                                                                value={banExpiresAt}
-                                                                                onChange={event => setBanExpiresAt(event.target.value)}
-                                                                                disabled={banningUser || isCurrentUser}
-                                                                        />
-                                                                        {banErrors.expiresAt && <p className='text-xs text-error'>{banErrors.expiresAt}</p>}
-                                                                </div>
-                                                                <button
-                                                                        type='submit'
-                                                                        className='btn btn-error w-full gap-2'
-                                                                        disabled={banningUser || isCurrentUser}
-                                                                >
-                                                                        {banningUser && <span className='loading loading-spinner loading-sm' />}
-                                                                        <Lock className='size-4' />
-                                                                        <span>Khóa tài khoản</span>
-                                                                </button>
-                                                                {isCurrentUser && (
-                                                                        <p className='text-xs text-error'>Bạn không thể tự khóa tài khoản của mình.</p>
-                                                                )}
-                                                        </form>
-
-                                                        {(isBanActive || !data?.isActive) && (
-                                                                <form onSubmit={handleSubmitUnban} className='space-y-3 pt-2'>
-                                                                        <div className='rounded-xl border border-base-200 bg-base-200/40 p-3 text-sm text-base-content/80'>
-                                                                                <label className='flex items-center gap-2'>
-                                                                                        <input
-                                                                                                type='checkbox'
-                                                                                                className='checkbox checkbox-sm'
-                                                                                                checked={unbanReactivate}
-                                                                                                onChange={event => setUnbanReactivate(event.target.checked)}
-                                                                                                disabled={unbanningUser}
-                                                                                        />
-                                                                                        Kích hoạt lại tài khoản sau khi gỡ khóa
-                                                                                </label>
+                                                        <div className='grid gap-4 lg:grid-cols-2'>
+                                                                <form onSubmit={handleSubmitBan} className='space-y-3 rounded-xl border border-error/20 bg-error/5 p-4'>
+                                                                        <div className='space-y-2'>
+                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Lý do khóa *</label>
+                                                                                <textarea
+                                                                                        className='textarea textarea-bordered min-h-[96px]'
+                                                                                        placeholder='Mô tả lý do khóa tài khoản'
+                                                                                        value={banReason}
+                                                                                        onChange={event => setBanReason(event.target.value)}
+                                                                                        disabled={banningUser || isCurrentUser}
+                                                                                />
+                                                                                {banErrors.reason && <p className='text-xs text-error'>{banErrors.reason}</p>}
                                                                         </div>
-                                                                        <button type='submit' className='btn btn-success w-full gap-2' disabled={unbanningUser}>
-                                                                                {unbanningUser && <span className='loading loading-spinner loading-sm' />}
-                                                                                <Unlock className='size-4' />
-                                                                                <span>Gỡ khóa tài khoản</span>
+                                                                        <div className='space-y-2'>
+                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ghi chú nội bộ</label>
+                                                                                <textarea
+                                                                                        className='textarea textarea-bordered min-h-[72px]'
+                                                                                        placeholder='Thông tin bổ sung cho đội ngũ quản trị (tùy chọn)'
+                                                                                        value={banNote}
+                                                                                        onChange={event => setBanNote(event.target.value)}
+                                                                                        disabled={banningUser || isCurrentUser}
+                                                                                />
+                                                                                {banErrors.note && <p className='text-xs text-error'>{banErrors.note}</p>}
+                                                                        </div>
+                                                                        <div className='space-y-2'>
+                                                                                <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Hết hạn (tùy chọn)</label>
+                                                                                <input
+                                                                                        type='datetime-local'
+                                                                                        className='input input-bordered w-full'
+                                                                                        value={banExpiresAt}
+                                                                                        onChange={event => setBanExpiresAt(event.target.value)}
+                                                                                        disabled={banningUser || isCurrentUser}
+                                                                                />
+                                                                                {banErrors.expiresAt && <p className='text-xs text-error'>{banErrors.expiresAt}</p>}
+                                                                        </div>
+                                                                        <button
+                                                                                type='submit'
+                                                                                className='btn btn-error w-full gap-2'
+                                                                                disabled={banningUser || isCurrentUser}
+                                                                        >
+                                                                                {banningUser && <span className='loading loading-spinner loading-sm' />}
+                                                                                <Lock className='size-4' />
+                                                                                <span>Khóa tài khoản</span>
                                                                         </button>
+                                                                        {isCurrentUser && (
+                                                                                <p className='text-xs text-error'>Bạn không thể tự khóa tài khoản của mình.</p>
+                                                                        )}
                                                                 </form>
-                                                        )}
-                                                </div>
 
-                                                <div className='rounded-2xl border border-base-300 bg-base-100 p-4 space-y-3'>
-                                                        <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                <CalendarClock className='size-4' /> Thông tin hồ sơ
+                                                                {(isBanActive || !data?.isActive) && (
+                                                                        <form onSubmit={handleSubmitUnban} className='space-y-3 rounded-xl border border-success/20 bg-success/5 p-4'>
+                                                                                <div className='rounded-xl border border-success/30 bg-base-100/40 p-3 text-sm text-base-content/80'>
+                                                                                        <label className='flex items-center gap-2'>
+                                                                                                <input
+                                                                                                        type='checkbox'
+                                                                                                        className='checkbox checkbox-sm'
+                                                                                                        checked={unbanReactivate}
+                                                                                                        onChange={event => setUnbanReactivate(event.target.checked)}
+                                                                                                        disabled={unbanningUser}
+                                                                                                />
+                                                                                                Kích hoạt lại tài khoản sau khi gỡ khóa
+                                                                                        </label>
+                                                                                </div>
+                                                                                <button type='submit' className='btn btn-success w-full gap-2' disabled={unbanningUser}>
+                                                                                        {unbanningUser && <span className='loading loading-spinner loading-sm' />}
+                                                                                        <Unlock className='size-4' />
+                                                                                        <span>Gỡ khóa tài khoản</span>
+                                                                                </button>
+                                                                        </form>
+                                                                )}
                                                         </div>
-                                                        {isLoading ? (
-                                                                <div className='space-y-2'>
-                                                                        <div className='skeleton h-4 w-full' />
-                                                                        <div className='skeleton h-4 w-4/5' />
-                                                                        <div className='skeleton h-4 w-3/4' />
-                                                                </div>
-                                                        ) : data?.profile ? (
-                                                                <ul className='space-y-2 text-sm text-base-content/80'>
-                                                                        {data.profile.phoneNumber && (
-                                                                                <li className='flex items-center gap-2'>
-                                                                                        <Phone className='size-4 opacity-70' />
-                                                                                        {data.profile.phoneNumber}
-                                                                                </li>
-                                                                        )}
-                                                                        {data.profile.address && (
-                                                                                <li className='flex items-start gap-2'>
-                                                                                        <MapPin className='size-4 opacity-70' />
-                                                                                        <span className='leading-tight'>{data.profile.address}</span>
-                                                                                </li>
-                                                                        )}
-                                                                        {(data.profile.city || data.profile.district || data.profile.country) && (
-                                                                                <li className='flex items-start gap-2'>
-                                                                                        <MapPin className='size-4 opacity-70' />
-                                                                                        <span className='leading-tight'>
-                                                                                                {[data.profile.city, data.profile.district, data.profile.country]
-                                                                                                        .filter(Boolean)
-                                                                                                        .join(', ')}
-                                                                                        </span>
-                                                                                </li>
-                                                                        )}
-                                                                        <li className='flex items-center gap-2'>
-                                                                                <BadgeCheck className='size-4 opacity-70' />
-                                                                                Hồ sơ khách hàng: {data.hasClientProfile ? 'Có' : 'Không'}
-                                                                        </li>
-                                                                        <li className='flex items-center gap-2'>
-                                                                                <BadgeCheck className='size-4 opacity-70' />
-                                                                                Hồ sơ freelancer: {data.hasFreelancerProfile ? 'Có' : 'Không'}
-                                                                        </li>
-                                                        </ul>
-                                                        ) : (
-                                                                <p className='text-sm text-base-content/60'>Người dùng chưa cập nhật hồ sơ chi tiết.</p>
-                                                        )}
                                                 </div>
                                         </div>
-                                </div>
+                                )}
 
                                 {isError && (
                                         <div className='alert alert-error'>

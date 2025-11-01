@@ -537,10 +537,20 @@ export default function AdminUserListPage() {
                                                                         <tr key={user.id} className='hover'>
                                                                                 <td>
                                                                                         <div className='flex items-center gap-3'>
-                                                                                                <div className='avatar placeholder'>
-                                                                                                        <div className='bg-primary/10 text-primary size-12 rounded-full grid place-items-center text-base font-semibold uppercase'>
-                                                                                                                {toInitials(user)}
-                                                                                                        </div>
+                                                                                                <div className='avatar'>
+                                                                                                        {user.avatar ? (
+                                                                                                                <div className='size-12 rounded-full border border-base-200 bg-base-200/60 ring ring-primary/10 ring-offset-2 ring-offset-base-100 overflow-hidden'>
+                                                                                                                        <img
+                                                                                                                                src={user.avatar}
+                                                                                                                                alt={toDisplayName(user)}
+                                                                                                                                className='size-full object-cover'
+                                                                                                                        />
+                                                                                                                </div>
+                                                                                                        ) : (
+                                                                                                                <div className='bg-primary/10 text-primary size-12 rounded-full grid place-items-center text-base font-semibold uppercase'>
+                                                                                                                        {toInitials(user)}
+                                                                                                                </div>
+                                                                                                        )}
                                                                                                 </div>
                                                                                                 <div>
                                                                                                         <div className='flex items-center gap-2 font-medium text-base-content'>

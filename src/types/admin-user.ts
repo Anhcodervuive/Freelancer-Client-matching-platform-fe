@@ -19,6 +19,7 @@ export type AdminUser = {
         isActive: boolean
         createdAt: string
         updatedAt: string
+        avatar: Nullable<string>
         profile: Nullable<AdminUserProfile>
         hasClientProfile: boolean
         hasFreelancerProfile: boolean
