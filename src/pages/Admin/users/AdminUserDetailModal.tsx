@@ -4,6 +4,7 @@ import { getAdminUserDetail } from '~/apis/admin/user.api'
 import type { AdminUser } from '~/types/admin-user'
 import { Role } from '~/types/user'
 import { ROLE_LABELS } from '~/constants/roles'
+import { DEFAULT_AVATAR_SRC } from '~/constants/images'
 import {
         BadgeCheck,
         Ban,
@@ -128,14 +129,6 @@ const getDisplayName = (user?: AdminUser | null) => {
         const last = user.profile?.lastName?.trim() ?? ''
         const fullname = [first, last].filter(Boolean).join(' ')
         return fullname || 'Chưa cập nhật tên'
-}
-
-const getInitials = (user?: AdminUser | null) => {
-        if (!user) return '??'
-        const first = user.profile?.firstName?.trim().charAt(0)
-        const last = user.profile?.lastName?.trim().charAt(0)
-        const emailFallback = user.email.charAt(0)
-        return [first, last].filter(Boolean).join('').toUpperCase() || emailFallback.toUpperCase()
 }
 
 export default function AdminUserDetailModal({
@@ -318,19 +311,17 @@ export default function AdminUserDetailModal({
                                 <div className='flex items-start justify-between gap-4 border-b border-base-300 pb-4'>
                                         <div className='flex items-start gap-4'>
                                                 <div className='avatar'>
-                                                        {data?.avatar ? (
-                                                                <div className='size-16 rounded-full border border-base-200 bg-base-200/60 ring ring-primary/10 ring-offset-2 ring-offset-base-100 overflow-hidden'>
-                                                                        <img
-                                                                                src={data.avatar}
-                                                                                alt={getDisplayName(data)}
-                                                                                className='size-full object-cover'
-                                                                        />
-                                                                </div>
-                                                        ) : (
-                                                                <div className='bg-primary/10 text-primary size-16 rounded-full grid place-items-center text-xl font-semibold uppercase'>
-                                                                        {getInitials(data)}
-                                                                </div>
-                                                        )}
+                                                        <div className='size-16 rounded-full border border-base-200 bg-base-200/60 ring ring-primary/10 ring-offset-2 ring-offset-base-100 overflow-hidden'>
+                                                                <img
+                                                                        src={data?.avatar?.trim() ? data.avatar : DEFAULT_AVATAR_SRC}
+                                                                        alt={getDisplayName(data)}
+                                                                        className='size-full object-cover'
+                                                                        onError={event => {
+                                                                                event.currentTarget.onerror = null
+                                                                                event.currentTarget.src = DEFAULT_AVATAR_SRC
+                                                                        }}
+                                                                />
+                                                        </div>
                                                 </div>
                                                 <div>
                                                         <h3 className='text-xl font-semibold leading-tight'>{getDisplayName(data)}</h3>

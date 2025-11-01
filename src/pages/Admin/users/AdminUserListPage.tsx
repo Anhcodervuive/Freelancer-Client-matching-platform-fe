@@ -14,6 +14,7 @@ import {
 import type { AdminUser, AdminUserListResponse } from '~/types/admin-user'
 import { Role } from '~/types/user'
 import { ROLE_LABELS } from '~/constants/roles'
+import { DEFAULT_AVATAR_SRC } from '~/constants/images'
 import {
         Ban,
         ChevronLeft,
@@ -57,13 +58,6 @@ const toDisplayName = (user: AdminUser) => {
         const last = user.profile?.lastName?.trim() ?? ''
         const fullname = [first, last].filter(Boolean).join(' ')
         return fullname || 'Chưa cập nhật tên'
-}
-
-const toInitials = (user: AdminUser) => {
-        const first = user.profile?.firstName?.trim().charAt(0)
-        const last = user.profile?.lastName?.trim().charAt(0)
-        const emailFallback = user.email.charAt(0)
-        return [first, last].filter(Boolean).join('').toUpperCase() || emailFallback.toUpperCase()
 }
 
 const roleBadgeClass = (role: Role | null | undefined) => {
@@ -538,19 +532,17 @@ export default function AdminUserListPage() {
                                                                                 <td>
                                                                                         <div className='flex items-center gap-3'>
                                                                                                 <div className='avatar'>
-                                                                                                        {user.avatar ? (
-                                                                                                                <div className='size-12 rounded-full border border-base-200 bg-base-200/60 ring ring-primary/10 ring-offset-2 ring-offset-base-100 overflow-hidden'>
-                                                                                                                        <img
-                                                                                                                                src={user.avatar}
-                                                                                                                                alt={toDisplayName(user)}
-                                                                                                                                className='size-full object-cover'
-                                                                                                                        />
-                                                                                                                </div>
-                                                                                                        ) : (
-                                                                                                                <div className='bg-primary/10 text-primary size-12 rounded-full grid place-items-center text-base font-semibold uppercase'>
-                                                                                                                        {toInitials(user)}
-                                                                                                                </div>
-                                                                                                        )}
+                                                        <div className='size-12 rounded-full border border-base-200 bg-base-200/60 ring ring-primary/10 ring-offset-2 ring-offset-base-100 overflow-hidden'>
+                                                                <img
+                                                                        src={user.avatar?.trim() ? user.avatar : DEFAULT_AVATAR_SRC}
+                                                                        alt={toDisplayName(user)}
+                                                                        className='size-full object-cover'
+                                                                        onError={event => {
+                                                                                event.currentTarget.onerror = null
+                                                                                event.currentTarget.src = DEFAULT_AVATAR_SRC
+                                                                        }}
+                                                                />
+                                                        </div>
                                                                                                 </div>
                                                                                                 <div>
                                                                                                         <div className='flex items-center gap-2 font-medium text-base-content'>
