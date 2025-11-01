@@ -205,14 +205,14 @@ export default function AdminUserDetailModal({
                 [banReasonOption]
         )
 
+        const isCustomReason = selectedBanReasonOption.value === 'custom'
+
         const banReasonText = useMemo(() => {
-                if (selectedBanReasonOption.value === 'custom') {
+                if (isCustomReason) {
                         return banReasonCustom
                 }
                 return selectedBanReasonOption.template
-        }, [banReasonCustom, selectedBanReasonOption])
-
-        const isCustomReason = selectedBanReasonOption.value === 'custom'
+        }, [banReasonCustom, isCustomReason, selectedBanReasonOption])
 
         const isCurrentUser = useMemo(() => {
                 if (!data?.id || !currentUserId) return false
@@ -646,11 +646,12 @@ export default function AdminUserDetailModal({
                                                                         Người dùng chưa từng bị khóa tài khoản.
                                                                 </div>
                                                         )}
-                                                        <div className='grid gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'>
-                                                                <form
-                                                                        onSubmit={handleSubmitBan}
-                                                                        className='space-y-4 rounded-xl border border-error/30 bg-error/5 p-5'
-                                                                >
+                                                        <div className='space-y-5'>
+                                                                {!isBanActive && (
+                                                                        <form
+                                                                                onSubmit={handleSubmitBan}
+                                                                                className='space-y-4 rounded-xl border border-error/30 bg-error/5 p-5'
+                                                                        >
                                                                         <div className='space-y-2'>
                                                                                 <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
                                                                                         Chọn lý do khóa *
@@ -672,26 +673,26 @@ export default function AdminUserDetailModal({
                                                                                 <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
                                                                                         Chi tiết lý do {isCustomReason ? '*' : ''}
                                                                                 </label>
-                                                                                <textarea
-                                                                                        className={`textarea textarea-bordered min-h-[110px] ${
-                                                                                                isCustomReason ? '' : 'bg-base-200/70 text-base-content/80'
-                                                                                        }`}
-                                                                                        placeholder='Mô tả lý do khóa tài khoản'
-                                                                                        value={banReasonText}
-                                                                                        onChange={event => {
-                                                                                                if (isCustomReason) {
-                                                                                                        setBanReasonCustom(event.target.value)
-                                                                                                }
-                                                                                        }}
-                                                                                        readOnly={!isCustomReason}
-                                                                                        disabled={banningUser || isCurrentUser}
-                                                                                />
                                                                                 {isCustomReason ? (
-                                                                                        <p className='text-xs text-base-content/60'>Nhập tối thiểu 10 ký tự để mô tả rõ lý do khóa.</p>
+                                                                                        <>
+                                                                                                <textarea
+                                                                                                        className='textarea textarea-bordered min-h-[110px]'
+                                                                                                        placeholder='Mô tả lý do khóa tài khoản'
+                                                                                                        value={banReasonText}
+                                                                                                        onChange={event => {
+                                                                                                                if (isCustomReason) {
+                                                                                                                        setBanReasonCustom(event.target.value)
+                                                                                                                }
+                                                                                                        }}
+                                                                                                        disabled={banningUser || isCurrentUser}
+                                                                                                />
+                                                                                                <p className='text-xs text-base-content/60'>Nhập tối thiểu 10 ký tự để mô tả rõ lý do khóa.</p>
+                                                                                        </>
                                                                                 ) : (
-                                                                                        <p className='text-xs text-base-content/60'>
-                                                                                                Bạn có thể chọn &quot;Khác (ghi rõ)&quot; nếu muốn nhập lý do riêng.
-                                                                                        </p>
+                                                                                        <div className='rounded-lg border border-base-200 bg-base-200/60 p-3 text-sm text-base-content/80'>
+                                                                                                {banReasonText}
+                                                                                                <p className='mt-2 text-xs text-base-content/60'>Bạn có thể chọn &quot;Khác (ghi rõ)&quot; nếu muốn nhập lý do riêng.</p>
+                                                                                        </div>
                                                                                 )}
                                                                                 {banErrors.reason && <p className='text-xs text-error'>{banErrors.reason}</p>}
                                                                         </div>
@@ -737,17 +738,14 @@ export default function AdminUserDetailModal({
                                                                                 <p className='text-xs text-error'>Bạn không thể tự khóa tài khoản của mình.</p>
                                                                         )}
                                                                 </form>
-                                                                {(isBanActive || !data?.isActive) && (
+                                                                )}
+                                                                {isBanActive && (
                                                                         <form
                                                                                 onSubmit={handleSubmitUnban}
                                                                                 className='flex flex-col justify-between gap-4 rounded-xl border border-success/30 bg-success/5 p-5'
                                                                         >
                                                                                 <div className='space-y-3 text-sm text-base-content/80'>
-                                                                                        <p>
-                                                                                                {isBanActive
-                                                                                                        ? 'Người dùng đang bị khóa. Bạn có thể gỡ khóa và kích hoạt lại quyền truy cập.'
-                                                                                                        : 'Tài khoản hiện đã mở khóa nhưng vẫn đang bị vô hiệu hóa. Bạn có thể kích hoạt lại tại đây.'}
-                                                                                        </p>
+                                                                                        <p>Người dùng đang bị khóa. Bạn có thể gỡ khóa và kích hoạt lại quyền truy cập.</p>
                                                                                         <label className='flex items-center gap-2 rounded-xl border border-success/40 bg-base-100/60 p-3 text-sm'>
                                                                                                 <input
                                                                                                         type='checkbox'
@@ -763,7 +761,7 @@ export default function AdminUserDetailModal({
                                                                                         {unbanningUser && <span className='loading loading-spinner loading-sm' />}
                                                                                         <Unlock className='size-4' />
                                                                                         <span>Gỡ khóa tài khoản</span>
-                                                                                </button>
+                                                                               </button>
                                                                         </form>
                                                                 )}
                                                         </div>
