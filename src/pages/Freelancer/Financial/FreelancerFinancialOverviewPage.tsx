@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
         AlertCircle,
@@ -98,6 +98,19 @@ const timelineSeries: Array<{
         { key: 'totalAmount', label: 'Total', color: '#0ea5e9' }
 ]
 
+const withAlpha = (hex: string, alpha: number) => {
+        const sanitized = hex.replace('#', '')
+        if (sanitized.length !== 6) {
+                return hex
+        }
+
+        const r = Number.parseInt(sanitized.slice(0, 2), 16)
+        const g = Number.parseInt(sanitized.slice(2, 4), 16)
+        const b = Number.parseInt(sanitized.slice(4, 6), 16)
+
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 type TimelineChartPoint = {
         period: string
         transferCount: number
@@ -120,8 +133,238 @@ const buildTimelinePoints = (timeline: EarningsTimelineEntry[]): TimelineChartPo
         }))
 }
 
+const CHART_JS_CDN = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js'
+
+let chartJsLoadingPromise: Promise<unknown> | null = null
+
+const loadChartJs = () => {
+        if (typeof window === 'undefined') {
+                return Promise.reject(new Error('Chart.js requires a browser environment.'))
+        }
+
+        if (window.Chart) {
+                return Promise.resolve(window.Chart)
+        }
+
+        if (!chartJsLoadingPromise) {
+                chartJsLoadingPromise = new Promise((resolve, reject) => {
+                        const script = document.createElement('script')
+                        script.src = CHART_JS_CDN
+                        script.async = true
+                        script.onload = () => {
+                                if (window.Chart) {
+                                        resolve(window.Chart)
+                                } else {
+                                        chartJsLoadingPromise = null
+                                        reject(new Error('Chart.js failed to initialise.'))
+                                }
+                        }
+                        script.onerror = () => {
+                                chartJsLoadingPromise = null
+                                reject(new Error('Unable to load the Chart.js library.'))
+                        }
+                        document.head.appendChild(script)
+                })
+        }
+
+        return chartJsLoadingPromise
+}
+
+declare global {
+        interface Window {
+                Chart?: any
+        }
+}
+
 const TimelineChart = ({ currency, timeline }: { currency: string; timeline: EarningsTimelineEntry[] }) => {
         const chartData = useMemo(() => buildTimelinePoints(timeline), [timeline])
+
+        const canvasRef = useRef<HTMLCanvasElement | null>(null)
+        const chartInstanceRef = useRef<any>(null)
+        const [chartReady, setChartReady] = useState(() => typeof window !== 'undefined' && Boolean(window.Chart))
+        const [chartError, setChartError] = useState<string | null>(null)
+
+        const chartConfig = useMemo(() => {
+                const labels = chartData.map(point => point.period)
+                const formatter = new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency,
+                        maximumFractionDigits: 2
+                })
+
+                const datasets = timelineSeries.map(series => ({
+                        label: series.label,
+                        data: chartData.map(point => point[series.key]),
+                        borderColor: series.color,
+                        backgroundColor: withAlpha(series.color, series.key === 'totalAmount' ? 0.2 : 0.12),
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: series.color,
+                        pointHoverBackgroundColor: series.color,
+                        pointHoverBorderColor: '#ffffff',
+                        borderWidth: series.key === 'totalAmount' ? 2.4 : 1.6,
+                        tension: 0.35,
+                        fill: series.key === 'totalAmount' ? 'origin' : false,
+                        order: series.key === 'totalAmount' ? 0 : 1,
+                        spanGaps: true
+                }))
+
+                return {
+                        type: 'line',
+                        data: {
+                                labels,
+                                datasets
+                        },
+                        options: {
+                                maintainAspectRatio: false,
+                                responsive: true,
+                                interaction: {
+                                        mode: 'index',
+                                        intersect: false
+                                },
+                                animation: {
+                                        duration: 350
+                                },
+                                scales: {
+                                        x: {
+                                                grid: {
+                                                        display: false
+                                                },
+                                                ticks: {
+                                                        color: '#6b7280',
+                                                        maxRotation: 0,
+                                                        minRotation: 0,
+                                                        autoSkip: true,
+                                                        font: {
+                                                                size: 11
+                                                        }
+                                                }
+                                        },
+                                        y: {
+                                                beginAtZero: true,
+                                                grid: {
+                                                        color: 'rgba(148, 163, 184, 0.18)'
+                                                },
+                                                ticks: {
+                                                        color: '#6b7280',
+                                                        callback: (value: unknown) => {
+                                                                const numeric = typeof value === 'number' ? value : Number(value)
+                                                                if (!Number.isFinite(numeric)) {
+                                                                        return value
+                                                                }
+                                                                return formatter.format(numeric)
+                                                        }
+                                                }
+                                        }
+                                },
+                                plugins: {
+                                        legend: {
+                                                position: 'bottom',
+                                                labels: {
+                                                        usePointStyle: true,
+                                                        pointStyle: 'circle',
+                                                        boxWidth: 8,
+                                                        padding: 16
+                                                }
+                                        },
+                                        tooltip: {
+                                                callbacks: {
+                                                        label: (context: any) => {
+                                                                const value = context?.parsed?.y ?? 0
+                                                                const label = context?.dataset?.label ?? ''
+                                                                return `${label}: ${formatter.format(value)}`
+                                                        },
+                                                        afterBody: (items: any[]) => {
+                                                                if (!items?.length) return ''
+                                                                const dataIndex = items[0]?.dataIndex ?? 0
+                                                                const transfers = chartData[dataIndex]?.transferCount ?? 0
+                                                                return `Transfers: ${formatCount(transfers)}`
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }, [chartData, currency])
+
+        useEffect(() => {
+                if (chartData.length === 0) {
+                        chartInstanceRef.current?.destroy?.()
+                        chartInstanceRef.current = null
+                        setChartReady(false)
+                        setChartError(null)
+                        return
+                }
+
+                let isMounted = true
+
+                loadChartJs()
+                        .then(() => {
+                                if (!isMounted) return
+                                const context = canvasRef.current?.getContext('2d')
+                                if (!context) {
+                                        setChartError('Unable to initialise the chart context.')
+                                        return
+                                }
+
+                                const ChartConstructor = window.Chart
+                                if (!ChartConstructor) {
+                                        setChartError('Chart.js failed to initialise.')
+                                        return
+                                }
+
+                                if (!chartInstanceRef.current) {
+                                        chartInstanceRef.current = new ChartConstructor(context, chartConfig)
+                                } else {
+                                        chartInstanceRef.current.data = chartConfig.data
+                                        chartInstanceRef.current.options = chartConfig.options
+                                        chartInstanceRef.current.update()
+                                }
+
+                                if (isMounted) {
+                                        setChartReady(true)
+                                        setChartError(null)
+                                }
+                        })
+                        .catch(error => {
+                                if (!isMounted) return
+                                setChartError(error instanceof Error ? error.message : 'Failed to load chart library.')
+                        })
+
+                return () => {
+                        isMounted = false
+                }
+        }, [chartConfig, chartData.length])
+
+        const aggregated = useMemo(
+                () =>
+                        chartData.reduce(
+                                (acc, point) => {
+                                        for (const series of timelineSeries) {
+                                                acc.amounts[series.key] += point[series.key]
+                                        }
+                                        acc.transfers += point.transferCount
+                                        return acc
+                                },
+                                {
+                                        amounts: {
+                                                pendingAmount: 0,
+                                                availableAmount: 0,
+                                                failedAmount: 0,
+                                                reversedAmount: 0,
+                                                totalAmount: 0
+                                        } as Record<TimelineAmountKey, number>,
+                                        transfers: 0
+                                }
+                        ),
+                [chartData]
+        )
+
+        useEffect(() => {
+                return () => {
+                        chartInstanceRef.current?.destroy?.()
+                        chartInstanceRef.current = null
+                }
+        }, [])
 
         if (chartData.length === 0) {
                 return (
@@ -130,67 +373,6 @@ const TimelineChart = ({ currency, timeline }: { currency: string; timeline: Ear
                         </div>
                 )
         }
-
-        const maxValue = chartData.reduce((max, point) => {
-                return Math.max(
-                        max,
-                        timelineSeries.reduce((innerMax, series) => Math.max(innerMax, point[series.key]), 0)
-                )
-        }, 0)
-
-        const chartWidth = 100
-        const chartHeight = 220
-        const horizontalPadding = 10
-        const verticalPadding = 16
-
-        const getX = (index: number) => {
-                if (chartData.length === 1) return chartWidth / 2
-                const ratio = index / (chartData.length - 1)
-                return horizontalPadding + ratio * (chartWidth - horizontalPadding * 2)
-        }
-
-        const getY = (value: number) => {
-                if (maxValue <= 0) return chartHeight / 2
-                const ratio = value / maxValue
-                const usableHeight = chartHeight - verticalPadding * 2
-                return chartHeight - verticalPadding - ratio * usableHeight
-        }
-
-        const axisSegments = 4
-        const yAxisLabels = Array.from({ length: axisSegments + 1 }, (_, index) => {
-                const value = (maxValue / axisSegments) * index
-                return {
-                        value,
-                        y: getY(value)
-                }
-        })
-
-        const xTickInterval = Math.max(1, Math.ceil(chartData.length / 6))
-        const xAxisLabels = chartData.map((point, index) => ({
-                period: point.period,
-                index,
-                shouldRender: index % xTickInterval === 0 || index === chartData.length - 1
-        }))
-
-        const aggregated = chartData.reduce(
-                (acc, point) => {
-                        for (const series of timelineSeries) {
-                                acc.amounts[series.key] += point[series.key]
-                        }
-                        acc.transfers += point.transferCount
-                        return acc
-                },
-                {
-                        amounts: {
-                                pendingAmount: 0,
-                                availableAmount: 0,
-                                failedAmount: 0,
-                                reversedAmount: 0,
-                                totalAmount: 0
-                        } as Record<TimelineAmountKey, number>,
-                        transfers: 0
-                }
-        )
 
         return (
                 <div className='flex flex-col gap-6 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
@@ -211,62 +393,20 @@ const TimelineChart = ({ currency, timeline }: { currency: string; timeline: Ear
                         </div>
 
                         <div className='space-y-4'>
-                                <div className='relative h-64 w-full'>
-                                        <svg
-                                                className='h-full w-full'
-                                                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                                                preserveAspectRatio='none'
-                                        >
-                                                {yAxisLabels.map(label => (
-                                                        <line
-                                                                key={`grid-${label.value}`}
-                                                                x1={horizontalPadding}
-                                                                x2={chartWidth - horizontalPadding}
-                                                                y1={label.y}
-                                                                y2={label.y}
-                                                                stroke='currentColor'
-                                                                strokeWidth={0.4}
-                                                                className='text-base-content/10'
-                                                        />
-                                                ))}
-
-                                                {timelineSeries.map(series => {
-                                                        const points = chartData
-                                                                .map((point, index) => `${getX(index)},${getY(point[series.key])}`)
-                                                                .join(' ')
-
-                                                        return (
-                                                                <polyline
-                                                                        key={series.key}
-                                                                        points={points}
-                                                                        fill='none'
-                                                                        stroke={series.color}
-                                                                        strokeWidth={2.2}
-                                                                        strokeLinecap='round'
-                                                                        strokeLinejoin='round'
-                                                                />
-                                                        )
-                                                })}
-
-                                                {chartData.map((point, index) => (
-                                                        <g key={`${point.period}-${index}`}>
-                                                                {timelineSeries.map(series => (
-                                                                        <circle
-                                                                                key={`${series.key}-${index}`}
-                                                                                cx={getX(index)}
-                                                                                cy={getY(point[series.key])}
-                                                                                r={1.5}
-                                                                                fill={series.color}
-                                                                        >
-                                                                                <title>
-                                                                                        {series.label}: {formatCurrency(currency, point[series.key].toString())}
-                                                                                </title>
-                                                                        </circle>
-                                                                ))}
-                                                        </g>
-                                                ))}
-                                        </svg>
+                                <div className='relative h-72 w-full'>
+                                        <canvas ref={canvasRef} className='h-full w-full' />
+                                        {!chartReady && !chartError ? (
+                                                <div className='absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-base-100/80 text-sm text-base-content/70 backdrop-blur-sm'>
+                                                        <Loader2 className='size-4 animate-spin text-primary' /> Loading chart…
+                                                </div>
+                                        ) : null}
                                 </div>
+
+                                {chartError ? (
+                                        <div className='rounded-2xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error'>
+                                                {chartError}
+                                        </div>
+                                ) : null}
 
                                 <div className='grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'>
                                         {timelineSeries.map(series => (
@@ -291,16 +431,6 @@ const TimelineChart = ({ currency, timeline }: { currency: string; timeline: Ear
                                 <div className='flex items-center gap-2 rounded-2xl bg-base-200/40 px-4 py-3 text-xs font-medium uppercase tracking-wide text-base-content/70'>
                                         <ArrowRightLeft className='size-4 text-primary' />
                                         {formatCount(aggregated.transfers)} total transfers represented in this chart
-                                </div>
-
-                                <div className='flex flex-wrap items-center justify-between gap-2 text-xs uppercase tracking-wide text-base-content/60'>
-                                        {xAxisLabels
-                                                .filter(label => label.shouldRender)
-                                                .map(label => (
-                                                        <span key={`${label.period}-${label.index}`} className='whitespace-nowrap'>
-                                                                {label.period}
-                                                        </span>
-                                                ))}
                                 </div>
                         </div>
                 </div>
