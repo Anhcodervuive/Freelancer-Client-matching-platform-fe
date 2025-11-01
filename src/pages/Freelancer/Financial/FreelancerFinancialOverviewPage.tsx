@@ -17,6 +17,7 @@ import type {
         Granularity,
         SpendingTimelineEntry
 } from '~/types/financial'
+import { normalizeGranularity } from '~/types/financial'
 import { loadChartJs, withAlpha } from '~/utils/chartjs'
 
 const granularityOptions: Array<{ label: string; value: Granularity }> = [
@@ -979,7 +980,7 @@ const normalizeCurrency = (value: string) => value.trim().toUpperCase()
 const buildQueryFilters = (filters: FiltersFormState) => ({
         from: parseFormDate(filters.from),
         to: parseFormDate(filters.to),
-        granularity: filters.granularity,
+        granularity: normalizeGranularity(filters.granularity),
         currency: filters.currency ? normalizeCurrency(filters.currency) : undefined
 })
 
@@ -1156,7 +1157,10 @@ export default function FreelancerFinancialOverviewPage() {
                                                         className='select select-bordered'
                                                         value={formState.granularity}
                                                         onChange={event =>
-                                                                handleInputChange('granularity', event.target.value as Granularity)
+                                                                handleInputChange(
+                                                                        'granularity',
+                                                                        normalizeGranularity(event.target.value)
+                                                                )
                                                         }
                                                 >
                                                         {granularityOptions.map(option => (
