@@ -246,14 +246,17 @@ export default function AdminUserDetailModal({
         }, [banRecord])
 
         const showUnbanForm = useMemo(() => {
+                if (!data) return false
                 if (hasActiveBan) return true
-                if (data?.isActive === false && banRecord && !banRecord.unbannedAt) {
-                        return true
-                }
+                if (data.isActive === false) return true
                 return false
-        }, [banRecord, data?.isActive, hasActiveBan])
+        }, [data, hasActiveBan])
 
-        const showBanForm = !showUnbanForm
+        const showBanForm = useMemo(() => {
+                if (!data) return false
+                if (data.isActive === false) return false
+                return !hasActiveBan
+        }, [data, hasActiveBan])
 
         const handleSubmitRole = async (event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault()
