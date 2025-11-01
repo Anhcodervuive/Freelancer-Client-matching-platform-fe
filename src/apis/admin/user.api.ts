@@ -59,3 +59,35 @@ export const updateAdminUserStatus = async (
         const response = await authorizeAxiosInstance.patch(`${baseUrl}/${userId}/status`, payload)
         return response.data.data
 }
+
+export type BanAdminUserPayload = {
+        reason: string
+        note?: string
+        expiresAt?: string
+}
+
+export const banAdminUser = async (
+        userId: string,
+        payload: BanAdminUserPayload
+): Promise<AdminUser> => {
+        const body = payload.expiresAt
+                ? {
+                                ...payload,
+                                expiresAt: new Date(payload.expiresAt).toISOString()
+                        }
+                : payload
+        const response = await authorizeAxiosInstance.post(`${baseUrl}/${userId}/ban`, body)
+        return response.data.data
+}
+
+export type UnbanAdminUserPayload = {
+        reactivate: boolean
+}
+
+export const unbanAdminUser = async (
+        userId: string,
+        payload: UnbanAdminUserPayload
+): Promise<AdminUser> => {
+        const response = await authorizeAxiosInstance.post(`${baseUrl}/${userId}/unban`, payload)
+        return response.data.data
+}

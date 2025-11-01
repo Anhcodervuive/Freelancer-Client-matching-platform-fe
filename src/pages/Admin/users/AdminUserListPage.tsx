@@ -2,7 +2,15 @@ import { useMemo, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { useDebounce } from '~/hooks/comons/useDebounce'
-import { listAdminUsers, updateAdminUserRole, updateAdminUserStatus } from '~/apis/admin/user.api'
+import {
+        banAdminUser,
+        listAdminUsers,
+        type BanAdminUserPayload,
+        type UnbanAdminUserPayload,
+        unbanAdminUser,
+        updateAdminUserRole,
+        updateAdminUserStatus
+} from '~/apis/admin/user.api'
 import type { AdminUser, AdminUserListResponse } from '~/types/admin-user'
 import { Role } from '~/types/user'
 import { ROLE_LABELS } from '~/constants/roles'
@@ -115,6 +123,8 @@ export default function AdminUserListPage() {
         const qc = useQueryClient()
         const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null)
         const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null)
+        const [banningUserId, setBanningUserId] = useState<string | null>(null)
+        const [unbanningUserId, setUnbanningUserId] = useState<string | null>(null)
 
         const updateStatusMutation = useMutation<
                 AdminUser,
@@ -198,6 +208,90 @@ export default function AdminUserListPage() {
                 }
         })
 
+        const banUserMutation = useMutation<
+                AdminUser,
+                unknown,
+                { userId: string; payload: BanAdminUserPayload },
+                { previous?: AdminUserListResponse }
+        >({
+                mutationFn: ({ userId, payload }) => banAdminUser(userId, payload),
+                onMutate: async variables => {
+                        setBanningUserId(variables.userId)
+                        await qc.cancelQueries({ queryKey: [queryKeyBase] })
+                        const previous = qc.getQueryData<AdminUserListResponse>(queryKey)
+                        if (previous) {
+                                qc.setQueryData<AdminUserListResponse>(queryKey, {
+                                        ...previous,
+                                        data: previous.data.map(item =>
+                                                item.id === variables.userId
+                                                        ? { ...item, isActive: false }
+                                                        : item
+                                        )
+                                })
+                        }
+                        return { previous }
+                },
+                onError: (_error, _variables, context) => {
+                        if (context?.previous) {
+                                qc.setQueryData(queryKey, context.previous)
+                        }
+                        toast.error('Khóa tài khoản thất bại')
+                },
+                onSuccess: updated => {
+                        toast.success('Đã khóa tài khoản người dùng')
+                        qc.setQueryData(['admin-user', updated.id], updated)
+                },
+                onSettled: (_data, _error, variables) => {
+                        setBanningUserId(null)
+                        qc.invalidateQueries({ queryKey: [queryKeyBase] })
+                        if (variables?.userId) {
+                                qc.invalidateQueries({ queryKey: ['admin-user', variables.userId] })
+                        }
+                }
+        })
+
+        const unbanUserMutation = useMutation<
+                AdminUser,
+                unknown,
+                { userId: string; payload: UnbanAdminUserPayload },
+                { previous?: AdminUserListResponse }
+        >({
+                mutationFn: ({ userId, payload }) => unbanAdminUser(userId, payload),
+                onMutate: async variables => {
+                        setUnbanningUserId(variables.userId)
+                        await qc.cancelQueries({ queryKey: [queryKeyBase] })
+                        const previous = qc.getQueryData<AdminUserListResponse>(queryKey)
+                        if (previous) {
+                                qc.setQueryData<AdminUserListResponse>(queryKey, {
+                                        ...previous,
+                                        data: previous.data.map(item =>
+                                                item.id === variables.userId
+                                                        ? { ...item, isActive: true }
+                                                        : item
+                                        )
+                                })
+                        }
+                        return { previous }
+                },
+                onError: (_error, _variables, context) => {
+                        if (context?.previous) {
+                                qc.setQueryData(queryKey, context.previous)
+                        }
+                        toast.error('Gỡ khóa tài khoản thất bại')
+                },
+                onSuccess: updated => {
+                        toast.success('Đã gỡ khóa tài khoản người dùng')
+                        qc.setQueryData(['admin-user', updated.id], updated)
+                },
+                onSettled: (_data, _error, variables) => {
+                        setUnbanningUserId(null)
+                        qc.invalidateQueries({ queryKey: [queryKeyBase] })
+                        if (variables?.userId) {
+                                qc.invalidateQueries({ queryKey: ['admin-user', variables.userId] })
+                        }
+                }
+        })
+
         const users = data?.data ?? []
         const total = data?.meta?.total ?? 0
         const pages = Math.max(1, Math.ceil(total / limit))
@@ -236,6 +330,21 @@ export default function AdminUserListPage() {
                         return
                 }
                 await updateStatusMutation.mutateAsync({ userId: selectedUserId, isActive })
+        }
+
+        const handleBanUserFromModal = async (payload: BanAdminUserPayload) => {
+                if (!selectedUserId) return
+                const isSelf = currentUser?.id === selectedUserId
+                if (isSelf) {
+                        toast.warning('Bạn không thể tự khóa tài khoản của mình.')
+                        return
+                }
+                await banUserMutation.mutateAsync({ userId: selectedUserId, payload })
+        }
+
+        const handleUnbanUserFromModal = async (payload: UnbanAdminUserPayload) => {
+                if (!selectedUserId) return
+                await unbanUserMutation.mutateAsync({ userId: selectedUserId, payload })
         }
 
         return (
@@ -517,8 +626,12 @@ export default function AdminUserListPage() {
                                 onClose={() => setSelectedUserId(null)}
                                 onUpdateRole={handleUpdateRoleFromModal}
                                 onToggleStatus={handleUpdateStatusFromModal}
+                                onBanUser={handleBanUserFromModal}
+                                onUnbanUser={handleUnbanUserFromModal}
                                 updatingRole={roleUpdatingId === selectedUserId}
                                 updatingStatus={statusUpdatingId === selectedUserId}
+                                banningUser={banningUserId === selectedUserId}
+                                unbanningUser={unbanningUserId === selectedUserId}
                                 currentUserId={currentUser?.id}
                         />
                 </div>

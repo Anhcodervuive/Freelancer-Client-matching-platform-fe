@@ -7,28 +7,75 @@ import { ROLE_LABELS } from '~/constants/roles'
 import {
         BadgeCheck,
         Ban,
+        AlertTriangle,
         CalendarClock,
+        Lock,
         Mail,
         MapPin,
         Phone,
         RefreshCcw,
         Shield,
         UserRound,
-        Users
+        Users,
+        StickyNote,
+        Timer,
+        Unlock
 } from 'lucide-react'
+import { z } from 'zod'
+import type { BanAdminUserPayload, UnbanAdminUserPayload } from '~/apis/admin/user.api'
 
 type AdminUserDetailModalProps = {
         open: boolean
         userId: string | null
         onClose: () => void
-        onUpdateRole: (role: Role) => Promise<void>
-        onToggleStatus: (isActive: boolean) => Promise<void>
+        onUpdateRole: (_role: Role) => Promise<void>
+        onToggleStatus: (_isActive: boolean) => Promise<void>
+        onBanUser: (_payload: BanAdminUserPayload) => Promise<void>
+        onUnbanUser: (_payload: UnbanAdminUserPayload) => Promise<void>
         updatingRole: boolean
         updatingStatus: boolean
+        banningUser: boolean
+        unbanningUser: boolean
         currentUserId?: string | null
 }
 
 const roleOptions = Object.values(Role)
+
+const banFormSchema = z
+        .object({
+                reason: z
+                        .string()
+                        .trim()
+                        .min(10, 'Lý do phải có ít nhất 10 ký tự')
+                        .max(255, 'Lý do không được vượt quá 255 ký tự'),
+                note: z
+                        .string()
+                        .trim()
+                        .min(1, 'Ghi chú không được để trống')
+                        .max(500, 'Ghi chú không được vượt quá 500 ký tự')
+                        .optional(),
+                expiresAt: z.string().optional()
+        })
+        .superRefine((value, ctx) => {
+                if (value.expiresAt) {
+                        const date = new Date(value.expiresAt)
+                        if (Number.isNaN(date.getTime())) {
+                                ctx.addIssue({
+                                        code: z.ZodIssueCode.custom,
+                                        message: 'Thời gian hết hạn không hợp lệ',
+                                        path: ['expiresAt']
+                                })
+                                return
+                        }
+                        if (date <= new Date()) {
+                                ctx.addIssue({
+                                        code: z.ZodIssueCode.custom,
+                                        message: 'Thời gian hết hạn phải ở tương lai',
+                                        path: ['expiresAt']
+                                })
+                        }
+                }
+        })
 
 const formatDateTime = (value: string | undefined) => {
         if (!value) return '—'
@@ -61,8 +108,12 @@ export default function AdminUserDetailModal({
         onClose,
         onUpdateRole,
         onToggleStatus,
+        onBanUser,
+        onUnbanUser,
         updatingRole,
         updatingStatus,
+        banningUser,
+        unbanningUser,
         currentUserId
 }: AdminUserDetailModalProps) {
         const { data, isLoading, isError, refetch, isFetching } = useQuery({
@@ -76,6 +127,15 @@ export default function AdminUserDetailModal({
         })
 
         const [roleValue, setRoleValue] = useState<Role | null>(null)
+        const [banReason, setBanReason] = useState('')
+        const [banNote, setBanNote] = useState('')
+        const [banExpiresAt, setBanExpiresAt] = useState('')
+        const [banErrors, setBanErrors] = useState<{
+                reason?: string
+                note?: string
+                expiresAt?: string
+        }>({})
+        const [unbanReactivate, setUnbanReactivate] = useState(true)
 
         useEffect(() => {
                 if (data?.role) {
@@ -85,12 +145,44 @@ export default function AdminUserDetailModal({
                 }
         }, [data?.role, open])
 
+        useEffect(() => {
+                setBanReason('')
+                setBanNote('')
+                setBanExpiresAt('')
+                setBanErrors({})
+                setUnbanReactivate(true)
+        }, [userId, open])
+
         const isCurrentUser = useMemo(() => {
                 if (!data?.id || !currentUserId) return false
                 return data.id === currentUserId
         }, [currentUserId, data?.id])
 
         const canSubmitRole = roleValue !== null && roleValue !== data?.role
+
+        const banRecord = useMemo(() => {
+                if (!data) return null
+                if (data.ban) return data.ban
+                if (data.banInfo) return data.banInfo
+                if (data.latestBan) return data.latestBan
+                if (data.banRecord) return data.banRecord
+                if (data.banHistory && data.banHistory.length > 0) {
+                        return data.banHistory[0]
+                }
+                return null
+        }, [data])
+
+        const isBanActive = useMemo(() => {
+                if (!banRecord) return false
+                if (banRecord.unbannedAt) return false
+                if (banRecord.expiresAt) {
+                        const expires = new Date(banRecord.expiresAt)
+                        if (!Number.isNaN(expires.getTime()) && expires <= new Date()) {
+                                return false
+                        }
+                }
+                return true
+        }, [banRecord])
 
         const handleSubmitRole = async (event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault()
@@ -101,6 +193,44 @@ export default function AdminUserDetailModal({
         const handleToggleStatus = async () => {
                 if (!data) return
                 await onToggleStatus(!data.isActive)
+        }
+
+        const handleSubmitBan = async (event: React.FormEvent<HTMLFormElement>) => {
+                event.preventDefault()
+                if (!data || isCurrentUser) return
+                const sanitizedNote = banNote.trim()
+                const parsed = banFormSchema.safeParse({
+                        reason: banReason,
+                        note: sanitizedNote ? sanitizedNote : undefined,
+                        expiresAt: banExpiresAt ? banExpiresAt : undefined
+                })
+
+                if (!parsed.success) {
+                        const nextErrors: {
+                                reason?: string
+                                note?: string
+                                expiresAt?: string
+                        } = {}
+                        for (const issue of parsed.error.issues) {
+                                const key = issue.path[0]
+                                if (typeof key === 'string') {
+                                        nextErrors[key as 'reason' | 'note' | 'expiresAt'] = issue.message
+                                }
+                        }
+                        setBanErrors(nextErrors)
+                        return
+                }
+
+                setBanErrors({})
+                await onBanUser(parsed.data)
+                setBanReason('')
+                setBanNote('')
+                setBanExpiresAt('')
+        }
+
+        const handleSubmitUnban = async (event: React.FormEvent<HTMLFormElement>) => {
+                event.preventDefault()
+                await onUnbanUser({ reactivate: unbanReactivate })
         }
 
         return (
@@ -256,6 +386,137 @@ export default function AdminUserDetailModal({
                                                                         </span>
                                                                 </label>
                                                         </div>
+                                                </div>
+
+                                                <div className='rounded-2xl border border-base-300 bg-base-100 p-4 space-y-4'>
+                                                        <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                <Ban className='size-4' /> Khóa / gỡ khóa tài khoản
+                                                        </div>
+                                                        {banRecord ? (
+                                                                <div className='rounded-xl border border-error/30 bg-error/5 p-4 text-sm text-base-content/80'>
+                                                                        <div className='flex items-center gap-2 text-error font-semibold'>
+                                                                                <AlertTriangle className='size-4' /> Lệnh khóa gần nhất
+                                                                        </div>
+                                                                        <dl className='mt-3 space-y-3'>
+                                                                                {banRecord.reason && (
+                                                                                        <div className='space-y-1'>
+                                                                                                <dt className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Lý do</dt>
+                                                                                                <dd className='text-sm font-medium text-base-content'>{banRecord.reason}</dd>
+                                                                                        </div>
+                                                                                )}
+                                                                                {banRecord.note && (
+                                                                                        <div className='space-y-1'>
+                                                                                                <dt className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ghi chú</dt>
+                                                                                                <dd className='flex items-start gap-2 text-sm text-base-content'>
+                                                                                                        <StickyNote className='mt-0.5 size-4 text-base-content/60' />
+                                                                                                        <span className='leading-tight'>{banRecord.note}</span>
+                                                                                                </dd>
+                                                                                        </div>
+                                                                                )}
+                                                                                <div className='grid gap-2 sm:grid-cols-2'>
+                                                                                        <div>
+                                                                                                <dt className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Khóa lúc</dt>
+                                                                                                <dd className='flex items-center gap-2 text-sm text-base-content'>
+                                                                                                        <CalendarClock className='size-4 opacity-70' />
+                                                                                                        {formatDateTime(banRecord.bannedAt ?? banRecord.createdAt ?? undefined)}
+                                                                                                </dd>
+                                                                                        </div>
+                                                                                        <div>
+                                                                                                <dt className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Hết hạn</dt>
+                                                                                                <dd className='flex items-center gap-2 text-sm text-base-content'>
+                                                                                                        <Timer className='size-4 opacity-70' />
+                                                                                                        {banRecord.expiresAt ? formatDateTime(banRecord.expiresAt) : 'Không thời hạn'}
+                                                                                                </dd>
+                                                                                        </div>
+                                                                                </div>
+                                                                                {banRecord.bannedBy && (
+                                                                                        <div>
+                                                                                                <dt className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Thực hiện bởi</dt>
+                                                                                                <dd className='text-sm text-base-content'>
+                                                                                                        {banRecord.bannedBy.name ?? banRecord.bannedBy.email ?? banRecord.bannedBy.id}
+                                                                                                </dd>
+                                                                                        </div>
+                                                                                )}
+                                                                                {!isBanActive && (
+                                                                                        <div className='rounded-lg border border-success/40 bg-success/5 p-2 text-xs text-success'>
+                                                                                                Lệnh khóa đã hết hiệu lực.
+                                                                                        </div>
+                                                                                )}
+                                                                        </dl>
+                                                                </div>
+                                                        ) : (
+                                                                <p className='text-xs text-base-content/60'>Người dùng chưa có lệnh khóa trước đó.</p>
+                                                        )}
+
+                                                        <form onSubmit={handleSubmitBan} className='space-y-3'>
+                                                                <div className='space-y-2'>
+                                                                        <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Lý do khóa *</label>
+                                                                        <textarea
+                                                                                className='textarea textarea-bordered min-h-[96px]'
+                                                                                placeholder='Mô tả lý do khóa tài khoản'
+                                                                                value={banReason}
+                                                                                onChange={event => setBanReason(event.target.value)}
+                                                                                disabled={banningUser || isCurrentUser}
+                                                                        />
+                                                                        {banErrors.reason && <p className='text-xs text-error'>{banErrors.reason}</p>}
+                                                                </div>
+                                                                <div className='space-y-2'>
+                                                                        <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ghi chú nội bộ</label>
+                                                                        <textarea
+                                                                                className='textarea textarea-bordered min-h-[72px]'
+                                                                                placeholder='Thông tin bổ sung cho đội ngũ quản trị (tùy chọn)'
+                                                                                value={banNote}
+                                                                                onChange={event => setBanNote(event.target.value)}
+                                                                                disabled={banningUser || isCurrentUser}
+                                                                        />
+                                                                        {banErrors.note && <p className='text-xs text-error'>{banErrors.note}</p>}
+                                                                </div>
+                                                                <div className='space-y-2'>
+                                                                        <label className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Hết hạn (tùy chọn)</label>
+                                                                        <input
+                                                                                type='datetime-local'
+                                                                                className='input input-bordered w-full'
+                                                                                value={banExpiresAt}
+                                                                                onChange={event => setBanExpiresAt(event.target.value)}
+                                                                                disabled={banningUser || isCurrentUser}
+                                                                        />
+                                                                        {banErrors.expiresAt && <p className='text-xs text-error'>{banErrors.expiresAt}</p>}
+                                                                </div>
+                                                                <button
+                                                                        type='submit'
+                                                                        className='btn btn-error w-full gap-2'
+                                                                        disabled={banningUser || isCurrentUser}
+                                                                >
+                                                                        {banningUser && <span className='loading loading-spinner loading-sm' />}
+                                                                        <Lock className='size-4' />
+                                                                        <span>Khóa tài khoản</span>
+                                                                </button>
+                                                                {isCurrentUser && (
+                                                                        <p className='text-xs text-error'>Bạn không thể tự khóa tài khoản của mình.</p>
+                                                                )}
+                                                        </form>
+
+                                                        {(isBanActive || !data?.isActive) && (
+                                                                <form onSubmit={handleSubmitUnban} className='space-y-3 pt-2'>
+                                                                        <div className='rounded-xl border border-base-200 bg-base-200/40 p-3 text-sm text-base-content/80'>
+                                                                                <label className='flex items-center gap-2'>
+                                                                                        <input
+                                                                                                type='checkbox'
+                                                                                                className='checkbox checkbox-sm'
+                                                                                                checked={unbanReactivate}
+                                                                                                onChange={event => setUnbanReactivate(event.target.checked)}
+                                                                                                disabled={unbanningUser}
+                                                                                        />
+                                                                                        Kích hoạt lại tài khoản sau khi gỡ khóa
+                                                                                </label>
+                                                                        </div>
+                                                                        <button type='submit' className='btn btn-success w-full gap-2' disabled={unbanningUser}>
+                                                                                {unbanningUser && <span className='loading loading-spinner loading-sm' />}
+                                                                                <Unlock className='size-4' />
+                                                                                <span>Gỡ khóa tài khoản</span>
+                                                                        </button>
+                                                                </form>
+                                                        )}
                                                 </div>
 
                                                 <div className='rounded-2xl border border-base-300 bg-base-100 p-4 space-y-3'>
