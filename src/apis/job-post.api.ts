@@ -115,7 +115,9 @@ const buildJobPostFormData = ({ payload, attachmentFiles = [] }: JobPostRequest)
 	return formData
 }
 
-const serializeFilters = (filters: JobPostFilterInput | FreelancerJobPostFilterInput = {}) => {
+export const serializeJobPostFilters = (
+        filters: JobPostFilterInput | FreelancerJobPostFilterInput = {}
+) => {
 	const serialized = new URLSearchParams()
 
 	Object.entries(filters).forEach(([key, value]) => {
@@ -155,7 +157,7 @@ const serializeFilters = (filters: JobPostFilterInput | FreelancerJobPostFilterI
 }
 
 const buildListUrl = (base: string, params: JobPostFilterInput = {}) => {
-        const queryString = serializeFilters(params)
+        const queryString = serializeJobPostFilters(params)
         return queryString ? `${base}?${queryString}` : base
 }
 

@@ -28,13 +28,15 @@ export type JobPostListItem = {
 	experienceLevel: JobExperienceLevel
 	locationType: JobLocationType
 	visibility: JobVisibility
-	status: JobStatus
-	publishedAt: string | null
-	attachmentsCount: number
-	createdAt?: string
-	updatedAt?: string
-	isSaved?: boolean
-	[key: string]: unknown
+        status: JobStatus
+        publishedAt: string | null
+        attachmentsCount: number
+        createdAt?: string
+        updatedAt?: string
+        isSaved?: boolean
+        isDeleted?: boolean | null
+        deletedAt?: string | null
+        [key: string]: unknown
 }
 
 export type JobPostDetail = JobPostListItem & {
@@ -71,12 +73,25 @@ export type JobPostFilterInput = {
 }
 
 export type PaginatedJobPostResponse = {
-	data: JobPostListItem[]
-	total: number
-	page: number
-	limit: number
+        data: JobPostListItem[]
+        total: number
+        page: number
+        limit: number
 }
 
 export type FreelancerJobPostFilterInput = Omit<JobPostFilterInput, 'mine' | 'clientId' | 'visibility'> & {
-	savedOnly?: boolean
+        savedOnly?: boolean
+}
+
+export type AdminJobPostFilterInput = JobPostFilterInput & {
+        includeDeleted?: boolean
+}
+
+export type AdminJobPostListResponse = {
+        data: JobPostListItem[]
+        meta: {
+                page: number
+                limit: number
+                total: number
+        }
 }
