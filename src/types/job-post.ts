@@ -1,11 +1,62 @@
 import type {
-	JobDurationCommitment,
-	JobExperienceLevel,
-	JobLocationType,
-	JobPaymentMode,
-	JobStatus,
-	JobVisibility
+        JobDurationCommitment,
+        JobExperienceLevel,
+        JobLocationType,
+        JobPaymentMode,
+        JobStatus,
+        JobVisibility
 } from '~/constants/job'
+
+export type AdminJobPostClientProfile = {
+        firstName?: string | null
+        lastName?: string | null
+        user?: {
+                id?: string
+                email?: string | null
+                role?: string | null
+                isActive?: boolean | null
+        } | null
+        [key: string]: unknown
+} | null
+
+export type AdminJobPostClientSummary = {
+        id?: string
+        userId?: string
+        companyName?: string | null
+        profile?: AdminJobPostClientProfile
+        [key: string]: unknown
+} | null
+
+export type AdminJobPostAttachmentAsset = {
+        id: string
+        kind?: string | null
+        url?: string | null
+        publicId?: string | null
+        mimeType?: string | null
+        bytes?: number | null
+        width?: number | null
+        height?: number | null
+        [key: string]: unknown
+}
+
+export type AdminJobPostAttachment = {
+        id: string
+        assetLinkId: string
+        addedBy: string | null
+        createdAt: string
+        updatedAt: string
+        position: number
+        isPrimary: boolean
+        label: string | null
+        caption: string | null
+        asset: AdminJobPostAttachmentAsset
+        [key: string]: unknown
+}
+
+export type AdminJobPostLanguageRequirement = {
+        languageCode: string
+        proficiency: string | null
+}
 
 export type JobPostListItem = {
 	id: string
@@ -40,12 +91,31 @@ export type JobPostListItem = {
 }
 
 export type JobPostDetail = JobPostListItem & {
-	preferredLocations?: unknown
-	customTerms?: Record<string, unknown> | null
-	languages?: unknown
-	skills?: unknown
-	screeningQuestions?: unknown
-	attachments?: unknown
+        preferredLocations?: unknown
+        customTerms?: Record<string, unknown> | null
+        languages?: unknown
+        skills?: unknown
+        screeningQuestions?: unknown
+        attachments?: unknown
+}
+
+export type AdminJobPostDetail = JobPostDetail & {
+        client: AdminJobPostClientSummary
+        proposalsCount?: number
+        viewsCount?: number
+        moderationScore?: number | null
+        moderationCategory?: string | null
+        moderationSummary?: string | null
+        moderationCheckedAt?: string | null
+        moderationPayload?: unknown
+        languages?: AdminJobPostLanguageRequirement[]
+        screeningQuestions?: Array<{
+                id: string
+                question: string
+                isRequired: boolean
+                orderIndex: number
+        }>
+        attachments?: AdminJobPostAttachment[]
 }
 
 export type JobPostFilterInput = {
@@ -94,4 +164,15 @@ export type AdminJobPostListResponse = {
                 limit: number
                 total: number
         }
+}
+
+export type AdminUpdateJobPostStatusInput = {
+        status: JobStatus
+        reason?: string
+        note?: string
+}
+
+export type AdminDeleteJobPostInput = {
+        reason?: string
+        note?: string
 }

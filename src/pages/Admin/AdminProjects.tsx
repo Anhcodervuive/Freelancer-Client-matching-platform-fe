@@ -22,6 +22,7 @@ import {
         SlidersHorizontal,
         XCircle
 } from 'lucide-react'
+import AdminJobPostDetailModal from './AdminJobPostDetailModal'
 import {
         JOB_EXPERIENCE_LEVELS,
         JOB_LOCATION_TYPES,
@@ -248,6 +249,7 @@ export default function AdminProjects() {
         const [budgetMaxInput, setBudgetMaxInput] = useState('')
         const [createdFromInput, setCreatedFromInput] = useState('')
         const [createdToInput, setCreatedToInput] = useState('')
+        const [detailJobId, setDetailJobId] = useState<string | null>(null)
 
         const debouncedSearch = useDebounce(search, 500)
 
@@ -805,12 +807,13 @@ export default function AdminProjects() {
                                                                 <th className='min-w-[200px]'>Ngân sách &amp; thanh toán</th>
                                                                 <th className='min-w-[160px]'>Trạng thái</th>
                                                                 <th className='min-w-[200px]'>Thời gian</th>
+                                                                <th className='min-w-[140px]'>Thao tác</th>
                                                         </tr>
                                                 </thead>
                                                 <tbody>
                                                         {isLoading && (
                                                                 <tr>
-                                                                        <td colSpan={6}>
+                                                                        <td colSpan={7}>
                                                                                 <div className='space-y-4 p-6'>
                                                                                         <div className='skeleton h-12 w-full' />
                                                                                         <div className='skeleton h-12 w-full' />
@@ -821,7 +824,7 @@ export default function AdminProjects() {
                                                         )}
                                                         {!isLoading && isError && (
                                                                 <tr>
-                                                                        <td colSpan={6}>
+                                                                        <td colSpan={7}>
                                                                                 <div className='alert alert-error m-4'>
                                                                                         <AlertCircle className='size-5' />
                                                                                         <span>{errorMessage}</span>
@@ -831,7 +834,7 @@ export default function AdminProjects() {
                                                         )}
                                                         {!isLoading && !isError && jobs.length === 0 && (
                                                                 <tr>
-                                                                        <td colSpan={6}>
+                                                                        <td colSpan={7}>
                                                                                 <div className='p-8 text-center text-base-content/60'>Không có job post nào phù hợp.</div>
                                                                         </td>
                                                                 </tr>
@@ -896,6 +899,18 @@ export default function AdminProjects() {
                                                                                         {job.deletedAt && <div>Xóa: {formatDateTime(job.deletedAt)}</div>}
                                                                                 </div>
                                                                         </td>
+                                                                        <td>
+                                                                                <div className='flex flex-col gap-2'>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-xs btn-outline gap-2'
+                                                                                                onClick={() => setDetailJobId(job.id)}
+                                                                                        >
+                                                                                                <Eye className='size-3.5' />
+                                                                                                Xem chi tiết
+                                                                                        </button>
+                                                                                </div>
+                                                                        </td>
                                                                 </tr>
                                                         ))}
                                                 </tbody>
@@ -928,6 +943,14 @@ export default function AdminProjects() {
                                         </div>
                                 </div>
                         </div>
+
+                        <AdminJobPostDetailModal
+                                jobId={detailJobId}
+                                onClose={() => setDetailJobId(null)}
+                                onUpdated={() => {
+                                        refetch()
+                                }}
+                        />
                 </div>
         )
 }

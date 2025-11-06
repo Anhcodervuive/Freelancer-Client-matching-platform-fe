@@ -1,6 +1,12 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import { serializeJobPostFilters } from '~/apis/job-post.api'
-import type { AdminJobPostFilterInput, AdminJobPostListResponse } from '~/types/job-post'
+import type {
+        AdminDeleteJobPostInput,
+        AdminJobPostDetail,
+        AdminJobPostFilterInput,
+        AdminJobPostListResponse,
+        AdminUpdateJobPostStatusInput
+} from '~/types/job-post'
 
 type RawAdminJobPostListResponse = Partial<AdminJobPostListResponse> & Record<string, unknown>
 
@@ -69,3 +75,50 @@ export const listAdminJobPosts = async (
 }
 
 export type { AdminJobPostListResponse }
+
+export const getAdminJobPostDetail = async (jobId: string): Promise<AdminJobPostDetail> => {
+        const response = await authorizeAxiosInstance.get<AdminJobPostDetail | { data: AdminJobPostDetail }>(
+                `${baseUrl}/${jobId}`
+        )
+        const payload = response.data
+
+        if (!payload) {
+                throw new Error('Job post not found')
+        }
+
+        if ('data' in (payload as Record<string, unknown>) && (payload as Record<string, unknown>).data) {
+                return (payload as { data: AdminJobPostDetail }).data
+        }
+
+        return payload as AdminJobPostDetail
+}
+
+export const updateAdminJobPostStatus = async (
+        jobId: string,
+        payload: AdminUpdateJobPostStatusInput
+): Promise<AdminJobPostDetail> => {
+        const response = await authorizeAxiosInstance.patch<AdminJobPostDetail | { data: AdminJobPostDetail }>(
+                `${baseUrl}/${jobId}/status`,
+                payload
+        )
+        const data = response.data
+
+        if (!data) {
+                throw new Error('Không thể cập nhật trạng thái job post')
+        }
+
+        if ('data' in (data as Record<string, unknown>) && (data as Record<string, unknown>).data) {
+                return (data as { data: AdminJobPostDetail }).data
+        }
+
+        return data as AdminJobPostDetail
+}
+
+export const deleteAdminJobPost = async (
+        jobId: string,
+        payload: AdminDeleteJobPostInput
+): Promise<void> => {
+        await authorizeAxiosInstance.delete(`${baseUrl}/${jobId}` as const, {
+                data: payload ?? {}
+        })
+}
