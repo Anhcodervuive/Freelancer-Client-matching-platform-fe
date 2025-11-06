@@ -70,9 +70,37 @@ export const JOB_VISIBILITY_OPTIONS = [
 ] as const
 
 export const JOB_STATUS_OPTIONS = [
-	{ value: 'DRAFT', label: 'Save as draft' },
-	{ value: 'PUBLISHED', label: 'Publish immediately' },
-	{ value: 'CLOSED', label: 'Close this job' }
+        { value: 'DRAFT', label: 'Save as draft' },
+        { value: 'PUBLISHED', label: 'Publish immediately' },
+        { value: 'CLOSED', label: 'Close this job' }
+] as const
+
+export const ADMIN_ONLY_JOB_STATUS_OPTIONS = [
+        {
+                value: 'PAUSED',
+                label: 'Paused',
+                description: 'Temporarily hide this posting from talent while the team reviews it.'
+        },
+        {
+                value: 'PENDING_REVIEW',
+                label: 'Pending review',
+                description: 'Awaiting moderation before the job can be published to talent.'
+        },
+        {
+                value: 'REJECTED',
+                label: 'Rejected',
+                description: 'Rejected by moderation or an administrator and hidden from talent.'
+        },
+        {
+                value: 'ARCHIVED',
+                label: 'Archived',
+                description: 'Closed and archived for record keeping, not visible to talent.'
+        }
+] as const
+
+export const ADMIN_JOB_STATUS_OPTIONS = [
+        ...JOB_STATUS_OPTIONS,
+        ...ADMIN_ONLY_JOB_STATUS_OPTIONS
 ] as const
 
 export const CURRENCY_CODES = ['USD', 'EUR', 'VND', 'JPY', 'AUD'] as const
@@ -91,4 +119,4 @@ export type JobExperienceLevel = z.infer<typeof JobExperienceLevelSchema>
 export type JobDurationCommitment = z.infer<typeof JobDurationCommitmentSchema>
 export type JobLocationType = z.infer<typeof JobLocationTypeSchema>
 export type JobVisibility = z.infer<typeof JobVisibilitySchema>
-export type JobStatus = z.infer<typeof JobStatusSchema>
+export type JobStatus = (typeof ADMIN_JOB_STATUS_OPTIONS)[number]['value']

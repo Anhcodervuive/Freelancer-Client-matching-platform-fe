@@ -24,10 +24,10 @@ import {
 } from 'lucide-react'
 import AdminJobPostDetailModal from './AdminJobPostDetailModal'
 import {
+        ADMIN_JOB_STATUS_OPTIONS,
         JOB_EXPERIENCE_LEVELS,
         JOB_LOCATION_TYPES,
         JOB_PAYMENT_MODES,
-        JOB_STATUS_OPTIONS,
         JOB_VISIBILITY_OPTIONS,
         type JobExperienceLevel,
         type JobLocationType,
@@ -79,7 +79,7 @@ function FilterCard({ title, icon: Icon, actions, children, contentClassName }: 
 
 const limitOptions = [10, 20, 50]
 
-const statusOptions: MultiSelectOption<JobStatus>[] = JOB_STATUS_OPTIONS.map(option => ({
+const statusOptions: MultiSelectOption<JobStatus>[] = ADMIN_JOB_STATUS_OPTIONS.map(option => ({
         value: option.value,
         label: option.label
 }))
@@ -99,7 +99,7 @@ const locationTypeOptions: MultiSelectOption<JobLocationType>[] = JOB_LOCATION_T
         label: option.label
 }))
 
-const statusLabelMap = Object.fromEntries(statusOptions.map(option => [option.value, option.label])) as Record<JobStatus, string>
+const statusLabelMap = Object.fromEntries(statusOptions.map(option => [option.value, option.label])) as Record<string, string>
 const paymentModeLabelMap = Object.fromEntries(paymentModeOptions.map(option => [option.value, option.label])) as Record<
         JobPaymentMode,
         string
@@ -220,10 +220,23 @@ const statusBadgeClass = (status: JobStatus) => {
                         return 'badge border border-success/40 bg-success/10 text-success'
                 case 'CLOSED':
                         return 'badge border border-neutral/40 bg-neutral/10 text-neutral'
+                case 'PAUSED':
+                        return 'badge border border-warning/40 bg-warning/10 text-warning'
                 case 'DRAFT':
                 default:
                         return 'badge badge-outline'
         }
+}
+
+const formatStatusLabel = (status: JobStatus | string) => {
+        if (!status) return '—'
+        const normalized = statusLabelMap[status]
+        if (normalized) return normalized
+        return status
+                .toString()
+                .toLowerCase()
+                .replace(/_/g, ' ')
+                .replace(/(^|\s)\w/g, letter => letter.toUpperCase())
 }
 
 export default function AdminProjects() {
@@ -880,7 +893,7 @@ export default function AdminProjects() {
                                                                         </td>
                                                                         <td>
                                                                                 <div className='flex flex-col gap-2 text-sm text-base-content'>
-                                                                                        <span className={statusBadgeClass(job.status)}>{statusLabelMap[job.status] ?? job.status}</span>
+                                                                                        <span className={statusBadgeClass(job.status)}>{formatStatusLabel(job.status)}</span>
                                                                                         {job.isDeleted && (
                                                                                                 <span className='badge border border-error/30 bg-error/10 text-error'>Đã xóa</span>
                                                                                         )}

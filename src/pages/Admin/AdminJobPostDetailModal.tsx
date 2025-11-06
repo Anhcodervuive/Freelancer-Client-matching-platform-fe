@@ -25,11 +25,13 @@ import {
         updateAdminJobPostStatus
 } from '~/apis/admin/job-post.api'
 import {
+        ADMIN_JOB_STATUS_OPTIONS,
+        JOB_DURATION_COMMITMENTS,
         JOB_EXPERIENCE_LEVELS,
         JOB_LOCATION_TYPES,
         JOB_PAYMENT_MODES,
-        JOB_STATUS_OPTIONS,
         JOB_VISIBILITY_OPTIONS,
+        type JobDurationCommitment,
         type JobExperienceLevel,
         type JobLocationType,
         type JobPaymentMode,
@@ -45,9 +47,16 @@ import type {
 } from '~/types/job-post'
 import { normalizeSkills } from '~/utils/jobPost'
 
-const statusLabelMap = Object.fromEntries(
-        JOB_STATUS_OPTIONS.map(option => [option.value, option.label])
-) as Record<JobStatus, string>
+const baseStatusLabelMap = Object.fromEntries(
+        ADMIN_JOB_STATUS_OPTIONS.map(option => [option.value, option.label])
+) as Record<string, string>
+
+const statusLabelMap: Record<string, string> = {
+        PENDING_REVIEW: 'Pending review',
+        REJECTED: 'Rejected',
+        ARCHIVED: 'Archived',
+        ...baseStatusLabelMap
+}
 const paymentModeLabelMap = Object.fromEntries(
         JOB_PAYMENT_MODES.map(option => [option.value, option.label])
 ) as Record<JobPaymentMode, string>
@@ -60,6 +69,9 @@ const locationLabelMap = Object.fromEntries(
 const visibilityLabelMap = Object.fromEntries(
         JOB_VISIBILITY_OPTIONS.map(option => [option.value, option.label])
 ) as Record<JobVisibility, string>
+const durationLabelMap = Object.fromEntries(
+        JOB_DURATION_COMMITMENTS.map(item => [item.value, item.label])
+) as Record<JobDurationCommitment, string>
 
 const formatDateTime = (value?: string | null) => {
         if (!value) return '—'
@@ -84,6 +96,28 @@ const formatBudget = (job?: AdminJobPostDetail | null) => {
         }
 }
 
+const formatDuration = (value?: JobDurationCommitment | null) => {
+        if (!value) return '—'
+        return durationLabelMap[value] ?? value
+}
+
+const toTitleCase = (value: string) =>
+        value.replace(/_/g, ' ').replace(/(^|\s)\w/g, letter => letter.toUpperCase())
+
+const formatStatusLabel = (status: string) => {
+        if (!status) return '—'
+        return statusLabelMap[status] ?? toTitleCase(status.toLowerCase())
+}
+
+const formatModerationScore = (score?: number | null) => {
+        if (score == null || Number.isNaN(score)) return '—'
+        const percentage = (score * 100).toFixed(score * 100 < 1 ? 2 : 1)
+        return `${score.toFixed(3)} (${percentage}%)`
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+        typeof value === 'object' && value !== null && !Array.isArray(value)
+
 const isLanguageArray = (value: unknown): value is AdminJobPostLanguageRequirement[] =>
         Array.isArray(value) &&
         value.every(
@@ -100,6 +134,14 @@ const isAttachmentArray = (value: unknown): value is AdminJobPostAttachment[] =>
 
 type TabKey = 'overview' | 'content' | 'requirements' | 'attachments' | 'moderation'
 
+type ModerationDetails = {
+        flagged: boolean | null
+        provider?: string
+        categories: Array<{ key: string; isFlagged: boolean }>
+        scores: Array<{ key: string; score: number }>
+        languages: string[]
+}
+
 const stringifyJson = (value: unknown) => {
         if (value == null) return ''
         if (typeof value === 'string') return value
@@ -109,6 +151,22 @@ const stringifyJson = (value: unknown) => {
         } catch {
                 return String(value)
         }
+}
+
+const moderationCategoryLabelMap: Record<string, string> = {
+        insult: 'Insult / xúc phạm',
+        hate: 'Hate speech',
+        harassment: 'Harassment',
+        sexual: 'Sexual content',
+        violence: 'Violence',
+        spam: 'Spam'
+}
+
+const formatModerationCategory = (value?: string | null) => {
+        if (!value) return '—'
+        const normalized = moderationCategoryLabelMap[value]
+        if (normalized) return normalized
+        return toTitleCase(value.toLowerCase())
 }
 
 type AdminJobPostDetailModalProps = {
@@ -196,6 +254,8 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                 if (!data || !isAttachmentArray(data.attachments)) return []
                 return [...data.attachments].sort((a, b) => a.position - b.position)
         }, [data])
+        const clientAccountIsActive = data?.client?.profile?.user?.isActive
+        const clientAccountRole = data?.client?.profile?.user?.role ?? null
 
         const screeningQuestions = useMemo(() => {
                 if (!Array.isArray(data?.screeningQuestions)) return []
@@ -229,6 +289,41 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                 () => moderationPayloadText.trim().length > 0,
                 [moderationPayloadText]
         )
+        const moderationDetails = useMemo<ModerationDetails>(() => {
+                if (!isRecord(data?.moderationPayload)) {
+                        return { flagged: null, provider: undefined, categories: [], scores: [], languages: [] }
+                }
+
+                const payload = data.moderationPayload as Record<string, unknown>
+                const resultRaw = (payload as { result?: unknown }).result
+                const responseRaw = (payload as { response?: unknown }).response
+
+                const result = isRecord(resultRaw) ? resultRaw : {}
+                const response = isRecord(responseRaw) ? responseRaw : {}
+
+                const flaggedRaw = (result as { flagged?: unknown }).flagged
+                const categoriesRaw = (result as { categories?: unknown }).categories
+                const categoryScoresRaw = (result as { categoryScores?: unknown }).categoryScores
+                const languagesRaw = (response as { languages?: unknown }).languages
+
+                const flagged = typeof flaggedRaw === 'boolean' ? flaggedRaw : null
+                const categories = isRecord(categoriesRaw)
+                        ? Object.entries(categoriesRaw)
+                                  .filter(([, value]) => typeof value === 'boolean')
+                                  .map(([key, value]) => ({ key, isFlagged: Boolean(value) }))
+                        : []
+                const scores = isRecord(categoryScoresRaw)
+                        ? Object.entries(categoryScoresRaw)
+                                  .filter(([, value]) => typeof value === 'number' && !Number.isNaN(value))
+                                  .map(([key, value]) => ({ key, score: Number(value) }))
+                        : []
+                const languages = Array.isArray(languagesRaw)
+                        ? languagesRaw.filter((item): item is string => typeof item === 'string')
+                        : []
+                const provider = typeof payload.provider === 'string' ? payload.provider : undefined
+
+                return { flagged, provider, categories, scores, languages }
+        }, [data?.moderationPayload])
 
         const tabItems: { id: TabKey; label: string }[] = useMemo(
                 () => [
@@ -243,6 +338,21 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                 ],
                 [attachments.length]
         )
+        const statusOptions = useMemo(() => {
+                const optionMap = new Map<JobStatus, { value: JobStatus; label: string }>()
+                ADMIN_JOB_STATUS_OPTIONS.forEach(option => {
+                        optionMap.set(option.value, { value: option.value, label: option.label })
+                })
+
+                if (data?.status && !optionMap.has(data.status)) {
+                        optionMap.set(data.status, {
+                                value: data.status,
+                                label: formatStatusLabel(data.status)
+                        })
+                }
+
+                return Array.from(optionMap.values())
+        }, [data?.status])
 
         if (!jobId) {
                 return null
@@ -301,7 +411,7 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                         </div>
                                         <div className='flex flex-wrap items-center gap-2'>
                                                 <span className='badge border border-primary/30 bg-primary/10 text-primary'>
-                                                        {statusValue ? statusLabelMap[statusValue] ?? statusValue : '—'}
+                                                        {statusValue ? formatStatusLabel(statusValue) : '—'}
                                                 </span>
                                                 {data?.isDeleted && (
                                                         <span className='badge border border-error/40 bg-error/10 text-error'>Đã xóa</span>
@@ -335,6 +445,22 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                         </div>
                                 ) : data ? (
                                         <div className='space-y-6'>
+                                                {moderationDetails.flagged && (
+                                                        <div className='alert alert-warning'>
+                                                                <AlertCircle className='size-5' />
+                                                                <div>
+                                                                        <p className='font-semibold text-base-content'>Bài đăng đang bị gắn cờ kiểm duyệt</p>
+                                                                        <p className='text-xs text-base-content/70'>
+                                                                                {`Danh mục: ${formatModerationCategory(data.moderationCategory)}`}
+                                                                        </p>
+                                                                        {data.moderationSummary && (
+                                                                                <p className='mt-1 text-sm text-base-content/80'>
+                                                                                        {data.moderationSummary}
+                                                                                </p>
+                                                                        )}
+                                                                </div>
+                                                        </div>
+                                                )}
                                                 <div className='grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]'>
                                                         <div className='space-y-4'>
                                                                 <div className='rounded-2xl border border-base-200 bg-base-100 p-4'>
@@ -365,7 +491,7 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                                 <dl className='mt-4 grid grid-cols-[max-content,1fr] items-start gap-x-4 gap-y-3 text-sm text-base-content/80'>
                                                                                                                         <dt className='text-xs uppercase tracking-wide text-base-content/60'>Trạng thái</dt>
                                                                                                                         <dd className='font-medium text-base-content'>
-                                                                                                                                {statusLabelMap[data.status] ?? data.status}
+                                                                                                                                {formatStatusLabel(data.status)}
                                                                                                                         </dd>
                                                                                                                         <dt className='text-xs uppercase tracking-wide text-base-content/60'>Hiển thị</dt>
                                                                                                                         <dd>{visibilityLabelMap[data.visibility] ?? data.visibility}</dd>
@@ -397,7 +523,7 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                                                 )}
                                                                                                                         </dd>
                                                                                                                         <dt className='text-xs uppercase tracking-wide text-base-content/60'>Thời lượng</dt>
-                                                                                                                        <dd>{data.duration ?? '—'}</dd>
+                                                                                                                        <dd>{formatDuration(data.duration)}</dd>
                                                                                                                         <dt className='text-xs uppercase tracking-wide text-base-content/60'>Phiên bản form</dt>
                                                                                                                         <dd>{data.formVersion}</dd>
                                                                                                                 </dl>
@@ -414,15 +540,35 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                                                                 {data.client?.companyName ?? '—'}
                                                                                                                                         </dd>
                                                                                                                                 </div>
-                                                                                                                                <div>
-                                                                                                                                        <dt className='text-xs uppercase tracking-wide text-base-content/60'>Client ID</dt>
-                                                                                                                                        <dd>{data.client?.userId ?? '—'}</dd>
-                                                                                                                                </div>
-                                                                                                                                <div>
-                                                                                                                                        <dt className='text-xs uppercase tracking-wide text-base-content/60'>Liên hệ</dt>
-                                                                                                                                        <dd>
-                                                                                                                                                {data.client?.profile?.firstName || data.client?.profile?.lastName
-                                                                                                                                                        ? `${data.client?.profile?.firstName ?? ''} ${data.client?.profile?.lastName ?? ''}`.trim()
+        <div>
+                <dt className='text-xs uppercase tracking-wide text-base-content/60'>Client ID</dt>
+                <dd>{data.client?.userId ?? '—'}</dd>
+        </div>
+        <div>
+                <dt className='text-xs uppercase tracking-wide text-base-content/60'>Hồ sơ client</dt>
+                <dd>{data.client?.id ?? '—'}</dd>
+        </div>
+        <div>
+                <dt className='text-xs uppercase tracking-wide text-base-content/60'>Trạng thái tài khoản</dt>
+                <dd>
+                        {clientAccountIsActive === true ? (
+                                <span className='badge badge-success badge-outline text-xs'>Đang hoạt động</span>
+                        ) : clientAccountIsActive === false ? (
+                                <span className='badge badge-error badge-outline text-xs'>Đã khóa</span>
+                        ) : (
+                                'Không rõ'
+                        )}
+                </dd>
+        </div>
+        <div>
+                <dt className='text-xs uppercase tracking-wide text-base-content/60'>Vai trò</dt>
+                <dd>{clientAccountRole ? toTitleCase(clientAccountRole.toLowerCase()) : '—'}</dd>
+        </div>
+        <div>
+                <dt className='text-xs uppercase tracking-wide text-base-content/60'>Liên hệ</dt>
+                <dd>
+                        {data.client?.profile?.firstName || data.client?.profile?.lastName
+                                ? `${data.client?.profile?.firstName ?? ''} ${data.client?.profile?.lastName ?? ''}`.trim()
                                                                                                                                                         : '—'}
                                                                                                                                                 {data.client?.profile?.user?.email && (
                                                                                                                                                         <span className='block text-xs text-base-content/60'>
@@ -633,17 +779,81 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                 <dl className='mt-3 grid gap-3 text-sm text-base-content/80 sm:grid-cols-2'>
                                                                                                         <div>
                                                                                                                 <dt className='text-xs uppercase tracking-wide text-base-content/60'>Điểm kiểm duyệt</dt>
-                                                                                                                <dd>{data.moderationScore ?? '—'}</dd>
+                                                                                                                <dd>{formatModerationScore(data.moderationScore)}</dd>
                                                                                                         </div>
                                                                                                         <div>
                                                                                                                 <dt className='text-xs uppercase tracking-wide text-base-content/60'>Danh mục kiểm duyệt</dt>
-                                                                                                                <dd>{data.moderationCategory ?? '—'}</dd>
+                                                                                                                <dd>{formatModerationCategory(data.moderationCategory)}</dd>
                                                                                                         </div>
                                                                                                         <div>
+                                                                                                                <dt className='text-xs uppercase tracking-wide text-base-content/60'>Đánh dấu vi phạm</dt>
+                                                                                                                <dd>
+                                                                                                                        {moderationDetails.flagged == null
+                                                                                                                                ? 'Không xác định'
+                                                                                                                                : moderationDetails.flagged
+                                                                                                                                ? 'Có'
+                                                                                                                                : 'Không'}
+                                                                                                                </dd>
+                                                                                                        </div>
+                                                                                                        <div>
+                                                                                                                <dt className='text-xs uppercase tracking-wide text-base-content/60'>Nhà cung cấp</dt>
+                                                                                                                <dd>{moderationDetails.provider ?? '—'}</dd>
+                                                                                                        </div>
+                                                                                                        <div className='sm:col-span-2'>
                                                                                                                 <dt className='text-xs uppercase tracking-wide text-base-content/60'>Kiểm duyệt lần cuối</dt>
                                                                                                                 <dd>{formatDateTime(data.moderationCheckedAt)}</dd>
                                                                                                         </div>
                                                                                                 </dl>
+                                                                                                {moderationDetails.languages.length > 0 && (
+                                                                                                        <div className='mt-4'>
+                                                                                                                <div className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ngôn ngữ phân tích</div>
+                                                                                                                <div className='mt-2 flex flex-wrap gap-2'>
+                                                                                                                        {moderationDetails.languages.map(language => (
+                                                                                                                                <span key={language} className='badge badge-outline text-xs uppercase'>
+                                                                                                                                        {language}
+                                                                                                                                </span>
+                                                                                                                        ))}
+                                                                                                                </div>
+                                                                                                        </div>
+                                                                                                )}
+                                                                                                {moderationDetails.categories.some(category => category.isFlagged) && (
+                                                                                                        <div className='mt-4 rounded-xl border border-warning/30 bg-warning/5 p-3 text-sm text-base-content/80'>
+                                                                                                                <div className='text-xs font-semibold uppercase tracking-wide text-warning'>Danh mục bị gắn cờ</div>
+                                                                                                                <ul className='mt-2 space-y-2'>
+                                                                                                                        {moderationDetails.categories
+                                                                                                                                .filter(category => category.isFlagged)
+                                                                                                                                .map(category => (
+                                                                                                                                        <li key={category.key} className='flex items-center gap-2'>
+                                                                                                                                                <AlertCircle className='size-4 text-warning' />
+                                                                                                                                                <span>{formatModerationCategory(category.key)}</span>
+                                                                                                                                        </li>
+                                                                                                                                ))}
+                                                                                                                </ul>
+                                                                                                        </div>
+                                                                                                )}
+                                                                                                {moderationDetails.scores.length > 0 && (
+                                                                                                        <div className='mt-4'>
+                                                                                                                <div className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Điểm theo danh mục</div>
+                                                                                                                <div className='mt-2 overflow-hidden rounded-xl border border-base-200'>
+                                                                                                                        <table className='w-full text-left text-xs text-base-content/80'>
+                                                                                                                                <thead className='bg-base-200/80 text-[11px] uppercase tracking-wide text-base-content/60'>
+                                                                                                                                        <tr>
+                                                                                                                                                <th className='px-3 py-2'>Danh mục</th>
+                                                                                                                                                <th className='px-3 py-2 text-right'>Điểm</th>
+                                                                                                                                        </tr>
+                                                                                                                                </thead>
+                                                                                                                                <tbody>
+                                                                                                                                        {moderationDetails.scores.map(score => (
+                                                                                                                                                <tr key={score.key} className='border-t border-base-200'>
+                                                                                                                                                        <td className='px-3 py-2'>{formatModerationCategory(score.key)}</td>
+                                                                                                                                                        <td className='px-3 py-2 text-right'>{formatModerationScore(score.score)}</td>
+                                                                                                                                                </tr>
+                                                                                                                                        ))}
+                                                                                                                                </tbody>
+                                                                                                                        </table>
+                                                                                                                </div>
+                                                                                                        </div>
+                                                                                                )}
                                                                                                 {data.moderationSummary && (
                                                                                                         <div className='mt-4 rounded-xl border border-base-200 bg-base-200/40 p-3 text-sm text-base-content/80'>
                                                                                                                 <div className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Tóm tắt kiểm duyệt</div>
@@ -679,7 +889,7 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                 <option value='' disabled>
                                                                                                         Chọn trạng thái
                                                                                                 </option>
-                                                                                                {JOB_STATUS_OPTIONS.map(option => (
+                                                                                                {statusOptions.map(option => (
                                                                                                         <option key={option.value} value={option.value}>
                                                                                                                 {option.label}
                                                                                                         </option>
