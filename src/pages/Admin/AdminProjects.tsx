@@ -1,15 +1,22 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
         AlertCircle,
         BadgeDollarSign,
         Calendar,
+        ChevronDown,
         ChevronLeft,
         ChevronRight,
+        ChevronUp,
+        Eye,
+        FileText,
         Filter,
+        Hash,
         Layers,
+        ListOrdered,
         Loader2,
         MapPin,
+        Paperclip,
         RefreshCcw,
         Search,
         SlidersHorizontal,
@@ -42,6 +49,31 @@ type MultiSelectGroupProps<T extends string> = {
         options: MultiSelectOption<T>[]
         selectedValues: T[]
         onChange: (_values: T[]) => void
+}
+
+type FilterCardProps = {
+        title: string
+        icon: LucideIcon
+        actions?: ReactNode
+        children: ReactNode
+        contentClassName?: string
+}
+
+function FilterCard({ title, icon: Icon, actions, children, contentClassName }: FilterCardProps) {
+        const contentClasses = `text-sm text-base-content ${contentClassName ?? 'space-y-3'}`
+
+        return (
+                <div className='rounded-2xl border border-base-200 bg-base-100/80 p-4 shadow-sm'>
+                        <div className='mb-3 flex items-center justify-between gap-2'>
+                                <div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
+                                        <Icon className='size-4' />
+                                        <span>{title}</span>
+                                </div>
+                                {actions}
+                        </div>
+                        <div className={contentClasses}>{children}</div>
+                </div>
+        )
 }
 
 const limitOptions = [10, 20, 50]
@@ -97,12 +129,10 @@ function MultiSelectGroup<T extends string>({
         }
 
         return (
-                <div className='rounded-2xl border border-base-200 bg-base-100 p-4 shadow-sm'>
-                        <div className='mb-3 flex items-center justify-between gap-2'>
-                                <div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
-                                        <Icon className='size-4' />
-                                        <span>{label}</span>
-                                </div>
+                <FilterCard
+                        title={label}
+                        icon={Icon}
+                        actions={
                                 <button
                                         type='button'
                                         className='btn btn-ghost btn-xs gap-1 text-xs'
@@ -112,30 +142,30 @@ function MultiSelectGroup<T extends string>({
                                         <XCircle className='size-3.5' />
                                         Bỏ chọn
                                 </button>
-                        </div>
-                        <div className='flex flex-wrap gap-2'>
-                                {options.map(option => {
-                                        const isActive = selectedValues.includes(option.value)
-                                        return (
-                                                <button
-                                                        key={option.value}
-                                                        type='button'
-                                                        className={`btn btn-xs ${
-                                                                isActive
-                                                                        ? 'btn-primary text-primary-content'
-                                                                        : 'btn-outline border-base-300'
-                                                        }`}
-                                                        onClick={() => toggleValue(option.value)}
-                                                >
-                                                        {option.label}
-                                                </button>
-                                        )
-                                })}
-                                {options.length === 0 && (
-                                        <span className='text-sm text-base-content/60'>Không có tùy chọn</span>
-                                )}
-                        </div>
-                </div>
+                        }
+                        contentClassName='flex flex-wrap gap-2'
+                >
+                        {options.map(option => {
+                                const isActive = selectedValues.includes(option.value)
+                                return (
+                                        <button
+                                                key={option.value}
+                                                type='button'
+                                                className={`btn btn-xs ${
+                                                        isActive
+                                                                ? 'btn-primary text-primary-content'
+                                                                : 'btn-outline border-base-300'
+                                                }`}
+                                                onClick={() => toggleValue(option.value)}
+                                        >
+                                                {option.label}
+                                        </button>
+                                )
+                        })}
+                        {options.length === 0 && (
+                                <span className='text-sm text-base-content/60'>Không có tùy chọn</span>
+                        )}
+                </FilterCard>
         )
 }
 
@@ -207,6 +237,7 @@ export default function AdminProjects() {
         const [attachmentsFilter, setAttachmentsFilter] = useState<AttachmentsFilterValue>('all')
         const [includeDeleted, setIncludeDeleted] = useState(false)
         const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest')
+        const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
         const [formVersionsInput, setFormVersionsInput] = useState('')
         const [specialtyId, setSpecialtyId] = useState('')
         const [categoryId, setCategoryId] = useState('')
@@ -339,6 +370,12 @@ export default function AdminProjects() {
                 createdTo
         ])
 
+        const advancedFilterCount = useMemo(() => {
+                return Object.keys(filters as Record<string, unknown>).filter(key =>
+                        !['page', 'limit', 'sortBy', 'search'].includes(key)
+                ).length
+        }, [filters])
+
         const queryKey = useMemo(() => ['admin-job-posts', filters], [filters])
 
         const { data, isLoading, isError, isFetching, error, refetch } = useQuery<AdminJobPostListResponse>({
@@ -384,6 +421,7 @@ export default function AdminProjects() {
                 setCreatedFromInput('')
                 setCreatedToInput('')
                 setPage(1)
+                setIsAdvancedOpen(false)
         }
 
         const errorMessage = error instanceof Error ? error.message : 'Không thể tải danh sách job posts.'
@@ -413,8 +451,8 @@ export default function AdminProjects() {
                         </div>
 
                         <div className='space-y-5 rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
-                                <div className='grid gap-4 lg:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))]'>
-                                        <label className='input input-bordered flex items-center gap-2'>
+                                <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5'>
+                                        <label className='input input-bordered flex items-center gap-2 sm:col-span-2 xl:col-span-2 2xl:col-span-3'>
                                                 <Search className='size-4 text-base-content/60' />
                                                 <input
                                                         value={search}
@@ -427,7 +465,7 @@ export default function AdminProjects() {
                                                 />
                                         </label>
 
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
+                                        <div className='flex flex-col gap-1 text-sm text-base-content'>
                                                 <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
                                                         <SlidersHorizontal className='size-3.5' /> Sắp xếp
                                                 </span>
@@ -442,11 +480,11 @@ export default function AdminProjects() {
                                                         <option value='newest'>Mới nhất</option>
                                                         <option value='oldest'>Cũ nhất</option>
                                                 </select>
-                                        </label>
+                                        </div>
 
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
+                                        <div className='flex flex-col gap-1 text-sm text-base-content'>
                                                 <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
-                                                        <BadgeDollarSign className='size-3.5' /> Đính kèm
+                                                        <Paperclip className='size-3.5' /> Đính kèm
                                                 </span>
                                                 <select
                                                         className='select select-bordered select-sm'
@@ -460,32 +498,11 @@ export default function AdminProjects() {
                                                         <option value='with'>Có đính kèm</option>
                                                         <option value='without'>Không đính kèm</option>
                                                 </select>
-                                        </label>
+                                        </div>
 
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
+                                        <div className='flex flex-col gap-1 text-sm text-base-content'>
                                                 <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
-                                                        <Layers className='size-3.5' /> Visibility
-                                                </span>
-                                                <select
-                                                        className='select select-bordered select-sm'
-                                                        value={visibility}
-                                                        onChange={event => {
-                                                                setVisibility(event.target.value as JobVisibility | 'ALL')
-                                                                setPage(1)
-                                                        }}
-                                                >
-                                                        <option value='ALL'>Tất cả</option>
-                                                        {JOB_VISIBILITY_OPTIONS.map(option => (
-                                                                <option key={option.value} value={option.value}>
-                                                                        {option.label}
-                                                                </option>
-                                                        ))}
-                                                </select>
-                                        </label>
-
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
-                                                        Số bản ghi
+                                                        <ListOrdered className='size-3.5' /> Số bản ghi
                                                 </span>
                                                 <select
                                                         className='select select-bordered select-sm'
@@ -501,203 +518,270 @@ export default function AdminProjects() {
                                                                 </option>
                                                         ))}
                                                 </select>
-                                        </label>
-
-                                        <label className='flex items-center gap-2 text-sm font-medium text-base-content'>
-                                                <input
-                                                        type='checkbox'
-                                                        className='checkbox checkbox-sm'
-                                                        checked={includeDeleted}
-                                                        onChange={event => {
-                                                                setIncludeDeleted(event.target.checked)
-                                                                setPage(1)
-                                                        }}
-                                                />
-                                                Bao gồm job đã xóa
-                                        </label>
+                                        </div>
                                 </div>
 
-                                <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-2'>
-                                        <MultiSelectGroup
-                                                label='Trạng thái'
-                                                icon={Filter}
-                                                options={statusOptions}
-                                                selectedValues={statuses}
-                                                onChange={values => {
-                                                        setStatuses(values)
-                                                        setPage(1)
-                                                }}
-                                        />
-                                        <MultiSelectGroup
-                                                label='Hình thức thanh toán'
-                                                icon={BadgeDollarSign}
-                                                options={paymentModeOptions}
-                                                selectedValues={paymentModes}
-                                                onChange={values => {
-                                                        setPaymentModes(values)
-                                                        setPage(1)
-                                                }}
-                                        />
-                                        <MultiSelectGroup
-                                                label='Kinh nghiệm yêu cầu'
-                                                icon={Layers}
-                                                options={experienceLevelOptions}
-                                                selectedValues={experienceLevels}
-                                                onChange={values => {
-                                                        setExperienceLevels(values)
-                                                        setPage(1)
-                                                }}
-                                        />
-                                        <MultiSelectGroup
-                                                label='Hình thức làm việc'
-                                                icon={MapPin}
-                                                options={locationTypeOptions}
-                                                selectedValues={locationTypes}
-                                                onChange={values => {
-                                                        setLocationTypes(values)
-                                                        setPage(1)
-                                                }}
-                                        />
+                                <div className='flex flex-col gap-2 border-t border-base-200 pt-4 sm:flex-row sm:items-center sm:justify-between'>
+                                        <div className='flex items-center gap-2 text-sm text-base-content/70'>
+                                                <SlidersHorizontal className='size-4' />
+                                                <span>Bộ lọc nâng cao</span>
+                                                {advancedFilterCount > 0 && (
+                                                        <span className='badge badge-sm badge-primary badge-outline'>
+                                                                {advancedFilterCount}
+                                                        </span>
+                                                )}
+                                        </div>
+                                        <div className='flex items-center gap-2'>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-sm btn-ghost gap-2'
+                                                        onClick={() => setIsAdvancedOpen(prev => !prev)}
+                                                >
+                                                        {isAdvancedOpen ? (
+                                                                <ChevronUp className='size-4' />
+                                                        ) : (
+                                                                <ChevronDown className='size-4' />
+                                                        )}
+                                                        {isAdvancedOpen ? 'Thu gọn' : 'Mở rộng'}
+                                                </button>
+                                        </div>
                                 </div>
 
-                                <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Form version</span>
-                                                <textarea
-                                                        className='textarea textarea-bordered h-20'
-                                                        placeholder='Nhập nhiều giá trị, phân tách bằng dấu phẩy hoặc dòng mới'
-                                                        value={formVersionsInput}
-                                                        onChange={event => {
-                                                                setFormVersionsInput(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                />
-                                        </label>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Mã ngôn ngữ</span>
-                                                <textarea
-                                                        className='textarea textarea-bordered h-20'
-                                                        placeholder='VD: EN, VI'
-                                                        value={languageCodesInput}
-                                                        onChange={event => {
-                                                                setLanguageCodesInput(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                />
-                                        </label>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Kỹ năng yêu cầu</span>
-                                                <textarea
-                                                        className='textarea textarea-bordered h-20'
-                                                        placeholder='Nhập danh sách skillId'
-                                                        value={skillIdsInput}
-                                                        onChange={event => {
-                                                                setSkillIdsInput(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                />
-                                        </label>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Specialty ID</span>
-                                                <input
-                                                        className='input input-bordered'
-                                                        value={specialtyId}
-                                                        onChange={event => {
-                                                                setSpecialtyId(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                        placeholder='Nhập specialtyId'
-                                                />
-                                        </label>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Category ID</span>
-                                                <input
-                                                        className='input input-bordered'
-                                                        value={categoryId}
-                                                        onChange={event => {
-                                                                setCategoryId(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                        placeholder='Nhập categoryId'
-                                                />
-                                        </label>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Client ID</span>
-                                                <input
-                                                        className='input input-bordered'
-                                                        value={clientId}
-                                                        onChange={event => {
-                                                                setClientId(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                        placeholder='Nhập clientId'
-                                                />
-                                        </label>
-                                </div>
+                                {isAdvancedOpen && (
+                                        <div className='space-y-4'>
+                                                <div className='grid gap-4 lg:grid-cols-2 2xl:grid-cols-3'>
+                                                        <MultiSelectGroup
+                                                                label='Trạng thái'
+                                                                icon={Filter}
+                                                                options={statusOptions}
+                                                                selectedValues={statuses}
+                                                                onChange={values => {
+                                                                        setStatuses(values)
+                                                                        setPage(1)
+                                                                }}
+                                                        />
+                                                        <MultiSelectGroup
+                                                                label='Hình thức thanh toán'
+                                                                icon={BadgeDollarSign}
+                                                                options={paymentModeOptions}
+                                                                selectedValues={paymentModes}
+                                                                onChange={values => {
+                                                                        setPaymentModes(values)
+                                                                        setPage(1)
+                                                                }}
+                                                        />
+                                                        <MultiSelectGroup
+                                                                label='Kinh nghiệm yêu cầu'
+                                                                icon={Layers}
+                                                                options={experienceLevelOptions}
+                                                                selectedValues={experienceLevels}
+                                                                onChange={values => {
+                                                                        setExperienceLevels(values)
+                                                                        setPage(1)
+                                                                }}
+                                                        />
+                                                        <MultiSelectGroup
+                                                                label='Hình thức làm việc'
+                                                                icon={MapPin}
+                                                                options={locationTypeOptions}
+                                                                selectedValues={locationTypes}
+                                                                onChange={values => {
+                                                                        setLocationTypes(values)
+                                                                        setPage(1)
+                                                                }}
+                                                        />
 
-                                <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
-                                                        <BadgeDollarSign className='size-3.5' /> Budget min
-                                                </span>
-                                                <input
-                                                        type='number'
-                                                        className='input input-bordered'
-                                                        value={budgetMinInput}
-                                                        onChange={event => {
-                                                                setBudgetMinInput(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                        placeholder='Từ'
-                                                />
-                                        </label>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
-                                                        <BadgeDollarSign className='size-3.5' /> Budget max
-                                                </span>
-                                                <input
-                                                        type='number'
-                                                        className='input input-bordered'
-                                                        value={budgetMaxInput}
-                                                        onChange={event => {
-                                                                setBudgetMaxInput(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                        placeholder='Đến'
-                                                />
-                                        </label>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
-                                                        <Calendar className='size-3.5' /> Từ ngày tạo
-                                                </span>
-                                                <input
-                                                        type='date'
-                                                        className='input input-bordered'
-                                                        value={createdFromInput}
-                                                        onChange={event => {
-                                                                setCreatedFromInput(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                />
-                                        </label>
-                                        <label className='flex flex-col gap-1 text-sm text-base-content'>
-                                                <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
-                                                        <Calendar className='size-3.5' /> Đến ngày tạo
-                                                </span>
-                                                <input
-                                                        type='date'
-                                                        className='input input-bordered'
-                                                        value={createdToInput}
-                                                        onChange={event => {
-                                                                setCreatedToInput(event.target.value)
-                                                                setPage(1)
-                                                        }}
-                                                />
-                                        </label>
-                                </div>
+                                                        <FilterCard title='Hiển thị & trạng thái' icon={Eye}>
+                                                                <div className='flex flex-col gap-1'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>
+                                                                                Visibility
+                                                                        </span>
+                                                                        <select
+                                                                                className='select select-bordered select-sm'
+                                                                                value={visibility}
+                                                                                onChange={event => {
+                                                                                        setVisibility(event.target.value as JobVisibility | 'ALL')
+                                                                                        setPage(1)
+                                                                                }}
+                                                                        >
+                                                                                <option value='ALL'>Tất cả</option>
+                                                                                {JOB_VISIBILITY_OPTIONS.map(option => (
+                                                                                        <option key={option.value} value={option.value}>
+                                                                                                {option.label}
+                                                                                        </option>
+                                                                                ))}
+                                                                        </select>
+                                                                </div>
+                                                                <label className='flex items-center gap-2'>
+                                                                        <input
+                                                                                type='checkbox'
+                                                                                className='checkbox checkbox-sm'
+                                                                                checked={includeDeleted}
+                                                                                onChange={event => {
+                                                                                        setIncludeDeleted(event.target.checked)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                        />
+                                                                        Bao gồm job đã xóa
+                                                                </label>
+                                                        </FilterCard>
+
+                                                        <FilterCard
+                                                                title='Ngân sách & thời gian'
+                                                                icon={Calendar}
+                                                                contentClassName='grid gap-3 sm:grid-cols-2'
+                                                        >
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
+                                                                                <BadgeDollarSign className='size-3.5' /> Budget min
+                                                                        </span>
+                                                                        <input
+                                                                                type='number'
+                                                                                className='input input-bordered input-sm'
+                                                                                value={budgetMinInput}
+                                                                                onChange={event => {
+                                                                                        setBudgetMinInput(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                                placeholder='Từ'
+                                                                        />
+                                                                </label>
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
+                                                                                <BadgeDollarSign className='size-3.5' /> Budget max
+                                                                        </span>
+                                                                        <input
+                                                                                type='number'
+                                                                                className='input input-bordered input-sm'
+                                                                                value={budgetMaxInput}
+                                                                                onChange={event => {
+                                                                                        setBudgetMaxInput(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                                placeholder='Đến'
+                                                                        />
+                                                                </label>
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
+                                                                                <Calendar className='size-3.5' /> Từ ngày tạo
+                                                                        </span>
+                                                                        <input
+                                                                                type='date'
+                                                                                className='input input-bordered input-sm'
+                                                                                value={createdFromInput}
+                                                                                onChange={event => {
+                                                                                        setCreatedFromInput(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                        />
+                                                                </label>
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/70'>
+                                                                                <Calendar className='size-3.5' /> Đến ngày tạo
+                                                                        </span>
+                                                                        <input
+                                                                                type='date'
+                                                                                className='input input-bordered input-sm'
+                                                                                value={createdToInput}
+                                                                                onChange={event => {
+                                                                                        setCreatedToInput(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                        />
+                                                                </label>
+                                                        </FilterCard>
+
+                                                        <FilterCard
+                                                                title='Form & yêu cầu nội dung'
+                                                                icon={FileText}
+                                                                contentClassName='grid gap-3'
+                                                        >
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Form version</span>
+                                                                        <textarea
+                                                                                className='textarea textarea-bordered textarea-sm min-h-[90px]'
+                                                                                placeholder='Nhập nhiều giá trị, phân tách bằng dấu phẩy hoặc dòng mới'
+                                                                                value={formVersionsInput}
+                                                                                onChange={event => {
+                                                                                        setFormVersionsInput(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                        />
+                                                                </label>
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Mã ngôn ngữ</span>
+                                                                        <textarea
+                                                                                className='textarea textarea-bordered textarea-sm min-h-[90px]'
+                                                                                placeholder='VD: EN, VI'
+                                                                                value={languageCodesInput}
+                                                                                onChange={event => {
+                                                                                        setLanguageCodesInput(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                        />
+                                                                </label>
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Kỹ năng yêu cầu</span>
+                                                                        <textarea
+                                                                                className='textarea textarea-bordered textarea-sm min-h-[90px]'
+                                                                                placeholder='Nhập danh sách skillId'
+                                                                                value={skillIdsInput}
+                                                                                onChange={event => {
+                                                                                        setSkillIdsInput(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                        />
+                                                                </label>
+                                                        </FilterCard>
+
+                                                        <FilterCard
+                                                                title='Mã & khách hàng'
+                                                                icon={Hash}
+                                                                contentClassName='grid gap-3 sm:grid-cols-2'
+                                                        >
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Specialty ID</span>
+                                                                        <input
+                                                                                className='input input-bordered input-sm'
+                                                                                value={specialtyId}
+                                                                                onChange={event => {
+                                                                                        setSpecialtyId(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                                placeholder='Nhập specialtyId'
+                                                                        />
+                                                                </label>
+                                                                <label className='flex flex-col gap-1'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Category ID</span>
+                                                                        <input
+                                                                                className='input input-bordered input-sm'
+                                                                                value={categoryId}
+                                                                                onChange={event => {
+                                                                                        setCategoryId(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                                placeholder='Nhập categoryId'
+                                                                        />
+                                                                </label>
+                                                                <label className='flex flex-col gap-1 sm:col-span-2'>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content/70'>Client ID</span>
+                                                                        <input
+                                                                                className='input input-bordered input-sm'
+                                                                                value={clientId}
+                                                                                onChange={event => {
+                                                                                        setClientId(event.target.value)
+                                                                                        setPage(1)
+                                                                                }}
+                                                                                placeholder='Nhập clientId'
+                                                                        />
+                                                                </label>
+                                                        </FilterCard>
+                                                </div>
+                                        </div>
+                                )}
 
                                 {validationMessage && (
-                                        <div className='alert alert-error mt-2'>
+                                        <div className='alert alert-error'>
                                                 <AlertCircle className='size-5' />
                                                 <span>{validationMessage}</span>
                                         </div>
