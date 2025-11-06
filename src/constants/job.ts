@@ -82,19 +82,14 @@ export const ADMIN_ONLY_JOB_STATUS_OPTIONS = [
                 description: 'Temporarily hide this posting from talent while the team reviews it.'
         },
         {
-                value: 'PENDING_REVIEW',
-                label: 'Pending review',
-                description: 'Awaiting moderation before the job can be published to talent.'
+                value: 'PUBLISHED_PENDING_REVIEW',
+                label: 'Đã xuất bản - chờ duyệt',
+                description: 'Published to talent but currently under moderation review.'
         },
         {
                 value: 'REJECTED',
                 label: 'Rejected',
                 description: 'Rejected by moderation or an administrator and hidden from talent.'
-        },
-        {
-                value: 'ARCHIVED',
-                label: 'Archived',
-                description: 'Closed and archived for record keeping, not visible to talent.'
         }
 ] as const
 

@@ -1,10 +1,10 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import { serializeJobPostFilters } from '~/apis/job-post.api'
 import type {
-        AdminDeleteJobPostInput,
         AdminJobPostDetail,
         AdminJobPostFilterInput,
         AdminJobPostListResponse,
+        AdminRemoveJobPostAttachmentInput,
         AdminUpdateJobPostStatusInput
 } from '~/types/job-post'
 
@@ -114,11 +114,12 @@ export const updateAdminJobPostStatus = async (
         return data as AdminJobPostDetail
 }
 
-export const deleteAdminJobPost = async (
+export const removeAdminJobPostAttachment = async (
         jobId: string,
-        payload: AdminDeleteJobPostInput
+        attachmentId: string,
+        payload: AdminRemoveJobPostAttachmentInput
 ): Promise<void> => {
-        await authorizeAxiosInstance.delete(`${baseUrl}/${jobId}` as const, {
+        await authorizeAxiosInstance.delete(`${baseUrl}/${jobId}/attachments/${attachmentId}` as const, {
                 data: payload ?? {}
         })
 }

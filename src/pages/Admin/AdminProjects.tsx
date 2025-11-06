@@ -218,10 +218,14 @@ const statusBadgeClass = (status: JobStatus) => {
         switch (status) {
                 case 'PUBLISHED':
                         return 'badge border border-success/40 bg-success/10 text-success'
+                case 'PUBLISHED_PENDING_REVIEW':
+                        return 'badge border border-info/40 bg-info/10 text-info'
                 case 'CLOSED':
                         return 'badge border border-neutral/40 bg-neutral/10 text-neutral'
                 case 'PAUSED':
                         return 'badge border border-warning/40 bg-warning/10 text-warning'
+                case 'REJECTED':
+                        return 'badge border border-error/40 bg-error/10 text-error'
                 case 'DRAFT':
                 default:
                         return 'badge badge-outline'

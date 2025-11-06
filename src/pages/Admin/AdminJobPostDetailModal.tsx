@@ -20,8 +20,8 @@ import {
 import { toast } from 'react-toastify'
 
 import {
-        deleteAdminJobPost,
         getAdminJobPostDetail,
+        removeAdminJobPostAttachment,
         updateAdminJobPostStatus
 } from '~/apis/admin/job-post.api'
 import {
@@ -39,10 +39,10 @@ import {
         type JobVisibility
 } from '~/constants/job'
 import type {
-        AdminDeleteJobPostInput,
         AdminJobPostAttachment,
         AdminJobPostDetail,
         AdminJobPostLanguageRequirement,
+        AdminRemoveJobPostAttachmentInput,
         AdminUpdateJobPostStatusInput
 } from '~/types/job-post'
 import { normalizeSkills } from '~/utils/jobPost'
@@ -52,9 +52,7 @@ const baseStatusLabelMap = Object.fromEntries(
 ) as Record<string, string>
 
 const statusLabelMap: Record<string, string> = {
-        PENDING_REVIEW: 'Pending review',
-        REJECTED: 'Rejected',
-        ARCHIVED: 'Archived',
+        PUBLISHED_PENDING_REVIEW: 'Đã xuất bản - chờ duyệt',
         ...baseStatusLabelMap
 }
 const paymentModeLabelMap = Object.fromEntries(
@@ -181,8 +179,9 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
         const [statusValue, setStatusValue] = useState<JobStatus | ''>('')
         const [statusReason, setStatusReason] = useState('')
         const [statusNote, setStatusNote] = useState('')
-        const [deleteReason, setDeleteReason] = useState('')
-        const [deleteNote, setDeleteNote] = useState('')
+        const [attachmentToRemove, setAttachmentToRemove] = useState<AdminJobPostAttachment | null>(null)
+        const [removeReason, setRemoveReason] = useState('')
+        const [removeNote, setRemoveNote] = useState('')
 
         const {
                 data,
@@ -212,18 +211,26 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                 }
         })
 
-        const deleteMutation = useMutation({
-                mutationFn: (payload: AdminDeleteJobPostInput) =>
-                        deleteAdminJobPost(jobId as string, payload),
+        const removeAttachmentMutation = useMutation({
+                mutationFn: ({
+                        attachmentId,
+                        payload
+                }: {
+                        attachmentId: string
+                        payload: AdminRemoveJobPostAttachmentInput
+                }) => removeAdminJobPostAttachment(jobId as string, attachmentId, payload),
                 onSuccess: () => {
-                        toast.success('Đã xóa job post')
-                        queryClient.removeQueries({ queryKey: ['admin-job-post', jobId] })
+                        toast.success('Đã gỡ tệp đính kèm')
+                        setAttachmentToRemove(null)
+                        setRemoveReason('')
+                        setRemoveNote('')
+                        queryClient.invalidateQueries({ queryKey: ['admin-job-post', jobId] })
                         queryClient.invalidateQueries({ queryKey: ['admin-job-posts'] })
+                        refetch()
                         onUpdated?.()
-                        onClose()
                 },
                 onError: () => {
-                        toast.error('Xóa job post thất bại')
+                        toast.error('Gỡ tệp đính kèm thất bại')
                 }
         })
 
@@ -243,8 +250,9 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                 if (jobId) {
                         setStatusReason('')
                         setStatusNote('')
-                        setDeleteReason('')
-                        setDeleteNote('')
+                        setAttachmentToRemove(null)
+                        setRemoveReason('')
+                        setRemoveNote('')
                 }
         }, [jobId])
 
@@ -379,23 +387,34 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                 updateStatusMutation.mutate(payload)
         }
 
-        const handleDeleteJobPost = (event: FormEvent<HTMLFormElement>) => {
+        const handleSelectAttachment = (attachment: AdminJobPostAttachment) => {
+                setActiveTab('attachments')
+                setAttachmentToRemove(attachment)
+                setRemoveReason('')
+                setRemoveNote('')
+        }
+
+        const handleRemoveAttachment = (event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault()
-                if (!jobId) return
-                const confirmed = window.confirm('Bạn có chắc chắn muốn xóa job post này? Hành động này không thể hoàn tác.')
+                if (!jobId || !attachmentToRemove) return
+
+                const confirmed = window.confirm('Bạn có chắc chắn muốn gỡ tệp đính kèm này? Hành động này không thể hoàn tác.')
                 if (!confirmed) return
 
-                const payload: AdminDeleteJobPostInput = {}
+                const payload: AdminRemoveJobPostAttachmentInput = {}
 
-                if (deleteReason.trim()) {
-                        payload.reason = deleteReason.trim()
+                if (removeReason.trim()) {
+                        payload.reason = removeReason.trim()
                 }
 
-                if (deleteNote.trim()) {
-                        payload.note = deleteNote.trim()
+                if (removeNote.trim()) {
+                        payload.note = removeNote.trim()
                 }
 
-                deleteMutation.mutate(payload)
+                removeAttachmentMutation.mutate({
+                        attachmentId: attachmentToRemove.id,
+                        payload
+                })
         }
 
         return (
@@ -739,32 +758,51 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                 </div>
                                                                                                 {attachments.length > 0 ? (
                                                                                                         <ul className='mt-3 space-y-2 text-sm text-base-content/80'>
-                                                                                                                {attachments.map(attachment => (
-                                                                                                                        <li
-                                                                                                                                key={attachment.id}
-                                                                                                                                className='flex items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-200/40 px-3 py-2'
-                                                                                                                        >
-                                                                                                                                <div>
-                                                                                                                                        <div className='font-medium text-base-content'>
-                                                                                                                                                {attachment.label ?? attachment.asset?.mimeType ?? 'Tệp'}
+                                                                                                                {attachments.map(attachment => {
+                                                                                                                        const isSelected = attachmentToRemove?.id === attachment.id
+
+                                                                                                                        return (
+                                                                                                                                <li
+                                                                                                                                        key={attachment.id}
+                                                                                                                                        className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 ${
+                                                                                                                                                isSelected
+                                                                                                                                                        ? 'border-error/40 bg-error/10'
+                                                                                                                                                        : 'border-base-200 bg-base-200/40'
+                                                                                                                                        }`}
+                                                                                                                                >
+                                                                                                                                        <div>
+                                                                                                                                                <div className='font-medium text-base-content'>
+                                                                                                                                                        {attachment.label ?? attachment.asset?.mimeType ?? 'Tệp'}
+                                                                                                                                                </div>
+                                                                                                                                                <div className='text-xs text-base-content/60'>ID: {attachment.id}</div>
+                                                                                                                                                {attachment.caption && (
+                                                                                                                                                        <div className='text-xs text-base-content/60'>{attachment.caption}</div>
+                                                                                                                                                )}
                                                                                                                                         </div>
-                                                                                                                                        <div className='text-xs text-base-content/60'>ID: {attachment.id}</div>
-                                                                                                                                        {attachment.caption && (
-                                                                                                                                                <div className='text-xs text-base-content/60'>{attachment.caption}</div>
-                                                                                                                                        )}
-                                                                                                                                </div>
-                                                                                                                                {attachment.asset?.url && (
-                                                                                                                                        <a
-                                                                                                                                                href={attachment.asset.url}
-                                                                                                                                                target='_blank'
-                                                                                                                                                rel='noreferrer'
-                                                                                                                                                className='btn btn-xs'
-                                                                                                                                        >
-                                                                                                                                                Xem tệp
-                                                                                                                                        </a>
-                                                                                                                                )}
-                                                                                                                        </li>
-                                                                                                                ))}
+                                                                                                                                        <div className='flex flex-col items-end gap-2 sm:flex-row sm:items-center'>
+                                                                                                                                                {attachment.asset?.url && (
+                                                                                                                                                        <a
+                                                                                                                                                                href={attachment.asset.url}
+                                                                                                                                                                target='_blank'
+                                                                                                                                                                rel='noreferrer'
+                                                                                                                                                                className='btn btn-xs'
+                                                                                                                                                        >
+                                                                                                                                                                Xem tệp
+                                                                                                                                                        </a>
+                                                                                                                                                )}
+                                                                                                                                                <button
+                                                                                                                                                        type='button'
+                                                                                                                                                        className='btn btn-ghost btn-xs gap-1 text-error'
+                                                                                                                                                        onClick={() => handleSelectAttachment(attachment)}
+                                                                                                                                                        disabled={removeAttachmentMutation.isPending && isSelected}
+                                                                                                                                                >
+                                                                                                                                                        <Trash2 className='size-3.5' />
+                                                                                                                                                        Gỡ tệp
+                                                                                                                                                </button>
+                                                                                                                                        </div>
+                                                                                                                                </li>
+                                                                                                                        )
+                                                                                                                })}
                                                                                                         </ul>
                                                                                                 ) : (
                                                                                                         <p className='mt-3 text-sm text-base-content/60'>Không có tệp đính kèm.</p>
@@ -933,38 +971,78 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                 </button>
                                                                         </div>
                                                                 </form>
-                                                                <form onSubmit={handleDeleteJobPost} className='space-y-4 rounded-2xl border border-error/40 bg-error/5 p-4'>
-                                                                        <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-error'>
-                                                                                <Trash2 className='size-4' /> Xóa job post
-                                                                        </div>
-                                                                        <p className='text-xs text-error/80'>Hành động này sẽ vô hiệu hóa job post và không thể hoàn tác.</p>
-                                                                        <label className='flex flex-col gap-1 text-sm text-error/90'>
-                                                                                <span className='text-xs font-semibold uppercase tracking-wide'>Lý do xóa</span>
-                                                                                <textarea
-                                                                                        className='textarea textarea-bordered textarea-sm min-h-[80px] border-error/40 bg-white'
-                                                                                        value={deleteReason}
-                                                                                        onChange={event => setDeleteReason(event.target.value)}
-                                                                                        placeholder='Ghi lại lý do xóa bài đăng'
-                                                                                />
-                                                                        </label>
-                                                                        <label className='flex flex-col gap-1 text-sm text-error/90'>
-                                                                                <span className='text-xs font-semibold uppercase tracking-wide'>Ghi chú nội bộ</span>
-                                                                                <textarea
-                                                                                        className='textarea textarea-bordered textarea-sm min-h-[80px] border-error/40 bg-white'
-                                                                                        value={deleteNote}
-                                                                                        onChange={event => setDeleteNote(event.target.value)}
-                                                                                        placeholder='Ghi chú bổ sung (không bắt buộc)'
-                                                                                />
-                                                                        </label>
-                                                                        <button
-                                                                                type='submit'
-                                                                                className='btn btn-error btn-sm w-full'
-                                                                                disabled={deleteMutation.isPending}
+                                                                {attachments.length > 0 && (
+                                                                        <form
+                                                                                onSubmit={handleRemoveAttachment}
+                                                                                className='space-y-4 rounded-2xl border border-error/40 bg-error/5 p-4'
                                                                         >
-                                                                                {deleteMutation.isPending && <Loader2 className='size-4 animate-spin' />}
-                                                                                Xóa job post
-                                                                        </button>
-                                                                </form>
+                                                                                <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-error'>
+                                                                                        <Trash2 className='size-4' /> Gỡ tệp đính kèm
+                                                                                </div>
+                                                                                {attachmentToRemove ? (
+                                                                                        <>
+                                                                                                <p className='text-xs text-error/80'>
+                                                                                                        Tệp sẽ được gỡ khỏi job post. Hành động không thể hoàn tác.
+                                                                                                </p>
+                                                                                                <div className='rounded-xl border border-error/30 bg-white/70 p-3 text-xs text-error/90'>
+                                                                                                        <div className='font-semibold text-error'>Tệp đang chọn</div>
+                                                                                                        <div className='mt-1 break-words text-error/80'>
+                                                                                                                ID: {attachmentToRemove.id}
+                                                                                                        </div>
+                                                                                                        {attachmentToRemove.label && (
+                                                                                                                <div className='mt-1 break-words text-error/80'>
+                                                                                                                        Nhãn: {attachmentToRemove.label}
+                                                                                                                </div>
+                                                                                                        )}
+                                                                                                </div>
+                                                                                                <label className='flex flex-col gap-1 text-sm text-error/90'>
+                                                                                                        <span className='text-xs font-semibold uppercase tracking-wide'>Lý do gỡ</span>
+                                                                                                        <textarea
+                                                                                                                className='textarea textarea-bordered textarea-sm min-h-[80px] border-error/40 bg-white'
+                                                                                                                value={removeReason}
+                                                                                                                onChange={event => setRemoveReason(event.target.value)}
+                                                                                                                placeholder='Ghi lại lý do gỡ tệp (không bắt buộc)'
+                                                                                                        />
+                                                                                                </label>
+                                                                                                <label className='flex flex-col gap-1 text-sm text-error/90'>
+                                                                                                        <span className='text-xs font-semibold uppercase tracking-wide'>Ghi chú nội bộ</span>
+                                                                                                        <textarea
+                                                                                                                className='textarea textarea-bordered textarea-sm min-h-[80px] border-error/40 bg-white'
+                                                                                                                value={removeNote}
+                                                                                                                onChange={event => setRemoveNote(event.target.value)}
+                                                                                                                placeholder='Ghi chú bổ sung (không bắt buộc)'
+                                                                                                        />
+                                                                                                </label>
+                                                                                                <div className='flex items-center gap-2'>
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                className='btn btn-ghost btn-sm flex-1'
+                                                                                                                onClick={() => {
+                                                                                                                        setAttachmentToRemove(null)
+                                                                                                                        setRemoveReason('')
+                                                                                                                        setRemoveNote('')
+                                                                                                                }}
+                                                                                                                disabled={removeAttachmentMutation.isPending}
+                                                                                                        >
+                                                                                                                Hủy
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                                type='submit'
+                                                                                                                className='btn btn-error btn-sm flex-1'
+                                                                                                                disabled={removeAttachmentMutation.isPending}
+                                                                                                        >
+                                                                                                                {removeAttachmentMutation.isPending && (
+                                                                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                                                                )}
+                                                                                                                Gỡ tệp
+                                                                                                        </button>
+                                                                                                </div>
+                                                                                        </>
+                                                                                ) : (
+                                                                                        <p className='text-xs text-error/80'>Chọn một tệp ở tab "Tệp đính kèm" để gỡ.</p>
+                                                                                )}
+                                                                        </form>
+                                                                )}
                                                         </aside>
                                                 </div>
                                         </div>

@@ -172,7 +172,7 @@ export type AdminUpdateJobPostStatusInput = {
         note?: string
 }
 
-export type AdminDeleteJobPostInput = {
+export type AdminRemoveJobPostAttachmentInput = {
         reason?: string
         note?: string
 }
