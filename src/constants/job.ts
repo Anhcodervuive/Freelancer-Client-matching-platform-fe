@@ -98,20 +98,53 @@ export const ADMIN_JOB_STATUS_OPTIONS = [
         ...ADMIN_ONLY_JOB_STATUS_OPTIONS
 ] as const
 
-export const CURRENCY_CODES = ['USD', 'EUR', 'VND', 'JPY', 'AUD'] as const
-
-export const JobPaymentModeSchema = z.enum(JOB_PAYMENT_MODES.map(mode => mode.value) as [string, ...string[]])
-export const JobExperienceLevelSchema = z.enum(JOB_EXPERIENCE_LEVELS.map(level => level.value) as [string, ...string[]])
-export const JobDurationCommitmentSchema = z.enum(
-	JOB_DURATION_COMMITMENTS.map(item => item.value) as [string, ...string[]]
-)
-export const JobLocationTypeSchema = z.enum(JOB_LOCATION_TYPES.map(item => item.value) as [string, ...string[]])
-export const JobVisibilitySchema = z.enum(JOB_VISIBILITY_OPTIONS.map(item => item.value) as [string, ...string[]])
-export const JobStatusSchema = z.enum(JOB_STATUS_OPTIONS.map(item => item.value) as [string, ...string[]])
-
 export type JobPaymentMode = z.infer<typeof JobPaymentModeSchema>
 export type JobExperienceLevel = z.infer<typeof JobExperienceLevelSchema>
 export type JobDurationCommitment = z.infer<typeof JobDurationCommitmentSchema>
 export type JobLocationType = z.infer<typeof JobLocationTypeSchema>
 export type JobVisibility = z.infer<typeof JobVisibilitySchema>
 export type JobStatus = (typeof ADMIN_JOB_STATUS_OPTIONS)[number]['value']
+
+export const JOB_STATUS_DETAILS: Record<
+        JobStatus,
+        {
+                label: string
+                description: string
+        }
+> = {
+        DRAFT: {
+                label: 'Draft',
+                description: 'This job is only visible to you. Publish it when everything looks good.'
+        },
+        PUBLISHED: {
+                label: 'Published',
+                description: 'Live on the marketplace and visible to freelancers who can submit proposals.'
+        },
+        PUBLISHED_PENDING_REVIEW: {
+                label: 'Published – pending review',
+                description: 'Visible to talent but currently being reviewed by our moderation team.'
+        },
+        PAUSED: {
+                label: 'Paused',
+                description: 'Temporarily hidden from freelancers while the team reviews or updates it.'
+        },
+        CLOSED: {
+                label: 'Closed',
+                description: 'No longer accepting new proposals. Reopen or duplicate it to hire again.'
+        },
+        REJECTED: {
+                label: 'Rejected',
+                description: 'Hidden from freelancers due to a policy violation. Review the notes below to update it.'
+        }
+}
+
+export const CURRENCY_CODES = ['USD', 'EUR', 'VND', 'JPY', 'AUD'] as const
+
+export const JobPaymentModeSchema = z.enum(JOB_PAYMENT_MODES.map(mode => mode.value) as [string, ...string[]])
+export const JobExperienceLevelSchema = z.enum(JOB_EXPERIENCE_LEVELS.map(level => level.value) as [string, ...string[]])
+export const JobDurationCommitmentSchema = z.enum(
+        JOB_DURATION_COMMITMENTS.map(item => item.value) as [string, ...string[]]
+)
+export const JobLocationTypeSchema = z.enum(JOB_LOCATION_TYPES.map(item => item.value) as [string, ...string[]])
+export const JobVisibilitySchema = z.enum(JOB_VISIBILITY_OPTIONS.map(item => item.value) as [string, ...string[]])
+export const JobStatusSchema = z.enum(JOB_STATUS_OPTIONS.map(item => item.value) as [string, ...string[]])

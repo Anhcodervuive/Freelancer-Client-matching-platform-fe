@@ -26,13 +26,13 @@ import {
         JOB_EXPERIENCE_LEVELS,
         JOB_LOCATION_TYPES,
         JOB_PAYMENT_MODES,
+        JOB_STATUS_DETAILS,
         JOB_VISIBILITY_OPTIONS,
         type JobDurationCommitment,
         type JobExperienceLevel,
         type JobLocationType,
         type JobPaymentMode,
-	type JobStatus,
-	type JobVisibility
+        type JobVisibility
 } from '~/constants/job'
 import { languageNameFromCode, PROFICIENCY_OPTIONS } from '~/constants/language'
 import { routes } from '~/config/routes'
@@ -47,6 +47,7 @@ import {
         normalizeSkills
 } from '~/utils/jobPost'
 import { formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
+import { formatModerationCategory, formatModerationScore } from '~/utils/moderation'
 import InviteFreelancersTab from './components/InviteFreelancersTab'
 import JobOffersTab from './components/JobOffersTab'
 import JobProposalsTab from './components/JobProposalsTab'
@@ -85,62 +86,6 @@ const jobDetailTabs = [
 ] as const
 
 type JobDetailTabKey = (typeof jobDetailTabs)[number]['key']
-
-const JOB_STATUS_DETAILS: Record<
-        JobStatus,
-        {
-                label: string
-                description: string
-        }
-> = {
-        DRAFT: {
-                label: 'Draft',
-                description: 'This job is only visible to you. Publish it when everything looks good.'
-        },
-        PUBLISHED: {
-                label: 'Published',
-                description: 'Live on the marketplace and visible to freelancers who can submit proposals.'
-        },
-        PUBLISHED_PENDING_REVIEW: {
-                label: 'Published – pending review',
-                description: 'Visible to talent but currently being reviewed by our moderation team.'
-        },
-        PAUSED: {
-                label: 'Paused',
-                description: 'Temporarily hidden from freelancers while the team reviews or updates it.'
-        },
-        CLOSED: {
-                label: 'Closed',
-                description: 'No longer accepting new proposals. Reopen or duplicate it to hire again.'
-        },
-        REJECTED: {
-                label: 'Rejected',
-                description: 'Hidden from freelancers due to a policy violation. Review the notes below to update it.'
-        }
-}
-
-const moderationCategoryLabelMap: Record<string, string> = {
-        insult: 'Insult / abusive language',
-        hate: 'Hate speech',
-        harassment: 'Harassment',
-        sexual: 'Sexual content',
-        violence: 'Violence',
-        spam: 'Spam'
-}
-
-const toTitleCase = (value: string) => value.replace(/(^|[\s_-])(\w)/g, (_, boundary, char) => `${boundary}${char.toUpperCase()}`)
-
-const formatModerationCategory = (value?: string | null) => {
-        if (!value) return undefined
-        const normalized = moderationCategoryLabelMap[value]
-        if (normalized) return normalized
-        return toTitleCase(value.toLowerCase())
-}
-
-const formatModerationScore = (value?: number | null) => {
-        if (value === undefined || value === null || Number.isNaN(value)) return undefined
-        return `${Math.round(value * 100)}% confidence`
-}
 
 const visibilityMap = Object.fromEntries(JOB_VISIBILITY_OPTIONS.map(option => [option.value, option.label])) as Record<
 	JobVisibility,

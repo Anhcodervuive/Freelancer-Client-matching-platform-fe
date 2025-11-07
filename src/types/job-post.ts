@@ -59,10 +59,10 @@ export type AdminJobPostLanguageRequirement = {
 }
 
 export type JobPostListItem = {
-	id: string
-	clientId: string
-	formVersion: string
-	specialty: {
+        id: string
+        clientId: string
+        formVersion: string
+        specialty: {
 		id: string
 		name: string
 		category: {
@@ -87,6 +87,10 @@ export type JobPostListItem = {
         isSaved?: boolean
         isDeleted?: boolean | null
         deletedAt?: string | null
+        moderationScore?: number | null
+        moderationCategory?: string | null
+        moderationSummary?: string | null
+        moderationCheckedAt?: string | null
         [key: string]: unknown
 }
 
@@ -97,10 +101,6 @@ export type JobPostDetail = JobPostListItem & {
         skills?: unknown
         screeningQuestions?: unknown
         attachments?: unknown
-        moderationScore?: number | null
-        moderationCategory?: string | null
-        moderationSummary?: string | null
-        moderationCheckedAt?: string | null
         moderationPayload?: unknown
 }
 
