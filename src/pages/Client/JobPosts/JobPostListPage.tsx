@@ -2,13 +2,15 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { Filter, Loader2, Search, Trash2, Pencil, Layers, Clock, MapPin } from 'lucide-react'
+import { Filter, Loader2, Search, Trash2, Pencil, Layers, Clock, MapPin, AlertTriangle } from 'lucide-react'
 import { listJobPosts, deleteJobPost } from '~/apis/job-post.api'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import {
         JOB_DURATION_COMMITMENTS,
         JOB_LOCATION_TYPES,
+        JOB_MODERATION_ALERT_STATUSES,
         JOB_PAYMENT_MODES,
+        JOB_STATUS_DETAILS,
         JOB_STATUS_OPTIONS,
         JOB_VISIBILITY_OPTIONS,
         type JobDurationCommitment,
@@ -18,14 +20,12 @@ import {
 } from '~/constants/job'
 import type { JobPostListItem } from '~/types/job-post'
 import { routes } from '~/config/routes'
+import { formatDateTime } from '~/utils/format'
+import { formatModerationCategory, formatModerationScore } from '~/utils/moderation'
 import ConfirmDelete from '~/components/ConfirmDelete'
 
 const PAGE_SIZE = 6
 
-const statusMap = Object.fromEntries(JOB_STATUS_OPTIONS.map(option => [option.value, option.label])) as Record<
-        JobStatus,
-        string
->
 const visibilityMap = Object.fromEntries(JOB_VISIBILITY_OPTIONS.map(option => [option.value, option.label])) as Record<
         JobVisibility,
         string
@@ -232,16 +232,33 @@ export default function JobPostListPage() {
                         ) : (
                                 <div className='mt-8 space-y-4'>
                                         {jobs.map(job => {
-                                                const statusLabel =
-                                                        job.status === 'DRAFT'
-                                                                ? 'Draft'
-                                                                : statusMap[job.status] ?? job.status
+                                                const statusDetail = JOB_STATUS_DETAILS[job.status]
+                                                const statusLabel = statusDetail?.label ?? job.status
                                                 const visibilityLabel = visibilityMap[job.visibility] ?? job.visibility
                                                 const paymentLabel = paymentModeMap[job.paymentMode] ?? job.paymentMode
                                                 const locationLabel = locationMap[job.locationType] ?? job.locationType
                                                 const durationLabel = job.duration
                                                         ? durationMap[job.duration as JobDurationCommitment] ?? 'Duration flexible'
                                                         : 'Duration flexible'
+                                                const moderationCategoryLabel = formatModerationCategory(job.moderationCategory)
+                                                const moderationScoreLabel = formatModerationScore(job.moderationScore)
+                                                const moderationCheckedLabel = job.moderationCheckedAt
+                                                        ? formatDateTime(job.moderationCheckedAt, {
+                                                                  dateStyle: 'medium',
+                                                                  timeStyle: 'short'
+                                                          })
+                                                        : undefined
+                                                const moderationSummary = job.moderationSummary?.trim()
+                                                        ? job.moderationSummary.trim()
+                                                        : undefined
+                                                const hasModerationNotice =
+                                                        JOB_MODERATION_ALERT_STATUSES.includes(job.status) &&
+                                                        Boolean(
+                                                                moderationCategoryLabel ||
+                                                                        moderationSummary ||
+                                                                        moderationScoreLabel ||
+                                                                        moderationCheckedLabel
+                                                        )
                                                 return (
                                                         <div
                                                                 key={job.id}
@@ -263,7 +280,35 @@ export default function JobPostListPage() {
                                                                                                 <MapPin className='mr-1 size-3' /> {locationLabel}
                                                                                         </span>
                                                                                 </div>
+                                                                                {statusDetail?.description ? (
+                                                                                        <p className='mt-2 text-xs text-base-content/60'>
+                                                                                                {statusDetail.description}
+                                                                                        </p>
+                                                                                ) : null}
                                                                                 <p className='mt-3 line-clamp-2 text-sm text-base-content/70'>{job.description}</p>
+                                                                                {hasModerationNotice ? (
+                                                                                        <div className='mt-3 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning'>
+                                                                                                <div className='flex items-start gap-2'>
+                                                                                                        <AlertTriangle className='mt-0.5 size-4 flex-shrink-0' />
+                                                                                                        <div className='space-y-1'>
+                                                                                                                <p className='font-medium uppercase tracking-wide'>Moderation notice</p>
+                                                                                                                <p className='text-[11px] uppercase tracking-wide text-warning/70'>
+                                                                                                                        Status: {statusLabel}
+                                                                                                                </p>
+                                                                                                                {moderationSummary ? (
+                                                                                                                        <p className='whitespace-pre-line text-warning/90'>
+                                                                                                                                {moderationSummary}
+                                                                                                                        </p>
+                                                                                                                ) : null}
+                                                                                                                <div className='flex flex-wrap gap-x-3 gap-y-1 text-[11px] uppercase tracking-wide text-warning/80'>
+                                                                                                                        {moderationCategoryLabel ? <span>{moderationCategoryLabel}</span> : null}
+                                                                                                                        {moderationScoreLabel ? <span>{moderationScoreLabel}</span> : null}
+                                                                                                                        {moderationCheckedLabel ? <span>{moderationCheckedLabel}</span> : null}
+                                                                                                                </div>
+                                                                                                        </div>
+                                                                                                </div>
+                                                                                        </div>
+                                                                                ) : null}
                                                                         </div>
                                                                         <div className='flex flex-col items-start gap-2 text-sm text-base-content/80 md:items-end'>
                                                                                 <div className='font-semibold text-base-content'>{formatBudget(job)}</div>

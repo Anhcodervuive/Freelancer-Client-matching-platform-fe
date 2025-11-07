@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
+        AlertTriangle,
         ArrowLeft,
         ArrowUp,
         BookmarkCheck,
@@ -21,18 +22,18 @@ import {
 } from 'lucide-react'
 import { fetchJobPostDetail } from '~/apis/job-post.api'
 import {
-	JOB_DURATION_COMMITMENTS,
-	JOB_EXPERIENCE_LEVELS,
-	JOB_LOCATION_TYPES,
-	JOB_PAYMENT_MODES,
-	JOB_STATUS_OPTIONS,
-	JOB_VISIBILITY_OPTIONS,
-	type JobDurationCommitment,
-	type JobExperienceLevel,
-	type JobLocationType,
-	type JobPaymentMode,
-	type JobStatus,
-	type JobVisibility
+        JOB_DURATION_COMMITMENTS,
+        JOB_EXPERIENCE_LEVELS,
+        JOB_LOCATION_TYPES,
+        JOB_MODERATION_ALERT_STATUSES,
+        JOB_PAYMENT_MODES,
+        JOB_STATUS_DETAILS,
+        JOB_VISIBILITY_OPTIONS,
+        type JobDurationCommitment,
+        type JobExperienceLevel,
+        type JobLocationType,
+        type JobPaymentMode,
+        type JobVisibility
 } from '~/constants/job'
 import { languageNameFromCode, PROFICIENCY_OPTIONS } from '~/constants/language'
 import { routes } from '~/config/routes'
@@ -47,6 +48,7 @@ import {
         normalizeSkills
 } from '~/utils/jobPost'
 import { formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
+import { formatModerationCategory, formatModerationScore } from '~/utils/moderation'
 import InviteFreelancersTab from './components/InviteFreelancersTab'
 import JobOffersTab from './components/JobOffersTab'
 import JobProposalsTab from './components/JobProposalsTab'
@@ -85,12 +87,6 @@ const jobDetailTabs = [
 ] as const
 
 type JobDetailTabKey = (typeof jobDetailTabs)[number]['key']
-
-const statusMap = Object.fromEntries(JOB_STATUS_OPTIONS.map(option => [option.value, option.label])) as Record<
-	JobStatus,
-	string
->
-statusMap.DRAFT = 'Draft'
 
 const visibilityMap = Object.fromEntries(JOB_VISIBILITY_OPTIONS.map(option => [option.value, option.label])) as Record<
 	JobVisibility,
@@ -212,14 +208,36 @@ export default function JobPostDetailPage() {
 		)
 	}
 
-	const statusLabel = statusMap[job.status] ?? job.status
-	const visibilityLabel = visibilityMap[job.visibility] ?? job.visibility
-	const paymentLabel = paymentModeMap[job.paymentMode] ?? job.paymentMode
-	const experienceLabel = experienceMap[job.experienceLevel] ?? job.experienceLevel
-	const locationLabel = locationMap[job.locationType] ?? job.locationType
+        const statusDetails =
+                JOB_STATUS_DETAILS[job.status] ?? ({
+                        label: job.status,
+                        description: 'Status details unavailable.'
+                } satisfies { label: string; description: string })
+        const statusLabel = statusDetails.label
+        const statusDescription = statusDetails.description
+        const visibilityLabel = visibilityMap[job.visibility] ?? job.visibility
+        const paymentLabel = paymentModeMap[job.paymentMode] ?? job.paymentMode
+        const experienceLabel = experienceMap[job.experienceLevel] ?? job.experienceLevel
+        const locationLabel = locationMap[job.locationType] ?? job.locationType
         const durationLabel = job.duration
                 ? durationMap[job.duration as JobDurationCommitment] ?? 'Duration flexible'
                 : 'Duration flexible'
+        const moderationCategoryLabel = formatModerationCategory(job.moderationCategory)
+        const moderationScoreLabel = formatModerationScore(job.moderationScore)
+        const moderationCheckedLabel = job.moderationCheckedAt
+                ? formatDateTime(job.moderationCheckedAt, { dateStyle: 'medium', timeStyle: 'short' })
+                : undefined
+        const moderationSummary = job.moderationSummary?.trim()
+                ? job.moderationSummary.trim()
+                : undefined
+        const showModerationNotice =
+                JOB_MODERATION_ALERT_STATUSES.includes(job.status) &&
+                Boolean(
+                        moderationCategoryLabel ||
+                                moderationSummary ||
+                                moderationScoreLabel ||
+                                moderationCheckedLabel
+                )
         const activeStepIndex = jobDetailTabs.findIndex(tab => tab.key === activeTab)
         const resolvedActiveIndex = activeStepIndex >= 0 ? activeStepIndex : 0
 
@@ -491,6 +509,33 @@ export default function JobPostDetailPage() {
                                                 <p className='text-sm leading-relaxed text-base-content/70'>{job.description}</p>
                                         </div>
                                         <div className='flex flex-col gap-4 rounded-2xl border border-base-200 bg-base-200/50 p-4 text-sm text-base-content/80'>
+                                                <div className='space-y-2'>
+                                                        <div className='text-xs uppercase tracking-wide text-base-content/60'>Status</div>
+                                                        <div className='space-y-2'>
+                                                                <span className='badge badge-outline w-fit'>{statusLabel}</span>
+                                                                <p className='text-xs leading-relaxed text-base-content/60'>{statusDescription}</p>
+                                                        </div>
+                                                </div>
+                                                {showModerationNotice ? (
+                                                        <div className='space-y-2 rounded-2xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning'>
+                                                                <div className='flex items-center gap-2 text-sm font-semibold'>
+                                                                        <AlertTriangle className='size-4' /> Moderation notice
+                                                                </div>
+                                                                <div className='space-y-1 text-warning/90'>
+                                                                        <p className='text-[11px] uppercase tracking-wide text-warning/70'>
+                                                                                Status: {statusLabel}
+                                                                        </p>
+                                                                        {moderationSummary ? (
+                                                                                <p className='whitespace-pre-line text-sm leading-relaxed'>{moderationSummary}</p>
+                                                                        ) : null}
+                                                                        <div className='flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium uppercase tracking-wide'>
+                                                                                {moderationCategoryLabel ? <span>{moderationCategoryLabel}</span> : null}
+                                                                                {moderationScoreLabel ? <span>{moderationScoreLabel}</span> : null}
+                                                                                {moderationCheckedLabel ? <span>{moderationCheckedLabel}</span> : null}
+                                                                        </div>
+                                                                </div>
+                                                        </div>
+                                                ) : null}
                                                 <div className='space-y-1'>
                                                         <div className='text-xs uppercase tracking-wide text-base-content/60'>Budget</div>
                                                         <div className='text-base font-semibold text-base-content'>{formatBudget(job)}</div>
