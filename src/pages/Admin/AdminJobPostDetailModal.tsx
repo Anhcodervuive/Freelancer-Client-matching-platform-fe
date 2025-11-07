@@ -39,6 +39,7 @@ import {
         type JobStatus,
         type JobVisibility
 } from '~/constants/job'
+import { languageNameFromCode, PROFICIENCY_OPTIONS } from '~/constants/language'
 import type {
         AdminJobPostActivity,
         AdminJobPostAttachment,
@@ -72,6 +73,9 @@ const visibilityLabelMap = Object.fromEntries(
 const durationLabelMap = Object.fromEntries(
         JOB_DURATION_COMMITMENTS.map(item => [item.value, item.label])
 ) as Record<JobDurationCommitment, string>
+const languageProficiencyLabelMap = Object.fromEntries(
+        PROFICIENCY_OPTIONS.map(option => [option.value, option.name])
+) as Record<string, string>
 
 const formatDateTime = (value?: string | null) => {
         if (!value) return '—'
@@ -515,7 +519,7 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
 
         return (
                 <dialog className={`modal ${jobId ? 'modal-open' : ''}`}>
-                        <div className='modal-box max-w-5xl space-y-6'>
+                        <div className='modal-box max-w-6xl space-y-6'>
                                 <div className='flex flex-col gap-4 border-b border-base-200 pb-4 sm:flex-row sm:items-start sm:justify-between'>
                                         <div className='space-y-1'>
                                                 <div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
@@ -581,7 +585,7 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                 </div>
                                                         </div>
                                                 )}
-                                                <div className='grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]'>
+                                                <div className='grid gap-6 lg:grid-cols-[minmax(0,4fr)_minmax(280px,2fr)] xl:grid-cols-[minmax(0,5fr)_minmax(280px,2fr)] xl:gap-8'>
                                                         <div className='space-y-4'>
                                                                 <div className='rounded-2xl border border-base-200 bg-base-100 p-4'>
                                                                         <div className='flex flex-wrap gap-2 rounded-xl bg-base-200/60 p-1'>
@@ -771,19 +775,34 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                         <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
                                                                                                                 <Globe className='size-4' /> Ngôn ngữ yêu cầu
                                                                                                         </div>
-                                                                                                        {languages.length > 0 ? (
-                                                                                                                <ul className='mt-3 space-y-2 text-sm text-base-content/80'>
-                                                                                                                        {languages.map(language => (
-                                                                                                                                <li
-                                                                                                                                        key={language.languageCode}
-                                                                                                                                        className='flex items-center justify-between gap-2 rounded-xl border border-base-200 bg-base-200/40 px-3 py-2'
-                                                                                                                                >
-                                                                                                                                        <span className='font-medium text-base-content'>{language.languageCode}</span>
-                                                                                                                                        <span className='text-xs uppercase tracking-wide text-base-content/60'>
-                                                                                                                                                {language.proficiency ?? '—'}
-                                                                                                                                        </span>
-                                                                                                                                </li>
-                                                                                                                        ))}
+                                                                                                {languages.length > 0 ? (
+                                                                                                                <ul className='mt-3 grid gap-3 text-sm text-base-content/80 sm:grid-cols-2'>
+                                                                                                                        {languages.map(language => {
+                                                                                                                                const normalizedCode = language.languageCode?.toLowerCase() ?? ''
+                                                                                                                                const displayName = languageNameFromCode(normalizedCode)
+                                                                                                                                const displayCode = normalizedCode ? normalizedCode.toUpperCase() : '—'
+                                                                                                                                const proficiencyLabel = language.proficiency
+                                                                                                                                        ? languageProficiencyLabelMap[language.proficiency] ??
+                                                                                                                                          toTitleCase(language.proficiency.toLowerCase())
+                                                                                                                                        : 'Không rõ'
+
+                                                                                                                                return (
+                                                                                                                                        <li
+                                                                                                                                                key={`${language.languageCode}-${language.proficiency ?? 'unknown'}`}
+                                                                                                                                                className='rounded-2xl border border-base-200 bg-base-200/50 p-3'
+                                                                                                                                        >
+                                                                                                                                                <div className='flex items-start justify-between gap-3'>
+                                                                                                                                                        <div>
+                                                                                                                                                                <div className='font-semibold text-base-content'>{displayName}</div>
+                                                                                                                                                                <div className='text-xs uppercase tracking-wide text-base-content/60'>{displayCode}</div>
+                                                                                                                                                        </div>
+                                                                                                                                                        <span className='badge badge-outline text-[11px] uppercase tracking-wide text-base-content/70'>
+                                                                                                                                                                {proficiencyLabel}
+                                                                                                                                                        </span>
+                                                                                                                                                </div>
+                                                                                                                                        </li>
+                                                                                                                                )
+                                                                                                                        })}
                                                                                                                 </ul>
                                                                                                         ) : (
                                                                                                                 <p className='mt-3 text-sm text-base-content/60'>Không yêu cầu ngôn ngữ cụ thể.</p>
@@ -796,29 +815,35 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                         {normalizedSkills.required.length === 0 && normalizedSkills.preferred.length === 0 ? (
                                                                                                                 <p className='mt-3 text-sm text-base-content/60'>Không có kỹ năng cụ thể.</p>
                                                                                                         ) : (
-                                                                                                                <div className='mt-3 space-y-3'>
+                                                                                                                <div className='mt-3 grid gap-3 md:grid-cols-2'>
                                                                                                                         {normalizedSkills.required.length > 0 && (
-                                                                                                                                <div>
-                                                                                                                                        <h4 className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Bắt buộc</h4>
-                                                                                                                                        <div className='mt-2 flex flex-wrap gap-2'>
+                                                                                                                                <div className='rounded-2xl border border-base-200 bg-base-200/50 p-3'>
+                                                                                                                                        <h4 className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Kỹ năng bắt buộc</h4>
+                                                                                                                                        <ul className='mt-2 space-y-2'>
                                                                                                                                                 {normalizedSkills.required.map(skill => (
-                                                                                                                                                        <span key={skill.label} className='badge badge-primary badge-outline'>
+                                                                                                                                                        <li
+                                                                                                                                                                key={skill.label}
+                                                                                                                                                                className='rounded-xl border border-base-200 bg-base-100 px-3 py-2 font-medium text-base-content'
+                                                                                                                                                        >
                                                                                                                                                                 {skill.label}
-                                                                                                                                                        </span>
+                                                                                                                                                        </li>
                                                                                                                                                 ))}
-                                                                                                                                        </div>
+                                                                                                                                        </ul>
                                                                                                                                 </div>
                                                                                                                         )}
                                                                                                                         {normalizedSkills.preferred.length > 0 && (
-                                                                                                                                <div>
-                                                                                                                                        <h4 className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ưu tiên</h4>
-                                                                                                                                        <div className='mt-2 flex flex-wrap gap-2'>
+                                                                                                                                <div className='rounded-2xl border border-base-200 bg-base-200/50 p-3'>
+                                                                                                                                        <h4 className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Kỹ năng ưu tiên</h4>
+                                                                                                                                        <ul className='mt-2 space-y-2'>
                                                                                                                                                 {normalizedSkills.preferred.map(skill => (
-                                                                                                                                                        <span key={skill.label} className='badge badge-outline'>
+                                                                                                                                                        <li
+                                                                                                                                                                key={skill.label}
+                                                                                                                                                                className='rounded-xl border border-base-200 bg-base-100 px-3 py-2 font-medium text-base-content'
+                                                                                                                                                        >
                                                                                                                                                                 {skill.label}
-                                                                                                                                                        </span>
+                                                                                                                                                        </li>
                                                                                                                                                 ))}
-                                                                                                                                        </div>
+                                                                                                                                        </ul>
                                                                                                                                 </div>
                                                                                                                         )}
                                                                                                                 </div>
