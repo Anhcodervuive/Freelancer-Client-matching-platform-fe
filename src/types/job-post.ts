@@ -7,6 +7,10 @@ import type {
         JobVisibility
 } from '~/constants/job'
 
+export type JsonValue = string | number | boolean | null | JsonObject | JsonArray
+export type JsonObject = { [key: string]: JsonValue }
+export type JsonArray = JsonValue[]
+
 export type AdminJobPostClientProfile = {
         firstName?: string | null
         lastName?: string | null
@@ -118,6 +122,23 @@ export type AdminJobPostDetail = JobPostDetail & {
         attachments?: AdminJobPostAttachment[]
 }
 
+export type AdminJobPostActivityActor = {
+        id: string | null
+        email: string | null
+        role: string | null
+        firstName: string | null
+        lastName: string | null
+}
+
+export type AdminJobPostActivity = {
+        id: string
+        action: string
+        metadata: JsonValue
+        createdAt: string
+        actorRole: string | null
+        actor: AdminJobPostActivityActor | null
+}
+
 export type JobPostFilterInput = {
 	page?: number
 	limit?: number
@@ -175,4 +196,13 @@ export type AdminUpdateJobPostStatusInput = {
 export type AdminRemoveJobPostAttachmentInput = {
         reason?: string
         note?: string
+}
+
+export type AdminJobPostActivityResponse = {
+        data: AdminJobPostActivity[]
+        meta: {
+                page: number
+                limit: number
+                total: number
+        }
 }

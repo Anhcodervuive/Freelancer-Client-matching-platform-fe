@@ -1,14 +1,20 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 import { serializeJobPostFilters } from '~/apis/job-post.api'
 import type {
+        AdminJobPostActivity,
+        AdminJobPostActivityResponse,
         AdminJobPostDetail,
         AdminJobPostFilterInput,
         AdminJobPostListResponse,
         AdminRemoveJobPostAttachmentInput,
-        AdminUpdateJobPostStatusInput
+        AdminUpdateJobPostStatusInput,
+        JsonArray,
+        JsonObject,
+        JsonValue
 } from '~/types/job-post'
 
 type RawAdminJobPostListResponse = Partial<AdminJobPostListResponse> & Record<string, unknown>
+type RawAdminJobPostActivityResponse = Partial<AdminJobPostActivityResponse> & Record<string, unknown>
 
 type RawMeta = { page?: unknown; limit?: unknown; total?: unknown; [key: string]: unknown }
 
@@ -48,6 +54,99 @@ const normalizeMeta = (meta: unknown, fallback: { page: number; limit: number; t
 const buildListUrl = (filters: AdminJobPostFilterInput = {}) => {
         const queryString = serializeJobPostFilters(filters)
         return queryString ? `${baseUrl}?${queryString}` : baseUrl
+}
+
+const buildActivityUrl = (jobId: string, params: AdminJobPostActivityQuery = {}) => {
+        const search = new URLSearchParams()
+
+        if (params.page != null) {
+                search.set('page', String(params.page))
+        }
+
+        if (params.limit != null) {
+                search.set('limit', String(params.limit))
+        }
+
+        const query = search.toString()
+        return query ? `${baseUrl}/${jobId}/job-activity?${query}` : `${baseUrl}/${jobId}/job-activity`
+}
+
+const normalizeJsonValue = (value: unknown): JsonValue => {
+        if (value == null) {
+                return null
+        }
+
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                return value
+        }
+
+        if (Array.isArray(value)) {
+                return value.map(item => normalizeJsonValue(item)) as JsonArray
+        }
+
+        if (isRecord(value)) {
+                return Object.fromEntries(
+                        Object.entries(value).map(([key, val]) => [key, normalizeJsonValue(val)])
+                ) as JsonObject
+        }
+
+        return String(value)
+}
+
+const normalizeActivityActor = (value: unknown): AdminJobPostActivity['actor'] => {
+        if (!isRecord(value)) {
+                return null
+        }
+
+        return {
+                id: typeof value.id === 'string' ? value.id : null,
+                email: typeof value.email === 'string' ? value.email : null,
+                role: typeof value.role === 'string' ? value.role : null,
+                firstName: typeof value.firstName === 'string' ? value.firstName : null,
+                lastName: typeof value.lastName === 'string' ? value.lastName : null
+        }
+}
+
+const normalizeActivity = (value: unknown): AdminJobPostActivity | null => {
+        if (!isRecord(value)) {
+                return null
+        }
+
+        const idRaw = value.id
+        const id = typeof idRaw === 'string' ? idRaw : idRaw != null ? String(idRaw) : null
+        const action = typeof value.action === 'string' ? value.action : null
+        const createdAtRaw = value.createdAt
+        let createdAt = ''
+
+        if (typeof createdAtRaw === 'string') {
+                createdAt = createdAtRaw
+        } else if (createdAtRaw instanceof Date) {
+                createdAt = createdAtRaw.toISOString()
+        } else if (typeof createdAtRaw === 'number' && Number.isFinite(createdAtRaw)) {
+                createdAt = new Date(createdAtRaw).toISOString()
+        }
+
+        if (!id || !action) {
+                return null
+        }
+
+        const actorRole = typeof value.actorRole === 'string' ? value.actorRole : null
+        const metadata = normalizeJsonValue((value as { metadata?: unknown }).metadata)
+        const actor = normalizeActivityActor((value as { actor?: unknown }).actor)
+
+        return {
+                id,
+                action,
+                metadata,
+                createdAt,
+                actorRole,
+                actor
+        }
+}
+
+export type AdminJobPostActivityQuery = {
+        page?: number
+        limit?: number
 }
 
 export const listAdminJobPosts = async (
@@ -122,4 +221,27 @@ export const removeAdminJobPostAttachment = async (
         await authorizeAxiosInstance.delete(`${baseUrl}/${jobId}/attachments/${attachmentId}` as const, {
                 data: payload ?? {}
         })
+}
+
+export const listAdminJobPostActivities = async (
+        jobId: string,
+        params: AdminJobPostActivityQuery = {}
+): Promise<AdminJobPostActivityResponse> => {
+        const response = await authorizeAxiosInstance.get<RawAdminJobPostActivityResponse>(
+                buildActivityUrl(jobId, params)
+        )
+        const payload = response.data ?? {}
+        const rawData = Array.isArray(payload.data) ? (payload.data as unknown[]) : []
+        const data = rawData
+                .map(item => normalizeActivity(item))
+                .filter((item): item is AdminJobPostActivity => Boolean(item))
+
+        const fallbackMeta = {
+                page: params.page ?? 1,
+                limit: params.limit ?? (data.length || 0),
+                total: data.length
+        }
+        const meta = normalizeMeta(payload.meta, fallbackMeta)
+
+        return { data, meta }
 }

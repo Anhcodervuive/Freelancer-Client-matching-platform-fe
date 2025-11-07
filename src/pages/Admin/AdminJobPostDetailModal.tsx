@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
         AlertCircle,
         BadgeDollarSign,
@@ -21,6 +21,7 @@ import { toast } from 'react-toastify'
 
 import {
         getAdminJobPostDetail,
+        listAdminJobPostActivities,
         removeAdminJobPostAttachment,
         updateAdminJobPostStatus
 } from '~/apis/admin/job-post.api'
@@ -39,6 +40,7 @@ import {
         type JobVisibility
 } from '~/constants/job'
 import type {
+        AdminJobPostActivity,
         AdminJobPostAttachment,
         AdminJobPostDetail,
         AdminJobPostLanguageRequirement,
@@ -130,7 +132,7 @@ const isAttachmentArray = (value: unknown): value is AdminJobPostAttachment[] =>
         Array.isArray(value) &&
         value.every(item => item && typeof item === 'object' && 'id' in item && 'asset' in item)
 
-type TabKey = 'overview' | 'content' | 'requirements' | 'attachments' | 'moderation'
+type TabKey = 'overview' | 'content' | 'requirements' | 'attachments' | 'moderation' | 'activity'
 
 type ModerationDetails = {
         flagged: boolean | null
@@ -165,6 +167,54 @@ const formatModerationCategory = (value?: string | null) => {
         const normalized = moderationCategoryLabelMap[value]
         if (normalized) return normalized
         return toTitleCase(value.toLowerCase())
+}
+
+const ACTIVITY_PAGE_SIZE = 20
+
+const formatActivityActorName = (
+        actor: AdminJobPostActivity['actor'],
+        actorRole?: string | null
+) => {
+        if (actor) {
+                const fullName = `${actor.firstName ?? ''} ${actor.lastName ?? ''}`.trim()
+                if (fullName.length > 0) {
+                        return fullName
+                }
+
+                if (actor.email) {
+                        return actor.email
+                }
+
+                if (actor.id) {
+                        return `Người dùng #${actor.id}`
+                }
+        }
+
+        if (actorRole) {
+                return toTitleCase(actorRole.toLowerCase())
+        }
+
+        return 'Không xác định'
+}
+
+const formatActivityMetadata = (metadata: AdminJobPostActivity['metadata']) => {
+        if (metadata == null) {
+                return ''
+        }
+
+        if (typeof metadata === 'string') {
+                return metadata
+        }
+
+        if (typeof metadata === 'number' || typeof metadata === 'boolean') {
+                return String(metadata)
+        }
+
+        try {
+                return JSON.stringify(metadata, null, 2)
+        } catch {
+                return String(metadata)
+        }
 }
 
 type AdminJobPostDetailModalProps = {
@@ -234,6 +284,41 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                 }
         })
 
+        const {
+                data: activityQueryData,
+                isLoading: isActivityLoading,
+                isError: isActivityError,
+                error: activityError,
+                fetchNextPage: fetchActivityNextPage,
+                hasNextPage: hasActivityNextPage,
+                isFetchingNextPage: isFetchingActivityNextPage,
+                refetch: refetchActivity,
+                isFetching: isActivityFetching
+        } = useInfiniteQuery({
+                queryKey: ['admin-job-post', jobId, 'activity'],
+                queryFn: ({ pageParam = 1 }: { pageParam?: number }) =>
+                        listAdminJobPostActivities(jobId as string, {
+                                page: pageParam,
+                                limit: ACTIVITY_PAGE_SIZE
+                        }),
+                initialPageParam: 1,
+                getNextPageParam: lastPage => {
+                        const { page, limit, total } = lastPage.meta
+                        const safeLimit = limit > 0 ? limit : ACTIVITY_PAGE_SIZE
+
+                        if (safeLimit <= 0) {
+                                return undefined
+                        }
+
+                        const totalPages = Math.ceil(total / safeLimit)
+                        const nextPage = page + 1
+
+                        return nextPage <= totalPages ? nextPage : undefined
+                },
+                enabled: Boolean(jobId) && activeTab === 'activity',
+                staleTime: 0
+        })
+
         useEffect(() => {
                 setActiveTab('overview')
         }, [jobId])
@@ -264,6 +349,13 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
         }, [data])
         const clientAccountIsActive = data?.client?.profile?.user?.isActive
         const clientAccountRole = data?.client?.profile?.user?.role ?? null
+
+        const activityLogs = useMemo(() => {
+                if (!activityQueryData?.pages) return []
+                return activityQueryData.pages.flatMap(page => page.data ?? [])
+        }, [activityQueryData])
+        const activityTotal = activityQueryData?.pages?.[0]?.meta?.total ?? 0
+        const activityErrorMessage = activityError instanceof Error ? activityError.message : 'Không thể tải nhật ký hoạt động.'
 
         const screeningQuestions = useMemo(() => {
                 if (!Array.isArray(data?.screeningQuestions)) return []
@@ -342,9 +434,13 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                 id: 'attachments',
                                 label: attachments.length > 0 ? `Tệp đính kèm (${attachments.length})` : 'Tệp đính kèm'
                         },
+                        {
+                                id: 'activity',
+                                label: activityTotal > 0 ? `Hoạt động (${activityTotal})` : 'Hoạt động'
+                        },
                         { id: 'moderation', label: 'Kiểm duyệt' }
                 ],
-                [attachments.length]
+                [activityTotal, attachments.length]
         )
         const statusOptions = useMemo(() => {
                 const optionMap = new Map<JobStatus, { value: JobStatus; label: string }>()
@@ -438,8 +534,13 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                 <button
                                                         type='button'
                                                         className='btn btn-sm gap-2'
-                                                        onClick={() => refetch()}
-                                                        disabled={isFetching}
+                                                        onClick={() => {
+                                                                refetch()
+                                                                if (activeTab === 'activity') {
+                                                                        refetchActivity()
+                                                                }
+                                                        }}
+                                                        disabled={isFetching || (activeTab === 'activity' && isActivityFetching)}
                                                 >
                                                         {isFetching ? <Loader2 className='size-4 animate-spin' /> : <RefreshCcw className='size-4' />}
                                                         Làm mới
@@ -805,15 +906,98 @@ export default function AdminJobPostDetailModal({ jobId, onClose, onUpdated }: A
                                                                                                                 })}
                                                                                                         </ul>
                                                                                                 ) : (
-                                                                                                        <p className='mt-3 text-sm text-base-content/60'>Không có tệp đính kèm.</p>
-                                                                                                )}
-                                                                                        </section>
+                                                                                        <p className='mt-3 text-sm text-base-content/60'>Không có tệp đính kèm.</p>
                                                                                 )}
-                                                                                {activeTab === 'moderation' && (
-                                                                                        <section className='rounded-2xl border border-base-200 bg-base-100 p-4'>
-                                                                                                <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                                        <CheckCircle2 className='size-4' /> Thông tin kiểm duyệt
+                                                                        </section>
+                                                                )}
+                                                                {activeTab === 'activity' && (
+                                                                        <section className='rounded-2xl border border-base-200 bg-base-100 p-4'>
+                                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                                        <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                                <Clock className='size-4' /> Nhật ký hoạt động
+                                                                                        </div>
+                                                                                        {activityTotal > 0 && (
+                                                                                                <span className='badge badge-outline text-xs'>Tổng: {activityTotal}</span>
+                                                                                        )}
+                                                                                </div>
+                                                                                {isActivityLoading ? (
+                                                                                        <div className='mt-4 space-y-3'>
+                                                                                                <div className='skeleton h-4 w-2/3' />
+                                                                                                <div className='skeleton h-4 w-full' />
+                                                                                                <div className='skeleton h-4 w-5/6' />
+                                                                                        </div>
+                                                                                ) : isActivityError ? (
+                                                                                        <div className='alert alert-error mt-4 items-start gap-3'>
+                                                                                                <AlertCircle className='size-5' />
+                                                                                                <div className='space-y-1 text-sm'>
+                                                                                                        <p className='font-semibold text-base-content'>Không thể tải nhật ký hoạt động.</p>
+                                                                                                        {activityErrorMessage && (
+                                                                                                                <p className='text-xs text-base-content/70'>{activityErrorMessage}</p>
+                                                                                                        )}
                                                                                                 </div>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-sm'
+                                                                                                        onClick={() => refetchActivity()}
+                                                                                                        disabled={isActivityFetching}
+                                                                                                >
+                                                                                                        {isActivityFetching ? <Loader2 className='size-4 animate-spin' /> : 'Thử lại'}
+                                                                                                </button>
+                                                                                        </div>
+                                                                                ) : activityLogs.length > 0 ? (
+                                                                                        <div className='mt-4 max-h-80 space-y-3 overflow-y-auto pr-1'>
+                                                                                                {activityLogs.map(log => {
+                                                                                                        const metadataText = formatActivityMetadata(log.metadata)
+
+                                                                                                        return (
+                                                                                                                <div key={log.id} className='space-y-2 rounded-xl border border-base-200 p-3 text-sm text-base-content/80'>
+                                                                                                                        <div className='flex flex-wrap items-center gap-2 text-xs text-base-content/60'>
+                                                                                                                                <span>{formatDateTime(log.createdAt)}</span>
+                                                                                                                                <span className='badge badge-sm badge-ghost'>{log.action}</span>
+                                                                                                                                {log.actorRole ? (
+                                                                                                                                        <span className='badge badge-sm badge-outline'>
+                                                                                                                                                {toTitleCase(log.actorRole.toLowerCase())}
+                                                                                                                                        </span>
+                                                                                                                                ) : null}
+                                                                                                                        </div>
+                                                                                                                        <div className='font-medium text-base-content'>
+                                                                                                                                {formatActivityActorName(log.actor, log.actorRole)}
+                                                                                                                        </div>
+                                                                                                                        {metadataText ? (
+                                                                                                                                <pre className='whitespace-pre-wrap break-words rounded-lg bg-base-200/60 p-3 text-xs text-base-content/80'>
+                                                                                                                                        {metadataText}
+                                                                                                                                </pre>
+                                                                                                                        ) : null}
+                                                                                                                </div>
+                                                                                                        )
+                                                                                                })}
+                                                                                                {hasActivityNextPage && (
+                                                                                                        <div className='flex justify-center'>
+                                                                                                                <button
+                                                                                                                        type='button'
+                                                                                                                        className='btn btn-outline btn-sm'
+                                                                                                                        onClick={() => fetchActivityNextPage()}
+                                                                                                                        disabled={isFetchingActivityNextPage}
+                                                                                                                >
+                                                                                                                        {isFetchingActivityNextPage ? (
+                                                                                                                                <Loader2 className='size-4 animate-spin' />
+                                                                                                                        ) : (
+                                                                                                                                'Tải thêm'
+                                                                                                                        )}
+                                                                                                                </button>
+                                                                                                        </div>
+                                                                                                )}
+                                                                                        </div>
+                                                                                ) : (
+                                                                                        <p className='mt-3 text-sm text-base-content/60'>Chưa có hoạt động nào được ghi nhận.</p>
+                                                                                )}
+                                                                        </section>
+                                                                )}
+                                                                {activeTab === 'moderation' && (
+                                                                        <section className='rounded-2xl border border-base-200 bg-base-100 p-4'>
+                                                                                <div className='flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-base-content/60'>
+                                                                                        <CheckCircle2 className='size-4' /> Thông tin kiểm duyệt
+                                                                                </div>
                                                                                                 <dl className='mt-3 grid gap-3 text-sm text-base-content/80 sm:grid-cols-2'>
                                                                                                         <div>
                                                                                                                 <dt className='text-xs uppercase tracking-wide text-base-content/60'>Điểm kiểm duyệt</dt>
