@@ -11,7 +11,7 @@ import {
 	setFreelancerSkills,
 	updateFreelancerProfileAPI
 } from '~/apis/freelancerProfile.api'
-import { updateRole } from '~/apis/profile.api'
+import { getProfileInfo, updateRole } from '~/apis/profile.api'
 import { routes } from '~/config/routes'
 import { useFreelancerEducation } from '~/hooks/api/useFreelancerEducation'
 import { useProfileLanguages } from '~/hooks/api/useFreelancerLanguages'
@@ -83,11 +83,11 @@ function useWizardMutations(userId?: string) {
         const setRoleMutation = useMutation({
                 mutationFn: async (role: Role) => {
                         await updateRole(role)
-                },
+		},
                 onSuccess: (_, nextRole) => {
                         dispatch(updateProfile({ role: nextRole }))
                         void queryClient.invalidateQueries({ queryKey: queryKeys.me })
-                }
+		}
         })
 
 	const setCategorySpecialtyMutation = useMutation({
@@ -223,9 +223,20 @@ export default function OnboardingWizard() {
 		locationSubmitRef.current = handler
 	}, [])
 
-	const completeOnboarding = useCallback(() => {
+	const refreshCurrentUser = useCallback(async () => {
+		if (!user?.id) return
+		try {
+			const latestUser = await getProfileInfo(user.id)
+			dispatch(updateProfile(latestUser))
+		} catch (error) {
+			console.error('Failed to refresh current user after onboarding', error)
+		}
+	}, [dispatch, user?.id])
+
+	const completeOnboarding = useCallback(async () => {
+		await refreshCurrentUser()
 		navigate(routes.me.setting.contactInfo)
-	}, [navigate])
+	}, [navigate, refreshCurrentUser])
 
 	const handleNext = useCallback(async () => {
 		if (!currentStep || isSubmitting) return
@@ -235,6 +246,7 @@ export default function OnboardingWizard() {
 			setIsSubmitting(true)
 			try {
 				await setRoleMutation.mutateAsync(role)
+				await refreshCurrentUser()
 				if (role === Role.client) {
 					navigate(routes.comons.home)
 					return
@@ -340,7 +352,7 @@ export default function OnboardingWizard() {
 			setIsSubmitting(true)
 			try {
 				await locationSubmitRef.current()
-				completeOnboarding()
+				await completeOnboarding()
 			} finally {
 				setIsSubmitting(false)
 			}
@@ -369,10 +381,11 @@ export default function OnboardingWizard() {
 		setOverviewMutation,
 		locationSubmitRef,
 		completeOnboarding,
-		goNextStep,
-		profileLanguages,
-		removeProfileLanguage
-	])
+                goNextStep,
+                profileLanguages,
+                removeProfileLanguage,
+                refreshCurrentUser
+        ])
 
 	const stepContent = useMemo(() => {
 		if (!currentStep) return null
