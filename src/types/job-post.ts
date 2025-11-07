@@ -97,17 +97,17 @@ export type JobPostDetail = JobPostListItem & {
         skills?: unknown
         screeningQuestions?: unknown
         attachments?: unknown
+        moderationScore?: number | null
+        moderationCategory?: string | null
+        moderationSummary?: string | null
+        moderationCheckedAt?: string | null
+        moderationPayload?: unknown
 }
 
 export type AdminJobPostDetail = JobPostDetail & {
         client: AdminJobPostClientSummary
         proposalsCount?: number
         viewsCount?: number
-        moderationScore?: number | null
-        moderationCategory?: string | null
-        moderationSummary?: string | null
-        moderationCheckedAt?: string | null
-        moderationPayload?: unknown
         languages?: AdminJobPostLanguageRequirement[]
         screeningQuestions?: Array<{
                 id: string
