@@ -8,6 +8,7 @@ import { useDebounce } from '~/hooks/comons/useDebounce'
 import {
         JOB_DURATION_COMMITMENTS,
         JOB_LOCATION_TYPES,
+        JOB_MODERATION_ALERT_STATUSES,
         JOB_PAYMENT_MODES,
         JOB_STATUS_DETAILS,
         JOB_STATUS_OPTIONS,
@@ -251,6 +252,7 @@ export default function JobPostListPage() {
                                                         ? job.moderationSummary.trim()
                                                         : undefined
                                                 const hasModerationNotice =
+                                                        JOB_MODERATION_ALERT_STATUSES.includes(job.status) &&
                                                         Boolean(
                                                                 moderationCategoryLabel ||
                                                                         moderationSummary ||
@@ -290,6 +292,9 @@ export default function JobPostListPage() {
                                                                                                         <AlertTriangle className='mt-0.5 size-4 flex-shrink-0' />
                                                                                                         <div className='space-y-1'>
                                                                                                                 <p className='font-medium uppercase tracking-wide'>Moderation notice</p>
+                                                                                                                <p className='text-[11px] uppercase tracking-wide text-warning/70'>
+                                                                                                                        Status: {statusLabel}
+                                                                                                                </p>
                                                                                                                 {moderationSummary ? (
                                                                                                                         <p className='whitespace-pre-line text-warning/90'>
                                                                                                                                 {moderationSummary}

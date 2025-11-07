@@ -138,6 +138,12 @@ export const JOB_STATUS_DETAILS: Record<
         }
 }
 
+export const JOB_MODERATION_ALERT_STATUSES: JobStatus[] = [
+        'PAUSED',
+        'PUBLISHED_PENDING_REVIEW',
+        'REJECTED'
+]
+
 export const CURRENCY_CODES = ['USD', 'EUR', 'VND', 'JPY', 'AUD'] as const
 
 export const JobPaymentModeSchema = z.enum(JOB_PAYMENT_MODES.map(mode => mode.value) as [string, ...string[]])

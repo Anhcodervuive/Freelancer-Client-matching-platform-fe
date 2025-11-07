@@ -25,6 +25,7 @@ import {
         JOB_DURATION_COMMITMENTS,
         JOB_EXPERIENCE_LEVELS,
         JOB_LOCATION_TYPES,
+        JOB_MODERATION_ALERT_STATUSES,
         JOB_PAYMENT_MODES,
         JOB_STATUS_DETAILS,
         JOB_VISIBILITY_OPTIONS,
@@ -229,9 +230,14 @@ export default function JobPostDetailPage() {
         const moderationSummary = job.moderationSummary?.trim()
                 ? job.moderationSummary.trim()
                 : undefined
-        const showModerationNotice = Boolean(
-                moderationCategoryLabel || moderationSummary || moderationScoreLabel || moderationCheckedLabel
-        )
+        const showModerationNotice =
+                JOB_MODERATION_ALERT_STATUSES.includes(job.status) &&
+                Boolean(
+                        moderationCategoryLabel ||
+                                moderationSummary ||
+                                moderationScoreLabel ||
+                                moderationCheckedLabel
+                )
         const activeStepIndex = jobDetailTabs.findIndex(tab => tab.key === activeTab)
         const resolvedActiveIndex = activeStepIndex >= 0 ? activeStepIndex : 0
 
@@ -516,6 +522,9 @@ export default function JobPostDetailPage() {
                                                                         <AlertTriangle className='size-4' /> Moderation notice
                                                                 </div>
                                                                 <div className='space-y-1 text-warning/90'>
+                                                                        <p className='text-[11px] uppercase tracking-wide text-warning/70'>
+                                                                                Status: {statusLabel}
+                                                                        </p>
                                                                         {moderationSummary ? (
                                                                                 <p className='whitespace-pre-line text-sm leading-relaxed'>{moderationSummary}</p>
                                                                         ) : null}
