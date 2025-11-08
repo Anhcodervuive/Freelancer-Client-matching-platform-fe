@@ -861,11 +861,12 @@ const GetPaidPage = () => {
                                                         </p>
 						</div>
 						<div className='space-y-2'>
-							<CountrySelect
-								value={countryOption}
-								onChange={option => setCountryOption(option)}
-								isDisabled={countryLocked || createAccountMutation.isPending}
-							/>
+                                                        <CountrySelect
+                                                                value={countryOption}
+                                                                onChange={option => setCountryOption(option)}
+                                                                options={stripeSupportedCountryOptions}
+                                                                isDisabled={countryLocked || createAccountMutation.isPending}
+                                                        />
                                                         {!countryLocked ? (
                                                                 <p className='text-xs text-slate-400'>You can adjust this selection before opening Stripe.</p>
                                                         ) : null}

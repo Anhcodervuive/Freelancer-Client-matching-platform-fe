@@ -49,9 +49,14 @@ export const STRIPE_SUPPORTED_COUNTRY_CODES = [
 const supportedCountrySet = new Set<string>(STRIPE_SUPPORTED_COUNTRY_CODES)
 const allCountries = countryList().getData()
 
-export const stripeSupportedCountryOptions: CountryOption[] = allCountries
-        .filter(option => supportedCountrySet.has(option.value))
-        .map(option => ({ value: option.value, label: option.label }))
+export const allCountryOptions: CountryOption[] = allCountries.map(option => ({
+        value: option.value,
+        label: option.label
+}))
+
+export const stripeSupportedCountryOptions: CountryOption[] = allCountryOptions.filter(option =>
+        supportedCountrySet.has(option.value)
+)
 
 export const getCountryOptionByCode = (code?: string): CountryOption | null => {
         if (!code) return null

@@ -2,19 +2,17 @@
 import Select, { components, type StylesConfig } from 'react-select'
 import ReactCountryFlag from 'react-country-flag'
 
-import {
-        type CountryOption,
-        stripeSupportedCountryOptions
-} from '~/constants/stripeCountries'
+import { allCountryOptions, type CountryOption } from '~/constants/stripeCountries'
 
 export type { CountryOption } from '~/constants/stripeCountries'
 export type CountrySelectProps = {
-	value?: CountryOption | null
-	onChange?: (_opt: CountryOption | null) => void
-	placeholder?: string
-	className?: string
-	name?: string // hidden input (ISO code) for HTML forms
-	isDisabled?: boolean
+        value?: CountryOption | null
+        onChange?: (_opt: CountryOption | null) => void
+        placeholder?: string
+        className?: string
+        name?: string // hidden input (ISO code) for HTML forms
+        isDisabled?: boolean
+        options?: CountryOption[]
 }
 
 // --- Custom Option with flag -------------------------------------------------
@@ -86,7 +84,8 @@ export default function CountrySelect({
         placeholder = 'Chọn quốc gia…',
         className = '',
         name,
-        isDisabled
+        isDisabled,
+        options = allCountryOptions
 }: CountrySelectProps) {
         return (
                 <div className={`form-control w-full ${className}`}>
@@ -94,9 +93,9 @@ export default function CountrySelect({
                         <Select
                                 instanceId='country-select'
                                 isDisabled={isDisabled}
-                                options={stripeSupportedCountryOptions}
+                                options={options}
                                 value={value ?? null}
-				onChange={opt => onChange?.(opt as CountryOption)}
+                                onChange={opt => onChange?.(opt as CountryOption)}
 				placeholder={placeholder}
 				styles={styles}
 				components={{ Option, SingleValue, IndicatorSeparator: () => null }}
