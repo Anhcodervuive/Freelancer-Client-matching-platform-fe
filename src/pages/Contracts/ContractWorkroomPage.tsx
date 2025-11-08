@@ -111,6 +111,7 @@ type ViewerRole = 'client' | 'freelancer' | 'all'
 
 const MILESTONES_PER_PAGE = 4
 const FEEDBACK_EDIT_WINDOW_MS = 2 * 24 * 60 * 60 * 1000
+const FINALIZED_CONTRACT_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'ENDED', 'CLOSED'])
 
 const extractErrorMessage = (value: unknown): string | null => {
         if (!value) {
@@ -473,13 +474,21 @@ const ContractWorkroomPage = () => {
                 enabled: Boolean(contractId)
         })
 
+        const contract = contractQuery.data as Contract | undefined
+        const normalizedContractStatus = useMemo(() => {
+                const status = contract?.status
+                if (!status) return ''
+                return typeof status === 'string' ? status.toUpperCase() : String(status).toUpperCase()
+        }, [contract?.status])
+        const isContractFinalized = FINALIZED_CONTRACT_STATUSES.has(normalizedContractStatus)
+
         const feedbackQuery = useQuery({
                 queryKey: ['contract-feedbacks', contractId],
                 queryFn: () => {
                         if (!contractId) throw new Error('Missing contract ID')
                         return listContractFeedbacks(contractId)
                 },
-                enabled: Boolean(contractId)
+                enabled: Boolean(contractId) && isContractFinalized
         })
 
         const milestoneQuery = useQuery({
@@ -987,7 +996,6 @@ const ContractWorkroomPage = () => {
 		? pendingPaymentMetaRef.current[milestoneToFund.id]?.idempotencyKey
 		: undefined
 
-        const contract = contractQuery.data as Contract | undefined
         const feedbacks = useMemo(() => feedbackQuery.data?.feedbacks ?? [], [feedbackQuery.data?.feedbacks])
         const statusMeta = getContractStatusMeta(contract?.status as string | undefined)
         const statusDescription = getContractStatusDescription(contract?.status as string | undefined)
@@ -1070,8 +1078,6 @@ const ContractWorkroomPage = () => {
         }, [contract?.freelancerFeedback, contract?.clientFeedback, feedbacks, viewerRole, currentUser?.id])
         const viewerSubmittedFeedbackAt =
                 contract?.viewerSubmittedFeedbackAt ?? viewerFeedback?.createdAt ?? null
-        const normalizedContractStatus = contract?.status?.toUpperCase() ?? ''
-        const isContractFinalized = ['COMPLETED', 'CANCELLED'].includes(normalizedContractStatus)
         const shouldShowEndContractAction =
                 viewerRole !== 'all' &&
                 !isContractFinalized &&
@@ -1265,6 +1271,160 @@ const ContractWorkroomPage = () => {
                                         />
                                 ))}
                                 <span className='text-sm font-semibold text-amber-600'>{clamped}/5</span>
+                        </div>
+                )
+        }
+
+        const renderFeedbackSection = () => {
+                if (!isContractFinalized) {
+                        return null
+                }
+
+                return (
+                        <div className='space-y-5 rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                                        <div className='space-y-1'>
+                                                <h3 className='text-sm font-semibold text-slate-800'>Đánh giá &amp; phản hồi</h3>
+                                                <p className='text-sm text-slate-600'>Theo dõi đánh giá từ bạn và đối tác sau khi hợp đồng hoàn thành.</p>
+                                        </div>
+                                        {shouldShowFeedbackAction && (
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-primary btn-sm gap-2 rounded-full px-4 self-start sm:ml-auto sm:self-auto'
+                                                        onClick={() => {
+                                                                if (isFeedbackMutationPending) return
+                                                                setFeedbackDialogMode(viewerFeedback ? 'edit' : 'create')
+                                                                setSubmitFeedbackOpen(true)
+                                                        }}
+                                                        disabled={isFeedbackMutationPending}
+                                                >
+                                                        {isFeedbackSubmitting ? (
+                                                                <>
+                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                        Đang mở...
+                                                                </>
+                                                        ) : (
+                                                                <>
+                                                                        <Star className='size-4' /> {feedbackActionLabel}
+                                                                </>
+                                                        )}
+                                                </button>
+                                        )}
+                                </div>
+                                <div className='grid gap-4 md:grid-cols-2'>
+                                        <div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/85 p-4'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá của bạn</p>
+                                                {viewerFeedback ? (
+                                                        <div className='space-y-3 text-sm text-slate-600'>
+                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
+                                                                        {renderFeedbackRating(viewerFeedback.rating)}
+                                                                        {viewerCanEditFeedback && (
+                                                                                <div className='flex items-center gap-2'>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-ghost btn-xs gap-1'
+                                                                                                onClick={() => {
+                                                                                                        if (isFeedbackMutationPending) return
+                                                                                                        setFeedbackDialogMode('edit')
+                                                                                                        setSubmitFeedbackOpen(true)
+                                                                                                }}
+                                                                                                disabled={isFeedbackMutationPending}
+                                                                                        >
+                                                                                                <Pencil className='size-3.5' /> Chỉnh sửa
+                                                                                        </button>
+                                                                                        <button
+                                                                                                type='button'
+                                                                                                className='btn btn-ghost btn-xs gap-1 text-rose-600 hover:text-rose-600'
+                                                                                                onClick={() => {
+                                                                                                        if (isFeedbackMutationPending) return
+                                                                                                        setDeleteFeedbackConfirmOpen(true)
+                                                                                                }}
+                                                                                                disabled={isFeedbackMutationPending}
+                                                                                        >
+                                                                                                <Trash2 className='size-3.5' /> Xóa
+                                                                                        </button>
+                                                                                </div>
+                                                                        )}
+                                                                </div>
+                                                                {viewerFeedback.comment ? (
+                                                                        <div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
+                                                                                <MessageCircle className='mt-0.5 size-4 text-primary' />
+                                                                                <p className='text-left'>{viewerFeedback.comment}</p>
+                                                                        </div>
+                                                                ) : (
+                                                                        <p className='text-xs text-slate-400'>Không có nhận xét chi tiết.</p>
+                                                                )}
+                                                                {typeof viewerFeedback.wouldHireAgain === 'boolean' ? (
+                                                                        <p className='flex items-center gap-2 text-xs font-medium'>
+                                                                                {viewerFeedback.wouldHireAgain ? (
+                                                                                        <>
+                                                                                                <ThumbsUp className='size-4 text-emerald-500' /> Sẵn sàng hợp tác tiếp
+                                                                                        </>
+                                                                                ) : (
+                                                                                        <>
+                                                                                                <ThumbsDown className='size-4 text-rose-500' /> Không dự định hợp tác tiếp
+                                                                                        </>
+                                                                                )}
+                                                                        </p>
+                                                                ) : null}
+                                                                {viewerSubmittedFeedbackAt ? (
+                                                                        <p className='text-xs text-slate-400'>Gửi {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                                                ) : null}
+                                                                {viewerCanEditFeedback && feedbackFooterHint ? (
+                                                                        <p className='text-xs text-primary/80'>{feedbackFooterHint}</p>
+                                                                ) : !viewerCanEditFeedback && viewerFeedbackEditableUntil ? (
+                                                                        <p className='text-xs text-slate-400'>Thời hạn chỉnh sửa đánh giá đã kết thúc.</p>
+                                                                ) : null}
+                                                        </div>
+                                                ) : (
+                                                        <div className='space-y-2 text-sm text-slate-500'>
+                                                                {shouldShowFeedbackAction ? (
+                                                                        <p>Bạn chưa gửi đánh giá cho hợp đồng này. Nhấn “Đánh giá hợp đồng” để chia sẻ trải nghiệm.</p>
+                                                                ) : viewerSubmittedFeedbackAt ? (
+                                                                        <p>Bạn đã gửi đánh giá vào {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>
+                                                                ) : (
+                                                                        <p>Chưa có đánh giá nào từ bạn.</p>
+                                                                )}
+                                                        </div>
+                                                )}
+                                        </div>
+                                        <div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/85 p-4'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá từ đối tác</p>
+                                                {partnerFeedback ? (
+                                                        <div className='space-y-3 text-sm text-slate-600'>
+                                                                {renderFeedbackRating(partnerFeedback.rating)}
+                                                                {partnerFeedback.comment ? (
+                                                                        <div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
+                                                                                <MessageCircle className='mt-0.5 size-4 text-secondary' />
+                                                                                <p className='text-left'>{partnerFeedback.comment}</p>
+                                                                        </div>
+                                                                ) : (
+                                                                        <p className='text-xs text-slate-400'>Đối tác không để lại nhận xét.</p>
+                                                                )}
+                                                                {typeof partnerFeedback.wouldHireAgain === 'boolean' ? (
+                                                                        <p className='flex items-center gap-2 text-xs font-medium'>
+                                                                                {partnerFeedback.wouldHireAgain ? (
+                                                                                        <>
+                                                                                                <ThumbsUp className='size-4 text-emerald-500' /> Muốn tiếp tục hợp tác
+                                                                                        </>
+                                                                                ) : (
+                                                                                        <>
+                                                                                                <ThumbsDown className='size-4 text-rose-500' /> Không có ý định hợp tác tiếp
+                                                                                        </>
+                                                                                )}
+                                                                        </p>
+                                                                ) : null}
+                                                                {partnerFeedback.createdAt ? (
+                                                                        <p className='text-xs text-slate-400'>Gửi {formatDateTime(partnerFeedback.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                                                ) : null}
+                                                        </div>
+                                                ) : (
+                                                        <p className='text-sm text-slate-500'>
+                                                                {partnerDisplayName ? `${partnerDisplayName} chưa gửi đánh giá.` : 'Đối tác chưa gửi đánh giá.'}
+                                                        </p>
+                                                )}
+                                        </div>
+                                </div>
                         </div>
                 )
         }
@@ -1496,152 +1656,7 @@ const ContractWorkroomPage = () => {
                                         </div>
                                 )}
                         </div>
-
-                        <div className='space-y-5 rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
-                                <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-                                        <div className='space-y-1'>
-                                                <h3 className='text-sm font-semibold text-slate-800'>Đánh giá &amp; phản hồi</h3>
-                                                <p className='text-sm text-slate-600'>Theo dõi đánh giá từ bạn và đối tác sau khi hợp đồng hoàn thành.</p>
-                                        </div>
-                                        {shouldShowFeedbackAction && (
-                                                <button
-                                                        type='button'
-                                                        className='btn btn-primary btn-sm gap-2 rounded-full px-4 self-start sm:ml-auto sm:self-auto'
-                                                        onClick={() => {
-                                                                if (isFeedbackMutationPending) return
-                                                                setFeedbackDialogMode(viewerFeedback ? 'edit' : 'create')
-                                                                setSubmitFeedbackOpen(true)
-                                                        }}
-                                                        disabled={isFeedbackMutationPending}
-                                                >
-                                                        {isFeedbackSubmitting ? (
-                                                                <>
-                                                                        <Loader2 className='size-4 animate-spin' />
-                                                                        Đang mở...
-                                                                </>
-                                                        ) : (
-                                                                <>
-                                                                        <Star className='size-4' /> {feedbackActionLabel}
-                                                                </>
-                                                        )}
-                                                </button>
-                                        )}
-                                </div>
-                                <div className='grid gap-4 md:grid-cols-2'>
-                                        <div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/85 p-4'>
-                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá của bạn</p>
-                                                {viewerFeedback ? (
-                                                        <div className='space-y-3 text-sm text-slate-600'>
-                                                                <div className='flex flex-wrap items-center justify-between gap-2'>
-                                                                        {renderFeedbackRating(viewerFeedback.rating)}
-                                                                        {viewerCanEditFeedback && (
-                                                                                <div className='flex items-center gap-2'>
-                                                                                        <button
-                                                                                                type='button'
-                                                                                                className='btn btn-ghost btn-xs gap-1'
-                                                                                                onClick={() => {
-                                                                                                        if (isFeedbackMutationPending) return
-                                                                                                        setFeedbackDialogMode('edit')
-                                                                                                        setSubmitFeedbackOpen(true)
-                                                                                                }}
-                                                                                                disabled={isFeedbackMutationPending}
-                                                                                        >
-                                                                                                <Pencil className='size-3.5' /> Chỉnh sửa
-                                                                                        </button>
-                                                                                        <button
-                                                                                                type='button'
-                                                                                                className='btn btn-ghost btn-xs gap-1 text-rose-600 hover:text-rose-600'
-                                                                                                onClick={() => {
-                                                                                                        if (isFeedbackMutationPending) return
-                                                                                                        setDeleteFeedbackConfirmOpen(true)
-                                                                                                }}
-                                                                                                disabled={isFeedbackMutationPending}
-                                                                                        >
-                                                                                                <Trash2 className='size-3.5' /> Xóa
-                                                                                        </button>
-                                                                                </div>
-                                                                        )}
-                                                                </div>
-                                                                {viewerFeedback.comment ? (
-                                                                        <div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
-                                                                                <MessageCircle className='mt-0.5 size-4 text-primary' />
-                                                                                <p className='text-left'>{viewerFeedback.comment}</p>
-                                                                        </div>
-                                                                ) : (
-                                                                        <p className='text-xs text-slate-400'>Không có nhận xét chi tiết.</p>
-                                                                )}
-                                                                {typeof viewerFeedback.wouldHireAgain === 'boolean' ? (
-                                                                        <p className='flex items-center gap-2 text-xs font-medium'>
-                                                                                {viewerFeedback.wouldHireAgain ? (
-                                                                                        <>
-                                                                                                <ThumbsUp className='size-4 text-emerald-500' /> Sẵn sàng hợp tác tiếp
-                                                                                        </>
-                                                                                ) : (
-                                                                                        <>
-                                                                                                <ThumbsDown className='size-4 text-rose-500' /> Không dự định hợp tác tiếp
-                                                                                        </>
-                                                                                )}
-                                                                        </p>
-                                                                ) : null}
-                                                                {viewerSubmittedFeedbackAt ? (
-                                                                        <p className='text-xs text-slate-400'>Gửi {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
-                                                                ) : null}
-                                                                {viewerCanEditFeedback && feedbackFooterHint ? (
-                                                                        <p className='text-xs text-primary/80'>{feedbackFooterHint}</p>
-                                                                ) : !viewerCanEditFeedback && viewerFeedbackEditableUntil ? (
-                                                                        <p className='text-xs text-slate-400'>Thời hạn chỉnh sửa đánh giá đã kết thúc.</p>
-                                                                ) : null}
-                                                        </div>
-                                                ) : (
-                                                        <div className='space-y-2 text-sm text-slate-500'>
-                                                                {shouldShowFeedbackAction ? (
-                                                                        <p>Bạn chưa gửi đánh giá cho hợp đồng này. Nhấn “Đánh giá hợp đồng” để chia sẻ trải nghiệm.</p>
-                                                                ) : viewerSubmittedFeedbackAt ? (
-                                                                        <p>Bạn đã gửi đánh giá vào {formatDateTime(viewerSubmittedFeedbackAt, { dateStyle: 'medium', timeStyle: 'short' })}.</p>
-                                                                ) : (
-                                                                        <p>Chưa có đánh giá nào từ bạn.</p>
-                                                                )}
-                                                        </div>
-                                                )}
-                                        </div>
-                                        <div className='space-y-3 rounded-2xl border border-slate-200/70 bg-white/85 p-4'>
-                                                <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Đánh giá từ đối tác</p>
-                                                {partnerFeedback ? (
-                                                        <div className='space-y-3 text-sm text-slate-600'>
-                                                                {renderFeedbackRating(partnerFeedback.rating)}
-                                                                {partnerFeedback.comment ? (
-                                                                        <div className='flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2'>
-                                                                                <MessageCircle className='mt-0.5 size-4 text-secondary' />
-                                                                                <p className='text-left'>{partnerFeedback.comment}</p>
-                                                                        </div>
-                                                                ) : (
-                                                                        <p className='text-xs text-slate-400'>Đối tác không để lại nhận xét.</p>
-                                                                )}
-                                                                {typeof partnerFeedback.wouldHireAgain === 'boolean' ? (
-                                                                        <p className='flex items-center gap-2 text-xs font-medium'>
-                                                                                {partnerFeedback.wouldHireAgain ? (
-                                                                                        <>
-                                                                                                <ThumbsUp className='size-4 text-emerald-500' /> Muốn tiếp tục hợp tác
-                                                                                        </>
-                                                                                ) : (
-                                                                                        <>
-                                                                                                <ThumbsDown className='size-4 text-rose-500' /> Không có ý định hợp tác tiếp
-                                                                                        </>
-                                                                                )}
-                                                                        </p>
-                                                                ) : null}
-                                                                {partnerFeedback.createdAt ? (
-                                                                        <p className='text-xs text-slate-400'>Gửi {formatDateTime(partnerFeedback.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
-                                                                ) : null}
-                                                        </div>
-                                                ) : (
-                                                        <p className='text-sm text-slate-500'>
-                                                                {partnerDisplayName ? `${partnerDisplayName} chưa gửi đánh giá.` : 'Đối tác chưa gửi đánh giá.'}
-                                                        </p>
-                                                )}
-                                        </div>
-                                </div>
-                        </div>
+                        {renderFeedbackSection()}
                 </div>
         )
 
