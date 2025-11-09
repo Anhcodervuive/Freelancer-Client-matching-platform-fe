@@ -32,6 +32,9 @@ const historyLimitOptions = [10, 25, 50, 100, 200]
 
 const MAX_TRANSFER_IDS = 50
 
+const SECTION_CARD_CLASS =
+        'rounded-2xl border border-base-200 bg-base-100/95 shadow-sm backdrop-blur-sm'
+
 const ZERO_DECIMAL_CURRENCIES = new Set([
         'bif',
         'clp',
@@ -303,34 +306,34 @@ const BalanceCard = ({
         const hasEntries = entries.length > 0
 
         return (
-                <article className='flex h-full flex-col justify-between rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl shadow-primary/5 backdrop-blur'>
-                        <div className='flex items-center justify-between gap-4'>
-                                <div>
+                <article className='flex h-full flex-col gap-5 rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm'>
+                        <div className='flex items-start justify-between gap-4'>
+                                <div className='space-y-1'>
                                         <h3 className='text-lg font-semibold text-base-content'>{title}</h3>
-                                        <p className='text-sm text-base-content/70'>{description}</p>
+                                        <p className='text-sm text-base-content/60'>{description}</p>
                                 </div>
-                                <div className={`rounded-2xl p-3 shadow-inner ${accent}`}>
-                                        <Icon className='size-8 text-white drop-shadow' />
+                                <div className={`rounded-lg p-2 ${accent}`}>
+                                        <Icon className='size-6 text-white' />
                                 </div>
                         </div>
 
-                        <div className='mt-6 space-y-4'>
+                        <div className='space-y-3'>
                                 {hasEntries ? (
                                         entries.map(entry => (
                                                 <div
                                                         key={entry.currency}
-                                                        className='rounded-2xl border border-base-200 bg-base-100/70 px-4 py-3 shadow-sm'
+                                                        className='rounded-xl border border-base-200 bg-base-200/30 px-4 py-3'
                                                 >
                                                         <p className='text-xs uppercase tracking-wide text-base-content/60'>
                                                                 {entry.currency}
                                                         </p>
-                                                        <p className='mt-1 text-2xl font-semibold text-base-content'>
+                                                        <p className='mt-1 text-xl font-semibold text-base-content'>
                                                                 {formatCurrency(entry.currency, entry.amount)}
                                                         </p>
                                                 </div>
                                         ))
                                 ) : (
-                                        <p className='text-sm text-base-content/60'>No balance reported in this bucket.</p>
+                                        <p className='text-sm text-base-content/60'>Chưa có số dư cho mục này.</p>
                                 )}
                         </div>
                 </article>
@@ -347,9 +350,9 @@ const SummaryTable = ({ summary }: { summary: PayoutSummaryEntry[] }) => {
         }
 
         return (
-                <div className='overflow-x-auto rounded-3xl border border-white/60 bg-white/70 shadow-lg shadow-primary/5'>
+                <div className='overflow-x-auto rounded-2xl border border-base-200 bg-base-100 shadow-sm'>
                         <table className='min-w-full divide-y divide-base-200 text-sm'>
-                                <thead className='bg-base-200/60 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
+                                <thead className='bg-base-200/80 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
                                         <tr>
                                                 <th scope='col' className='px-4 py-3 text-left'>Currency</th>
                                                 <th scope='col' className='px-4 py-3 text-left'>Total</th>
@@ -360,7 +363,7 @@ const SummaryTable = ({ summary }: { summary: PayoutSummaryEntry[] }) => {
                                                 <th scope='col' className='px-4 py-3 text-left'>Canceled</th>
                                         </tr>
                                 </thead>
-                                <tbody className='divide-y divide-base-200/80 bg-white/80'>
+                                <tbody className='divide-y divide-base-200/70 bg-base-100'>
                                         {summary.map(entry => (
                                                 <tr key={entry.currency} className='text-base-content/80'>
                                                         <td className='whitespace-nowrap px-4 py-3 text-sm font-semibold text-base-content'>
@@ -409,18 +412,18 @@ const HistoryList = ({ history }: { history: PayoutHistoryEntry[] }) => {
                                 return (
                                         <article
                                                 key={entry.id}
-                                                className='rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-primary/5 backdrop-blur'
+                                                className='rounded-2xl border border-base-200 bg-base-100 p-5 shadow-sm'
                                         >
                                                 <div className='flex flex-wrap items-start justify-between gap-4'>
                                                         <div>
                                                                 <p className='text-sm text-base-content/60'>Amount</p>
-                                                                <p className='text-2xl font-semibold text-base-content'>
+                                                                <p className='text-xl font-semibold text-base-content'>
                                                                         {formatCurrency(entry.currency, entry.amount)}
                                                                 </p>
                                                         </div>
                                                         <div className='flex flex-wrap items-center gap-2'>
                                                                 <span
-                                                                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${status.badge}`}
+                                                                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${status.badge}`}
                                                                 >
                                                                         {status.label}
                                                                 </span>
@@ -430,7 +433,7 @@ const HistoryList = ({ history }: { history: PayoutHistoryEntry[] }) => {
                                                         </div>
                                                 </div>
 
-                                                <p className='mt-3 text-sm text-base-content/70'>{status.description}</p>
+                                                <p className='mt-2 text-sm text-base-content/60'>{status.description}</p>
 
                                                 {entry.description ? (
                                                         <p className='mt-3 text-sm font-medium text-base-content'>
@@ -438,7 +441,7 @@ const HistoryList = ({ history }: { history: PayoutHistoryEntry[] }) => {
                                                         </p>
                                                 ) : null}
 
-                                                <dl className='mt-4 grid gap-4 text-xs text-base-content/70 sm:grid-cols-2 lg:grid-cols-3'>
+                                                <dl className='mt-4 grid gap-4 text-xs text-base-content/60 sm:grid-cols-2 lg:grid-cols-3'>
                                                         <div>
                                                                 <dt className='uppercase tracking-wide'>Stripe payout ID</dt>
                                                                 <dd className='mt-1 break-all text-sm text-base-content'>
@@ -474,7 +477,7 @@ const HistoryList = ({ history }: { history: PayoutHistoryEntry[] }) => {
                                                 </dl>
 
                                                 {entry.transferIds.length > 0 ? (
-                                                        <div className='mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-4'>
+                                                        <div className='mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4'>
                                                                 <p className='text-xs font-semibold uppercase tracking-wide text-primary'>Linked transfer IDs</p>
                                                                 <div className='mt-2 flex flex-wrap gap-2'>
                                                                         {entry.transferIds.map(id => (
@@ -490,7 +493,7 @@ const HistoryList = ({ history }: { history: PayoutHistoryEntry[] }) => {
                                                 ) : null}
 
                                                 {entry.failureMessage || entry.failureCode ? (
-                                                        <div className='mt-4 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600'>
+                                                        <div className='mt-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600'>
                                                                 <AlertCircle className='mt-0.5 size-4 flex-shrink-0' />
                                                                 <div>
                                                                         <p className='font-semibold'>Failure details</p>
@@ -566,13 +569,11 @@ const useAvailableBalanceMap = (snapshot?: PayoutSnapshot) => {
 }
 
 const EmptyState = () => (
-        <div className='flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-base-300 bg-base-100 p-12 text-center'>
-                <ShieldCheck className='size-12 text-primary/50' />
-                <div className='space-y-2'>
-                        <h3 className='text-lg font-semibold text-base-content'>No payout data yet</h3>
-                        <p className='text-sm text-base-content/70'>
-                                Once you start receiving payouts through Stripe, you will see balances, summary totals, and a timeline of events here.
-                        </p>
+        <div className='flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-base-300 bg-base-100 p-10 text-center'>
+                <ShieldCheck className='size-10 text-primary/50' />
+                <div className='space-y-1'>
+                        <h3 className='text-base font-semibold text-base-content'>Chưa có dữ liệu payouts</h3>
+                        <p className='text-sm text-base-content/60'>Khi Stripe xử lý payouts, thông tin số dư, tóm tắt và lịch sử sẽ xuất hiện tại đây.</p>
                 </div>
         </div>
 )
@@ -595,17 +596,17 @@ const RequirementListCard = ({
         }
 
         return (
-                <div className='rounded-2xl border border-base-200 bg-base-100/80 p-4 shadow-sm'>
+                <div className='rounded-xl border border-base-200 bg-base-100 p-4 shadow-sm'>
                         <div className='flex items-start gap-3'>
-                                <div className={`rounded-xl p-2 text-white ${accent}`}>
+                                <div className={`rounded-lg p-2 text-white ${accent}`}>
                                         <Icon className='size-4' />
                                 </div>
-                                <div>
+                                <div className='space-y-1'>
                                         <p className='text-sm font-semibold text-base-content'>{title}</p>
                                         <p className='text-xs text-base-content/60'>{description}</p>
                                 </div>
                         </div>
-                        <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-base-content/80'>
+                        <ul className='mt-3 list-disc space-y-1.5 pl-5 text-sm text-base-content/80'>
                                 {items.map((item, index) => (
                                         <li key={`${item}-${index}`}>{item}</li>
                                 ))}
@@ -650,72 +651,67 @@ const RestrictionsOverview = ({
         }
 
         return (
-                <section className='space-y-4 rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-primary/5'>
-                        <div className='space-y-1'>
-                                <h2 className='text-xl font-semibold text-base-content'>Tình trạng yêu cầu từ Stripe</h2>
-                                <p className='text-sm text-base-content/70'>
-                                        Stripe cung cấp các cảnh báo bên dưới để hướng dẫn bạn hoàn tất hồ sơ và mở khoá chức năng rút tiền.
-                                </p>
+                <section className={`${SECTION_CARD_CLASS} space-y-5 p-6`}>
+                        <div className='flex flex-wrap items-start justify-between gap-3'>
+                                <div className='space-y-1'>
+                                        <h2 className='text-lg font-semibold text-base-content'>Cảnh báo từ Stripe</h2>
+                                        <p className='text-sm text-base-content/60'>Giải quyết các hạng mục sau để tiếp tục rút tiền.</p>
+                                </div>
+                                {showDisabledSince ? (
+                                        <span className='rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content/70'>
+                                                Cập nhật: {disabledSince}
+                                        </span>
+                                ) : null}
                         </div>
 
-                        <div className='space-y-4'>
+                        <div className='space-y-3'>
                                 {hasDisabledReason ? (
                                         <div
-                                                className={`flex items-start gap-3 rounded-2xl border p-4 text-sm ${
+                                                className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
                                                         payoutsEnabled
-                                                                ? 'border-amber-200 bg-amber-50/80 text-amber-700'
-                                                                : 'border-rose-200 bg-rose-50/80 text-rose-700'
+                                                                ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                                : 'border-rose-200 bg-rose-50 text-rose-700'
                                                 }`}
                                         >
-                                                <AlertTriangle className='mt-0.5 size-5 flex-shrink-0' />
-                                                <div>
+                                                <AlertTriangle className='mt-0.5 size-4 flex-shrink-0' />
+                                                <div className='space-y-1'>
                                                         <p className='font-semibold'>
-                                                                {payoutsEnabled
-                                                                        ? 'Stripe cảnh báo về payouts'
-                                                                        : 'Stripe đã khoá payouts'}
+                                                                {payoutsEnabled ? 'Stripe cảnh báo về payouts' : 'Stripe đã khoá payouts'}
                                                         </p>
                                                         <p>{disabledReasonMessage}</p>
-                                                        {showDisabledSince ? (
-                                                                <p className='mt-1 text-xs uppercase tracking-wide opacity-80'>
-                                                                        Cập nhật lần cuối: {disabledSince}
-                                                                </p>
-                                                        ) : null}
                                                 </div>
                                         </div>
                                 ) : null}
 
                                 {hasBankIssue ? (
-                                        <div className='flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-700'>
-                                                <Landmark className='mt-0.5 size-5 flex-shrink-0' />
-                                                <div>
-                                                        <p className='font-semibold'>Stripe yêu cầu cập nhật tài khoản ngân hàng</p>
-                                                        <p>{restrictions.externalAccountIssueMessage}</p>
-                                                </div>
+                                        <div className='flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700'>
+                                                <Landmark className='mt-0.5 size-4 flex-shrink-0' />
+                                                <p>{restrictions.externalAccountIssueMessage}</p>
                                         </div>
                                 ) : null}
                         </div>
 
                         {hasRequirementLists ? (
-                                <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+                                <div className='grid gap-3 md:grid-cols-2 lg:grid-cols-3'>
                                         <RequirementListCard
-                                                title='Hạng mục cần hoàn thành'
-                                                description='Hoàn tất ngay để Stripe mở lại chức năng payouts.'
+                                                title='Cần hoàn thành'
+                                                description='Hoàn tất các bước sau để Stripe mở lại payouts.'
                                                 icon={Clock}
-                                                accent='bg-amber-500/90'
+                                                accent='bg-amber-500'
                                                 items={currentlyDueItems}
                                         />
                                         <RequirementListCard
-                                                title='Hạng mục quá hạn'
-                                                description='Stripe đã tạm khoá payouts tới khi các hạng mục này được xử lý.'
+                                                title='Đã quá hạn'
+                                                description='Stripe đang khoá payouts cho tới khi xử lý các hạng mục này.'
                                                 icon={AlertCircle}
-                                                accent='bg-rose-500/90'
+                                                accent='bg-rose-500'
                                                 items={pastDueItems}
                                         />
                                         <RequirementListCard
-                                                title='Hạng mục cần chuẩn bị'
-                                                description='Hoàn thành sớm để tránh gián đoạn payouts trong tương lai.'
+                                                title='Nên chuẩn bị'
+                                                description='Chuẩn bị trước để tránh gián đoạn payouts trong tương lai.'
                                                 icon={Calendar}
-                                                accent='bg-sky-500/90'
+                                                accent='bg-sky-500'
                                                 items={eventuallyDueItems}
                                         />
                                 </div>
@@ -734,59 +730,46 @@ const PageHeader = ({ snapshot }: { snapshot?: PayoutSnapshot }) => {
         const showDisabledSince = Boolean(disabledSince && disabledSince !== '—')
 
         return (
-                <section className='space-y-6 rounded-[40px] border border-white/60 bg-gradient-to-br from-primary/10 via-white to-secondary/10 p-8 shadow-xl shadow-primary/10 backdrop-blur'>
-                        <div className='flex flex-wrap items-start justify-between gap-6'>
-                                <div className='max-w-2xl space-y-3'>
-                                        <div className='inline-flex items-center gap-2 rounded-full bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-primary shadow-sm'>
-                                                Stripe payouts overview
-                                        </div>
-                                        <h1 className='text-3xl font-semibold text-base-content'>Track your Stripe payout readiness</h1>
-                                        <p className='text-base text-base-content/70'>
-                                                Review balances, monitor payout statuses, and confirm that your Stripe Connect account is ready to receive funds.
-                                        </p>
+                <section className={`${SECTION_CARD_CLASS} space-y-4 p-6`}>
+                        <div className='flex flex-wrap items-start justify-between gap-4'>
+                                <div className='space-y-2'>
+                                        <p className='text-xs font-semibold uppercase tracking-wide text-primary'>Stripe payouts</p>
+                                        <h1 className='text-2xl font-semibold text-base-content'>Tổng quan trạng thái rút tiền</h1>
+                                        <p className='text-sm text-base-content/60'>Theo dõi số dư, lịch sử và mức độ sẵn sàng của tài khoản Stripe Connect.</p>
                                 </div>
-                                <div className='flex flex-col items-end gap-3 text-right'>
+                                <div className='flex flex-col items-end gap-2 text-right'>
                                         <span
-                                                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wide ${
+                                                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
                                                         payoutsEnabled
-                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
-                                                                : 'border-amber-200 bg-amber-50 text-amber-600'
+                                                                ? 'bg-emerald-50 text-emerald-600'
+                                                                : 'bg-amber-50 text-amber-600'
                                                 }`}
                                         >
                                                 <ShieldCheck className='size-4' />
-                                                {payoutsEnabled ? 'Payouts enabled' : 'Payouts disabled'}
+                                                {payoutsEnabled ? 'Đã bật payouts' : 'Payouts đang bị khoá'}
                                         </span>
-                                        <div className='rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-xs text-base-content/70 shadow-sm'>
-                                                <p className='uppercase tracking-wide text-base-content/60'>Stripe account ID</p>
-                                                <p className='mt-1 font-semibold text-base-content'>
-                                                        {stripeAccountId || 'Not connected'}
-                                                </p>
+                                        <div className='text-xs text-base-content/60'>
+                                                <span className='font-semibold text-base-content'>Stripe account:</span>{' '}
+                                                {stripeAccountId || 'Chưa kết nối'}
                                         </div>
                                 </div>
                         </div>
 
-                        {!payoutsEnabled || disabledReasonMessage ? (
-                                <div className='flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-700'>
+                        {(!payoutsEnabled || disabledReasonMessage) && (
+                                <div className='flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700'>
                                         <AlertCircle className='mt-0.5 size-4 flex-shrink-0' />
                                         <p>
                                                 {disabledReasonMessage
                                                         ? disabledReasonMessage
-                                                        : 'Stripe has not yet enabled payouts for this account. Complete the verification steps in the onboarding flow or resolve any outstanding requirements.'}
-                                                {showDisabledSince ? (
-                                                        <span className='mt-1 block text-xs uppercase tracking-wide text-amber-600/80'>
-                                                                Cập nhật lần cuối: {disabledSince}
-                                                        </span>
-                                                ) : null}
+                                                        : 'Stripe chưa bật payouts cho tài khoản này. Vui lòng hoàn tất các bước xác minh cần thiết.'}
                                         </p>
                                 </div>
-                        ) : null}
+                        )}
 
                         {!stripeAccountId ? (
-                                <div className='flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50/80 p-4 text-sm text-sky-700'>
+                                <div className='flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700'>
                                         <Calendar className='mt-0.5 size-4 flex-shrink-0' />
-                                        <p>
-                                                Connect your Stripe account to begin receiving payouts. Once connected, balances and payout history will populate automatically.
-                                        </p>
+                                        <p>Kết nối tài khoản Stripe để tự động hiển thị số dư và lịch sử payouts.</p>
                                 </div>
                         ) : null}
                 </section>
@@ -984,17 +967,15 @@ export default function FreelancerPayoutSnapshotPage() {
                                 />
                         ) : null}
 
-                        <section className='flex flex-wrap items-start justify-between gap-4 rounded-3xl border border-primary/20 bg-primary/5 p-6 shadow-lg shadow-primary/10'>
-                                <div className='max-w-2xl space-y-2'>
-                                        <h2 className='text-xl font-semibold text-base-content'>Yêu cầu rút tiền</h2>
-                                        <p className='text-sm text-base-content/70'>
-                                                Chọn số tiền và tiền tệ để Stripe tạo một payout mới cho tài khoản của bạn. Bạn có thể gắn kèm các transfer ID liên quan để dễ theo dõi.
-                                        </p>
+                        <section className={`${SECTION_CARD_CLASS} flex flex-wrap items-start justify-between gap-4 p-6`}>
+                                <div className='space-y-2'>
+                                        <h2 className='text-lg font-semibold text-base-content'>Tạo yêu cầu rút tiền</h2>
+                                        <p className='text-sm text-base-content/60'>Chọn số tiền, tiền tệ và (nếu cần) transfer ID để Stripe xử lý payout mới.</p>
                                 </div>
                                 <div className='flex flex-wrap items-center gap-3'>
-                                        <div className='rounded-2xl border border-primary/30 bg-white/70 px-4 py-2 text-xs text-primary shadow-sm'>
-                                                Tối đa {MAX_TRANSFER_IDS} transfer ID cho mỗi yêu cầu
-                                        </div>
+                                        <span className='rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content/70'>
+                                                Tối đa {MAX_TRANSFER_IDS} transfer ID
+                                        </span>
                                         <button
                                                 type='button'
                                                 onClick={openCreatePayoutModal}
@@ -1013,12 +994,12 @@ export default function FreelancerPayoutSnapshotPage() {
                                 </div>
                         </section>
 
-
-
-                        <section className='flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/60 bg-white/70 p-4 shadow-lg shadow-primary/5 backdrop-blur'>
+                        <section
+                                className={`${SECTION_CARD_CLASS} flex flex-wrap items-center justify-between gap-4 px-5 py-4`}
+                        >
                                 <div>
-                                        <h2 className='text-lg font-semibold text-base-content'>Filters</h2>
-                                        <p className='text-sm text-base-content/70'>Focus on a specific currency or adjust the payout history length.</p>
+                                        <h2 className='text-base font-semibold text-base-content'>Bộ lọc</h2>
+                                        <p className='text-sm text-base-content/60'>Chọn tiền tệ và số lượng bản ghi lịch sử hiển thị.</p>
                                 </div>
                                 <div className='flex flex-wrap items-center gap-3'>
                                         <label className='flex flex-col text-xs font-medium uppercase tracking-wide text-base-content/60'>
@@ -1063,19 +1044,17 @@ export default function FreelancerPayoutSnapshotPage() {
                         </section>
 
                         {isLoading ? (
-                                <div className='flex items-center justify-center rounded-3xl border border-white/60 bg-white/70 p-12 shadow-lg shadow-primary/5'>
-                                        <div className='flex items-center gap-3 text-base text-base-content/70'>
-                                                <Loader2 className='size-5 animate-spin text-primary' /> Loading payout snapshot…
-                                        </div>
+                                <div className={`${SECTION_CARD_CLASS} flex items-center justify-center gap-3 p-6 text-sm text-base-content/60`}>
+                                        <Loader2 className='size-5 animate-spin text-primary' /> Đang tải dữ liệu payouts…
                                 </div>
                         ) : null}
 
                         {isError ? (
-                                <div className='flex items-start gap-3 rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-600'>
-                                        <AlertCircle className='mt-0.5 size-5 flex-shrink-0' />
-                                        <div>
-                                                <p className='font-semibold'>Unable to load payouts</p>
-                                                <p>{(error as Error)?.message || 'An unexpected error occurred while fetching payout data.'}</p>
+                                <div className='flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-600'>
+                                        <AlertCircle className='mt-0.5 size-4 flex-shrink-0' />
+                                        <div className='space-y-1'>
+                                                <p className='font-semibold'>Không thể tải dữ liệu payouts</p>
+                                                <p>{(error as Error)?.message || 'Đã xảy ra lỗi trong quá trình truy vấn Stripe.'}</p>
                                         </div>
                                 </div>
                         ) : null}
@@ -1083,7 +1062,7 @@ export default function FreelancerPayoutSnapshotPage() {
                           {!isLoading && snapshot ? (
                                   hasContent ? (
                                           <>
-                                                  <section className='grid gap-6 md:grid-cols-2'>
+                                                  <section className='grid gap-4 md:grid-cols-2'>
                                                         <BalanceCard
                                                                 title='Available balance'
                                                                 description='Funds that Stripe has cleared and can be paid out to your bank account.'
@@ -1100,26 +1079,18 @@ export default function FreelancerPayoutSnapshotPage() {
                                                         />
                                                 </section>
 
-                                                <section className='space-y-4'>
-                                                        <div className='flex items-center justify-between'>
-                                                                <div>
-                                                                        <h2 className='text-xl font-semibold text-base-content'>Payout summary</h2>
-                                                                        <p className='text-sm text-base-content/70'>
-                                                                                Totals per currency across every payout status.
-                                                                        </p>
-                                                                </div>
+                                                <section className='space-y-3'>
+                                                        <div>
+                                                                <h2 className='text-lg font-semibold text-base-content'>Tổng hợp payouts</h2>
+                                                                <p className='text-sm text-base-content/60'>Tổng số tiền theo từng trạng thái và tiền tệ.</p>
                                                         </div>
                                                         <SummaryTable summary={snapshot.summary} />
                                                 </section>
 
-                                                <section className='space-y-4'>
-                                                        <div className='flex items-center justify-between'>
-                                                                <div>
-                                                                        <h2 className='text-xl font-semibold text-base-content'>Payout history</h2>
-                                                                        <p className='text-sm text-base-content/70'>
-                                                                                Detailed events for the most recent payouts synced from Stripe.
-                                                                        </p>
-                                                                </div>
+                                                <section className='space-y-3'>
+                                                        <div>
+                                                                <h2 className='text-lg font-semibold text-base-content'>Lịch sử payouts</h2>
+                                                                <p className='text-sm text-base-content/60'>Chi tiết các sự kiện payouts gần nhất mà Stripe đã đồng bộ.</p>
                                                         </div>
                                                   <HistoryList history={snapshot.history} />
                                           </section>
@@ -1133,15 +1104,15 @@ export default function FreelancerPayoutSnapshotPage() {
                           className={`modal ${isCreatePayoutModalOpen ? 'modal-open' : ''}`}
                           onCancel={handleCancelCreatePayoutModal}
                   >
-                          <div className='modal-box flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-base-100 p-0 shadow-xl'>
-                                  <div className='flex items-start gap-3 border-b border-base-200 bg-primary/10 px-6 py-5'>
-                                          <div className='flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary'>
+                          <div className='modal-box flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-base-100 p-0 shadow-lg'>
+                                  <div className='flex items-start gap-3 border-b border-base-200 bg-base-100 px-6 py-5'>
+                                          <div className='flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary'>
                                                   <Wallet className='size-5' />
                                           </div>
                                           <div className='flex-1'>
-                                                  <p className='text-xs font-semibold uppercase tracking-[0.3em] text-primary/80'>Stripe payouts</p>
+                                                  <p className='text-xs font-semibold uppercase tracking-[0.3em] text-primary/70'>Stripe payouts</p>
                                                   <h2 className='text-lg font-semibold text-base-content'>Tạo yêu cầu rút tiền</h2>
-                                                  <p className='mt-1 text-sm text-base-content/70'>Điền thông tin bên dưới để gửi yêu cầu rút tiền mới qua Stripe.</p>
+                                                  <p className='mt-1 text-sm text-base-content/60'>Điền thông tin bên dưới để gửi yêu cầu rút tiền mới qua Stripe.</p>
                                           </div>
                                           <button
                                                   type='button'
@@ -1290,15 +1261,15 @@ export default function FreelancerPayoutSnapshotPage() {
                                                           </div>
                                                   </div>
 
-                                                  <div className='rounded-2xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3 text-xs text-primary'>
-                                                          Stripe sẽ xử lý yêu cầu ngay sau khi bạn gửi và cập nhật trạng thái trong phần lịch sử.
-                                                  </div>
-                                          </div>
+                                            <div className='rounded-xl border border-dashed border-primary/20 bg-primary/5 px-4 py-3 text-xs text-primary'>
+                                                    Stripe sẽ xử lý yêu cầu ngay sau khi bạn gửi và cập nhật trạng thái trong phần lịch sử.
+                                            </div>
+                                        </div>
 
-                                          <div className='modal-action mt-0 flex flex-col gap-3 border-t border-base-200 bg-base-100/95 px-6 py-4 sm:flex-row'>
-                                                  <button
-                                                          type='button'
-                                                          className='btn btn-ghost flex-1'
+                                        <div className='modal-action mt-0 flex flex-col gap-3 border-t border-base-200 bg-base-100 px-6 py-4 sm:flex-row'>
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-ghost flex-1'
                                                           onClick={closeCreatePayoutModal}
                                                           disabled={isCreatingPayout}
                                                   >
