@@ -50,6 +50,7 @@ export type PayoutSnapshot = {
         }
         summary: PayoutSummaryEntry[]
         history: PayoutHistoryEntry[]
+        restrictions: PayoutRestrictions
 }
 
 export type CreateFreelancerPayoutInput = {
@@ -57,4 +58,17 @@ export type CreateFreelancerPayoutInput = {
         currency: string
         idempotencyKey?: string
         transferIds?: string[]
+}
+
+export type PayoutRestrictions = {
+        disabledReason: string | null
+        disabledReasonMessage: string | null
+        disabledAt: string | null
+        currentlyDue: string[]
+        currentlyDueMessages: string[]
+        pastDue: string[]
+        pastDueMessages: string[]
+        eventuallyDue: string[]
+        eventuallyDueMessages: string[]
+        externalAccountIssueMessage: string | null
 }

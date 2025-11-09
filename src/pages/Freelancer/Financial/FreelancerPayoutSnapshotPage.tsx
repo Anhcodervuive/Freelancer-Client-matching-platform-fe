@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from '
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
         AlertCircle,
+        AlertTriangle,
         Calendar,
         Clock,
+        Landmark,
         Loader2,
         RefreshCcw,
         ShieldCheck,
@@ -79,6 +81,18 @@ const parseTransferIds = (input?: string) => {
                 .split(/[\n,]+/)
                 .map(entry => entry.trim())
                 .filter(Boolean)
+}
+
+const pickRequirementMessages = (messages?: string[], fallback?: string[]) => {
+        if (messages && messages.length > 0) {
+                return messages
+        }
+
+        if (fallback && fallback.length > 0) {
+                return fallback
+        }
+
+        return [] as string[]
 }
 
 const generateIdempotencyKey = () => {
@@ -563,9 +577,161 @@ const EmptyState = () => (
         </div>
 )
 
+const RequirementListCard = ({
+        title,
+        description,
+        icon: Icon,
+        accent,
+        items
+}: {
+        title: string
+        description: string
+        icon: LucideIcon
+        accent: string
+        items: string[]
+}) => {
+        if (!items || items.length === 0) {
+                return null
+        }
+
+        return (
+                <div className='rounded-2xl border border-base-200 bg-base-100/80 p-4 shadow-sm'>
+                        <div className='flex items-start gap-3'>
+                                <div className={`rounded-xl p-2 text-white ${accent}`}>
+                                        <Icon className='size-4' />
+                                </div>
+                                <div>
+                                        <p className='text-sm font-semibold text-base-content'>{title}</p>
+                                        <p className='text-xs text-base-content/60'>{description}</p>
+                                </div>
+                        </div>
+                        <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-base-content/80'>
+                                {items.map((item, index) => (
+                                        <li key={`${item}-${index}`}>{item}</li>
+                                ))}
+                        </ul>
+                </div>
+        )
+}
+
+const RestrictionsOverview = ({
+        restrictions,
+        payoutsEnabled
+}: {
+        restrictions?: PayoutSnapshot['restrictions']
+        payoutsEnabled: boolean
+}) => {
+        if (!restrictions) {
+                return null
+        }
+
+        const disabledReasonMessage = restrictions.disabledReasonMessage
+        const disabledAt = restrictions.disabledAt
+        const disabledSince = disabledAt ? formatDateTime(disabledAt) : null
+        const showDisabledSince = Boolean(disabledSince && disabledSince !== '—')
+
+        const currentlyDueItems = pickRequirementMessages(
+                restrictions.currentlyDueMessages,
+                restrictions.currentlyDue
+        )
+        const pastDueItems = pickRequirementMessages(restrictions.pastDueMessages, restrictions.pastDue)
+        const eventuallyDueItems = pickRequirementMessages(
+                restrictions.eventuallyDueMessages,
+                restrictions.eventuallyDue
+        )
+
+        const hasDisabledReason = Boolean(disabledReasonMessage)
+        const hasBankIssue = Boolean(restrictions.externalAccountIssueMessage)
+        const hasRequirementLists =
+                currentlyDueItems.length > 0 || pastDueItems.length > 0 || eventuallyDueItems.length > 0
+
+        if (!hasDisabledReason && !hasBankIssue && !hasRequirementLists) {
+                return null
+        }
+
+        return (
+                <section className='space-y-4 rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-primary/5'>
+                        <div className='space-y-1'>
+                                <h2 className='text-xl font-semibold text-base-content'>Tình trạng yêu cầu từ Stripe</h2>
+                                <p className='text-sm text-base-content/70'>
+                                        Stripe cung cấp các cảnh báo bên dưới để hướng dẫn bạn hoàn tất hồ sơ và mở khoá chức năng rút tiền.
+                                </p>
+                        </div>
+
+                        <div className='space-y-4'>
+                                {hasDisabledReason ? (
+                                        <div
+                                                className={`flex items-start gap-3 rounded-2xl border p-4 text-sm ${
+                                                        payoutsEnabled
+                                                                ? 'border-amber-200 bg-amber-50/80 text-amber-700'
+                                                                : 'border-rose-200 bg-rose-50/80 text-rose-700'
+                                                }`}
+                                        >
+                                                <AlertTriangle className='mt-0.5 size-5 flex-shrink-0' />
+                                                <div>
+                                                        <p className='font-semibold'>
+                                                                {payoutsEnabled
+                                                                        ? 'Stripe cảnh báo về payouts'
+                                                                        : 'Stripe đã khoá payouts'}
+                                                        </p>
+                                                        <p>{disabledReasonMessage}</p>
+                                                        {showDisabledSince ? (
+                                                                <p className='mt-1 text-xs uppercase tracking-wide opacity-80'>
+                                                                        Cập nhật lần cuối: {disabledSince}
+                                                                </p>
+                                                        ) : null}
+                                                </div>
+                                        </div>
+                                ) : null}
+
+                                {hasBankIssue ? (
+                                        <div className='flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-700'>
+                                                <Landmark className='mt-0.5 size-5 flex-shrink-0' />
+                                                <div>
+                                                        <p className='font-semibold'>Stripe yêu cầu cập nhật tài khoản ngân hàng</p>
+                                                        <p>{restrictions.externalAccountIssueMessage}</p>
+                                                </div>
+                                        </div>
+                                ) : null}
+                        </div>
+
+                        {hasRequirementLists ? (
+                                <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+                                        <RequirementListCard
+                                                title='Hạng mục cần hoàn thành'
+                                                description='Hoàn tất ngay để Stripe mở lại chức năng payouts.'
+                                                icon={Clock}
+                                                accent='bg-amber-500/90'
+                                                items={currentlyDueItems}
+                                        />
+                                        <RequirementListCard
+                                                title='Hạng mục quá hạn'
+                                                description='Stripe đã tạm khoá payouts tới khi các hạng mục này được xử lý.'
+                                                icon={AlertCircle}
+                                                accent='bg-rose-500/90'
+                                                items={pastDueItems}
+                                        />
+                                        <RequirementListCard
+                                                title='Hạng mục cần chuẩn bị'
+                                                description='Hoàn thành sớm để tránh gián đoạn payouts trong tương lai.'
+                                                icon={Calendar}
+                                                accent='bg-sky-500/90'
+                                                items={eventuallyDueItems}
+                                        />
+                                </div>
+                        ) : null}
+                </section>
+        )
+}
+
 const PageHeader = ({ snapshot }: { snapshot?: PayoutSnapshot }) => {
         const payoutsEnabled = snapshot?.payoutsEnabled ?? false
         const stripeAccountId = snapshot?.stripeAccountId ?? null
+        const restrictions = snapshot?.restrictions
+        const disabledReasonMessage = restrictions?.disabledReasonMessage ?? null
+        const disabledAt = restrictions?.disabledAt ?? null
+        const disabledSince = disabledAt ? formatDateTime(disabledAt) : null
+        const showDisabledSince = Boolean(disabledSince && disabledSince !== '—')
 
         return (
                 <section className='space-y-6 rounded-[40px] border border-white/60 bg-gradient-to-br from-primary/10 via-white to-secondary/10 p-8 shadow-xl shadow-primary/10 backdrop-blur'>
@@ -599,11 +765,18 @@ const PageHeader = ({ snapshot }: { snapshot?: PayoutSnapshot }) => {
                                 </div>
                         </div>
 
-                        {!payoutsEnabled ? (
+                        {!payoutsEnabled || disabledReasonMessage ? (
                                 <div className='flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-700'>
                                         <AlertCircle className='mt-0.5 size-4 flex-shrink-0' />
                                         <p>
-                                                Stripe has not yet enabled payouts for this account. Complete the verification steps in the onboarding flow or resolve any outstanding requirements.
+                                                {disabledReasonMessage
+                                                        ? disabledReasonMessage
+                                                        : 'Stripe has not yet enabled payouts for this account. Complete the verification steps in the onboarding flow or resolve any outstanding requirements.'}
+                                                {showDisabledSince ? (
+                                                        <span className='mt-1 block text-xs uppercase tracking-wide text-amber-600/80'>
+                                                                Cập nhật lần cuối: {disabledSince}
+                                                        </span>
+                                                ) : null}
                                         </p>
                                 </div>
                         ) : null}
@@ -682,6 +855,16 @@ export default function FreelancerPayoutSnapshotPage() {
                 }
         }, [availableBalanceMap, selectedCurrency])
 
+        const canCreatePayout = Boolean(snapshot?.payoutsEnabled)
+        const payoutDisabledMessage =
+                snapshot?.restrictions?.disabledReasonMessage || 'Stripe chưa cho phép rút tiền cho tài khoản này.'
+        const isCreateButtonDisabled = !snapshot || !snapshot.payoutsEnabled
+        const createButtonTitle = isCreateButtonDisabled
+                ? snapshot
+                        ? payoutDisabledMessage
+                        : 'Đang tải trạng thái payouts từ Stripe.'
+                : undefined
+
         const amountInputStep = useMemo(() => {
                 if (!availableBalanceInfo) return 0.01
                 const fractionDigits = getFractionDigitsForCurrency(availableBalanceInfo.currency)
@@ -706,9 +889,10 @@ export default function FreelancerPayoutSnapshotPage() {
         }, [availableBalanceMap, currency, currencyOptions])
 
         const openCreatePayoutModal = useCallback(() => {
+                if (!canCreatePayout) return
                 resetCreatePayoutForm(getDefaultCreatePayoutValues())
                 setCreatePayoutModalOpen(true)
-        }, [getDefaultCreatePayoutValues, resetCreatePayoutForm])
+        }, [canCreatePayout, getDefaultCreatePayoutValues, resetCreatePayoutForm])
 
         const parsedTransferIds = useMemo(() => parseTransferIds(transferIdsRaw), [transferIdsRaw])
 
@@ -755,7 +939,10 @@ export default function FreelancerPayoutSnapshotPage() {
         const isCreatingPayout = isSubmittingCreatePayout || createPayoutMutation.isPending
         const hasSelectedCurrency = Boolean(selectedCurrency && selectedCurrency.trim().length === 3)
         const isSubmitDisabled =
-                isCreatingPayout || !hasSelectedCurrency || (availableBalanceInfo ? availableBalanceInfo.numeric <= 0 : false)
+                !canCreatePayout ||
+                isCreatingPayout ||
+                !hasSelectedCurrency ||
+                (availableBalanceInfo ? availableBalanceInfo.numeric <= 0 : false)
         const closeCreatePayoutModal = useCallback(() => {
                 if (isCreatingPayout) return
                 setCreatePayoutModalOpen(false)
@@ -790,6 +977,13 @@ export default function FreelancerPayoutSnapshotPage() {
                 <div className='space-y-10'>
                         <PageHeader snapshot={snapshot} />
 
+                        {snapshot ? (
+                                <RestrictionsOverview
+                                        restrictions={snapshot.restrictions}
+                                        payoutsEnabled={snapshot.payoutsEnabled ?? false}
+                                />
+                        ) : null}
+
                         <section className='flex flex-wrap items-start justify-between gap-4 rounded-3xl border border-primary/20 bg-primary/5 p-6 shadow-lg shadow-primary/10'>
                                 <div className='max-w-2xl space-y-2'>
                                         <h2 className='text-xl font-semibold text-base-content'>Yêu cầu rút tiền</h2>
@@ -804,11 +998,18 @@ export default function FreelancerPayoutSnapshotPage() {
                                         <button
                                                 type='button'
                                                 onClick={openCreatePayoutModal}
-                                                className='btn btn-primary gap-2 whitespace-nowrap'
+                                                disabled={isCreateButtonDisabled}
+                                                title={createButtonTitle}
+                                                className='btn btn-primary gap-2 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60'
                                         >
                                                 <Wallet className='size-4' />
                                                 Tạo yêu cầu rút tiền
                                         </button>
+                                        {isCreateButtonDisabled && snapshot?.restrictions?.disabledReasonMessage ? (
+                                                <p className='w-full text-xs text-amber-600/80'>
+                                                        {snapshot.restrictions.disabledReasonMessage}
+                                                </p>
+                                        ) : null}
                                 </div>
                         </section>
 
@@ -1108,11 +1309,13 @@ export default function FreelancerPayoutSnapshotPage() {
                                                           className='btn btn-primary flex-1 gap-2'
                                                           disabled={isSubmitDisabled}
                                                           title={
-                                                                  !hasSelectedCurrency
-                                                                          ? 'Chọn mã tiền tệ hợp lệ trước khi gửi yêu cầu.'
-                                                                          : availableBalanceInfo && availableBalanceInfo.numeric <= 0
-                                                                                  ? 'Số dư khả dụng bằng 0 nên không thể tạo payout lúc này.'
-                                                                                  : undefined
+                                                                  !canCreatePayout
+                                                                          ? payoutDisabledMessage
+                                                                          : !hasSelectedCurrency
+                                                                                  ? 'Chọn mã tiền tệ hợp lệ trước khi gửi yêu cầu.'
+                                                                                  : availableBalanceInfo && availableBalanceInfo.numeric <= 0
+                                                                                          ? 'Số dư khả dụng bằng 0 nên không thể tạo payout lúc này.'
+                                                                                          : undefined
                                                           }
                                                   >
                                                           {isCreatingPayout ? (
