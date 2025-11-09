@@ -25,6 +25,7 @@ import type {
         BalanceEntry,
         CreateFreelancerPayoutInput,
         FreelancerPayoutStatus,
+        PayoutCapabilityStatus,
         PayoutHistoryEntry,
         PayoutSnapshot,
         PayoutSummaryEntry
@@ -111,6 +112,74 @@ const pickRequirementMessages = (messages?: string[], fallback?: string[]) => {
         }
 
         return [] as string[]
+}
+
+const getCapabilityStatusVisuals = (status: string) => {
+        const normalized = status?.toLowerCase?.() ?? ''
+
+        if (normalized === 'active') {
+                return {
+                        badgeLabel: 'Đã kích hoạt',
+                        badgeClass: 'bg-emerald-100 text-emerald-700',
+                        iconBg: 'bg-emerald-500',
+                        icon: ShieldCheck
+                }
+        }
+
+        if (normalized === 'pending') {
+                return {
+                        badgeLabel: 'Đang chờ Stripe duyệt',
+                        badgeClass: 'bg-amber-100 text-amber-700',
+                        iconBg: 'bg-amber-500',
+                        icon: Clock
+                }
+        }
+
+        if (normalized === 'inactive' || normalized === 'unrequested') {
+                return {
+                        badgeLabel: normalized === 'inactive' ? 'Chưa kích hoạt' : 'Chưa yêu cầu',
+                        badgeClass: 'bg-slate-200 text-slate-700',
+                        iconBg: 'bg-slate-500',
+                        icon: AlertCircle
+                }
+        }
+
+        return {
+                badgeLabel: 'Trạng thái cần kiểm tra',
+                badgeClass: 'bg-rose-100 text-rose-700',
+                iconBg: 'bg-rose-500',
+                icon: AlertTriangle
+        }
+}
+
+const CapabilityStatusCard = ({ summary }: { summary: PayoutCapabilityStatus }) => {
+        const visuals = getCapabilityStatusVisuals(summary.status)
+        const Icon = visuals.icon
+
+        return (
+                <div className='rounded-xl border border-base-200 bg-base-100 p-4 shadow-sm'>
+                        <div className='flex items-start justify-between gap-3'>
+                                <div className='flex items-start gap-3'>
+                                        <div className={`rounded-lg p-2 text-white ${visuals.iconBg}`}>
+                                                <Icon className='size-4' />
+                                        </div>
+                                        <div className='space-y-1'>
+                                                <p className='text-sm font-semibold text-base-content'>{summary.label}</p>
+                                                <p className='text-[11px] uppercase tracking-wide text-base-content/50'>
+                                                        {summary.capability}
+                                                </p>
+                                        </div>
+                                </div>
+                                <span
+                                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${visuals.badgeClass}`}
+                                >
+                                        <Icon className='size-3.5' />
+                                        {visuals.badgeLabel}
+                                </span>
+                        </div>
+                        <p className='mt-3 text-xs text-base-content/60'>{summary.statusMessage}</p>
+                </div>
+        )
 }
 
 const generateIdempotencyKey = () => {
@@ -662,10 +731,12 @@ const RestrictionsOverview = ({
 
         const hasDisabledReason = Boolean(disabledReasonMessage)
         const hasBankIssue = Boolean(restrictions.externalAccountIssueMessage)
+        const capabilityStatuses = restrictions.capabilityStatuses ?? []
         const hasRequirementLists =
                 currentlyDueItems.length > 0 || pastDueItems.length > 0 || eventuallyDueItems.length > 0
+        const hasCapabilityStatuses = capabilityStatuses.length > 0
 
-        if (!hasDisabledReason && !hasBankIssue && !hasRequirementLists) {
+        if (!hasDisabledReason && !hasBankIssue && !hasRequirementLists && !hasCapabilityStatuses) {
                 return null
         }
 
@@ -728,6 +799,17 @@ const RestrictionsOverview = ({
                                         </div>
                                 ) : null}
                         </div>
+
+                        {hasCapabilityStatuses ? (
+                                <div className='grid gap-3 md:grid-cols-2'>
+                                        {capabilityStatuses.map(status => (
+                                                <CapabilityStatusCard
+                                                        key={`${status.capability}-${status.status}`}
+                                                        summary={status}
+                                                />
+                                        ))}
+                                </div>
+                        ) : null}
 
                         {hasRequirementLists ? (
                                 <div className='grid gap-3 md:grid-cols-2 lg:grid-cols-3'>

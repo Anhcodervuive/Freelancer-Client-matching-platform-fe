@@ -60,6 +60,13 @@ export type CreateFreelancerPayoutInput = {
         transferIds?: string[]
 }
 
+export type PayoutCapabilityStatus = {
+        capability: string
+        label: string
+        status: string
+        statusMessage: string
+}
+
 export type PayoutRestrictions = {
         disabledReason: string | null
         disabledReasonMessage: string | null
@@ -71,4 +78,5 @@ export type PayoutRestrictions = {
         eventuallyDue: string[]
         eventuallyDueMessages: string[]
         externalAccountIssueMessage: string | null
+        capabilityStatuses: PayoutCapabilityStatus[]
 }
