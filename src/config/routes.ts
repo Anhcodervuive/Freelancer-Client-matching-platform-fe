@@ -34,7 +34,8 @@ export const routes = {
                         list: '/freelancer/offers'
                 },
                 financial: {
-                        overview: '/freelancer/financial/overview'
+                        overview: '/freelancer/financial/overview',
+                        payouts: '/freelancer/financial/payouts'
                 }
         },
         auth: {

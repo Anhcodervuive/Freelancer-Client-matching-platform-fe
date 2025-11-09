@@ -11,6 +11,7 @@ const secondaryNavItems = [
         { label: 'Workroom', to: routes.contracts.list },
         { label: 'Messages', to: routes.messages.jobs },
         { label: 'Financial Overview', to: routes.freelancer.financial.overview },
+        { label: 'Payouts', to: routes.freelancer.financial.payouts },
         { label: 'My Profile', to: routes.me.freelancer.profile }
 ]
 
