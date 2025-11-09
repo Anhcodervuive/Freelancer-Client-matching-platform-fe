@@ -51,3 +51,10 @@ export type PayoutSnapshot = {
         summary: PayoutSummaryEntry[]
         history: PayoutHistoryEntry[]
 }
+
+export type CreateFreelancerPayoutInput = {
+        amount: string | number
+        currency: string
+        idempotencyKey?: string
+        transferIds?: string[]
+}

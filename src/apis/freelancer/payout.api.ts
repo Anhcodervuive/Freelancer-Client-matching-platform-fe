@@ -1,5 +1,5 @@
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
-import type { PayoutSnapshot } from '~/types/payout'
+import type { CreateFreelancerPayoutInput, PayoutSnapshot } from '~/types/payout'
 
 const baseUrl = '/freelancer/payouts'
 
@@ -33,4 +33,10 @@ export const getFreelancerPayoutSnapshot = async (
         const query = buildQueryString(filters)
         const response = await authorizeAxiosInstance.get<PayoutSnapshot>(`${baseUrl}${query}`)
         return response.data
+}
+
+export const createFreelancerPayout = async (
+        payload: CreateFreelancerPayoutInput
+): Promise<void> => {
+        await authorizeAxiosInstance.post(baseUrl, payload)
 }
