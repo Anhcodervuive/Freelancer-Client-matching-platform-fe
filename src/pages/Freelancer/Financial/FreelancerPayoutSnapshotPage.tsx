@@ -11,6 +11,7 @@ import {
         ShieldCheck,
         Wallet,
         X,
+        ExternalLink,
         type LucideIcon
 } from 'lucide-react'
 import { isAxiosError } from 'axios'
@@ -19,6 +20,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'react-toastify'
 import { createFreelancerPayout, getFreelancerPayoutSnapshot } from '~/apis/freelancer/payout.api'
+import { createStripeConnectRequirementLink } from '~/apis/stripe-connect.api'
 import type {
         BalanceEntry,
         CreateFreelancerPayoutInput,
@@ -84,6 +86,19 @@ const parseTransferIds = (input?: string) => {
                 .split(/[\n,]+/)
                 .map(entry => entry.trim())
                 .filter(Boolean)
+}
+
+const pickString = (...values: Array<unknown>) => {
+        for (const value of values) {
+                if (typeof value === 'string') {
+                        const trimmed = value.trim()
+                        if (trimmed) {
+                                return trimmed
+                        }
+                }
+        }
+
+        return undefined
 }
 
 const pickRequirementMessages = (messages?: string[], fallback?: string[]) => {
@@ -617,10 +632,14 @@ const RequirementListCard = ({
 
 const RestrictionsOverview = ({
         restrictions,
-        payoutsEnabled
+        payoutsEnabled,
+        onOpenRequirementsLink,
+        isOpeningRequirementsLink
 }: {
         restrictions?: PayoutSnapshot['restrictions']
         payoutsEnabled: boolean
+        onOpenRequirementsLink?: () => void
+        isOpeningRequirementsLink?: boolean
 }) => {
         if (!restrictions) {
                 return null
@@ -650,6 +669,8 @@ const RestrictionsOverview = ({
                 return null
         }
 
+        const showResolveButton = typeof onOpenRequirementsLink === 'function'
+
         return (
                 <section className={`${SECTION_CARD_CLASS} space-y-5 p-6`}>
                         <div className='flex flex-wrap items-start justify-between gap-3'>
@@ -657,11 +678,28 @@ const RestrictionsOverview = ({
                                         <h2 className='text-lg font-semibold text-base-content'>Cảnh báo từ Stripe</h2>
                                         <p className='text-sm text-base-content/60'>Giải quyết các hạng mục sau để tiếp tục rút tiền.</p>
                                 </div>
-                                {showDisabledSince ? (
-                                        <span className='rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content/70'>
-                                                Cập nhật: {disabledSince}
-                                        </span>
-                                ) : null}
+                                <div className='flex flex-wrap items-center justify-end gap-2'>
+                                        {showDisabledSince ? (
+                                                <span className='rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content/70'>
+                                                        Cập nhật: {disabledSince}
+                                                </span>
+                                        ) : null}
+                                        {showResolveButton ? (
+                                                <button
+                                                        type='button'
+                                                        onClick={onOpenRequirementsLink}
+                                                        disabled={isOpeningRequirementsLink}
+                                                        className='btn btn-sm btn-primary gap-2 disabled:cursor-not-allowed disabled:opacity-60'
+                                                >
+                                                        {isOpeningRequirementsLink ? (
+                                                                <Loader2 className='size-4 animate-spin' />
+                                                        ) : (
+                                                                <ExternalLink className='size-4' />
+                                                        )}
+                                                        Mở Stripe để xử lý
+                                                </button>
+                                        ) : null}
+                                </div>
                         </div>
 
                         <div className='space-y-3'>
@@ -752,6 +790,11 @@ const PageHeader = ({ snapshot }: { snapshot?: PayoutSnapshot }) => {
                                                 <span className='font-semibold text-base-content'>Stripe account:</span>{' '}
                                                 {stripeAccountId || 'Chưa kết nối'}
                                         </div>
+                                        {showDisabledSince ? (
+                                                <span className='rounded-full bg-base-200 px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-base-content/70'>
+                                                        Cập nhật: {disabledSince}
+                                                </span>
+                                        ) : null}
                                 </div>
                         </div>
 
@@ -900,6 +943,46 @@ export default function FreelancerPayoutSnapshotPage() {
                 }
         })
 
+        const createRequirementsLinkMutation = useMutation({
+                mutationFn: async () => {
+                        const redirectUrl =
+                                typeof window !== 'undefined' ? window.location.href : undefined
+                        const payload = redirectUrl ? { redirectUrl } : undefined
+                        return createStripeConnectRequirementLink(payload)
+                },
+                onSuccess: res => {
+                        const urlCandidate = pickString(
+                                res?.nextAction?.url,
+                                res?.onboardingUrl,
+                                res?.accountLinkUrl,
+                                res?.url,
+                                res?.loginUrl
+                        )
+
+                        if (urlCandidate) {
+                                window.open(urlCandidate, '_blank', 'noopener')
+                                toast.success('Đã mở Stripe để cập nhật hồ sơ payouts.')
+                        } else {
+                                toast.info(
+                                        'Stripe đã ghi nhận yêu cầu. Vui lòng kiểm tra email hoặc thử lại sau.'
+                                )
+                        }
+
+                        void refetch()
+                },
+                onError: () => {
+                        toast.error('Không thể mở trang Stripe. Vui lòng thử lại sau.')
+                }
+        })
+
+        const handleOpenRequirementsLink = useCallback(() => {
+                if (createRequirementsLinkMutation.isPending) {
+                        return
+                }
+
+                createRequirementsLinkMutation.mutate()
+        }, [createRequirementsLinkMutation])
+
         const onSubmitCreatePayout = handleSubmitCreatePayout(async values => {
                 const payload: CreateFreelancerPayoutInput = {
                         amount: values.amount.trim(),
@@ -964,6 +1047,8 @@ export default function FreelancerPayoutSnapshotPage() {
                                 <RestrictionsOverview
                                         restrictions={snapshot.restrictions}
                                         payoutsEnabled={snapshot.payoutsEnabled ?? false}
+                                        onOpenRequirementsLink={handleOpenRequirementsLink}
+                                        isOpeningRequirementsLink={createRequirementsLinkMutation.isPending}
                                 />
                         ) : null}
 
