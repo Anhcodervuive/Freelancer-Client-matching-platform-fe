@@ -30,6 +30,49 @@ const historyLimitOptions = [10, 25, 50, 100, 200]
 
 const MAX_TRANSFER_IDS = 50
 
+const ZERO_DECIMAL_CURRENCIES = new Set([
+        'bif',
+        'clp',
+        'djf',
+        'gnf',
+        'jpy',
+        'kmf',
+        'krw',
+        'mga',
+        'pyg',
+        'rwf',
+        'ugx',
+        'vnd',
+        'vuv',
+        'xaf',
+        'xof',
+        'xpf'
+])
+
+const getFractionDigitsForCurrency = (currency: string) =>
+        ZERO_DECIMAL_CURRENCIES.has(currency.toLowerCase()) ? 0 : 2
+
+const formatCurrencyAmount = (amount: number, currency: string) => {
+        const normalizedCurrency = currency.toUpperCase()
+        const normalizedAmount = Number.isFinite(amount) ? amount : 0
+        const fractionDigits = getFractionDigitsForCurrency(normalizedCurrency)
+
+        try {
+                return new Intl.NumberFormat('vi-VN', {
+                        style: 'currency',
+                        currency: normalizedCurrency,
+                        currencyDisplay: 'code',
+                        minimumFractionDigits: fractionDigits,
+                        maximumFractionDigits: Math.max(fractionDigits, 2)
+                }).format(normalizedAmount)
+        } catch (error) {
+                return `${normalizedAmount.toLocaleString('vi-VN', {
+                        minimumFractionDigits: fractionDigits,
+                        maximumFractionDigits: Math.max(fractionDigits, 2)
+                })} ${normalizedCurrency}`
+        }
+}
+
 const parseTransferIds = (input?: string) => {
         if (!input) return [] as string[]
         return input
@@ -64,34 +107,45 @@ const resolveCreatePayoutErrorMessage = (error: unknown) => {
         return 'Không thể tạo yêu cầu rút tiền. Vui lòng thử lại sau.'
 }
 
-const createPayoutFormSchema = z
-        .object({
-                amount: z
-                        .string()
-                        .trim()
-                        .min(1, 'Vui lòng nhập số tiền muốn rút')
-                        .refine(value => {
-                                const numeric = Number(value)
-                                return Number.isFinite(numeric) && numeric > 0
-                        }, 'Số tiền phải lớn hơn 0'),
-                currency: z
-                        .string()
-                        .trim()
-                        .min(3, 'Mã tiền tệ phải có 3 ký tự')
-                        .max(3, 'Mã tiền tệ phải có 3 ký tự'),
-                idempotencyKey: z
-                        .string()
-                        .trim()
-                        .optional()
-                        .refine(value => !value || value.length >= 8, {
-                                message: 'Idempotency key phải có ít nhất 8 ký tự'
-                        })
-                        .refine(value => !value || value.length <= 255, {
-                                message: 'Idempotency key quá dài'
-                        }),
-                transferIdsRaw: z.string().optional()
-        })
-        .superRefine((data, ctx) => {
+const createPayoutFormSchemaBase = z.object({
+        amount: z
+                .string()
+                .trim()
+                .min(1, 'Vui lòng nhập số tiền muốn rút')
+                .refine(value => {
+                        const numeric = Number(value)
+                        return Number.isFinite(numeric) && numeric > 0
+                }, 'Số tiền phải lớn hơn 0'),
+        currency: z
+                .string()
+                .trim()
+                .min(3, 'Mã tiền tệ phải có 3 ký tự')
+                .max(3, 'Mã tiền tệ phải có 3 ký tự'),
+        idempotencyKey: z
+                .string()
+                .trim()
+                .optional()
+                .refine(value => !value || value.length >= 8, {
+                        message: 'Idempotency key phải có ít nhất 8 ký tự'
+                })
+                .refine(value => !value || value.length <= 255, {
+                        message: 'Idempotency key quá dài'
+                }),
+        transferIdsRaw: z.string().optional()
+})
+
+type CreatePayoutFormValues = z.infer<typeof createPayoutFormSchemaBase>
+
+type AvailableBalanceInfo = {
+        numeric: number
+        formatted: string
+}
+
+const buildCreatePayoutFormSchema = (
+        availableBalances: Record<string, AvailableBalanceInfo>,
+        currencyOptions: string[]
+) =>
+        createPayoutFormSchemaBase.superRefine((data, ctx) => {
                 const transferIds = parseTransferIds(data.transferIdsRaw)
 
                 if (transferIds.length > MAX_TRANSFER_IDS) {
@@ -114,9 +168,34 @@ const createPayoutFormSchema = z
                         }
                         seen.add(id)
                 }
-        })
 
-type CreatePayoutFormValues = z.infer<typeof createPayoutFormSchema>
+                const normalizedCurrency = data.currency?.trim().toUpperCase()
+
+                if (normalizedCurrency) {
+                        if (currencyOptions.length > 0 && !currencyOptions.includes(normalizedCurrency)) {
+                                ctx.addIssue({
+                                        code: z.ZodIssueCode.custom,
+                                        message: 'Mã tiền tệ không nằm trong danh sách được phép rút.',
+                                        path: ['currency']
+                                })
+                        }
+
+                        const requestedAmount = Number(data.amount)
+                        if (Number.isFinite(requestedAmount)) {
+                                const balanceInfo = availableBalances[normalizedCurrency]
+                                const availableAmount = balanceInfo?.numeric ?? 0
+                                if (requestedAmount > availableAmount) {
+                                        const formatted = balanceInfo?.formatted ??
+                                                formatCurrencyAmount(availableAmount, normalizedCurrency)
+                                        ctx.addIssue({
+                                                code: z.ZodIssueCode.custom,
+                                                message: `Số tiền vượt quá số dư khả dụng (${formatted}).`,
+                                                path: ['amount']
+                                        })
+                                }
+                        }
+                }
+        })
 
 const statusStyles: Record<FreelancerPayoutStatus, { label: string; badge: string; description: string }> = {
         PENDING: {
@@ -421,11 +500,54 @@ const useCurrencyOptions = (snapshot?: PayoutSnapshot) => {
         return useMemo(() => {
                 if (!snapshot) return [] as string[]
                 const codes = new Set<string>()
-                snapshot.balance.available.forEach(entry => codes.add(entry.currency))
-                snapshot.balance.pending.forEach(entry => codes.add(entry.currency))
-                snapshot.summary.forEach(entry => codes.add(entry.currency))
-                snapshot.history.forEach(entry => codes.add(entry.currency))
+                snapshot.balance.available.forEach(entry => codes.add(entry.currency.toUpperCase()))
+                snapshot.balance.pending.forEach(entry => codes.add(entry.currency.toUpperCase()))
+                snapshot.summary.forEach(entry => codes.add(entry.currency.toUpperCase()))
+                snapshot.history.forEach(entry => codes.add(entry.currency.toUpperCase()))
                 return Array.from(codes).sort((a, b) => a.localeCompare(b))
+        }, [snapshot])
+}
+
+const useAvailableBalanceMap = (snapshot?: PayoutSnapshot) => {
+        return useMemo(() => {
+                if (!snapshot) return {} as Record<string, AvailableBalanceInfo>
+
+                const map: Record<string, AvailableBalanceInfo> = {}
+
+                const ensureEntry = (currency: string) => {
+                        const upperCurrency = currency.toUpperCase()
+                        if (!map[upperCurrency]) {
+                                map[upperCurrency] = {
+                                        numeric: 0,
+                                        formatted: formatCurrencyAmount(0, upperCurrency)
+                                }
+                        }
+                        return map[upperCurrency]
+                }
+
+                snapshot.balance.available.forEach(entry => {
+                        const currency = entry.currency.toUpperCase()
+                        const numeric = Number(entry.amount)
+                        const safeNumeric = Number.isFinite(numeric) ? numeric : 0
+                        map[currency] = {
+                                numeric: safeNumeric,
+                                formatted: formatCurrencyAmount(safeNumeric, currency)
+                        }
+                })
+
+                snapshot.balance.pending.forEach(entry => {
+                        ensureEntry(entry.currency)
+                })
+
+                snapshot.summary.forEach(entry => {
+                        ensureEntry(entry.currency)
+                })
+
+                snapshot.history.forEach(entry => {
+                        ensureEntry(entry.currency)
+                })
+
+                return map
         }, [snapshot])
 }
 
@@ -504,25 +626,6 @@ export default function FreelancerPayoutSnapshotPage() {
         const [isCreatePayoutModalOpen, setCreatePayoutModalOpen] = useState(false)
 
         const {
-                register: registerCreatePayout,
-                handleSubmit: handleSubmitCreatePayout,
-                reset: resetCreatePayoutForm,
-                setValue: setCreatePayoutValue,
-                watch: watchCreatePayout,
-                formState: { errors: createPayoutErrors, isSubmitting: isSubmittingCreatePayout }
-        } = useForm<CreatePayoutFormValues>({
-                resolver: zodResolver(createPayoutFormSchema),
-                defaultValues: {
-                        amount: '',
-                        currency: '',
-                        idempotencyKey: '',
-                        transferIdsRaw: ''
-                }
-        })
-
-        const transferIdsRaw = watchCreatePayout('transferIdsRaw')
-
-        const {
                 data: snapshot,
                 isLoading,
                 isError,
@@ -539,22 +642,68 @@ export default function FreelancerPayoutSnapshotPage() {
         })
 
         const currencyOptions = useCurrencyOptions(snapshot)
+        const availableBalanceMap = useAvailableBalanceMap(snapshot)
 
-        const getDefaultCreatePayoutValues = useCallback(() => {
-                const normalizedCurrency =
-                        currency && currencyOptions.includes(currency)
-                                ? currency
-                                : currencyOptions.length === 1
-                                        ? currencyOptions[0]
-                                        : ''
+        const createPayoutSchema = useMemo(
+                () => buildCreatePayoutFormSchema(availableBalanceMap, currencyOptions),
+                [availableBalanceMap, currencyOptions]
+        )
+        const createPayoutResolver = useMemo(() => zodResolver(createPayoutSchema), [createPayoutSchema])
 
-                return {
+        const {
+                register: registerCreatePayout,
+                handleSubmit: handleSubmitCreatePayout,
+                reset: resetCreatePayoutForm,
+                setValue: setCreatePayoutValue,
+                watch: watchCreatePayout,
+                formState: { errors: createPayoutErrors, isSubmitting: isSubmittingCreatePayout }
+        } = useForm<CreatePayoutFormValues>({
+                resolver: createPayoutResolver,
+                defaultValues: {
                         amount: '',
-                        currency: normalizedCurrency,
+                        currency: '',
                         idempotencyKey: '',
                         transferIdsRaw: ''
                 }
-        }, [currency, currencyOptions])
+        })
+
+        const transferIdsRaw = watchCreatePayout('transferIdsRaw')
+        const selectedCurrency = watchCreatePayout('currency')
+
+        const availableBalanceInfo = useMemo(() => {
+                if (!selectedCurrency) return undefined
+                const normalized = selectedCurrency.toUpperCase()
+                const info = availableBalanceMap[normalized]
+                const numeric = info?.numeric ?? 0
+                return {
+                        currency: normalized,
+                        numeric,
+                        formatted: info?.formatted ?? formatCurrencyAmount(numeric, normalized)
+                }
+        }, [availableBalanceMap, selectedCurrency])
+
+        const amountInputStep = useMemo(() => {
+                if (!availableBalanceInfo) return 0.01
+                const fractionDigits = getFractionDigitsForCurrency(availableBalanceInfo.currency)
+                return fractionDigits === 0 ? 1 : 0.01
+        }, [availableBalanceInfo])
+
+        const getDefaultCreatePayoutValues = useCallback(() => {
+                const preferredCurrency =
+                        currency && currencyOptions.includes(currency)
+                                ? currency
+                                : currencyOptions.find(option => {
+                                          const info = availableBalanceMap[option]
+                                          return (info?.numeric ?? 0) > 0
+                                  }) ?? (currencyOptions.length === 1 ? currencyOptions[0] : '')
+
+                return {
+                        amount: '',
+                        currency: preferredCurrency ?? '',
+                        idempotencyKey: '',
+                        transferIdsRaw: ''
+                }
+        }, [availableBalanceMap, currency, currencyOptions])
 
         const openCreatePayoutModal = useCallback(() => {
                 resetCreatePayoutForm(getDefaultCreatePayoutValues())
@@ -604,6 +753,9 @@ export default function FreelancerPayoutSnapshotPage() {
         })
 
         const isCreatingPayout = isSubmittingCreatePayout || createPayoutMutation.isPending
+        const hasSelectedCurrency = Boolean(selectedCurrency && selectedCurrency.trim().length === 3)
+        const isSubmitDisabled =
+                isCreatingPayout || !hasSelectedCurrency || (availableBalanceInfo ? availableBalanceInfo.numeric <= 0 : false)
         const closeCreatePayoutModal = useCallback(() => {
                 if (isCreatingPayout) return
                 setCreatePayoutModalOpen(false)
@@ -809,10 +961,17 @@ export default function FreelancerPayoutSnapshotPage() {
                                                                   <input
                                                                           id={amountFieldId}
                                                                           type='number'
-                                                                          step='0.01'
+                                                                          min='0'
+                                                                          step={amountInputStep}
                                                                           inputMode='decimal'
                                                                           placeholder='Ví dụ: 250.00'
                                                                           className='w-full rounded-xl border border-base-300 bg-white px-3 py-2 text-base shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                                                          max={
+                                                                                  availableBalanceInfo &&
+                                                                                  availableBalanceInfo.numeric > 0
+                                                                                          ? availableBalanceInfo.numeric
+                                                                                          : undefined
+                                                                          }
                                                                           {...registerCreatePayout('amount', {
                                                                                   setValueAs: value => (typeof value === 'string' ? value.trim() : value)
                                                                           })}
@@ -821,9 +980,25 @@ export default function FreelancerPayoutSnapshotPage() {
                                                                           <span className='text-xs font-medium text-rose-500'>
                                                                                   {createPayoutErrors.amount.message}
                                                                           </span>
-                                                                  ) : (
-                                                                          <span className='text-xs text-base-content/60'>Nhập số tiền bạn muốn Stripe chuyển về tài khoản ngân hàng.</span>
-                                                                  )}
+                                                                  ) : null}
+                                                                  <div className='space-y-1 text-xs text-base-content/60'>
+                                                                          <p>Nhập số tiền bạn muốn Stripe chuyển về tài khoản ngân hàng.</p>
+                                                                          {availableBalanceInfo ? (
+                                                                                  <p
+                                                                                          className={
+                                                                                                  availableBalanceInfo.numeric > 0
+                                                                                                          ? 'text-base-content/60'
+                                                                                                          : 'font-medium text-rose-500'
+                                                                                          }
+                                                                                  >
+                                                                                          {availableBalanceInfo.numeric > 0
+                                                                                                  ? `Số dư khả dụng: ${availableBalanceInfo.formatted}`
+                                                                                                  : `Số dư khả dụng cho ${availableBalanceInfo.currency} hiện đang là 0.`}
+                                                                                  </p>
+                                                                          ) : (
+                                                                                  <p>Chọn mã tiền tệ để xem số dư khả dụng hiện tại.</p>
+                                                                          )}
+                                                                  </div>
                                                           </label>
 
                                                           <label className='flex flex-col gap-2 text-sm font-medium text-base-content' htmlFor={currencyFieldId}>
@@ -850,7 +1025,7 @@ export default function FreelancerPayoutSnapshotPage() {
                                                                                   {createPayoutErrors.currency.message}
                                                                           </span>
                                                                   ) : (
-                                                                          <span className='text-xs text-base-content/60'>Mã tiền tệ ISO 4217 gồm 3 ký tự (ví dụ: USD, VND, EUR).</span>
+                                                                          <span className='text-xs text-base-content/60'>Mã tiền tệ ISO 4217 gồm 3 ký tự (ví dụ: USD, VND, EUR). Chỉ các mã xuất hiện trong danh sách gợi ý mới được phép rút.</span>
                                                                   )}
                                                           </label>
                                                   </div>
@@ -931,7 +1106,14 @@ export default function FreelancerPayoutSnapshotPage() {
                                                   <button
                                                           type='submit'
                                                           className='btn btn-primary flex-1 gap-2'
-                                                          disabled={isCreatingPayout}
+                                                          disabled={isSubmitDisabled}
+                                                          title={
+                                                                  !hasSelectedCurrency
+                                                                          ? 'Chọn mã tiền tệ hợp lệ trước khi gửi yêu cầu.'
+                                                                          : availableBalanceInfo && availableBalanceInfo.numeric <= 0
+                                                                                  ? 'Số dư khả dụng bằng 0 nên không thể tạo payout lúc này.'
+                                                                                  : undefined
+                                                          }
                                                   >
                                                           {isCreatingPayout ? (
                                                                   <>
