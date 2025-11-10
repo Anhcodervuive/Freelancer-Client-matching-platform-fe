@@ -101,6 +101,20 @@ export const createStripeConnectRequirementLink = async (
         return response.data
 }
 
+export interface RequestStripeCapabilityReviewPayload {
+        capabilities?: string[]
+}
+
+export const requestStripeConnectCapabilityReview = async (
+        payload: RequestStripeCapabilityReviewPayload
+) => {
+        const response = await authorizeAxiosInstance.post<StripeConnectAccountResponse>(
+                `${baseUrl}/capabilities/retry`,
+                payload
+        )
+        return response.data
+}
+
 export const deleteStripeConnectAccount = async () => {
         const response = await authorizeAxiosInstance.delete(`${baseUrl}/`)
         return response.data

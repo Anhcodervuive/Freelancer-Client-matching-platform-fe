@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
         AlertCircle,
@@ -20,7 +20,11 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'react-toastify'
 import { createFreelancerPayout, getFreelancerPayoutSnapshot } from '~/apis/freelancer/payout.api'
-import { createStripeConnectRequirementLink } from '~/apis/stripe-connect.api'
+import {
+        createStripeConnectRequirementLink,
+        requestStripeConnectCapabilityReview,
+        type RequestStripeCapabilityReviewPayload
+} from '~/apis/stripe-connect.api'
 import type {
         BalanceEntry,
         CreateFreelancerPayoutInput,
@@ -206,6 +210,25 @@ const resolveCreatePayoutErrorMessage = (error: unknown) => {
         }
 
         return 'Không thể tạo yêu cầu rút tiền. Vui lòng thử lại sau.'
+}
+
+const resolveCapabilityRequestErrorMessage = (error: unknown) => {
+        if (isAxiosError(error)) {
+                const message = error.response?.data?.message
+                if (typeof message === 'string' && message.trim()) {
+                        return message
+                }
+
+                if (error.message) {
+                        return error.message
+                }
+        }
+
+        if (error instanceof Error) {
+                return error.message
+        }
+
+        return 'Không thể gửi yêu cầu Stripe xem xét capabilities. Vui lòng thử lại sau.'
 }
 
 const createPayoutFormSchemaBase = z.object({
@@ -699,16 +722,167 @@ const RequirementListCard = ({
         )
 }
 
+const CapabilityRequestActions = ({
+        statuses,
+        selectedCapabilities,
+        onToggleCapability,
+        onApplySelection,
+        onClearSelection,
+        onRequestReview,
+        isRequesting
+}: {
+        statuses: PayoutCapabilityStatus[]
+        selectedCapabilities: string[]
+        onToggleCapability?: (capability: string) => void
+        onApplySelection?: (capabilities: string[]) => void
+        onClearSelection?: () => void
+        onRequestReview?: () => void
+        isRequesting?: boolean
+}) => {
+        const requestableStatuses = useMemo(
+                () =>
+                        statuses.filter(status => {
+                                const capabilityId = status.capability?.trim()
+                                if (!capabilityId) {
+                                        return false
+                                }
+
+                                const normalizedStatus = status.status?.toLowerCase?.() ?? ''
+                                return normalizedStatus !== 'active'
+                        }),
+                [statuses]
+        )
+
+        if (!onToggleCapability || !onRequestReview) {
+                return null
+        }
+
+        if (requestableStatuses.length === 0) {
+                return null
+        }
+
+        const allRequestableCapabilities = useMemo(
+                () => requestableStatuses.map(status => status.capability),
+                [requestableStatuses]
+        )
+        const requestableSet = useMemo(
+                () => new Set(allRequestableCapabilities),
+                [allRequestableCapabilities]
+        )
+        const selectedCount = selectedCapabilities.reduce(
+                (count, capability) => (requestableSet.has(capability) ? count + 1 : count),
+                0
+        )
+        const totalCount = allRequestableCapabilities.length
+        const hasSelection = selectedCount > 0
+        const disableRequest = !hasSelection || isRequesting
+
+        return (
+                <div className='rounded-xl border border-primary/20 bg-primary/5 p-4 shadow-sm'>
+                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                                <div>
+                                        <p className='text-sm font-semibold text-base-content'>
+                                                Yêu cầu Stripe xem xét capabilities
+                                        </p>
+                                        <p className='text-xs text-base-content/60'>
+                                                Chọn capability chưa hoạt động để Stripe kích hoạt lại khi hồ sơ đã đầy đủ.
+                                        </p>
+                                </div>
+                                <div className='flex items-center gap-2 text-xs'>
+                                        {onApplySelection ? (
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-ghost btn-xs text-primary'
+                                                        disabled={isRequesting}
+                                                        onClick={() => onApplySelection(allRequestableCapabilities)}
+                                                >
+                                                        Chọn tất cả
+                                                </button>
+                                        ) : null}
+                                        {onClearSelection ? (
+                                                <button
+                                                        type='button'
+                                                        className='btn btn-ghost btn-xs text-base-content/60 hover:text-base-content'
+                                                        disabled={isRequesting}
+                                                        onClick={onClearSelection}
+                                                >
+                                                        Bỏ chọn
+                                                </button>
+                                        ) : null}
+                                </div>
+                        </div>
+
+                        <ul className='mt-3 space-y-2'>
+                                {requestableStatuses.map(status => {
+                                        const capabilityId = status.capability
+                                        const isChecked = selectedCapabilities.includes(capabilityId)
+
+                                        return (
+                                                <li
+                                                        key={`${capabilityId}-request`}
+                                                        className='flex items-start gap-3 rounded-lg border border-base-200 bg-base-100/80 px-3 py-2'
+                                                >
+                                                        <input
+                                                                type='checkbox'
+                                                                className='checkbox checkbox-sm mt-1'
+                                                                checked={isChecked}
+                                                                disabled={isRequesting}
+                                                                onChange={() => onToggleCapability(capabilityId)}
+                                                        />
+                                                        <div className='space-y-1'>
+                                                                <p className='text-sm font-semibold text-base-content'>
+                                                                        {status.label}
+                                                                </p>
+                                                                <p className='text-xs text-base-content/60'>
+                                                                        {status.statusMessage}
+                                                                </p>
+                                                        </div>
+                                                </li>
+                                        )
+                                })}
+                        </ul>
+
+                        <div className='mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-base-content/60'>
+                                <span>
+                                        Đã chọn {selectedCount}/{totalCount} capability
+                                </span>
+                                <button
+                                        type='button'
+                                        onClick={onRequestReview}
+                                        disabled={disableRequest}
+                                        className='btn btn-sm btn-primary gap-2 disabled:cursor-not-allowed disabled:opacity-60'
+                                >
+                                        {isRequesting ? (
+                                                <Loader2 className='size-4 animate-spin' />
+                                        ) : (
+                                                <ShieldCheck className='size-4' />
+                                        )}
+                                        Gửi yêu cầu Stripe duyệt lại
+                                </button>
+                        </div>
+                </div>
+        )
+}
+
 const RestrictionsOverview = ({
         restrictions,
         payoutsEnabled,
         onOpenRequirementsLink,
-        isOpeningRequirementsLink
+        isOpeningRequirementsLink,
+        capabilityRequestProps
 }: {
         restrictions?: PayoutSnapshot['restrictions']
         payoutsEnabled: boolean
         onOpenRequirementsLink?: () => void
         isOpeningRequirementsLink?: boolean
+        capabilityRequestProps?: {
+                selectedCapabilities: string[]
+                onToggleCapability?: (capability: string) => void
+                onApplySelection?: (capabilities: string[]) => void
+                onClearSelection?: () => void
+                onRequestReview?: () => void
+                isRequesting?: boolean
+        }
 }) => {
         if (!restrictions) {
                 return null
@@ -741,6 +915,11 @@ const RestrictionsOverview = ({
         }
 
         const showResolveButton = typeof onOpenRequirementsLink === 'function'
+        const showCapabilityRequestActions = Boolean(
+                capabilityRequestProps?.onToggleCapability &&
+                        capabilityRequestProps?.onRequestReview &&
+                        hasCapabilityStatuses
+        )
 
         return (
                 <section className={`${SECTION_CARD_CLASS} space-y-5 p-6`}>
@@ -809,6 +988,18 @@ const RestrictionsOverview = ({
                                                 />
                                         ))}
                                 </div>
+                        ) : null}
+
+                        {showCapabilityRequestActions ? (
+                                <CapabilityRequestActions
+                                        statuses={capabilityStatuses}
+                                        selectedCapabilities={capabilityRequestProps?.selectedCapabilities ?? []}
+                                        onToggleCapability={capabilityRequestProps?.onToggleCapability}
+                                        onApplySelection={capabilityRequestProps?.onApplySelection}
+                                        onClearSelection={capabilityRequestProps?.onClearSelection}
+                                        onRequestReview={capabilityRequestProps?.onRequestReview}
+                                        isRequesting={capabilityRequestProps?.isRequesting}
+                                />
                         ) : null}
 
                         {hasRequirementLists ? (
@@ -963,6 +1154,49 @@ export default function FreelancerPayoutSnapshotPage() {
                 }
         }, [availableBalanceMap, selectedCurrency])
 
+        const capabilityStatuses = snapshot?.restrictions?.capabilityStatuses ?? []
+        const requestableCapabilityIds = useMemo(() => {
+                const ids = new Set<string>()
+                capabilityStatuses.forEach(status => {
+                        const capabilityId = status.capability?.trim()
+                        if (!capabilityId) {
+                                return
+                        }
+
+                        const normalizedStatus = status.status?.toLowerCase?.() ?? ''
+                        if (normalizedStatus !== 'active') {
+                                ids.add(capabilityId)
+                        }
+                })
+
+                return Array.from(ids)
+        }, [capabilityStatuses])
+
+        const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>(() => requestableCapabilityIds)
+        const hasInitializedCapabilitySelection = useRef(false)
+
+        useEffect(() => {
+                setSelectedCapabilities(prev => {
+                        const availableSet = new Set(requestableCapabilityIds)
+                        const filtered = prev.filter(capability => availableSet.has(capability))
+
+                        if (!hasInitializedCapabilitySelection.current) {
+                                hasInitializedCapabilitySelection.current = requestableCapabilityIds.length > 0
+                                if (requestableCapabilityIds.length > 0) {
+                                        return requestableCapabilityIds
+                                }
+
+                                return filtered
+                        }
+
+                        if (filtered.length === prev.length && filtered.every((cap, index) => cap === prev[index])) {
+                                return prev
+                        }
+
+                        return filtered
+                })
+        }, [requestableCapabilityIds])
+
         const canCreatePayout = Boolean(snapshot?.payoutsEnabled)
         const payoutDisabledMessage =
                 snapshot?.restrictions?.disabledReasonMessage || 'Stripe chưa cho phép rút tiền cho tài khoản này.'
@@ -1057,6 +1291,84 @@ export default function FreelancerPayoutSnapshotPage() {
                 }
         })
 
+        const requestCapabilityReviewMutation = useMutation({
+                mutationFn: (payload: RequestStripeCapabilityReviewPayload) =>
+                        requestStripeConnectCapabilityReview(payload),
+                onSuccess: () => {
+                        toast.success('Đã gửi yêu cầu Stripe xem xét capabilities.')
+                        void refetch()
+                },
+                onError: error => {
+                        toast.error(resolveCapabilityRequestErrorMessage(error))
+                }
+        })
+
+        const isRequestingCapabilityReview = requestCapabilityReviewMutation.isPending
+
+        const handleApplyCapabilitySelection = useCallback(
+                (capabilities: string[]) => {
+                        if (isRequestingCapabilityReview) {
+                                return
+                        }
+
+                        const availableSet = new Set(requestableCapabilityIds)
+                        const normalized = capabilities
+                                .map(capability => capability?.trim())
+                                .filter((capability): capability is string => Boolean(capability && availableSet.has(capability)))
+
+                        setSelectedCapabilities(Array.from(new Set(normalized)))
+                },
+                [isRequestingCapabilityReview, requestableCapabilityIds]
+        )
+
+        const handleClearCapabilitySelection = useCallback(() => {
+                if (isRequestingCapabilityReview) {
+                        return
+                }
+
+                setSelectedCapabilities([])
+        }, [isRequestingCapabilityReview])
+
+        const handleToggleCapability = useCallback(
+                (capability: string) => {
+                        if (!capability) {
+                                return
+                        }
+
+                        if (isRequestingCapabilityReview) {
+                                return
+                        }
+
+                        if (!requestableCapabilityIds.includes(capability)) {
+                                return
+                        }
+
+                        setSelectedCapabilities(prev =>
+                                prev.includes(capability)
+                                        ? prev.filter(item => item !== capability)
+                                        : [...prev, capability]
+                        )
+                },
+                [isRequestingCapabilityReview, requestableCapabilityIds]
+        )
+
+        const handleRequestCapabilityReview = useCallback(() => {
+                if (isRequestingCapabilityReview) {
+                        return
+                }
+
+                if (selectedCapabilities.length === 0) {
+                        toast.info('Vui lòng chọn ít nhất một capability để Stripe xem xét lại.')
+                        return
+                }
+
+                const payload: RequestStripeCapabilityReviewPayload = {
+                        capabilities: selectedCapabilities
+                }
+
+                requestCapabilityReviewMutation.mutate(payload)
+        }, [isRequestingCapabilityReview, requestCapabilityReviewMutation, selectedCapabilities])
+
         const handleOpenRequirementsLink = useCallback(() => {
                 if (createRequirementsLinkMutation.isPending) {
                         return
@@ -1131,6 +1443,14 @@ export default function FreelancerPayoutSnapshotPage() {
                                         payoutsEnabled={snapshot.payoutsEnabled ?? false}
                                         onOpenRequirementsLink={handleOpenRequirementsLink}
                                         isOpeningRequirementsLink={createRequirementsLinkMutation.isPending}
+                                        capabilityRequestProps={{
+                                                selectedCapabilities,
+                                                onToggleCapability: handleToggleCapability,
+                                                onApplySelection: handleApplyCapabilitySelection,
+                                                onClearSelection: handleClearCapabilitySelection,
+                                                onRequestReview: handleRequestCapabilityReview,
+                                                isRequesting: isRequestingCapabilityReview
+                                        }}
                                 />
                         ) : null}
 
