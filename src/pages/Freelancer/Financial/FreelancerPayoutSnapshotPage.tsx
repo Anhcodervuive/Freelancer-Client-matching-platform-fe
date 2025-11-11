@@ -37,8 +37,6 @@ import type {
 
 const historyLimitOptions = [10, 25, 50, 100, 200]
 
-const MAX_TRANSFER_IDS = 50
-
 const SECTION_CARD_CLASS =
         'rounded-2xl border border-base-200 bg-base-100/95 shadow-sm backdrop-blur-sm'
 
@@ -83,14 +81,6 @@ const formatCurrencyAmount = (amount: number, currency: string) => {
                         maximumFractionDigits: Math.max(fractionDigits, 2)
                 })} ${normalizedCurrency}`
         }
-}
-
-const parseTransferIds = (input?: string) => {
-        if (!input) return [] as string[]
-        return input
-                .split(/[\n,]+/)
-                .map(entry => entry.trim())
-                .filter(Boolean)
 }
 
 const pickString = (...values: Array<unknown>) => {
@@ -368,18 +358,7 @@ const createPayoutFormSchemaBase = z.object({
                 .string()
                 .trim()
                 .min(3, 'Mã tiền tệ phải có 3 ký tự')
-                .max(3, 'Mã tiền tệ phải có 3 ký tự'),
-        idempotencyKey: z
-                .string()
-                .trim()
-                .optional()
-                .refine(value => !value || value.length >= 8, {
-                        message: 'Idempotency key phải có ít nhất 8 ký tự'
-                })
-                .refine(value => !value || value.length <= 255, {
-                        message: 'Idempotency key quá dài'
-                }),
-        transferIdsRaw: z.string().optional()
+                .max(3, 'Mã tiền tệ phải có 3 ký tự')
 })
 
 type CreatePayoutFormValues = z.infer<typeof createPayoutFormSchemaBase>
@@ -394,29 +373,6 @@ const buildCreatePayoutFormSchema = (
         currencyOptions: string[]
 ) =>
         createPayoutFormSchemaBase.superRefine((data, ctx) => {
-                const transferIds = parseTransferIds(data.transferIdsRaw)
-
-                if (transferIds.length > MAX_TRANSFER_IDS) {
-                        ctx.addIssue({
-                                code: z.ZodIssueCode.custom,
-                                message: `Không thể rút quá ${MAX_TRANSFER_IDS} khoản cùng lúc`,
-                                path: ['transferIdsRaw']
-                        })
-                }
-
-                const seen = new Set<string>()
-                for (const id of transferIds) {
-                        if (seen.has(id)) {
-                                ctx.addIssue({
-                                        code: z.ZodIssueCode.custom,
-                                        message: 'Danh sách transfer chứa phần tử trùng nhau',
-                                        path: ['transferIdsRaw']
-                                })
-                                break
-                        }
-                        seen.add(id)
-                }
-
                 const normalizedCurrency = data.currency?.trim().toUpperCase()
 
                 if (normalizedCurrency) {
@@ -1279,20 +1235,15 @@ export default function FreelancerPayoutSnapshotPage() {
                 register: registerCreatePayout,
                 handleSubmit: handleSubmitCreatePayout,
                 reset: resetCreatePayoutForm,
-                setValue: setCreatePayoutValue,
                 watch: watchCreatePayout,
                 formState: { errors: createPayoutErrors, isSubmitting: isSubmittingCreatePayout }
         } = useForm<CreatePayoutFormValues>({
                 resolver: createPayoutResolver,
                 defaultValues: {
                         amount: '',
-                        currency: '',
-                        idempotencyKey: '',
-                        transferIdsRaw: ''
+                        currency: ''
                 }
         })
-
-        const transferIdsRaw = watchCreatePayout('transferIdsRaw')
         const selectedCurrency = watchCreatePayout('currency')
 
         const availableBalanceInfo = useMemo(() => {
@@ -1377,9 +1328,7 @@ export default function FreelancerPayoutSnapshotPage() {
 
                 return {
                         amount: '',
-                        currency: preferredCurrency ?? '',
-                        idempotencyKey: '',
-                        transferIdsRaw: ''
+                        currency: preferredCurrency ?? ''
                 }
         }, [availableBalanceMap, currency, currencyOptions])
 
@@ -1388,8 +1337,6 @@ export default function FreelancerPayoutSnapshotPage() {
                 resetCreatePayoutForm(getDefaultCreatePayoutValues())
                 setCreatePayoutModalOpen(true)
         }, [canCreatePayout, getDefaultCreatePayoutValues, resetCreatePayoutForm])
-
-        const parsedTransferIds = useMemo(() => parseTransferIds(transferIdsRaw), [transferIdsRaw])
 
         useEffect(() => {
                 if (!currency) return
@@ -1533,17 +1480,8 @@ export default function FreelancerPayoutSnapshotPage() {
         const onSubmitCreatePayout = handleSubmitCreatePayout(async values => {
                 const payload: CreateFreelancerPayoutInput = {
                         amount: values.amount.trim(),
-                        currency: values.currency.trim().toUpperCase()
-                }
-
-                const normalizedIdempotencyKey = values.idempotencyKey?.trim()
-                if (normalizedIdempotencyKey) {
-                        payload.idempotencyKey = normalizedIdempotencyKey
-                }
-
-                const transferIds = parseTransferIds(values.transferIdsRaw)
-                if (transferIds.length > 0) {
-                        payload.transferIds = transferIds
+                        currency: values.currency.trim().toUpperCase(),
+                        idempotencyKey: generateIdempotencyKey()
                 }
 
                 await createPayoutMutation.mutateAsync(payload)
@@ -1565,19 +1503,8 @@ export default function FreelancerPayoutSnapshotPage() {
                 event.preventDefault()
                 closeCreatePayoutModal()
         }
-        const transferIdsCount = parsedTransferIds.length
         const amountFieldId = 'freelancer-create-payout-amount'
         const currencyFieldId = 'freelancer-create-payout-currency'
-        const idempotencyFieldId = 'freelancer-create-payout-idempotency'
-        const transferFieldId = 'freelancer-create-payout-transfer-ids'
-
-        const handleGenerateIdempotencyKey = () => {
-                const key = generateIdempotencyKey()
-                setCreatePayoutValue('idempotencyKey', key, {
-                        shouldDirty: true,
-                        shouldValidate: true
-                })
-        }
 
         const restrictions = snapshot?.restrictions
         const currentlyDueCount = restrictions?.currentlyDueMessages?.length ?? 0
@@ -1625,11 +1552,12 @@ export default function FreelancerPayoutSnapshotPage() {
                         return { ...def }
                 })
         }, [historyCount, snapshotAvailable, stripeTabBadge, hasStripeIssues])
-        const hasOverviewContent = snapshotAvailable
-                ? snapshot.balance.available.length > 0 ||
-                  snapshot.balance.pending.length > 0 ||
-                  snapshot.summary.length > 0
-                : false
+        const hasOverviewContent = Boolean(
+                snapshot &&
+                        (snapshot.balance.available.length > 0 ||
+                                snapshot.balance.pending.length > 0 ||
+                                snapshot.summary.length > 0)
+        )
         const hasHistoryRecords = historyCount > 0
         const autoStripeTabRef = useRef(false)
 
@@ -1695,12 +1623,9 @@ export default function FreelancerPayoutSnapshotPage() {
                                                         <section className={`${SECTION_CARD_CLASS} flex flex-wrap items-start justify-between gap-4 p-6`}>
                                                                 <div className='space-y-2'>
                                                                         <h2 className='text-lg font-semibold text-base-content'>Tạo yêu cầu rút tiền</h2>
-                                                                        <p className='text-sm text-base-content/60'>Chọn số tiền, tiền tệ và (nếu cần) transfer ID để Stripe xử lý payout mới.</p>
+                                                                        <p className='text-sm text-base-content/60'>Chọn số tiền và tiền tệ để Stripe xử lý payout mới.</p>
                                                                 </div>
                                                                 <div className='flex flex-wrap items-center gap-3'>
-                                                                        <span className='rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content/70'>
-                                                                                Tối đa {MAX_TRANSFER_IDS} transfer ID
-                                                                        </span>
                                                                         <button
                                                                                 type='button'
                                                                                 onClick={openCreatePayoutModal}
@@ -1930,67 +1855,9 @@ export default function FreelancerPayoutSnapshotPage() {
                                                           </label>
                                                   </div>
 
-                                                  <div className='grid gap-4'>
-                                                          <div className='space-y-2'>
-                                                                  <div className='flex items-center justify-between gap-2'>
-                                                                          <label htmlFor={idempotencyFieldId} className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                  Idempotency key (tùy chọn)
-                                                                          </label>
-                                                                          <button
-                                                                                  type='button'
-                                                                                  onClick={handleGenerateIdempotencyKey}
-                                                                                  className='inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/50 hover:bg-primary/20'
-                                                                          >
-                                                                                  Tạo key
-                                                                          </button>
-                                                                  </div>
-                                                                  <input
-                                                                          id={idempotencyFieldId}
-                                                                          type='text'
-                                                                          placeholder='Tự nhập hoặc nhấn "Tạo key"'
-                                                                          className='w-full rounded-xl border border-base-300 bg-white px-3 py-2 text-base shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
-                                                                          {...registerCreatePayout('idempotencyKey', {
-                                                                                  setValueAs: value => (typeof value === 'string' ? value.trim() : value)
-                                                                          })}
-                                                                  />
-                                                                  {createPayoutErrors.idempotencyKey ? (
-                                                                          <span className='text-xs font-medium text-rose-500'>
-                                                                                  {createPayoutErrors.idempotencyKey.message}
-                                                                          </span>
-                                                                  ) : (
-                                                                          <span className='text-xs text-base-content/60'>Khuyến nghị cung cấp để tránh gửi trùng yêu cầu tới Stripe.</span>
-                                                                  )}
-                                                          </div>
-
-                                                          <div className='space-y-2'>
-                                                                  <label htmlFor={transferFieldId} className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                          Danh sách transfer ID (tùy chọn)
-                                                                  </label>
-                                                                  <textarea
-                                                                          id={transferFieldId}
-                                                                          rows={3}
-                                                                          placeholder='Mỗi dòng hoặc dấu phẩy phân tách một transfer ID'
-                                                                          className='w-full rounded-xl border border-base-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
-                                                                          {...registerCreatePayout('transferIdsRaw', {
-                                                                                  setValueAs: value => (typeof value === 'string' ? value.trim() : value)
-                                                                          })}
-                                                                  />
-                                                                  <div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
-                                                                          <span>
-                                                                                  Đã nhập {transferIdsCount} / {MAX_TRANSFER_IDS} transfer ID
-                                                                          </span>
-                                                                          <span>Bạn có thể nhập nhiều dòng hoặc phân tách bằng dấu phẩy.</span>
-                                                                  </div>
-                                                                  {createPayoutErrors.transferIdsRaw ? (
-                                                                          <span className='text-xs font-medium text-rose-500'>
-                                                                                  {createPayoutErrors.transferIdsRaw.message}
-                                                                          </span>
-                                                                  ) : null}
-                                                          </div>
-                                                  </div>
-
-                                            <div className='rounded-xl border border-dashed border-primary/20 bg-primary/5 px-4 py-3 text-xs text-primary'>
-                                                    Stripe sẽ xử lý yêu cầu ngay sau khi bạn gửi và cập nhật trạng thái trong phần lịch sử.
+                                            <div className='space-y-2 rounded-xl border border-dashed border-primary/20 bg-primary/5 px-4 py-3 text-xs text-primary'>
+                                                    <p>Stripe sẽ xử lý yêu cầu ngay sau khi bạn gửi và cập nhật trạng thái trong phần lịch sử.</p>
+                                                    <p className='text-primary/80'>Hệ thống sẽ tự tạo idempotency key cho mỗi yêu cầu để tránh gửi trùng tới Stripe.</p>
                                             </div>
                                         </div>
 
