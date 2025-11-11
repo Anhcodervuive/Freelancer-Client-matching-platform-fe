@@ -186,6 +186,130 @@ const CapabilityStatusCard = ({ summary }: { summary: PayoutCapabilityStatus }) 
         )
 }
 
+const TAB_DEFINITIONS = [
+        { key: 'overview', label: 'Tổng quan', icon: Landmark },
+        { key: 'history', label: 'Lịch sử payouts', icon: Calendar },
+        { key: 'stripe', label: 'Stripe Connect', icon: ShieldCheck }
+] as const
+
+type TabKey = (typeof TAB_DEFINITIONS)[number]['key']
+
+type TabDefinition = {
+        key: TabKey
+        label: string
+        icon: LucideIcon
+        badge?: string | null
+        disabled?: boolean
+        tone?: 'default' | 'warning'
+}
+
+const TabNavigation = ({
+        activeTab,
+        tabs,
+        onSelect
+}: {
+        activeTab: TabKey
+        tabs: TabDefinition[]
+        onSelect: (tab: TabKey) => void
+}) => (
+        <div className='flex flex-wrap gap-2 rounded-2xl bg-base-200/60 p-1 text-sm font-medium text-base-content/80'>
+                {tabs.map(tab => {
+                        const Icon = tab.icon
+                        const isActive = tab.key === activeTab
+                        const baseClasses =
+                                'inline-flex items-center gap-2 rounded-xl px-4 py-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
+                        const toneClasses = tab.tone === 'warning' ? 'text-amber-600' : 'text-base-content/70'
+                        const activeClasses = 'bg-base-100 text-base-content shadow'
+                        const inactiveClasses = `hover:bg-base-100/70 ${toneClasses}`
+
+                        return (
+                                <button
+                                        key={tab.key}
+                                        type='button'
+                                        onClick={() => onSelect(tab.key)}
+                                        disabled={tab.disabled}
+                                        className={`${baseClasses} ${
+                                                isActive ? activeClasses : inactiveClasses
+                                        } ${tab.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                >
+                                        <Icon className='size-4' />
+                                        <span>{tab.label}</span>
+                                        {tab.badge ? (
+                                                <span className='inline-flex items-center rounded-full bg-base-300 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-base-content/70'>
+                                                        {tab.badge}
+                                                </span>
+                                        ) : null}
+                                </button>
+                        )
+                })}
+        </div>
+)
+
+const FilterControlsCard = ({
+        currency,
+        onCurrencyChange,
+        currencyOptions,
+        historyLimit,
+        onHistoryLimitChange,
+        onRefresh,
+        isRefreshing
+}: {
+        currency: string
+        onCurrencyChange: (value: string) => void
+        currencyOptions: string[]
+        historyLimit: number
+        onHistoryLimitChange: (value: number) => void
+        onRefresh: () => void
+        isRefreshing: boolean
+}) => (
+        <section className={`${SECTION_CARD_CLASS} flex flex-wrap items-center justify-between gap-4 px-5 py-4`}>
+                <div>
+                        <h2 className='text-base font-semibold text-base-content'>Bộ lọc</h2>
+                        <p className='text-sm text-base-content/60'>Chọn tiền tệ và số lượng bản ghi lịch sử hiển thị.</p>
+                </div>
+                <div className='flex flex-wrap items-center gap-3'>
+                        <label className='flex flex-col text-xs font-medium uppercase tracking-wide text-base-content/60'>
+                                Currency
+                                <select
+                                        value={currency}
+                                        onChange={event => onCurrencyChange(event.target.value)}
+                                        className='mt-1 w-44 rounded-xl border border-base-300 bg-white px-3 py-2 text-sm text-base-content shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                >
+                                        <option value=''>All currencies</option>
+                                        {currencyOptions.map(option => (
+                                                <option key={option} value={option}>
+                                                        {option}
+                                                </option>
+                                        ))}
+                                </select>
+                        </label>
+                        <label className='flex flex-col text-xs font-medium uppercase tracking-wide text-base-content/60'>
+                                History limit
+                                <select
+                                        value={historyLimit}
+                                        onChange={event => onHistoryLimitChange(Number(event.target.value))}
+                                        className='mt-1 w-40 rounded-xl border border-base-300 bg-white px-3 py-2 text-sm text-base-content shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+                                >
+                                        {historyLimitOptions.map(option => (
+                                                <option key={option} value={option}>
+                                                        {option} payouts
+                                                </option>
+                                        ))}
+                                </select>
+                        </label>
+                        <button
+                                type='button'
+                                onClick={onRefresh}
+                                disabled={isRefreshing}
+                                className='inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary shadow-sm transition hover:border-primary/40 hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-70'
+                        >
+                                <RefreshCcw className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                Refresh
+                        </button>
+                </div>
+        </section>
+)
+
 const generateIdempotencyKey = () => {
         if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
                 return crypto.randomUUID().replace(/-/g, '')
@@ -1031,7 +1155,15 @@ const RestrictionsOverview = ({
         )
 }
 
-const PageHeader = ({ snapshot }: { snapshot?: PayoutSnapshot }) => {
+const PageHeader = ({
+        snapshot,
+        hasStripeIssues,
+        onNavigateToStripe
+}: {
+        snapshot?: PayoutSnapshot
+        hasStripeIssues: boolean
+        onNavigateToStripe?: () => void
+}) => {
         const payoutsEnabled = snapshot?.payoutsEnabled ?? false
         const stripeAccountId = snapshot?.stripeAccountId ?? null
         const restrictions = snapshot?.restrictions
@@ -1039,6 +1171,13 @@ const PageHeader = ({ snapshot }: { snapshot?: PayoutSnapshot }) => {
         const disabledAt = restrictions?.disabledAt ?? null
         const disabledSince = disabledAt ? formatDateTime(disabledAt) : null
         const showDisabledSince = Boolean(disabledSince && disabledSince !== '—')
+        const primaryRestrictionMessage = pickString(
+                disabledReasonMessage,
+                restrictions?.externalAccountIssueMessage,
+                restrictions?.currentlyDueMessages?.[0],
+                restrictions?.pastDueMessages?.[0],
+                restrictions?.eventuallyDueMessages?.[0]
+        )
 
         return (
                 <section className={`${SECTION_CARD_CLASS} space-y-4 p-6`}>
@@ -1071,16 +1210,29 @@ const PageHeader = ({ snapshot }: { snapshot?: PayoutSnapshot }) => {
                                 </div>
                         </div>
 
-                        {(!payoutsEnabled || disabledReasonMessage) && (
-                                <div className='flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700'>
-                                        <AlertCircle className='mt-0.5 size-4 flex-shrink-0' />
-                                        <p>
-                                                {disabledReasonMessage
-                                                        ? disabledReasonMessage
-                                                        : 'Stripe chưa bật payouts cho tài khoản này. Vui lòng hoàn tất các bước xác minh cần thiết.'}
-                                        </p>
+                        {hasStripeIssues ? (
+                                <div className='flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700'>
+                                        <div className='flex items-start gap-3'>
+                                                <AlertCircle className='mt-0.5 size-4 flex-shrink-0' />
+                                                <div className='space-y-1'>
+                                                        <p className='font-semibold text-amber-800'>Stripe yêu cầu bạn xem lại thông tin payouts</p>
+                                                        <p className='text-amber-700'>
+                                                                {primaryRestrictionMessage ??
+                                                                        'Có một số hạng mục Stripe cần bạn xử lý trước khi tiếp tục rút tiền.'}
+                                                        </p>
+                                                </div>
+                                        </div>
+                                        {onNavigateToStripe ? (
+                                                <button
+                                                        type='button'
+                                                        onClick={onNavigateToStripe}
+                                                        className='btn btn-sm btn-ghost border border-amber-300/60 bg-white/70 text-amber-700 hover:border-amber-400 hover:bg-white'
+                                                >
+                                                        Xem chi tiết
+                                                </button>
+                                        ) : null}
                                 </div>
-                        )}
+                        ) : null}
 
                         {!stripeAccountId ? (
                                 <div className='flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700'>
@@ -1096,6 +1248,7 @@ export default function FreelancerPayoutSnapshotPage() {
         const [currency, setCurrency] = useState('')
         const [historyLimit, setHistoryLimit] = useState(50)
         const [isCreatePayoutModalOpen, setCreatePayoutModalOpen] = useState(false)
+        const [activeTab, setActiveTab] = useState<TabKey>('overview')
 
         const {
                 data: snapshot,
@@ -1426,108 +1579,97 @@ export default function FreelancerPayoutSnapshotPage() {
                 })
         }
 
-        const hasContent = snapshot
+        const restrictions = snapshot?.restrictions
+        const currentlyDueCount = restrictions?.currentlyDueMessages?.length ?? 0
+        const pastDueCount = restrictions?.pastDueMessages?.length ?? 0
+        const capabilityAlertCount = capabilityStatuses.filter(
+                status => status.status?.toLowerCase?.() !== 'active'
+        ).length
+        const hasStripeIssues = Boolean(
+                !snapshot?.payoutsEnabled ||
+                restrictions?.disabledReasonMessage ||
+                restrictions?.externalAccountIssueMessage ||
+                currentlyDueCount > 0 ||
+                pastDueCount > 0 ||
+                capabilityAlertCount > 0
+        )
+        const stripeAlertTotal =
+                (!snapshot?.payoutsEnabled ? 1 : 0) +
+                (restrictions?.disabledReasonMessage ? 1 : 0) +
+                (restrictions?.externalAccountIssueMessage ? 1 : 0) +
+                currentlyDueCount +
+                pastDueCount +
+                capabilityAlertCount
+        const stripeTabBadge = stripeAlertTotal > 0 ? (stripeAlertTotal > 9 ? '9+' : String(stripeAlertTotal)) : null
+        const historyCount = snapshot?.history.length ?? 0
+        const snapshotAvailable = Boolean(snapshot)
+        const tabs = useMemo<TabDefinition[]>(() => {
+                return TAB_DEFINITIONS.map(def => {
+                        if (def.key === 'stripe') {
+                                return {
+                                        ...def,
+                                        badge: stripeTabBadge,
+                                        tone: hasStripeIssues ? 'warning' : 'default',
+                                        disabled: !snapshotAvailable
+                                }
+                        }
+
+                        if (def.key === 'history') {
+                                return {
+                                        ...def,
+                                        badge: historyCount > 0 ? String(historyCount) : null,
+                                        disabled: !snapshotAvailable
+                                }
+                        }
+
+                        return { ...def }
+                })
+        }, [historyCount, snapshotAvailable, stripeTabBadge, hasStripeIssues])
+        const hasOverviewContent = snapshotAvailable
                 ? snapshot.balance.available.length > 0 ||
                   snapshot.balance.pending.length > 0 ||
-                  snapshot.summary.length > 0 ||
-                  snapshot.history.length > 0
+                  snapshot.summary.length > 0
                 : false
+        const hasHistoryRecords = historyCount > 0
+        const autoStripeTabRef = useRef(false)
+
+        useEffect(() => {
+                if (!snapshot) {
+                        autoStripeTabRef.current = false
+                        return
+                }
+
+                const shouldNavigateToStripe = !snapshot.payoutsEnabled && hasStripeIssues
+                if (shouldNavigateToStripe && !autoStripeTabRef.current) {
+                        setActiveTab('stripe')
+                        autoStripeTabRef.current = true
+                }
+
+                if (!shouldNavigateToStripe) {
+                        autoStripeTabRef.current = false
+                }
+        }, [snapshot, hasStripeIssues])
+
+        useEffect(() => {
+                const activeDefinition = tabs.find(tab => tab.key === activeTab)
+                if (activeDefinition?.disabled) {
+                        setActiveTab('overview')
+                }
+        }, [tabs, activeTab])
+
+        const handleNavigateToStripeTab = useCallback(() => setActiveTab('stripe'), [])
+        const handleNavigateToHistoryTab = useCallback(() => setActiveTab('history'), [])
 
         return (
-                <div className='space-y-10'>
-                        <PageHeader snapshot={snapshot} />
+                <div className='space-y-8'>
+                        <PageHeader
+                                snapshot={snapshot}
+                                hasStripeIssues={hasStripeIssues}
+                                onNavigateToStripe={handleNavigateToStripeTab}
+                        />
 
-                        {snapshot ? (
-                                <RestrictionsOverview
-                                        restrictions={snapshot.restrictions}
-                                        payoutsEnabled={snapshot.payoutsEnabled ?? false}
-                                        onOpenRequirementsLink={handleOpenRequirementsLink}
-                                        isOpeningRequirementsLink={createRequirementsLinkMutation.isPending}
-                                        capabilityRequestProps={{
-                                                selectedCapabilities,
-                                                onToggleCapability: handleToggleCapability,
-                                                onApplySelection: handleApplyCapabilitySelection,
-                                                onClearSelection: handleClearCapabilitySelection,
-                                                onRequestReview: handleRequestCapabilityReview,
-                                                isRequesting: isRequestingCapabilityReview
-                                        }}
-                                />
-                        ) : null}
-
-                        <section className={`${SECTION_CARD_CLASS} flex flex-wrap items-start justify-between gap-4 p-6`}>
-                                <div className='space-y-2'>
-                                        <h2 className='text-lg font-semibold text-base-content'>Tạo yêu cầu rút tiền</h2>
-                                        <p className='text-sm text-base-content/60'>Chọn số tiền, tiền tệ và (nếu cần) transfer ID để Stripe xử lý payout mới.</p>
-                                </div>
-                                <div className='flex flex-wrap items-center gap-3'>
-                                        <span className='rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content/70'>
-                                                Tối đa {MAX_TRANSFER_IDS} transfer ID
-                                        </span>
-                                        <button
-                                                type='button'
-                                                onClick={openCreatePayoutModal}
-                                                disabled={isCreateButtonDisabled}
-                                                title={createButtonTitle}
-                                                className='btn btn-primary gap-2 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60'
-                                        >
-                                                <Wallet className='size-4' />
-                                                Tạo yêu cầu rút tiền
-                                        </button>
-                                        {isCreateButtonDisabled && snapshot?.restrictions?.disabledReasonMessage ? (
-                                                <p className='w-full text-xs text-amber-600/80'>
-                                                        {snapshot.restrictions.disabledReasonMessage}
-                                                </p>
-                                        ) : null}
-                                </div>
-                        </section>
-
-                        <section
-                                className={`${SECTION_CARD_CLASS} flex flex-wrap items-center justify-between gap-4 px-5 py-4`}
-                        >
-                                <div>
-                                        <h2 className='text-base font-semibold text-base-content'>Bộ lọc</h2>
-                                        <p className='text-sm text-base-content/60'>Chọn tiền tệ và số lượng bản ghi lịch sử hiển thị.</p>
-                                </div>
-                                <div className='flex flex-wrap items-center gap-3'>
-                                        <label className='flex flex-col text-xs font-medium uppercase tracking-wide text-base-content/60'>
-                                                Currency
-                                                <select
-                                                        value={currency}
-                                                        onChange={event => setCurrency(event.target.value)}
-                                                        className='mt-1 w-44 rounded-xl border border-base-300 bg-white px-3 py-2 text-sm text-base-content shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
-                                                >
-                                                        <option value=''>All currencies</option>
-                                                        {currencyOptions.map(option => (
-                                                                <option key={option} value={option}>
-                                                                        {option}
-                                                                </option>
-                                                        ))}
-                                                </select>
-                                        </label>
-                                        <label className='flex flex-col text-xs font-medium uppercase tracking-wide text-base-content/60'>
-                                                History limit
-                                                <select
-                                                        value={historyLimit}
-                                                        onChange={event => setHistoryLimit(Number(event.target.value))}
-                                                        className='mt-1 w-40 rounded-xl border border-base-300 bg-white px-3 py-2 text-sm text-base-content shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
-                                                >
-                                                        {historyLimitOptions.map(option => (
-                                                                <option key={option} value={option}>
-                                                                        {option} payouts
-                                                                </option>
-                                                        ))}
-                                                </select>
-                                        </label>
-                                        <button
-                                                type='button'
-                                                onClick={() => refetch()}
-                                                disabled={isFetching}
-                                                className='inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary shadow-sm transition hover:border-primary/40 hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-70'
-                                        >
-                                                <RefreshCcw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
-                                                Refresh
-                                        </button>
-                                </div>
+                        <section className={`${SECTION_CARD_CLASS} p-3`}>
+                                <TabNavigation activeTab={activeTab} tabs={tabs} onSelect={tab => setActiveTab(tab)} />
                         </section>
 
                         {isLoading ? (
@@ -1546,48 +1688,147 @@ export default function FreelancerPayoutSnapshotPage() {
                                 </div>
                         ) : null}
 
-                          {!isLoading && snapshot ? (
-                                  hasContent ? (
-                                          <>
-                                                  <section className='grid gap-4 md:grid-cols-2'>
-                                                        <BalanceCard
-                                                                title='Available balance'
-                                                                description='Funds that Stripe has cleared and can be paid out to your bank account.'
-                                                                icon={Wallet}
-                                                                accent='bg-emerald-500/90 text-white'
-                                                                entries={snapshot.balance.available}
+                        {!isLoading && snapshot ? (
+                                <>
+                                        {activeTab === 'overview' ? (
+                                                <>
+                                                        <section className={`${SECTION_CARD_CLASS} flex flex-wrap items-start justify-between gap-4 p-6`}>
+                                                                <div className='space-y-2'>
+                                                                        <h2 className='text-lg font-semibold text-base-content'>Tạo yêu cầu rút tiền</h2>
+                                                                        <p className='text-sm text-base-content/60'>Chọn số tiền, tiền tệ và (nếu cần) transfer ID để Stripe xử lý payout mới.</p>
+                                                                </div>
+                                                                <div className='flex flex-wrap items-center gap-3'>
+                                                                        <span className='rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content/70'>
+                                                                                Tối đa {MAX_TRANSFER_IDS} transfer ID
+                                                                        </span>
+                                                                        <button
+                                                                                type='button'
+                                                                                onClick={openCreatePayoutModal}
+                                                                                disabled={isCreateButtonDisabled}
+                                                                                title={createButtonTitle}
+                                                                                className='btn btn-primary gap-2 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60'
+                                                                        >
+                                                                                <Wallet className='size-4' />
+                                                                                Tạo yêu cầu rút tiền
+                                                                        </button>
+                                                                        {isCreateButtonDisabled && snapshot.restrictions?.disabledReasonMessage ? (
+                                                                                <p className='w-full text-xs text-amber-600/80'>
+                                                                                        {snapshot.restrictions.disabledReasonMessage}
+                                                                                </p>
+                                                                        ) : null}
+                                                                </div>
+                                                        </section>
+
+                                                        <FilterControlsCard
+                                                                currency={currency}
+                                                                onCurrencyChange={value => setCurrency(value)}
+                                                                currencyOptions={currencyOptions}
+                                                                historyLimit={historyLimit}
+                                                                onHistoryLimitChange={value => setHistoryLimit(value)}
+                                                                onRefresh={() => {
+                                                                        void refetch()
+                                                                }}
+                                                                isRefreshing={isFetching}
                                                         />
-                                                        <BalanceCard
-                                                                title='Pending balance'
-                                                                description='Funds still processing with Stripe before they become available for payout.'
-                                                                icon={Clock}
-                                                                accent='bg-amber-500/90 text-white'
-                                                                entries={snapshot.balance.pending}
+
+                                                        {hasOverviewContent ? (
+                                                                <>
+                                                                        <section className='grid gap-4 md:grid-cols-2'>
+                                                                                <BalanceCard
+                                                                                        title='Available balance'
+                                                                                        description='Funds that Stripe has cleared and can be paid out to your bank account.'
+                                                                                        icon={Wallet}
+                                                                                        accent='bg-emerald-500/90 text-white'
+                                                                                        entries={snapshot.balance.available}
+                                                                                />
+                                                                                <BalanceCard
+                                                                                        title='Pending balance'
+                                                                                        description='Funds still processing with Stripe before they become available for payout.'
+                                                                                        icon={Clock}
+                                                                                        accent='bg-amber-500/90 text-white'
+                                                                                        entries={snapshot.balance.pending}
+                                                                                />
+                                                                        </section>
+
+                                                                        <section className='space-y-3'>
+                                                                                <div>
+                                                                                        <h2 className='text-lg font-semibold text-base-content'>Tổng hợp payouts</h2>
+                                                                                        <p className='text-sm text-base-content/60'>Tổng số tiền theo từng trạng thái và tiền tệ.</p>
+                                                                                </div>
+                                                                                <SummaryTable summary={snapshot.summary} />
+                                                                        </section>
+                                                                </>
+                                                        ) : hasHistoryRecords ? (
+                                                                <section className={`${SECTION_CARD_CLASS} flex flex-wrap items-start justify-between gap-4 p-6 text-sm text-base-content/70`}>
+                                                                        <div className='space-y-1'>
+                                                                                <h3 className='text-base font-semibold text-base-content'>Lịch sử payouts đang khả dụng</h3>
+                                                                                <p>
+                                                                                        Stripe đã ghi nhận {historyCount}{' '}
+                                                                                        {historyCount === 1 ? 'lượt payout' : 'lượt payouts'}. Kiểm tra tab "Lịch sử payouts" để xem chi tiết.
+                                                                                </p>
+                                                                        </div>
+                                                                        <button
+                                                                                type='button'
+                                                                                onClick={handleNavigateToHistoryTab}
+                                                                                className='btn btn-outline btn-sm gap-2'
+                                                                        >
+                                                                                <Clock className='size-4' />
+                                                                                Xem lịch sử
+                                                                        </button>
+                                                                </section>
+                                                        ) : (
+                                                                <EmptyState />
+                                                        )}
+                                                </>
+                                        ) : null}
+
+                                        {activeTab === 'history' ? (
+                                                <>
+                                                        <FilterControlsCard
+                                                                currency={currency}
+                                                                onCurrencyChange={value => setCurrency(value)}
+                                                                currencyOptions={currencyOptions}
+                                                                historyLimit={historyLimit}
+                                                                onHistoryLimitChange={value => setHistoryLimit(value)}
+                                                                onRefresh={() => {
+                                                                        void refetch()
+                                                                }}
+                                                                isRefreshing={isFetching}
                                                         />
-                                                </section>
+                                                        {hasHistoryRecords ? (
+                                                                <section className='space-y-3'>
+                                                                        <div>
+                                                                                <h2 className='text-lg font-semibold text-base-content'>Lịch sử payouts</h2>
+                                                                                <p className='text-sm text-base-content/60'>Chi tiết các sự kiện payouts gần nhất mà Stripe đã đồng bộ.</p>
+                                                                        </div>
+                                                                        <HistoryList history={snapshot.history} />
+                                                                </section>
+                                                        ) : (
+                                                                <EmptyState />
+                                                        )}
+                                                </>
+                                        ) : null}
 
-                                                <section className='space-y-3'>
-                                                        <div>
-                                                                <h2 className='text-lg font-semibold text-base-content'>Tổng hợp payouts</h2>
-                                                                <p className='text-sm text-base-content/60'>Tổng số tiền theo từng trạng thái và tiền tệ.</p>
-                                                        </div>
-                                                        <SummaryTable summary={snapshot.summary} />
-                                                </section>
+                                        {activeTab === 'stripe' ? (
+                                                <RestrictionsOverview
+                                                        restrictions={snapshot.restrictions}
+                                                        payoutsEnabled={snapshot.payoutsEnabled ?? false}
+                                                        onOpenRequirementsLink={handleOpenRequirementsLink}
+                                                        isOpeningRequirementsLink={createRequirementsLinkMutation.isPending}
+                                                        capabilityRequestProps={{
+                                                                selectedCapabilities,
+                                                                onToggleCapability: handleToggleCapability,
+                                                                onApplySelection: handleApplyCapabilitySelection,
+                                                                onClearSelection: handleClearCapabilitySelection,
+                                                                onRequestReview: handleRequestCapabilityReview,
+                                                                isRequesting: isRequestingCapabilityReview
+                                                        }}
+                                                />
+                                        ) : null}
+                                </>
+                        ) : null}
 
-                                                <section className='space-y-3'>
-                                                        <div>
-                                                                <h2 className='text-lg font-semibold text-base-content'>Lịch sử payouts</h2>
-                                                                <p className='text-sm text-base-content/60'>Chi tiết các sự kiện payouts gần nhất mà Stripe đã đồng bộ.</p>
-                                                        </div>
-                                                  <HistoryList history={snapshot.history} />
-                                          </section>
-                                  </>
-                          ) : (
-                                  <EmptyState />
-                          )
-                  ) : null}
-
-                  <dialog
+                        <dialog
                           className={`modal ${isCreatePayoutModalOpen ? 'modal-open' : ''}`}
                           onCancel={handleCancelCreatePayoutModal}
                   >
