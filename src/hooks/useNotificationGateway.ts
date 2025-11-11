@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { markNotificationAsReadAPI } from '~/apis/notification.api'
 import { useSelector } from 'react-redux'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import type { Notification } from '~/types/notification'
@@ -97,50 +98,100 @@ export const useNotificationGateway = () => {
 		[socket]
 	)
 
-	const markAsRead = useCallback(
-		(notificationId: string, options: { emit?: boolean } = { emit: true }) => {
-			setNotifications(prev =>
-				prev.map(notification =>
-					notification.id === notificationId
-						? {
-								...notification,
-								status: NotificationStatus.READ,
-								readAt: new Date().toISOString()
-						  }
-						: notification
-				)
-			)
+        const markAsRead = useCallback(
+                async (notificationId: string, options: { emit?: boolean } = { emit: true }) => {
+                        const currentNotification = notifications.find(
+                                notification => notification.id === notificationId
+                        )
 
-			if (options.emit !== false) {
-				emitMarkAsRead(notificationId)
-			}
-		},
-		[emitMarkAsRead]
-	)
+                        if (!currentNotification || currentNotification.status === NotificationStatus.READ) {
+                                if (options.emit !== false) {
+                                        emitMarkAsRead(notificationId)
+                                }
 
-	const markAllAsRead = useCallback(() => {
-		const unreadIds: string[] = []
+                                return
+                        }
 
-		setNotifications(prev =>
-			prev.map(notification => {
-				if (notification.status === NotificationStatus.READ) {
-					return notification
-				}
+                        setNotifications(prev =>
+                                prev.map(notification =>
+                                        notification.id === notificationId
+                                                ? {
+                                                                ...notification,
+                                                                status: NotificationStatus.READ,
+                                                                readAt: new Date().toISOString()
+                                                  }
+                                                : notification
+                                )
+                        )
 
-				unreadIds.push(notification.id)
+                        try {
+                                await markNotificationAsReadAPI(notificationId)
 
-				return {
-					...notification,
-					status: NotificationStatus.READ,
-					readAt: new Date().toISOString()
-				}
-			})
-		)
+                                if (options.emit !== false) {
+                                        emitMarkAsRead(notificationId)
+                                }
+                        } catch (error) {
+                                setNotifications(prev =>
+                                        prev.map(notification =>
+                                                notification.id === notificationId
+                                                        ? currentNotification
+                                                        : notification
+                                        )
+                                )
 
-		for (const id of unreadIds) {
-			emitMarkAsRead(id)
-		}
-	}, [emitMarkAsRead])
+                                throw error
+                        }
+                },
+                [emitMarkAsRead, notifications]
+        )
+
+        const markAllAsRead = useCallback(async () => {
+                const unreadNotifications = notifications.filter(
+                        notification => notification.status !== NotificationStatus.READ
+                )
+
+                if (unreadNotifications.length === 0) {
+                        return
+                }
+
+                const previousById = new Map<string, Notification>(
+                        unreadNotifications.map(notification => [notification.id, notification])
+                )
+
+                const timestamp = new Date().toISOString()
+
+                setNotifications(prev =>
+                        prev.map(notification =>
+                                previousById.has(notification.id)
+                                        ? {
+                                                ...notification,
+                                                status: NotificationStatus.READ,
+                                                readAt: timestamp
+                                          }
+                                        : notification
+                        )
+                )
+
+                try {
+                        await Promise.all(
+                                unreadNotifications.map(notification =>
+                                        markNotificationAsReadAPI(notification.id)
+                                )
+                        )
+
+                        for (const notification of unreadNotifications) {
+                                emitMarkAsRead(notification.id)
+                        }
+                } catch (error) {
+                        setNotifications(prev =>
+                                prev.map(notification =>
+                                        previousById.get(notification.id) ?? notification
+                                )
+                        )
+
+                        throw error
+                }
+        }, [emitMarkAsRead, notifications])
 
 	const unreadCount = useMemo(() => {
 		return notifications.filter(notification => notification.status !== NotificationStatus.READ).length

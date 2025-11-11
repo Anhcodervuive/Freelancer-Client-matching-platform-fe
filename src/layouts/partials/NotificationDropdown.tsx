@@ -4,6 +4,7 @@ import type { Notification } from '~/types/notification'
 import { NotificationEvent, NotificationResource, NotificationStatus } from '~/types/notification'
 import { useNotificationGateway } from '~/hooks/useNotificationGateway'
 import { deleteNotificationAPI } from '~/apis/notification.api'
+import { toast } from 'react-toastify'
 
 const formatLabel = (value: string | null | undefined) => {
 	if (!value) return ''
@@ -126,6 +127,8 @@ export default function NotificationDropdown() {
                 removeNotification
         } = useNotificationGateway()
         const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set())
+        const [markingIds, setMarkingIds] = useState<Set<string>>(() => new Set())
+        const [isMarkingAll, setIsMarkingAll] = useState(false)
         const dropdownContentRef = useRef<HTMLDivElement>(null)
 
         const handleDeleteNotification = useCallback(
@@ -155,7 +158,66 @@ export default function NotificationDropdown() {
                 [removeNotification]
         )
 
-	const connectionError = !isConnecting && error ? error : null
+        const handleMarkAsRead = useCallback(
+                async (notificationId: string) => {
+                        setMarkingIds(prev => {
+                                const next = new Set(prev)
+                                next.add(notificationId)
+                                return next
+                        })
+
+                        try {
+                                await markAsRead(notificationId)
+                        } catch (error) {
+                                console.error(error)
+                                toast.error('Không thể đánh dấu thông báo là đã đọc. Vui lòng thử lại.')
+                        } finally {
+                                setMarkingIds(prev => {
+                                        const next = new Set(prev)
+                                        next.delete(notificationId)
+                                        return next
+                                })
+                        }
+                },
+                [markAsRead]
+        )
+
+        const handleMarkAllAsRead = useCallback(async () => {
+                const unreadIds = notifications
+                        .filter(notification => notification.status !== NotificationStatus.READ)
+                        .map(notification => notification.id)
+
+                if (unreadIds.length === 0) {
+                        return
+                }
+
+                setIsMarkingAll(true)
+                setMarkingIds(prev => {
+                        const next = new Set(prev)
+                        for (const id of unreadIds) {
+                                next.add(id)
+                        }
+                        return next
+                })
+
+                try {
+                        await markAllAsRead()
+                } catch (error) {
+                        console.error(error)
+                        toast.error('Không thể đánh dấu tất cả thông báo là đã đọc. Vui lòng thử lại.')
+                } finally {
+                        setIsMarkingAll(false)
+                        setMarkingIds(prev => {
+                                const next = new Set(prev)
+                                for (const id of unreadIds) {
+                                        next.delete(id)
+                                }
+                                return next
+                        })
+                }
+        }, [markAllAsRead, notifications])
+
+        const connectionError = !isConnecting && error ? error : null
 	const errorMessage = (() => {
 		if (!connectionError) return ''
 
@@ -272,14 +334,20 @@ export default function NotificationDropdown() {
 							</span>
 						</div>
 					</div>
-					<button
-						type='button'
-						disabled={unreadCount === 0}
-						onClick={() => markAllAsRead()}
-						className='btn btn-ghost btn-sm gap-2 text-xs font-medium disabled:opacity-50'>
-						<CheckCheck className='h-4 w-4' aria-hidden='true' />
-						Đánh dấu đã đọc
-					</button>
+                                        <button
+                                                type='button'
+                                                disabled={unreadCount === 0 || isMarkingAll}
+                                                onClick={() => {
+                                                        void handleMarkAllAsRead()
+                                                }}
+                                                className='btn btn-ghost btn-sm gap-2 text-xs font-medium disabled:opacity-50'>
+                                                {isMarkingAll ? (
+                                                        <Loader2 className='h-4 w-4 animate-spin' aria-hidden='true' />
+                                                ) : (
+                                                        <CheckCheck className='h-4 w-4' aria-hidden='true' />
+                                                )}
+                                                Đánh dấu đã đọc
+                                        </button>
 				</div>
 				{notifications.length === 0 ? (
 					<div className='flex flex-col items-center justify-center gap-3 px-6 py-10 text-center text-sm text-base-content/60'>
@@ -295,20 +363,31 @@ export default function NotificationDropdown() {
                                                         const isUnread = notification.status !== NotificationStatus.READ
                                                         const isDeleting = deletingIds.has(notification.id)
 
+                                                        const isMarking = markingIds.has(notification.id)
+
                                                         return (
                                                                 <li key={notification.id} className='group'>
                                                                         <div className='flex items-stretch'>
                                                                                 <button
                                                                                         type='button'
-                                                                                        onClick={() => markAsRead(notification.id)}
-                                                                                        className='flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-base-200/70 focus:bg-base-200/70 focus:outline-none'
+                                                                                        onClick={() => {
+                                                                                                if (!isMarking) {
+                                                                                                        void handleMarkAsRead(notification.id)
+                                                                                                }
+                                                                                        }}
+                                                                                        disabled={isMarking}
+                                                                                        className='flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-base-200/70 focus:bg-base-200/70 focus:outline-none disabled:cursor-wait disabled:opacity-70'
                                                                                 >
-                                                                                        <span
-                                                                                                className={`mt-1 h-2 w-2 rounded-full ${
-                                                                                                        isUnread ? 'bg-primary ring-2 ring-primary/20' : 'bg-base-300'
-                                                                                                }`}
-                                                                                                aria-hidden='true'
-										/>
+                                                                                        {isMarking ? (
+                                                                                                <Loader2 className='mt-0.5 h-3.5 w-3.5 animate-spin text-primary' aria-hidden='true' />
+                                                                                        ) : (
+                                                                                                <span
+                                                                                                        className={`mt-1 h-2 w-2 rounded-full ${
+                                                                                                                isUnread ? 'bg-primary ring-2 ring-primary/20' : 'bg-base-300'
+                                                                                                        }`}
+                                                                                                        aria-hidden='true'
+                                                                                                />
+                                                                                        )}
 										<span className='flex min-w-0 flex-1 flex-col gap-1'>
 											<span className='flex items-center justify-between gap-3'>
                                                                                                 <p className='truncate font-medium text-sm text-base-content'>
