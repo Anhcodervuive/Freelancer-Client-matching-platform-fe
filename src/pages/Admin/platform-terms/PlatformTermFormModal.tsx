@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { BadgeCheck, CalendarClock, CalendarRange, FileText, Hash, Layers, Plus, Trash2, Type } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import z from 'zod'
 import { PLATFORM_TERMS_STATUSES, type PlatformTerm, type PlatformTermsStatus } from '~/types/platform-terms'
+import TextEditor from '~/components/form/TextEditor'
 
 const statusSchema = z.enum(PLATFORM_TERMS_STATUSES)
 
@@ -131,7 +132,7 @@ type PlatformTermFormModalProps = {
         onSubmit: (_payload: PlatformTermFormSubmitPayload) => Promise<void>
 }
 
-const defaultSection = { code: '', title: '', version: '', body: '', metadata: '' }
+const defaultSection = { code: '', title: '', version: '', body: '<p></p>', metadata: '' }
 
 const toDateTimeLocalValue = (value?: string | null) => {
         if (!value) return ''
@@ -220,17 +221,17 @@ export default function PlatformTermFormModal({
         })
 
         const { fields, append, remove } = useFieldArray({ control, name: 'sections' })
-        const [expandedSectionIndex, setExpandedSectionIndex] = useState(0)
+        const [selectedSectionIndex, setSelectedSectionIndex] = useState(0)
 
         useEffect(() => {
                 if (open) {
                         reset(buildDefaultValues(initialTerm))
-                        setExpandedSectionIndex(0)
+                        setSelectedSectionIndex(0)
                 }
         }, [initialTerm, open, reset])
 
         useEffect(() => {
-                setExpandedSectionIndex(prev => {
+                setSelectedSectionIndex(prev => {
                         if (fields.length === 0) {
                                 return 0
                         }
@@ -241,6 +242,30 @@ export default function PlatformTermFormModal({
         }, [fields.length])
 
         const status = watch('status')
+        const sectionsValues = watch('sections')
+
+        const activeIndex = fields.length > 0 ? Math.min(selectedSectionIndex, fields.length - 1) : -1
+        const activeSectionErrors = activeIndex >= 0 ? errors.sections?.[activeIndex] : undefined
+
+        const handleRemoveSection = (index: number) => {
+                const nextLength = fields.length - 1
+                remove(index)
+                setSelectedSectionIndex(prev => {
+                        if (nextLength <= 0) {
+                                return 0
+                        }
+
+                        if (prev === index) {
+                                return Math.max(0, index - 1)
+                        }
+
+                        if (prev > index) {
+                                return prev - 1
+                        }
+
+                        return prev
+                })
+        }
 
         return (
                 <dialog className={`modal ${open ? 'modal-open' : ''}`}>
@@ -402,10 +427,10 @@ export default function PlatformTermFormModal({
                                                 </div>
 
                                                 <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
-                                                        <div className='flex items-start justify-between gap-3'>
+                                                        <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
                                                                 <div>
                                                                         <h4 className='font-semibold text-base'>Nội dung section</h4>
-                                                                        <p className='text-xs text-base-content/60 max-w-2xl'>
+                                                                        <p className='max-w-2xl text-xs text-base-content/60'>
                                                                                 Nên chia điều khoản thành các section có mã định danh để tái sử dụng.
                                                                                 Ví dụ: <code className='badge badge-ghost'>work</code>,{' '}
                                                                                 <code className='badge badge-ghost'>payment</code>,{' '}
@@ -414,165 +439,172 @@ export default function PlatformTermFormModal({
                                                                 </div>
                                                                 <button
                                                                         type='button'
-                                                                        className='btn btn-sm btn-primary gap-2'
+                                                                        className='btn btn-sm btn-primary gap-2 self-start'
                                                                         onClick={() => {
                                                                                 append({ ...defaultSection })
-                                                                                setExpandedSectionIndex(fields.length)
+                                                                                setSelectedSectionIndex(fields.length)
                                                                         }}
                                                                 >
                                                                         <Plus className='size-4' /> Thêm section
                                                                 </button>
                                                         </div>
 
-                                                        <div className='mt-4 join join-vertical w-full space-y-0'>
-                                                                {fields.map((field, index) => {
-                                                                        const sectionErrors = errors.sections?.[index]
-                                                                        const isExpanded = expandedSectionIndex === index
+                                                        {fields.length > 0 ? (
+                                                                <div className='mt-4 grid gap-4 lg:grid-cols-[minmax(220px,260px)_1fr] lg:gap-6'>
+                                                                        <div className='space-y-2'>
+                                                                                {fields.map((field, index) => {
+                                                                                        const sectionValue = sectionsValues?.[index]
+                                                                                        const isActive = index === activeIndex
 
-                                                                        return (
-                                                                                <div
-                                                                                        key={field.id}
-                                                                                        className={`collapse collapse-arrow join-item border border-base-300 bg-base-100 ${
-                                                                                                isExpanded ? 'collapse-open' : ''
-                                                                                        }`}
-                                                                                >
-                                                                                        <input
-                                                                                                type='radio'
-                                                                                                name='platform-term-section'
-                                                                                                checked={isExpanded}
-                                                                                                onChange={() => setExpandedSectionIndex(index)}
-                                                                                        />
-                                                                                        <div className='collapse-title flex items-center justify-between gap-3 text-sm font-medium uppercase text-base-content/70'>
-                                                                                                <div className='flex flex-1 items-center gap-2 truncate'>
-                                                                                                        <Layers className='size-4 shrink-0' />
-                                                                                                        <span className='truncate'>Section {index + 1}</span>
-                                                                                                        {(watch(`sections.${index}.code`) || '').trim().length > 0 && (
-                                                                                                                <span className='badge badge-ghost badge-sm truncate'>
-                                                                                                                        {watch(`sections.${index}.code`)}
-                                                                                                                </span>
+                                                                                        return (
+                                                                                                <div
+                                                                                                        key={field.id}
+                                                                                                        role='button'
+                                                                                                        tabIndex={0}
+                                                                                                        className={`flex items-start justify-between gap-3 rounded-xl border p-3 transition focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                                                                                                                isActive
+                                                                                                                        ? 'border-primary bg-primary/10 text-primary'
+                                                                                                                        : 'border-base-300 bg-base-100 hover:border-primary/50 hover:bg-primary/5'
+                                                                                                        }`}
+                                                                                                        onClick={() => setSelectedSectionIndex(index)}
+                                                                                                        onKeyDown={event => {
+                                                                                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                                                                                        event.preventDefault()
+                                                                                                                        setSelectedSectionIndex(index)
+                                                                                                                }
+                                                                                                        }}
+                                                                                                >
+                                                                                                        <div className='min-w-0 flex-1'>
+                                                                                                                <div className='flex items-center gap-2 text-xs font-semibold uppercase text-base-content/60'>
+                                                                                                                        <Layers className='size-3.5' />
+                                                                                                                        Section {index + 1}
+                                                                                                                </div>
+                                                                                                                <p className={`mt-1 truncate text-sm font-medium ${
+                                                                                                                        isActive ? 'text-primary' : 'text-base-content'
+                                                                                                                }`}>
+                                                                                                                        {sectionValue?.title?.trim() || 'Chưa có tiêu đề'}
+                                                                                                                </p>
+                                                                                                                <p className='mt-0.5 truncate text-xs text-base-content/60'>
+                                                                                                                        Mã: {sectionValue?.code?.trim() || '—'}
+                                                                                                                </p>
+                                                                                                        </div>
+                                                                                                        {fields.length > 1 && (
+                                                                                                                <button
+                                                                                                                        type='button'
+                                                                                                                        className='btn btn-ghost btn-xs text-error hover:bg-error/10 hover:text-error'
+                                                                                                                        onClick={event => {
+                                                                                                                                event.stopPropagation()
+                                                                                                                                event.preventDefault()
+                                                                                                                                handleRemoveSection(index)
+                                                                                                                        }}
+                                                                                                                >
+                                                                                                                        <Trash2 className='size-3.5' />
+                                                                                                                </button>
                                                                                                         )}
                                                                                                 </div>
-                                                                                                {fields.length > 1 && (
-                                                                                                        <button
-                                                                                                                type='button'
-                                                                                                                className='btn btn-ghost btn-xs text-error gap-1'
-                                                                                                                onClick={event => {
-                                                                                                                        event.stopPropagation()
-                                                                                                                        remove(index)
-                                                                                                                        setExpandedSectionIndex(prev => {
-                                                                                                                                const nextLength = fields.length - 1
+                                                                                        )
+                                                                                })}
+                                                                        </div>
 
-                                                                                                                                if (nextLength <= 0) {
-                                                                                                                                        return 0
-                                                                                                                                }
-
-                                                                                                                                if (prev === index) {
-                                                                                                                                        return Math.max(0, index - 1)
-                                                                                                                                }
-
-                                                                                                                                if (prev > index) {
-                                                                                                                                        return prev - 1
-                                                                                                                                }
-
-                                                                                                                                return prev
-                                                                                                                        })
-                                                                                                                }}
-                                                                                                        >
-                                                                                                                <Trash2 className='size-3.5' /> Xóa
-                                                                                                        </button>
-                                                                                                )}
-                                                                                        </div>
-                                                                                        <div className='collapse-content space-y-4 border-t border-base-200 pt-4 text-left'>
-                                                                                                <div className='grid gap-4 md:grid-cols-2'>
-                                                                                                        <div className='form-control gap-2'>
-                                                                                                                <span className='label-text text-sm font-medium'>Mã section</span>
-                                                                                                                <input
-                                                                                                                        className={`input input-bordered ${
-                                                                                                                                sectionErrors?.code ? 'input-error' : ''
-                                                                                                                        }`}
-                                                                                                                        placeholder='work'
-                                                                                                                        {...register(`sections.${index}.code` as const)}
-                                                                                                                />
-                                                                                                                {sectionErrors?.code && (
-                                                                                                                        <span className='label-text-alt text-error text-sm'>
-                                                                                                                                {sectionErrors.code.message}
-                                                                                                                        </span>
-                                                                                                                )}
-                                                                                                        </div>
-
-                                                                                                        <div className='form-control gap-2'>
-                                                                                                                <span className='label-text text-sm font-medium'>Tiêu đề section</span>
-                                                                                                                <input
-                                                                                                                        className={`input input-bordered ${
-                                                                                                                                sectionErrors?.title ? 'input-error' : ''
-                                                                                                                        }`}
-                                                                                                                        placeholder='Điều khoản làm việc'
-                                                                                                                        {...register(`sections.${index}.title` as const)}
-                                                                                                                />
-                                                                                                                {sectionErrors?.title && (
-                                                                                                                        <span className='label-text-alt text-error text-sm'>
-                                                                                                                                {sectionErrors.title.message}
-                                                                                                                        </span>
-                                                                                                                )}
-                                                                                                        </div>
-
-                                                                                                        <div className='form-control gap-2'>
-                                                                                                                <span className='label-text text-sm font-medium'>Phiên bản section</span>
-                                                                                                                <input
-                                                                                                                        className='input input-bordered'
-                                                                                                                        placeholder='v1'
-                                                                                                                        {...register(`sections.${index}.version` as const)}
-                                                                                                                />
-                                                                                                                {sectionErrors?.version && (
-                                                                                                                        <span className='label-text-alt text-error text-sm'>
-                                                                                                                                {sectionErrors.version.message}
-                                                                                                                        </span>
-                                                                                                                )}
-                                                                                                        </div>
-
-                                                                                                        <div className='form-control gap-2'>
-                                                                                                                <span className='label-text text-sm font-medium'>Metadata (JSON)</span>
-                                                                                                                <textarea
-                                                                                                                        className={`textarea textarea-bordered min-h-24 ${
-                                                                                                                                sectionErrors?.metadata ? 'textarea-error' : ''
-                                                                                                                        }`}
-                                                                                                                        placeholder='{"provider": "stripe"}'
-                                                                                                                        {...register(`sections.${index}.metadata` as const)}
-                                                                                                                />
-                                                                                                                {sectionErrors?.metadata && (
-                                                                                                                        <span className='label-text-alt text-error text-sm'>
-                                                                                                                                {sectionErrors.metadata.message}
-                                                                                                                        </span>
-                                                                                                                )}
-                                                                                                        </div>
+                                                                        {activeIndex >= 0 && (
+                                                                                <div className='space-y-4 rounded-xl border border-base-300 bg-base-100 p-4'>
+                                                                                        <div className='grid gap-4 md:grid-cols-2'>
+                                                                                                <div className='form-control gap-2'>
+                                                                                                        <span className='label-text text-sm font-medium'>Mã section</span>
+                                                                                                        <input
+                                                                                                                className={`input input-bordered ${
+                                                                                                                        activeSectionErrors?.code ? 'input-error' : ''
+                                                                                                                }`}
+                                                                                                                placeholder='work'
+                                                                                                                {...register(`sections.${activeIndex}.code` as const)}
+                                                                                                        />
+                                                                                                        {activeSectionErrors?.code && (
+                                                                                                                <span className='label-text-alt text-error text-sm'>
+                                                                                                                        {activeSectionErrors.code.message}
+                                                                                                                </span>
+                                                                                                        )}
                                                                                                 </div>
 
                                                                                                 <div className='form-control gap-2'>
-                                                                                                        <span className='label-text text-sm font-medium'>Nội dung section</span>
-                                                                                                        <textarea
-                                                                                                                className={`textarea textarea-bordered min-h-40 font-mono text-sm ${
-                                                                                                                        sectionErrors?.body ? 'textarea-error' : ''
+                                                                                                        <span className='label-text text-sm font-medium'>Tiêu đề section</span>
+                                                                                                        <input
+                                                                                                                className={`input input-bordered ${
+                                                                                                                        activeSectionErrors?.title ? 'input-error' : ''
                                                                                                                 }`}
-                                                                                                                placeholder='Mô tả chi tiết điều khoản...'
-                                                                                                                {...register(`sections.${index}.body` as const)}
+                                                                                                                placeholder='Điều khoản làm việc'
+                                                                                                                {...register(`sections.${activeIndex}.title` as const)}
                                                                                                         />
-                                                                                                        {sectionErrors?.body && (
+                                                                                                        {activeSectionErrors?.title && (
                                                                                                                 <span className='label-text-alt text-error text-sm'>
-                                                                                                                        {sectionErrors.body.message}
+                                                                                                                        {activeSectionErrors.title.message}
+                                                                                                                </span>
+                                                                                                        )}
+                                                                                                </div>
+
+                                                                                                <div className='form-control gap-2'>
+                                                                                                        <span className='label-text text-sm font-medium'>Phiên bản section</span>
+                                                                                                        <input
+                                                                                                                className='input input-bordered'
+                                                                                                                placeholder='v1'
+                                                                                                                {...register(`sections.${activeIndex}.version` as const)}
+                                                                                                        />
+                                                                                                        {activeSectionErrors?.version && (
+                                                                                                                <span className='label-text-alt text-error text-sm'>
+                                                                                                                        {activeSectionErrors.version.message}
+                                                                                                                </span>
+                                                                                                        )}
+                                                                                                </div>
+
+                                                                                                <div className='form-control gap-2'>
+                                                                                                        <span className='label-text text-sm font-medium'>Metadata (JSON)</span>
+                                                                                                        <textarea
+                                                                                                                className={`textarea textarea-bordered min-h-24 ${
+                                                                                                                        activeSectionErrors?.metadata ? 'textarea-error' : ''
+                                                                                                                }`}
+                                                                                                                placeholder='{"provider": "stripe"}'
+                                                                                                                {...register(`sections.${activeIndex}.metadata` as const)}
+                                                                                                        />
+                                                                                                        {activeSectionErrors?.metadata && (
+                                                                                                                <span className='label-text-alt text-error text-sm'>
+                                                                                                                        {activeSectionErrors.metadata.message}
                                                                                                                 </span>
                                                                                                         )}
                                                                                                 </div>
                                                                                         </div>
-                                                                                </div>
-                                                                        )
-                                                                })}
 
-                                                                {fields.length === 0 && (
-                                                                        <div className='rounded-xl border border-dashed border-base-300 p-6 text-center text-sm text-base-content/60'>
-                                                                                Nhấn “Thêm section” để bắt đầu mô tả điều khoản.
-                                                                        </div>
-                                                                )}
-                                                        </div>
+                                                                                        <div className='form-control gap-2'>
+                                                                                                <span className='label-text text-sm font-medium'>Nội dung section</span>
+                                                                                                <div
+                                                                                                        className={`rounded-2xl border ${
+                                                                                                                activeSectionErrors?.body ? 'border-error' : 'border-base-300'
+                                                                                                        } bg-base-100`}
+                                                                                                >
+                                                                                                        <Controller
+                                                                                                                control={control}
+                                                                                                                name={`sections.${activeIndex}.body` as const}
+                                                                                                                render={({ field: { value, onChange } }) => (
+                                                                                                                        <TextEditor
+                                                                                                                                value={typeof value === 'string' && value.length > 0 ? value : '<p></p>'}
+                                                                                                                                onChange={onChange}
+                                                                                                                                className='p-2'
+                                                                                                                        />
+                                                                                                                )}
+                                                                                                        />
+                                                                                                </div>
+                                                                                                {activeSectionErrors?.body && (
+                                                                                                        <span className='label-text-alt text-error text-sm'>
+                                                                                                                {activeSectionErrors.body.message}
+                                                                                                        </span>
+                                                                                                )}
+                                                                                        </div>
+                                                                                </div>
+                                                                        )}
+                                                                </div>
+                                                        ) : (
+                                                                <div className='mt-4 rounded-xl border border-dashed border-base-300 p-6 text-center text-sm text-base-content/60'>
+                                                                        Nhấn “Thêm section” để bắt đầu mô tả điều khoản.
+                                                                </div>
+                                                        )}
 
                                                         <div className='mt-4 rounded-xl bg-base-100/80 p-4 text-xs text-base-content/70'>
                                                                 <p className='font-medium text-base-content'>Gợi ý cấu trúc JSON khi lưu</p>
