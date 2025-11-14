@@ -29,7 +29,17 @@ const renderMetadata = (metadata?: Record<string, unknown> | null) => {
 
 const renderBody = (body: unknown) => {
         if (typeof body === 'string') {
-                return <p className='whitespace-pre-wrap leading-relaxed text-sm text-base-content'>{body}</p>
+                const trimmed = body.trim()
+                if (trimmed.length === 0) {
+                        return <p className='text-sm text-base-content/60'>Chưa có nội dung</p>
+                }
+
+                return (
+                        <div
+                                className='prose prose-sm max-w-none text-base-content [&_p]:my-2'
+                                dangerouslySetInnerHTML={{ __html: trimmed }}
+                        />
+                )
         }
 
         try {
