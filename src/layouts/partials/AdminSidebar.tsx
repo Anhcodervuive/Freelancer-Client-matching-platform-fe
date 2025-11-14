@@ -13,7 +13,8 @@ import {
         Tags,
         Hammer,
         Network,
-        MessageSquare
+        MessageSquare,
+        FileText
 } from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
 import { routes } from '~/config/routes'
@@ -30,6 +31,7 @@ const NAV: Item[] = [
         { label: 'Users', to: routes.admin.users.list, icon: <Users size={18} /> },
         { label: 'Messages', to: routes.admin.messages, icon: <MessageSquare size={18} /> },
         { label: 'Projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },
+        { label: 'Platform terms', to: routes.admin.platformTerms.list, icon: <FileText size={18} /> },
         { label: 'Disputes', to: routes.admin.dispute.list, icon: <BadgeDollarSign size={18} /> },
         {
                 label: 'Taxonomy',

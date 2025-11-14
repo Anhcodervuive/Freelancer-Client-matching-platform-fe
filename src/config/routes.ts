@@ -86,6 +86,9 @@ export const routes = {
                 dispute: {
                         list: '/admin/disputes'
                 },
+                platformTerms: {
+                        list: '/admin/platform-terms'
+                },
                 category: {
                         list: '/admin/categories',
                         categorySpecialties: (id: string = 'id') => `/admin/categories/${id}/specialties`,

@@ -46,6 +46,7 @@ import SpecialtySkillsPage from './pages/Admin/specialty/SpecialtySkillPage'
 import AdminDisputeListPage from './pages/Admin/dispute/List'
 import AdminChatPage from './pages/Admin/chat/AdminChatPage'
 import AdminUserListPage from './pages/Admin/users/AdminUserListPage'
+import AdminPlatformTermsPage from './pages/Admin/platform-terms/AdminPlatformTermsPage'
 import ArbitratorLayout from './layouts/ArbitratorLayout'
 import ArbitratorDashboardPage from './pages/Arbitrator/DashboardPage'
 import ArbitratorDisputeListPage from './pages/Arbitrator/DisputeListPage'
@@ -288,6 +289,10 @@ const router = createBrowserRouter([
                         {
                                 path: 'projects',
                                 element: <AdminProjects />
+                        },
+                        {
+                                path: 'platform-terms',
+                                element: <AdminPlatformTermsPage />
                         },
                         {
                                 path: 'users',
