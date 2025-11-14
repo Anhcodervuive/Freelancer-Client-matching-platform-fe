@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2, Type, CalendarClock, Hash, FileText, Layers } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { BadgeCheck, CalendarClock, CalendarRange, FileText, Hash, Layers, Plus, Trash2, Type } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import z from 'zod'
 import { PLATFORM_TERMS_STATUSES, type PlatformTerm, type PlatformTermsStatus } from '~/types/platform-terms'
@@ -100,7 +100,7 @@ const FormSchema = z
                 })
         })
 
-type FormValues = z.input<typeof FormSchema>
+type FormValues = z.infer<typeof FormSchema>
 
 type NormalizedSection = {
         code: string
@@ -220,12 +220,25 @@ export default function PlatformTermFormModal({
         })
 
         const { fields, append, remove } = useFieldArray({ control, name: 'sections' })
+        const [expandedSectionIndex, setExpandedSectionIndex] = useState(0)
 
         useEffect(() => {
                 if (open) {
                         reset(buildDefaultValues(initialTerm))
+                        setExpandedSectionIndex(0)
                 }
         }, [initialTerm, open, reset])
+
+        useEffect(() => {
+                setExpandedSectionIndex(prev => {
+                        if (fields.length === 0) {
+                                return 0
+                        }
+
+                        const next = Math.min(prev, fields.length - 1)
+                        return next < 0 ? 0 : next
+                })
+        }, [fields.length])
 
         const status = watch('status')
 
@@ -291,7 +304,7 @@ export default function PlatformTermFormModal({
                                                 })}
                                         >
                                                 <div className='grid gap-5 md:grid-cols-2'>
-                                                        <label className='form-control'>
+                                                        <div className='form-control gap-2'>
                                                                 <span className='label-text text-sm font-medium flex items-center gap-2'>
                                                                         <Hash className='size-4 text-primary' /> Phiên bản
                                                                 </span>
@@ -307,9 +320,9 @@ export default function PlatformTermFormModal({
                                                                                 {errors.version.message}
                                                                         </span>
                                                                 )}
-                                                        </label>
+                                                        </div>
 
-                                                        <label className='form-control'>
+                                                        <div className='form-control gap-2'>
                                                                 <span className='label-text text-sm font-medium flex items-center gap-2'>
                                                                         <Type className='size-4 text-primary' /> Tiêu đề
                                                                 </span>
@@ -325,10 +338,12 @@ export default function PlatformTermFormModal({
                                                                                 {errors.title.message}
                                                                         </span>
                                                                 )}
-                                                        </label>
+                                                        </div>
 
-                                                        <label className='form-control'>
-                                                                <span className='label-text text-sm font-medium'>Trạng thái</span>
+                                                        <div className='form-control gap-2'>
+                                                                <span className='label-text text-sm font-medium flex items-center gap-2'>
+                                                                        <BadgeCheck className='size-4 text-primary' /> Trạng thái
+                                                                </span>
                                                                 <select className='select select-bordered' {...register('status')}>
                                                                         {PLATFORM_TERMS_STATUSES.map(statusValue => (
                                                                                 <option key={statusValue} value={statusValue}>
@@ -345,13 +360,12 @@ export default function PlatformTermFormModal({
                                                                                 {errors.status.message}
                                                                         </span>
                                                                 )}
-                                                        </label>
+                                                        </div>
 
                                                         <div className='grid gap-4 sm:grid-cols-2 sm:gap-5'>
-                                                                <label className='form-control'>
+                                                                <div className='form-control gap-2'>
                                                                         <span className='label-text text-sm font-medium flex items-center gap-2'>
-                                                                                <CalendarClock className='size-4 text-primary' />
-                                                                                Hiệu lực từ
+                                                                                <CalendarClock className='size-4 text-primary' /> Hiệu lực từ
                                                                         </span>
                                                                         <input
                                                                                 type='datetime-local'
@@ -365,10 +379,12 @@ export default function PlatformTermFormModal({
                                                                                         {errors.effectiveFrom.message}
                                                                                 </span>
                                                                         )}
-                                                                </label>
+                                                                </div>
 
-                                                                <label className='form-control'>
-                                                                        <span className='label-text text-sm font-medium'>Hiệu lực đến</span>
+                                                                <div className='form-control gap-2'>
+                                                                        <span className='label-text text-sm font-medium flex items-center gap-2'>
+                                                                                <CalendarRange className='size-4 text-primary' /> Hiệu lực đến
+                                                                        </span>
                                                                         <input
                                                                                 type='datetime-local'
                                                                                 className={`input input-bordered ${
@@ -381,7 +397,7 @@ export default function PlatformTermFormModal({
                                                                                         {errors.effectiveTo.message}
                                                                                 </span>
                                                                         )}
-                                                                </label>
+                                                                </div>
                                                         </div>
                                                 </div>
 
@@ -399,119 +415,157 @@ export default function PlatformTermFormModal({
                                                                 <button
                                                                         type='button'
                                                                         className='btn btn-sm btn-primary gap-2'
-                                                                        onClick={() => append({ ...defaultSection })}
+                                                                        onClick={() => {
+                                                                                append({ ...defaultSection })
+                                                                                setExpandedSectionIndex(fields.length)
+                                                                        }}
                                                                 >
                                                                         <Plus className='size-4' /> Thêm section
                                                                 </button>
                                                         </div>
 
-                                                        <div className='mt-4 space-y-4'>
-                                                                {fields.map((field, index) => (
-                                                                        <div key={field.id} className='rounded-xl border border-base-300 bg-base-100 p-4'>
-                                                                                <div className='flex items-center justify-between gap-3 border-b border-base-200 pb-3'>
-                                                                                        <div className='flex items-center gap-2 text-sm font-medium uppercase text-base-content/70'>
-                                                                                                <Layers className='size-4' /> Section {index + 1}
-                                                                                        </div>
-                                                                                        {fields.length > 1 && (
-                                                                                                <button
-                                                                                                        type='button'
-                                                                                                        className='btn btn-ghost btn-xs text-error gap-1'
-                                                                                                        onClick={() => remove(index)}
-                                                                                                >
-                                                                                                        <Trash2 className='size-3.5' /> Xóa
-                                                                                                </button>
-                                                                                        )}
-                                                                                </div>
+                                                        <div className='mt-4 join join-vertical w-full space-y-0'>
+                                                                {fields.map((field, index) => {
+                                                                        const sectionErrors = errors.sections?.[index]
+                                                                        const isExpanded = expandedSectionIndex === index
 
-                                                                                <div className='mt-3 grid gap-4 md:grid-cols-2'>
-                                                                                        <label className='form-control'>
-                                                                                                <span className='label-text text-sm font-medium'>Mã section</span>
-                                                                                                <input
-                                                                                                        className={`input input-bordered ${
-                                                                                                                errors.sections?.[index]?.code
-                                                                                                                        ? 'input-error'
-                                                                                                                        : ''
-                                                                                                        }`}
-                                                                                                        placeholder='work'
-                                                                                                        {...register(`sections.${index}.code` as const)}
-                                                                                                />
-                                                                                                {errors.sections?.[index]?.code && (
-                                                                                                        <span className='label-text-alt text-error text-sm'>
-                                                                                                                {errors.sections[index]?.code?.message}
-                                                                                                        </span>
-                                                                                                )}
-                                                                                        </label>
-
-                                                                                        <label className='form-control'>
-                                                                                                <span className='label-text text-sm font-medium'>Tiêu đề section</span>
-                                                                                                <input
-                                                                                                        className={`input input-bordered ${
-                                                                                                                errors.sections?.[index]?.title
-                                                                                                                        ? 'input-error'
-                                                                                                                        : ''
-                                                                                                        }`}
-                                                                                                        placeholder='Điều khoản làm việc'
-                                                                                                        {...register(`sections.${index}.title` as const)}
-                                                                                                />
-                                                                                                {errors.sections?.[index]?.title && (
-                                                                                                        <span className='label-text-alt text-error text-sm'>
-                                                                                                                {errors.sections[index]?.title?.message}
-                                                                                                        </span>
-                                                                                                )}
-                                                                                        </label>
-
-                                                                                        <label className='form-control'>
-                                                                                                <span className='label-text text-sm font-medium'>Phiên bản section</span>
-                                                                                                <input
-                                                                                                        className='input input-bordered'
-                                                                                                        placeholder='v1'
-                                                                                                        {...register(`sections.${index}.version` as const)}
-                                                                                                />
-                                                                                                {errors.sections?.[index]?.version && (
-                                                                                                        <span className='label-text-alt text-error text-sm'>
-                                                                                                                {errors.sections[index]?.version?.message}
-                                                                                                        </span>
-                                                                                                )}
-                                                                                        </label>
-
-                                                                                        <label className='form-control'>
-                                                                                                <span className='label-text text-sm font-medium'>Metadata (JSON)</span>
-                                                                                                <textarea
-                                                                                                        className={`textarea textarea-bordered min-h-24 ${
-                                                                                                                errors.sections?.[index]?.metadata
-                                                                                                                        ? 'textarea-error'
-                                                                                                                        : ''
-                                                                                                        }`}
-                                                                                                        placeholder='{"provider": "stripe"}'
-                                                                                                        {...register(`sections.${index}.metadata` as const)}
-                                                                                                />
-                                                                                                {errors.sections?.[index]?.metadata && (
-                                                                                                        <span className='label-text-alt text-error text-sm'>
-                                                                                                                {errors.sections[index]?.metadata?.message}
-                                                                                                        </span>
-                                                                                                )}
-                                                                                        </label>
-                                                                                </div>
-
-                                                                                <label className='form-control mt-3'>
-                                                                                        <span className='label-text text-sm font-medium'>Nội dung section</span>
-                                                                                        <textarea
-                                                                                                className={`textarea textarea-bordered min-h-40 font-mono text-sm ${
-                                                                                                        errors.sections?.[index]?.body
-                                                                                                                ? 'textarea-error'
-                                                                                                                : ''
-                                                                                                }`}
-                                                                                                placeholder='Mô tả chi tiết điều khoản...'
-                                                                                                {...register(`sections.${index}.body` as const)}
+                                                                        return (
+                                                                                <div
+                                                                                        key={field.id}
+                                                                                        className={`collapse collapse-arrow join-item border border-base-300 bg-base-100 ${
+                                                                                                isExpanded ? 'collapse-open' : ''
+                                                                                        }`}
+                                                                                >
+                                                                                        <input
+                                                                                                type='radio'
+                                                                                                name='platform-term-section'
+                                                                                                checked={isExpanded}
+                                                                                                onChange={() => setExpandedSectionIndex(index)}
                                                                                         />
-                                                                                        {errors.sections?.[index]?.body && (
-                                                                                                <span className='label-text-alt text-error text-sm'>
-                                                                                                        {errors.sections[index]?.body?.message}
-                                                                                                </span>
-                                                                                        )}
-                                                                                </label>
-                                                                        </div>
-                                                                ))}
+                                                                                        <div className='collapse-title flex items-center justify-between gap-3 text-sm font-medium uppercase text-base-content/70'>
+                                                                                                <div className='flex flex-1 items-center gap-2 truncate'>
+                                                                                                        <Layers className='size-4 shrink-0' />
+                                                                                                        <span className='truncate'>Section {index + 1}</span>
+                                                                                                        {(watch(`sections.${index}.code`) || '').trim().length > 0 && (
+                                                                                                                <span className='badge badge-ghost badge-sm truncate'>
+                                                                                                                        {watch(`sections.${index}.code`)}
+                                                                                                                </span>
+                                                                                                        )}
+                                                                                                </div>
+                                                                                                {fields.length > 1 && (
+                                                                                                        <button
+                                                                                                                type='button'
+                                                                                                                className='btn btn-ghost btn-xs text-error gap-1'
+                                                                                                                onClick={event => {
+                                                                                                                        event.stopPropagation()
+                                                                                                                        remove(index)
+                                                                                                                        setExpandedSectionIndex(prev => {
+                                                                                                                                const nextLength = fields.length - 1
+
+                                                                                                                                if (nextLength <= 0) {
+                                                                                                                                        return 0
+                                                                                                                                }
+
+                                                                                                                                if (prev === index) {
+                                                                                                                                        return Math.max(0, index - 1)
+                                                                                                                                }
+
+                                                                                                                                if (prev > index) {
+                                                                                                                                        return prev - 1
+                                                                                                                                }
+
+                                                                                                                                return prev
+                                                                                                                        })
+                                                                                                                }}
+                                                                                                        >
+                                                                                                                <Trash2 className='size-3.5' /> Xóa
+                                                                                                        </button>
+                                                                                                )}
+                                                                                        </div>
+                                                                                        <div className='collapse-content space-y-4 border-t border-base-200 pt-4 text-left'>
+                                                                                                <div className='grid gap-4 md:grid-cols-2'>
+                                                                                                        <div className='form-control gap-2'>
+                                                                                                                <span className='label-text text-sm font-medium'>Mã section</span>
+                                                                                                                <input
+                                                                                                                        className={`input input-bordered ${
+                                                                                                                                sectionErrors?.code ? 'input-error' : ''
+                                                                                                                        }`}
+                                                                                                                        placeholder='work'
+                                                                                                                        {...register(`sections.${index}.code` as const)}
+                                                                                                                />
+                                                                                                                {sectionErrors?.code && (
+                                                                                                                        <span className='label-text-alt text-error text-sm'>
+                                                                                                                                {sectionErrors.code.message}
+                                                                                                                        </span>
+                                                                                                                )}
+                                                                                                        </div>
+
+                                                                                                        <div className='form-control gap-2'>
+                                                                                                                <span className='label-text text-sm font-medium'>Tiêu đề section</span>
+                                                                                                                <input
+                                                                                                                        className={`input input-bordered ${
+                                                                                                                                sectionErrors?.title ? 'input-error' : ''
+                                                                                                                        }`}
+                                                                                                                        placeholder='Điều khoản làm việc'
+                                                                                                                        {...register(`sections.${index}.title` as const)}
+                                                                                                                />
+                                                                                                                {sectionErrors?.title && (
+                                                                                                                        <span className='label-text-alt text-error text-sm'>
+                                                                                                                                {sectionErrors.title.message}
+                                                                                                                        </span>
+                                                                                                                )}
+                                                                                                        </div>
+
+                                                                                                        <div className='form-control gap-2'>
+                                                                                                                <span className='label-text text-sm font-medium'>Phiên bản section</span>
+                                                                                                                <input
+                                                                                                                        className='input input-bordered'
+                                                                                                                        placeholder='v1'
+                                                                                                                        {...register(`sections.${index}.version` as const)}
+                                                                                                                />
+                                                                                                                {sectionErrors?.version && (
+                                                                                                                        <span className='label-text-alt text-error text-sm'>
+                                                                                                                                {sectionErrors.version.message}
+                                                                                                                        </span>
+                                                                                                                )}
+                                                                                                        </div>
+
+                                                                                                        <div className='form-control gap-2'>
+                                                                                                                <span className='label-text text-sm font-medium'>Metadata (JSON)</span>
+                                                                                                                <textarea
+                                                                                                                        className={`textarea textarea-bordered min-h-24 ${
+                                                                                                                                sectionErrors?.metadata ? 'textarea-error' : ''
+                                                                                                                        }`}
+                                                                                                                        placeholder='{"provider": "stripe"}'
+                                                                                                                        {...register(`sections.${index}.metadata` as const)}
+                                                                                                                />
+                                                                                                                {sectionErrors?.metadata && (
+                                                                                                                        <span className='label-text-alt text-error text-sm'>
+                                                                                                                                {sectionErrors.metadata.message}
+                                                                                                                        </span>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                </div>
+
+                                                                                                <div className='form-control gap-2'>
+                                                                                                        <span className='label-text text-sm font-medium'>Nội dung section</span>
+                                                                                                        <textarea
+                                                                                                                className={`textarea textarea-bordered min-h-40 font-mono text-sm ${
+                                                                                                                        sectionErrors?.body ? 'textarea-error' : ''
+                                                                                                                }`}
+                                                                                                                placeholder='Mô tả chi tiết điều khoản...'
+                                                                                                                {...register(`sections.${index}.body` as const)}
+                                                                                                        />
+                                                                                                        {sectionErrors?.body && (
+                                                                                                                <span className='label-text-alt text-error text-sm'>
+                                                                                                                        {sectionErrors.body.message}
+                                                                                                                </span>
+                                                                                                        )}
+                                                                                                </div>
+                                                                                        </div>
+                                                                                </div>
+                                                                        )
+                                                                })}
 
                                                                 {fields.length === 0 && (
                                                                         <div className='rounded-xl border border-dashed border-base-300 p-6 text-center text-sm text-base-content/60'>
