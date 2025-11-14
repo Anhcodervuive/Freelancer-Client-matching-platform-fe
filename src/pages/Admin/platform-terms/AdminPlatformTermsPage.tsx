@@ -105,7 +105,7 @@ export default function AdminPlatformTermsPage() {
                 }
         })
 
-        const total = listQuery.data?.meta.total ?? 0
+        const total = listQuery.data?.meta?.total ?? 0
         const items = listQuery.data?.data ?? []
         const pages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit])
 
