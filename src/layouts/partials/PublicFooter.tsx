@@ -1,3 +1,7 @@
+import { Link } from 'react-router-dom'
+
+import { routes } from '~/config/routes'
+
 export default function PublicFooter() {
         return (
                 <footer className='mt-16 border-t border-white/60 bg-slate-900 text-slate-100'>
@@ -61,7 +65,12 @@ export default function PublicFooter() {
                                 <div className='mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-slate-400 md:flex-row md:items-center md:justify-between'>
                                         <p>© {new Date().getFullYear()} Workreap-ish. All rights reserved.</p>
                                         <nav className='flex flex-wrap gap-4'>
-                                                <a className='transition hover:text-white' href='#'>Terms</a>
+                                                <Link
+                                                        className='transition hover:text-white'
+                                                        to={routes.comons.platformTerms}
+                                                >
+                                                        Terms
+                                                </Link>
                                                 <a className='transition hover:text-white' href='#'>Privacy</a>
                                                 <a className='transition hover:text-white' href='#'>Support</a>
                                                 <a className='transition hover:text-white' href='#'>Status</a>

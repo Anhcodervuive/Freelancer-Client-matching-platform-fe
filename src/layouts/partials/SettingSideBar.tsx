@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
@@ -112,6 +112,23 @@ export default function SettingSidebar() {
                                                                 )}
                                                         </li>
                                                 ))}
+                                        </ul>
+                                </div>
+
+                                <div>
+                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Support & legal</p>
+                                        <ul className='mt-3 space-y-2'>
+                                                <li>
+                                                        <Link
+                                                                to={routes.comons.platformTerms}
+                                                                target='_blank'
+                                                                rel='noopener noreferrer'
+                                                                className={`${baseClasses} border-slate-200/70 bg-white/70 text-slate-600 transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary`}
+                                                        >
+                                                                <span>Terms & conditions</span>
+                                                                <span className='text-xs text-slate-400'>↗</span>
+                                                        </Link>
+                                                </li>
                                         </ul>
                                 </div>
                         </nav>

@@ -156,9 +156,12 @@ const SignupForm = () => {
 						/>
 						<label htmlFor='agree-term' className='text-sm text-gray-600 select-none'>
 							I have read and agree to all{' '}
-							<Link to='/' className='text-info underline hover:text-primary'>
-								Terms and conditions
-							</Link>
+                                                        <Link
+                                                                to={routes.comons.platformTerms}
+                                                                className='text-info underline hover:text-primary'
+                                                        >
+                                                                Terms and conditions
+                                                        </Link>
 						</label>
 					</div>
 					<button type='submit' className='btn btn-primary w-full mt-3' disabled={!isAgree}>

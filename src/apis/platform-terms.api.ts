@@ -1,4 +1,4 @@
-import authorizeAxiosInstance from '~/utils/authorizeAxios'
+import publicAxiosInstance from '~/utils/publicAxios'
 import type { PlatformTerm, PlatformTermsListResponse } from '~/types/platform-terms'
 
 const baseUrl = '/platform-terms'
@@ -88,16 +88,16 @@ export const listPublicPlatformTerms = async ({
                 limit: limit.toString()
         })
 
-        const response = await authorizeAxiosInstance.get(`${baseUrl}?${searchParams.toString()}`)
+        const response = await publicAxiosInstance.get(`${baseUrl}?${searchParams.toString()}`)
         return ensureListResponse(response.data, { page, limit })
 }
 
 export const getLatestPlatformTerms = async (): Promise<PlatformTerm> => {
-        const response = await authorizeAxiosInstance.get(`${baseUrl}/latest`)
+        const response = await publicAxiosInstance.get(`${baseUrl}/latest`)
         return unwrapTerm(response.data)
 }
 
 export const getPlatformTermsByVersion = async (version: string): Promise<PlatformTerm> => {
-        const response = await authorizeAxiosInstance.get(`${baseUrl}/${encodeURIComponent(version)}`)
+        const response = await publicAxiosInstance.get(`${baseUrl}/${encodeURIComponent(version)}`)
         return unwrapTerm(response.data)
 }
