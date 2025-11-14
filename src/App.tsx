@@ -54,6 +54,7 @@ import ArbitratorDisputeDetailPage from './pages/Arbitrator/DisputeDetailPage'
 import OnboardingWizard from './pages/onBoarding/OnboardingWizard'
 import PolicyLayout from './layouts/PolicyLayout'
 import ConnectAccountPolicyPage from './pages/Comons/policies/ConnectAccountPolicyPage'
+import PlatformTermsPage from './pages/Comons/PlatformTerms/PlatformTermsPage'
 import PostJobWizard from './pages/Client/PostJob/PostJobWizard'
 import JobPostListPage from './pages/Client/JobPosts/JobPostListPage'
 import JobPostDetailPage from './pages/Client/JobPosts/JobPostDetailPage'
@@ -97,9 +98,13 @@ const router = createBrowserRouter([
 	{
 		element: <CommonLayout />,
 		children: [
-			{
-				path: routes.comons.home,
-				element: <HomePage />
+                        {
+                                path: routes.comons.home,
+                                element: <HomePage />
+                        },
+                        {
+                                path: routes.comons.platformTerms,
+                                element: <PlatformTermsPage />
                         },
                         {
                                 path: routes.contracts.list,

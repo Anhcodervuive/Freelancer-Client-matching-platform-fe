@@ -3,6 +3,7 @@ export const routes = {
                 home: '/',
                 onboarding: '/onboarding',
                 chat: '/chat',
+                platformTerms: '/platform-terms',
                 freelancerProfile: (id?: string) => `/freelancer/${id || ''}`,
                 policies: {
                         root: '/policies',
