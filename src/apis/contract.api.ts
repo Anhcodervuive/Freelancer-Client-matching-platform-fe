@@ -17,7 +17,8 @@ import type {
         RespondMilestoneCancellationInput,
         SubmitContractFeedbackInput,
         UpdateContractFeedbackInput,
-        SubmitMilestoneWorkInput
+        SubmitMilestoneWorkInput,
+        AcceptContractTermsInput
 } from '~/types/contract'
 import type {
         CreateDisputeNegotiationInput,
@@ -469,8 +470,20 @@ export const listContracts = async (
 }
 
 export const getContractDetail = async (contractId: string): Promise<Contract> => {
-	const response = await authorizeAxiosInstance.get<Contract>(`${baseUrl}/${contractId}`)
-	return response.data
+        const response = await authorizeAxiosInstance.get<Contract>(`${baseUrl}/${contractId}`)
+        return response.data
+}
+
+export const acceptContractTerms = async (
+        contractId: string,
+        payload: AcceptContractTermsInput
+): Promise<Contract> => {
+        const response = await authorizeAxiosInstance.post<Contract>(
+                `${baseUrl}/${contractId}/terms/accept`,
+                payload
+        )
+
+        return response.data
 }
 
 const extractMilestones = (value: unknown): ContractMilestone[] | undefined => {

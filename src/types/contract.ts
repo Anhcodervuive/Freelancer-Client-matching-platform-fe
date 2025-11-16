@@ -1,4 +1,39 @@
 import type { SerializedProfile } from './profile'
+import type { PlatformTermsBody, PlatformTermsSection } from './platform-terms'
+
+export type ContractPlatformTermsSnapshot = {
+        id?: string | null
+        title?: string | null
+        version?: string | null
+        status?: string | null
+        effectiveFrom?: string | null
+        effectiveTo?: string | null
+        body?: PlatformTermsBody
+        sections?: PlatformTermsSection[]
+        [key: string]: unknown
+} | null
+
+export type ContractAcceptanceLog = {
+        id?: string
+        type?: string | null
+        action?: string | null
+        event?: string | null
+        kind?: string | null
+        status?: string | null
+        createdAt?: string | null
+        actorId?: string | null
+        actorRole?: string | null
+        userId?: string | null
+        userRole?: string | null
+        metadata?: Record<string, unknown> | null
+        data?: Record<string, unknown> | null
+        [key: string]: unknown
+}
+
+export type AcceptContractTermsInput = {
+        termsVersion: string
+        userAgent?: string
+}
 
 export type ContractRole = 'client' | 'freelancer'
 
@@ -205,6 +240,13 @@ export type Contract = {
         viewerFeedback?: ContractFeedback | null
         viewerCanSubmitFeedback?: boolean | null
         viewerSubmittedFeedbackAt?: string | null
+        platformTermsVersion?: string | null
+        platformTermsSnapshot?: ContractPlatformTermsSnapshot
+        termsAcceptedAt?: string | null
+        termsAcceptedById?: string | null
+        termsAcceptedIp?: string | null
+        termsAcceptedUserAgent?: string | null
+        acceptanceLogs?: ContractAcceptanceLog[] | null
         [key: string]: unknown
 }
 

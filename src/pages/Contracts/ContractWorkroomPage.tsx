@@ -51,8 +51,10 @@ import {
         submitContractFeedback,
         listContractFeedbacks,
         updateContractFeedback,
-        deleteContractFeedback
+        deleteContractFeedback,
+        acceptContractTerms
 } from '~/apis/contract.api'
+import TermsSectionBody from '~/components/TermsSectionBody'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
@@ -69,6 +71,7 @@ import type {
 } from '~/types/contract'
 import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
+import type { PlatformTermsSection } from '~/types/platform-terms'
 import { formatCurrency, formatDateTime, formatFileSize, formatFileType } from '~/utils/format'
 import { normalizeAttachments, type NormalizedAttachment } from '~/utils/jobPost'
 import { extractPaymentErrorMessage, extractPaymentMeta } from '~/utils/payment'
@@ -112,6 +115,7 @@ type ViewerRole = 'client' | 'freelancer' | 'all'
 const MILESTONES_PER_PAGE = 4
 const FEEDBACK_EDIT_WINDOW_MS = 2 * 24 * 60 * 60 * 1000
 const FINALIZED_CONTRACT_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'ENDED', 'CLOSED'])
+const CONTRACT_READY_STATUSES = new Set(['ACTIVE', 'IN_PROGRESS', 'PAUSED'])
 
 const extractErrorMessage = (value: unknown): string | null => {
         if (!value) {
@@ -416,7 +420,8 @@ const ContractWorkroomPage = () => {
         }, [queryTab])
         const [activeTab, setActiveTab] = useState<TabId>(resolvedTab)
         const [milestonePage, setMilestonePage] = useState(1)
-	const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
+        const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
+        const [isTermsExpanded, setTermsExpanded] = useState(false)
         const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
         const [resourceToDelete, setResourceToDelete] = useState<{
                 milestone: ContractMilestone
@@ -452,6 +457,12 @@ const ContractWorkroomPage = () => {
                 setActiveTab(resolvedTab)
         }, [resolvedTab, activeTab])
 
+        useEffect(() => {
+                if (!isAwaitingTermsAcceptance && isTermsExpanded) {
+                        setTermsExpanded(false)
+                }
+        }, [isAwaitingTermsAcceptance, isTermsExpanded])
+
         const handleTabChange = (tabId: TabId) => {
                 setActiveTab(tabId)
                 setSearchParams(previous => {
@@ -481,6 +492,37 @@ const ContractWorkroomPage = () => {
                 return typeof status === 'string' ? status.toUpperCase() : String(status).toUpperCase()
         }, [contract?.status])
         const isContractFinalized = FINALIZED_CONTRACT_STATUSES.has(normalizedContractStatus)
+        const resolveString = (value?: string | null) => {
+                if (typeof value !== 'string') return null
+                const trimmed = value.trim()
+                return trimmed.length ? trimmed : null
+        }
+        const termsSnapshot = contract?.platformTermsSnapshot ?? null
+        const termsVersion = resolveString(contract?.platformTermsVersion) ?? resolveString(termsSnapshot?.version)
+        const termsTitle = resolveString(termsSnapshot?.title)
+        const termsStatus = resolveString(termsSnapshot?.status)
+        const termsPrimaryBody = termsSnapshot?.body ?? null
+        const termsSections = useMemo<PlatformTermsSection[]>(() => {
+                if (!termsSnapshot) return []
+                if (Array.isArray(termsSnapshot.sections)) {
+                        return termsSnapshot.sections.filter(Boolean) as PlatformTermsSection[]
+                }
+                if (termsSnapshot.body && typeof termsSnapshot.body === 'object') {
+                        const maybeSections = (termsSnapshot.body as Record<string, unknown>).sections
+                        if (Array.isArray(maybeSections)) {
+                                return maybeSections.filter(Boolean) as PlatformTermsSection[]
+                        }
+                }
+                return []
+        }, [termsSnapshot])
+        const hasTermsSnapshot = Boolean(termsSnapshot && (termsVersion || termsPrimaryBody || termsSections.length))
+        const isContractReadyForWork = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
+        const isAwaitingTermsAcceptance = hasTermsSnapshot && normalizedContractStatus === 'DRAFT'
+        const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isContractReadyForWork
+        const contractSetupLocked = !isContractReadyForWork && !isContractFinalized
+        const termsEffectiveFromText = termsSnapshot?.effectiveFrom
+                ? formatDateTime(termsSnapshot.effectiveFrom, { dateStyle: 'long' })
+                : null
 
         const feedbackQuery = useQuery({
                 queryKey: ['contract-feedbacks', contractId],
@@ -541,11 +583,38 @@ const ContractWorkroomPage = () => {
 		}
 	}, [milestonePage, milestoneQuery.data])
 
-	const paymentMethodsQuery = useQuery({
-		queryKey: ['payment-methods'],
-		queryFn: () => getAllPaymentMethod() as Promise<PaymentMethod[]>,
-		enabled: viewerRole === 'client'
-	})
+        const paymentMethodsQuery = useQuery({
+                queryKey: ['payment-methods'],
+                queryFn: () => getAllPaymentMethod() as Promise<PaymentMethod[]>,
+                enabled: viewerRole === 'client'
+        })
+
+        const acceptTermsMutation = useMutation({
+                mutationFn: async () => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        if (!termsVersion) throw new Error('Missing terms version')
+
+                        const userAgent =
+                                typeof navigator !== 'undefined' && navigator.userAgent
+                                        ? navigator.userAgent
+                                        : undefined
+
+                        return acceptContractTerms(contractId, {
+                                termsVersion,
+                                userAgent
+                        })
+                },
+                onSuccess: () => {
+                        toast.success('Đã ghi nhận việc bạn đồng ý điều khoản nền tảng.')
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: error => {
+                        const message =
+                                extractErrorMessage(error) ||
+                                'Không thể ghi nhận việc đồng ý điều khoản. Vui lòng thử lại.'
+                        toast.error(message)
+                }
+        })
 
 	const createMilestoneMutation = useMutation<
 		{ milestone: ContractMilestone; attachmentError: unknown },
@@ -1206,6 +1275,11 @@ const ContractWorkroomPage = () => {
 	}
 
         const handleMilestoneAttachmentUpload = (milestoneId: string, files: FileList | File[]) => {
+                if (!isContractReadyForWork) {
+                        toast.warning('Hợp đồng chưa sẵn sàng để cập nhật tệp đính kèm.')
+                        return
+                }
+
                 if (!files || uploadMilestoneAttachmentsMutation.isPending || isContractFinalized) return
 
                 const normalizedFiles = Array.from(files).filter((file): file is File => file instanceof File)
@@ -1675,35 +1749,55 @@ const ContractWorkroomPage = () => {
 			approveMilestoneSubmissionMutation.isPending || declineMilestoneSubmissionMutation.isPending
 		const isFundingMilestone = payMilestoneMutation.isPending
 		const totalMilestones = milestones.length
-		const totalPages = Math.max(1, Math.ceil(totalMilestones / MILESTONES_PER_PAGE))
-		const currentPage = Math.min(milestonePage, totalPages)
-		const pageStart = (currentPage - 1) * MILESTONES_PER_PAGE
-		const pageEnd = Math.min(pageStart + MILESTONES_PER_PAGE, totalMilestones)
-		const visibleMilestones = milestones.slice(pageStart, pageEnd)
-		const displayStart = totalMilestones ? pageStart + 1 : 0
-		const displayEnd = pageEnd
-		if (!milestones.length) {
-			return (
-				<div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
-					<Flag className='mx-auto mb-3 size-8 text-primary' />
-					<p className='text-base font-semibold text-slate-700'>Chưa có milestone nào</p>
-					<p className='mt-2 text-sm text-slate-500'>Tạo milestones để chia nhỏ công việc và giải ngân theo tiến độ.</p>
-                                        {viewerRole === 'client' && !isContractFinalized && (
+                const totalPages = Math.max(1, Math.ceil(totalMilestones / MILESTONES_PER_PAGE))
+                const currentPage = Math.min(milestonePage, totalPages)
+                const pageStart = (currentPage - 1) * MILESTONES_PER_PAGE
+                const pageEnd = Math.min(pageStart + MILESTONES_PER_PAGE, totalMilestones)
+                const visibleMilestones = milestones.slice(pageStart, pageEnd)
+                const displayStart = totalMilestones ? pageStart + 1 : 0
+                const displayEnd = pageEnd
+                const milestoneActionLocked = contractSetupLocked
+                const milestoneLockDescription = isAwaitingTermsAcceptance
+                        ? 'Bạn cần đồng ý điều khoản nền tảng đã đính kèm trước khi tạo hoặc cập nhật milestones.'
+                        : `Hợp đồng đang ở trạng thái ${statusMeta.label.toLowerCase()} nên chưa thể thao tác với milestones cho đến khi được kích hoạt lại.`
+                if (!milestones.length) {
+                        return (
+                                <div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
+                                        <Flag className='mx-auto mb-3 size-8 text-primary' />
+                                        <p className='text-base font-semibold text-slate-700'>Chưa có milestone nào</p>
+                                        <p className='mt-2 text-sm text-slate-500'>Tạo milestones để chia nhỏ công việc và giải ngân theo tiến độ.</p>
+                                        {milestoneActionLocked ? (
+                                                <p className='mt-4 text-xs text-amber-600'>{milestoneLockDescription}</p>
+                                        ) : (
                                                 <button
                                                         type='button'
-                                                        onClick={() => setCreateMilestoneOpen(true)}
+                                                        onClick={() => {
+                                                                if (!viewerCanManageMilestones) return
+                                                                setCreateMilestoneOpen(true)
+                                                        }}
                                                         className='mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-                                                        disabled={createMilestoneMutation.isPending || isContractFinalized}>
+                                                        disabled={createMilestoneMutation.isPending || !viewerCanManageMilestones}>
                                                         <Flag className='size-4' /> Tạo milestone
                                                 </button>
                                         )}
-				</div>
-			)
-		}
+                                </div>
+                        )
+                }
 
-		return (
-			<div className='space-y-6'>
-				{viewerRole === 'client' && pendingReviewMilestones.length > 0 && (
+                return (
+                        <div className='space-y-6'>
+                                {milestoneActionLocked && (
+                                        <div className='rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-800'>
+                                                <div className='flex items-start gap-3'>
+                                                        <AlertTriangle className='mt-1 size-4 flex-shrink-0 text-amber-600' />
+                                                        <div>
+                                                                <p className='font-semibold text-amber-900'>Hợp đồng chưa sẵn sàng quản lý milestones</p>
+                                                                <p className='mt-1 text-sm'>{milestoneLockDescription}</p>
+                                                        </div>
+                                                </div>
+                                        </div>
+                                )}
+                                {viewerRole === 'client' && pendingReviewMilestones.length > 0 && (
 					<div className='space-y-4 rounded-[24px] border border-sky-200/80 bg-sky-50/80 p-5 shadow-inner shadow-white/60'>
 						<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
 							<div>
@@ -1835,12 +1929,15 @@ const ContractWorkroomPage = () => {
 								Trang {currentPage}/{totalPages}
 							</span>
 						)}
-                                                {viewerRole === 'client' && !isContractFinalized && (
+                                                {viewerCanManageMilestones && (
                                                         <button
                                                                 type='button'
-                                                                onClick={() => setCreateMilestoneOpen(true)}
+                                                                onClick={() => {
+                                                                        if (!viewerCanManageMilestones) return
+                                                                        setCreateMilestoneOpen(true)
+                                                                }}
                                                                 className='inline-flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-                                                                disabled={createMilestoneMutation.isPending || isContractFinalized}>
+                                                                disabled={createMilestoneMutation.isPending || !viewerCanManageMilestones}>
                                                                 {createMilestoneMutation.isPending ? (
                                                                         <>
                                                                                 <Loader2 className='size-4 animate-spin' />
@@ -1934,6 +2031,7 @@ const ContractWorkroomPage = () => {
                                                         respondMilestoneCancellationMutation.variables?.action
                                                 const canSubmitWork =
                                                         viewerRole === 'freelancer' &&
+                                                        isContractReadyForWork &&
                                                         !isContractFinalized &&
                                                         !isMilestoneReleased &&
                                                         normalizedMilestoneStatus !== 'CANCELLED' &&
@@ -2529,11 +2627,11 @@ const ContractWorkroomPage = () => {
 										</button>
 										{isAttachmentsExpanded ? (
 											<div className='mt-4 space-y-4'>
-                                                                                                {viewerRole === 'client' && !isContractFinalized && (
+                                                                                                {viewerCanManageMilestones && (
                                                                                                         <div className='space-y-2 rounded-xl border border-dashed border-slate-200/80 bg-white/60 p-4 text-center'>
-														<input
-															id={`milestone-upload-${milestone.id}`}
-															type='file'
+                                                                                                                <input
+                                                                                                                        id={`milestone-upload-${milestone.id}`}
+                                                                                                                        type='file'
 															multiple
 															className='hidden'
 															onChange={event => handleMilestoneAttachmentFileChange(milestone.id, event)}
@@ -2543,9 +2641,9 @@ const ContractWorkroomPage = () => {
 															htmlFor={`milestone-upload-${milestone.id}`}
 															onDrop={event => handleMilestoneAttachmentDrop(milestone.id, event)}
 															onDragOver={handleMilestoneAttachmentDragOver}
-															className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300/80 bg-white/70 px-4 py-6 transition hover:border-primary/40 hover:bg-primary/5 ${
-																uploadMilestoneAttachmentsMutation.isPending ? 'pointer-events-none opacity-60' : ''
-															}`}>
+                                                                                                                        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300/80 bg-white/70 px-4 py-6 transition hover:border-primary/40 hover:bg-primary/5 ${
+                                                                                                                               uploadMilestoneAttachmentsMutation.isPending ? 'pointer-events-none opacity-60' : ''
+                                                                                                                        }`}>
 															{uploadMilestoneAttachmentsMutation.isPending &&
 															uploadMilestoneAttachmentsMutation.variables?.milestoneId === milestone.id ? (
 																<>
@@ -2591,7 +2689,7 @@ const ContractWorkroomPage = () => {
 																typeLabel,
 																uploadedLabel ? `Tải lên ${uploadedLabel}` : undefined
 															].filter((value): value is string => Boolean(value))
-                                                                                                                        const canDeleteResource = Boolean(resourceId) && viewerRole === 'client' && !isContractFinalized
+                                                                                                                        const canDeleteResource = Boolean(resourceId) && viewerCanManageMilestones
 															const isDeletingResource =
 																deleteMilestoneResourceMutation.isPending &&
 																deleteMilestoneResourceMutation.variables?.resourceId === resourceId
@@ -2909,8 +3007,8 @@ const ContractWorkroomPage = () => {
 
 	return (
 		<div className='space-y-8'>
-			<div className='flex flex-col gap-4 rounded-[38px] border border-white/60 bg-gradient-to-br from-primary/10 via-white to-secondary/20 p-6 shadow-[0_30px_110px_rgba(15,23,42,0.1)] md:flex-row md:items-center md:justify-between md:p-10'>
-				<div className='space-y-4'>
+                        <div className='flex flex-col gap-4 rounded-[38px] border border-white/60 bg-gradient-to-br from-primary/10 via-white to-secondary/20 p-6 shadow-[0_30px_110px_rgba(15,23,42,0.1)] md:flex-row md:items-center md:justify-between md:p-10'>
+                                <div className='space-y-4'>
 					<button
 						type='button'
 						onClick={() => navigate(-1)}
@@ -3005,9 +3103,112 @@ const ContractWorkroomPage = () => {
                                         </div>
                                         {budgetSummary && <p className='text-sm text-slate-600'>Tổng quan: {budgetSummary}</p>}
                                 </div>
-			</div>
+                        </div>
 
-			<nav className='flex flex-wrap items-center gap-2 rounded-[28px] border border-white/70 bg-white/85 p-2 shadow-[0_20px_60px_rgba(15,23,42,0.08)]'>
+                        {isAwaitingTermsAcceptance && (
+                                <section className='space-y-4 rounded-[32px] border border-amber-200 bg-amber-50/70 p-6 text-amber-900 shadow-inner shadow-amber-100'>
+                                        <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+                                                <div className='space-y-3'>
+                                                        <p className='text-[11px] font-semibold uppercase tracking-[0.35em] text-amber-600'>
+                                                                Cần xác nhận điều khoản
+                                                        </p>
+                                                        <div className='space-y-2'>
+                                                                <h2 className='text-xl font-semibold text-amber-900'>
+                                                                        {termsTitle || 'Khóa điều khoản nền tảng trước khi bắt đầu'}
+                                                                </h2>
+                                                                <p className='text-sm text-amber-800'>
+                                                                        Hợp đồng đang ở trạng thái nháp. Vui lòng xem bộ điều khoản đã đính kèm và xác nhận để tiếp tục tạo milestones cũng như bắt đầu công việc.
+                                                                </p>
+                                                        </div>
+                                                        <dl className='flex flex-wrap gap-4 text-xs text-amber-700'>
+                                                                {termsVersion && (
+                                                                        <div>
+                                                                                <dt className='font-semibold uppercase tracking-[0.35em] text-amber-500'>Phiên bản</dt>
+                                                                                <dd className='text-sm text-amber-900'>{termsVersion}</dd>
+                                                                        </div>
+                                                                )}
+                                                                {termsStatus && (
+                                                                        <div>
+                                                                                <dt className='font-semibold uppercase tracking-[0.35em] text-amber-500'>Trạng thái</dt>
+                                                                                <dd className='text-sm text-amber-900'>{termsStatus}</dd>
+                                                                        </div>
+                                                                )}
+                                                                {termsEffectiveFromText && (
+                                                                        <div>
+                                                                                <dt className='font-semibold uppercase tracking-[0.35em] text-amber-500'>Hiệu lực</dt>
+                                                                                <dd className='text-sm text-amber-900'>Từ {termsEffectiveFromText}</dd>
+                                                                        </div>
+                                                                )}
+                                                        </dl>
+                                                </div>
+                                                <div className='flex w-full flex-col gap-2 sm:w-auto'>
+                                                        <button
+                                                                type='button'
+                                                                className='btn btn-warning btn-sm gap-2 rounded-full px-5 text-warning-foreground'
+                                                                onClick={() => {
+                                                                        if (acceptTermsMutation.isPending || !termsVersion) return
+                                                                        acceptTermsMutation.mutate()
+                                                                }}
+                                                                disabled={acceptTermsMutation.isPending || !termsVersion}>
+                                                                {acceptTermsMutation.isPending ? (
+                                                                        <>
+                                                                                <Loader2 className='size-4 animate-spin' /> Đang xác nhận...
+                                                                        </>
+                                                                ) : (
+                                                                        <>
+                                                                                <ShieldCheck className='size-4' /> Tôi đã đọc và đồng ý điều khoản này
+                                                                        </>
+                                                                )}
+                                                        </button>
+                                                        <button
+                                                                type='button'
+                                                                className='inline-flex items-center justify-center gap-2 rounded-full border border-amber-200/60 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:border-amber-300 hover:bg-white/40'
+                                                                onClick={() => setTermsExpanded(prev => !prev)}>
+                                                                {isTermsExpanded ? 'Thu gọn nội dung điều khoản' : 'Xem điều khoản đính kèm'}
+                                                        </button>
+                                                </div>
+                                        </div>
+                                        {isTermsExpanded && (
+                                                <div className='rounded-2xl border border-amber-200/80 bg-white/95 p-4 text-slate-700'>
+                                                        {termsSections.length ? (
+                                                                <div className='space-y-8'>
+                                                                        {termsSections.map((section, index) => (
+                                                                                <article
+                                                                                        key={`${section.code ?? section.title ?? 'section'}-${index}`}
+                                                                                        className='space-y-3 border-b border-slate-200 pb-6 last:border-b-0 last:pb-0'>
+                                                                                        <div className='text-xs font-semibold uppercase tracking-[0.35em] text-amber-500'>
+                                                                                                Section {index + 1}
+                                                                                        </div>
+                                                                                        <h3 className='text-base font-semibold text-slate-900'>
+                                                                                                {section.title || section.code || `Section ${index + 1}`}
+                                                                                        </h3>
+                                                                                        <TermsSectionBody body={section.body} />
+                                                                                </article>
+                                                                        ))}
+                                                                </div>
+                                                        ) : (
+                                                                <TermsSectionBody body={termsPrimaryBody} />
+                                                        )}
+                                                </div>
+                                        )}
+                                </section>
+                        )}
+
+                        {!isAwaitingTermsAcceptance && contractSetupLocked && (
+                                <div className='rounded-[28px] border border-slate-200 bg-slate-50/80 p-5 text-sm text-slate-600 shadow-inner shadow-white/40'>
+                                        <div className='flex items-start gap-3'>
+                                                <AlertTriangle className='mt-0.5 size-4 text-slate-500' />
+                                                <div>
+                                                        <p className='font-semibold text-slate-800'>Hợp đồng đang chờ kích hoạt</p>
+                                                        <p className='mt-1 text-sm text-slate-600'>
+                                                                Trạng thái hiện tại: {statusMeta.label}. Chúng tôi sẽ thông báo ngay khi Workroom sẵn sàng để tạo milestone và bắt đầu công việc.
+                                                        </p>
+                                                </div>
+                                        </div>
+                                </div>
+                        )}
+
+                        <nav className='flex flex-wrap items-center gap-2 rounded-[28px] border border-white/70 bg-white/85 p-2 shadow-[0_20px_60px_rgba(15,23,42,0.08)]'>
                                 {tabs.map(tab => {
                                         const Icon = tab.icon
                                         const isActive = activeTab === tab.id
@@ -3040,7 +3241,7 @@ const ContractWorkroomPage = () => {
                                 currency={currency}
                                 isSubmitting={createMilestoneMutation.isPending}
                                 onSubmit={(values, attachments) => {
-                                        if (isContractFinalized) return
+                                        if (isContractFinalized || !isContractReadyForWork) return
                                         return createMilestoneMutation.mutateAsync({ values, attachments })
                                 }}
                                 onClose={() => setCreateMilestoneOpen(false)}
