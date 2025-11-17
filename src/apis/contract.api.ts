@@ -492,7 +492,7 @@ export const triggerContractSignatureEnvelope = async (
         payload: TriggerContractSignatureEnvelopeInput
 ): Promise<Contract> => {
         const response = await authorizeAxiosInstance.post<Contract>(
-                `${baseUrl}/${contractId}/signature/send`,
+                `${baseUrl}/${contractId}/signatures/docusign/send`,
                 payload
         )
 
