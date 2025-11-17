@@ -58,6 +58,7 @@ import {
 } from '~/apis/contract.api'
 import TermsSectionBody from '~/components/TermsSectionBody'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
+import { getLatestPlatformTerms } from '~/apis/platform-terms.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
@@ -68,6 +69,7 @@ import type {
         ContractMilestone,
         ContractMilestoneSubmission,
         ContractMilestoneResource,
+        ContractPlatformTermsSnapshot,
         CreateContractMilestoneInput,
         PayContractMilestoneInput,
         PayContractMilestoneResponse,
@@ -733,11 +735,50 @@ const ContractWorkroomPage = () => {
                 const trimmed = value.trim()
                 return trimmed.length ? trimmed : null
         }
-        const termsSnapshot = contractTerms?.platformTermsSnapshot ?? contract?.platformTermsSnapshot ?? null
-        const termsVersion =
+        const termsAcceptedAt = contractTerms?.termsAcceptedAt ?? contract?.termsAcceptedAt ?? null
+        const termsAcceptedBy = contractTerms?.termsAcceptedBy ?? contract?.termsAcceptedBy
+        const termsAcceptedIp = contractTerms?.termsAcceptedIp ?? contract?.termsAcceptedIp ?? null
+        const clientAcceptedAt = contractTerms?.clientAcceptedAt ?? contract?.clientAcceptedAt ?? null
+        const clientAcceptedBy = contractTerms?.clientAcceptedBy ?? contract?.clientAcceptedBy
+        const clientAcceptedIp = contractTerms?.clientAcceptedIp ?? contract?.clientAcceptedIp ?? null
+        const isAwaitingTermsAcceptance = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
+        const latestPlatformTermsQuery = useQuery({
+                queryKey: ['platform-terms', 'latest'],
+                queryFn: () => getLatestPlatformTerms(),
+                enabled: isAwaitingTermsAcceptance
+        })
+        const latestPlatformTerms = latestPlatformTermsQuery.data ?? null
+        const latestTermsSnapshot = useMemo<ContractPlatformTermsSnapshot | null>(() => {
+                if (!latestPlatformTerms) return null
+                const body = latestPlatformTerms.body ?? null
+                const sections =
+                        body && typeof body === 'object' && Array.isArray(body.sections)
+                                ? (body.sections.filter(Boolean) as PlatformTermsSection[])
+                                : undefined
+
+                return {
+                        id: latestPlatformTerms.id,
+                        version: latestPlatformTerms.version,
+                        title: latestPlatformTerms.title,
+                        status: latestPlatformTerms.status,
+                        effectiveFrom: latestPlatformTerms.effectiveFrom,
+                        effectiveTo: latestPlatformTerms.effectiveTo,
+                        body,
+                        sections
+                }
+        }, [latestPlatformTerms])
+        const storedTermsSnapshot = contractTerms?.platformTermsSnapshot ?? contract?.platformTermsSnapshot ?? null
+        const termsSnapshot = isAwaitingTermsAcceptance
+                ? latestTermsSnapshot
+                : storedTermsSnapshot || latestTermsSnapshot || null
+        const storedTermsVersion =
                 resolveString(contractTerms?.platformTermsVersion) ??
                 resolveString(contract?.platformTermsVersion) ??
-                resolveString(termsSnapshot?.version)
+                resolveString(storedTermsSnapshot?.version)
+        const pendingTermsVersion = resolveString(latestPlatformTerms?.version)
+        const termsVersion = isAwaitingTermsAcceptance
+                ? pendingTermsVersion ?? null
+                : storedTermsVersion ?? pendingTermsVersion ?? resolveString(termsSnapshot?.version)
         const termsTitle = resolveString(termsSnapshot?.title)
         const termsStatus = resolveString(termsSnapshot?.status)
         const termsPrimaryBody = termsSnapshot?.body ?? null
@@ -756,12 +797,6 @@ const ContractWorkroomPage = () => {
         }, [termsSnapshot])
         const hasTermsContent = Boolean(termsVersion || termsPrimaryBody || termsSections.length)
         const platformTermsId = contractTerms?.platformTermsId ?? contract?.platformTermsId ?? null
-        const termsAcceptedAt = contractTerms?.termsAcceptedAt ?? contract?.termsAcceptedAt ?? null
-        const termsAcceptedBy = contractTerms?.termsAcceptedBy ?? contract?.termsAcceptedBy
-        const termsAcceptedIp = contractTerms?.termsAcceptedIp ?? contract?.termsAcceptedIp ?? null
-        const clientAcceptedAt = contractTerms?.clientAcceptedAt ?? contract?.clientAcceptedAt ?? null
-        const clientAcceptedBy = contractTerms?.clientAcceptedBy ?? contract?.clientAcceptedBy
-        const clientAcceptedIp = contractTerms?.clientAcceptedIp ?? contract?.clientAcceptedIp ?? null
         const acceptanceLogs = useMemo(() => {
                 const logs = contractTerms?.acceptanceLogs ?? contract?.acceptanceLogs ?? []
                 return Array.isArray(logs) ? (logs.filter(Boolean) as ContractAcceptanceLog[]) : []
@@ -774,7 +809,6 @@ const ContractWorkroomPage = () => {
                         normalizedContractStatus === 'DRAFT'
         )
         const isContractReadyForWork = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
-        const isAwaitingTermsAcceptance = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
         const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isContractReadyForWork
         const contractSetupLocked = !isContractReadyForWork && !isContractFinalized
         const termsEffectiveFromText = termsSnapshot?.effectiveFrom
@@ -3521,6 +3555,12 @@ const ContractWorkroomPage = () => {
                                                                                           ? 'Đây là bộ điều khoản đã được đính kèm cho hợp đồng này. Nội dung đã được khóa lại để đảm bảo hai bên tham chiếu cùng một phiên bản.'
                                                                                           : 'Hệ thống chưa tải được nội dung chi tiết của snapshot, nhưng chúng tôi vẫn giữ nguyên mã phiên bản để đảm bảo tính nhất quán.'}
                                                                 </p>
+                                                                {isAwaitingTermsAcceptance && latestPlatformTermsQuery.isLoading && (
+                                                                        <p className='text-xs text-amber-700'>Hệ thống đang tải phiên bản điều khoản nền tảng mới nhất...</p>
+                                                                )}
+                                                                {isAwaitingTermsAcceptance && latestPlatformTermsQuery.isError && (
+                                                                        <p className='text-xs text-rose-600'>Không thể tải điều khoản mới nhất. Vui lòng tải lại trang trước khi xác nhận.</p>
+                                                                )}
                                                         </div>
                                                         <dl className={`flex flex-wrap gap-4 text-xs ${isAwaitingTermsAcceptance ? 'text-amber-700' : 'text-slate-600'}`}>
                                                                 {termsVersion && (
