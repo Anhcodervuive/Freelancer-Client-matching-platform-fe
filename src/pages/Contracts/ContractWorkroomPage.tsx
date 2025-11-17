@@ -832,21 +832,21 @@ const ContractWorkroomPage = () => {
                 viewerRole === 'client' && !isContractFinalized && !isAwaitingTermsAcceptance && shouldShowSignatureSection
         const handleSignatureSend = () => {
                 if (triggerSignatureMutation.isPending) return
-                triggerSignatureMutation.mutate({})
+                triggerSignatureMutation.mutate({ forceResend: true })
         }
         const handleSignatureResendSubmit = () => {
                 if (triggerSignatureMutation.isPending) return
                 const reason = signatureResendReason.trim()
-                if (!reason) {
-                        setSignatureResendError('Vui lòng nhập lý do gửi lại phong bì DocuSign.')
-                        return
-                }
                 if (reason.length > 500) {
                         setSignatureResendError('Lý do gửi lại không được vượt quá 500 ký tự.')
                         return
                 }
                 setSignatureResendError(null)
-                triggerSignatureMutation.mutate({ forceResend: true, resendReason: reason })
+                const payload: TriggerContractSignatureEnvelopeInput = { forceResend: true }
+                if (reason) {
+                        payload.resendReason = reason
+                }
+                triggerSignatureMutation.mutate(payload)
         }
 
         useEffect(() => {
