@@ -1,5 +1,5 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FocusEvent } from 'react'
 import { useSelector } from 'react-redux'
 import { selectCurrentUser } from '~/redux/user/userSlice'
 import NotificationDropdown from './NotificationDropdown'
@@ -39,22 +39,29 @@ const findWorkMenuItems = [
 ]
 
 export default function FreelancerNavbar() {
-	const [open, setOpen] = useState(false)
-	const [findWorkOpen, setFindWorkOpen] = useState(false)
-	const [mobileFindWorkOpen, setMobileFindWorkOpen] = useState(false)
-	const user = useSelector(selectCurrentUser)
-	const location = useLocation()
+        const [open, setOpen] = useState(false)
+        const [findWorkOpen, setFindWorkOpen] = useState(false)
+        const [mobileFindWorkOpen, setMobileFindWorkOpen] = useState(false)
+        const user = useSelector(selectCurrentUser)
+        const location = useLocation()
 
         const nameParts = [user?.firstName, user?.lastName].filter((part): part is string => Boolean(part && part.trim()))
         const fullName = nameParts.join(' ') || user?.email || 'Freelancer'
         const findWorkPaths = findWorkMenuItems.map(item => item.to)
         const isFindWorkActive = findWorkPaths.some(path => location.pathname.startsWith(path))
 
-	useEffect(() => {
-		setFindWorkOpen(false)
-		setMobileFindWorkOpen(false)
-		setOpen(false)
-	}, [location.pathname])
+        useEffect(() => {
+                setFindWorkOpen(false)
+                setMobileFindWorkOpen(false)
+                setOpen(false)
+        }, [location.pathname])
+
+        const handleFindWorkBlur = (event: FocusEvent<HTMLDivElement>) => {
+                const nextFocusTarget = event.relatedTarget as Node | null
+                if (!event.currentTarget.contains(nextFocusTarget)) {
+                        setFindWorkOpen(false)
+                }
+        }
 
 	return (
 		<header className='sticky top-0 z-40 border-b border-white/60 bg-white/85 backdrop-blur-xl shadow-[0_10px_40px_rgba(15,23,42,0.1)]'>
@@ -67,39 +74,43 @@ export default function FreelancerNavbar() {
 				</Link>
 
 				<nav className='hidden flex-1 items-center gap-1 text-sm font-medium text-slate-600 md:flex'>
-					<div
-						className='relative'
-						onMouseEnter={() => setFindWorkOpen(true)}
-						onMouseLeave={() => setFindWorkOpen(false)}>
-						<button
-							type='button'
-							onClick={() => setFindWorkOpen(prev => !prev)}
-							className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 transition hover:bg-primary/10 hover:text-primary ${
-								isFindWorkActive ? 'bg-primary/10 text-primary' : ''
-							}`}
-							aria-haspopup='true'
-							aria-expanded={findWorkOpen}>
-							Find Work
-							<ChevronDown className={`size-4 transition-transform ${findWorkOpen ? 'rotate-180' : ''}`} />
-						</button>
+                                        <div
+                                                className='relative'
+                                                onMouseEnter={() => setFindWorkOpen(true)}
+                                                onMouseLeave={() => setFindWorkOpen(false)}
+                                                onFocusCapture={() => setFindWorkOpen(true)}
+                                                onBlurCapture={handleFindWorkBlur}>
+                                                <button
+                                                        type='button'
+                                                        onClick={() => setFindWorkOpen(prev => !prev)}
+                                                        className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 transition hover:bg-primary/10 hover:text-primary ${
+                                                                isFindWorkActive ? 'bg-primary/10 text-primary' : ''
+                                                        }`}
+                                                        aria-haspopup='true'
+                                                        aria-expanded={findWorkOpen}>
+                                                        Find Work
+                                                        <ChevronDown className={`size-4 transition-transform ${findWorkOpen ? 'rotate-180' : ''}`} />
+                                                </button>
 
-						{findWorkOpen && (
-							<div className='absolute left-0 top-full mt-2 w-[280px] rounded-2xl border border-slate-200 bg-white/95 p-3 text-sm shadow-xl shadow-primary/10 backdrop-blur'>
-								<div className='flex flex-col gap-2'>
-									{findWorkMenuItems.map(item => (
-										<Link
-											key={item.label}
-											to={item.to}
-											className='rounded-xl border border-transparent px-3 py-2 text-left text-slate-600 transition hover:border-primary/20 hover:bg-primary/10 hover:text-primary'
-											onClick={() => setFindWorkOpen(false)}>
-											<div className='font-semibold text-slate-800'>{item.label}</div>
-											<p className='text-xs text-slate-500'>{item.description}</p>
-										</Link>
-									))}
-								</div>
-							</div>
-						)}
-					</div>
+                                                {findWorkOpen && (
+                                                        <div className='absolute left-0 top-full z-20 w-[280px] pt-2'>
+                                                                <div className='rounded-2xl border border-slate-200 bg-white/95 p-3 text-sm shadow-xl shadow-primary/10 backdrop-blur'>
+                                                                        <div className='flex flex-col gap-2'>
+                                                                                {findWorkMenuItems.map(item => (
+                                                                                        <Link
+                                                                                                key={item.label}
+                                                                                                to={item.to}
+                                                                                                className='rounded-xl border border-transparent px-3 py-2 text-left text-slate-600 transition hover:border-primary/20 hover:bg-primary/10 hover:text-primary'
+                                                                                                onClick={() => setFindWorkOpen(false)}>
+                                                                                                <div className='font-semibold text-slate-800'>{item.label}</div>
+                                                                                                <p className='text-xs text-slate-500'>{item.description}</p>
+                                                                                        </Link>
+                                                                                ))}
+                                                                        </div>
+                                                                </div>
+                                                        </div>
+                                                )}
+                                        </div>
 
 					{secondaryNavItems.map(item => (
 						<NavLink

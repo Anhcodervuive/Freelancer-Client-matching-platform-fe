@@ -457,12 +457,6 @@ const ContractWorkroomPage = () => {
                 setActiveTab(resolvedTab)
         }, [resolvedTab, activeTab])
 
-        useEffect(() => {
-                if (!isAwaitingTermsAcceptance && isTermsExpanded) {
-                        setTermsExpanded(false)
-                }
-        }, [isAwaitingTermsAcceptance, isTermsExpanded])
-
         const handleTabChange = (tabId: TabId) => {
                 setActiveTab(tabId)
                 setSearchParams(previous => {
@@ -523,6 +517,12 @@ const ContractWorkroomPage = () => {
         const termsEffectiveFromText = termsSnapshot?.effectiveFrom
                 ? formatDateTime(termsSnapshot.effectiveFrom, { dateStyle: 'long' })
                 : null
+
+        useEffect(() => {
+                if (!isAwaitingTermsAcceptance && isTermsExpanded) {
+                        setTermsExpanded(false)
+                }
+        }, [isAwaitingTermsAcceptance, isTermsExpanded])
 
         const feedbackQuery = useQuery({
                 queryKey: ['contract-feedbacks', contractId],
