@@ -18,7 +18,8 @@ import type {
         SubmitContractFeedbackInput,
         UpdateContractFeedbackInput,
         SubmitMilestoneWorkInput,
-        AcceptContractTermsInput
+        AcceptContractTermsInput,
+        TriggerContractSignatureEnvelopeInput
 } from '~/types/contract'
 import type {
         CreateDisputeNegotiationInput,
@@ -480,6 +481,18 @@ export const acceptContractTerms = async (
 ): Promise<Contract> => {
         const response = await authorizeAxiosInstance.post<Contract>(
                 `${baseUrl}/${contractId}/terms/accept`,
+                payload
+        )
+
+        return response.data
+}
+
+export const triggerContractSignatureEnvelope = async (
+        contractId: string,
+        payload: TriggerContractSignatureEnvelopeInput
+): Promise<Contract> => {
+        const response = await authorizeAxiosInstance.post<Contract>(
+                `${baseUrl}/${contractId}/signature/send`,
                 payload
         )
 

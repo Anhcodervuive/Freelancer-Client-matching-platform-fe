@@ -30,6 +30,31 @@ export type ContractAcceptanceLog = {
         [key: string]: unknown
 }
 
+export type ContractSignatureRecipient = {
+        name?: string | null
+        email?: string | null
+        role?: string | null
+        status?: string | null
+        viewedAt?: string | null
+        sentAt?: string | null
+        deliveredAt?: string | null
+        completedAt?: string | null
+        [key: string]: unknown
+}
+
+export type ContractSignatureEnvelopeSummary = {
+        status?: string | null
+        subject?: string | null
+        message?: string | null
+        completedDocumentUri?: string | null
+        [key: string]: unknown
+} | null
+
+export type TriggerContractSignatureEnvelopeInput = {
+        forceResend?: boolean
+        resendReason?: string
+}
+
 export type AcceptContractTermsInput = {
         termsVersion: string
         userAgent?: string
@@ -247,6 +272,18 @@ export type Contract = {
         termsAcceptedIp?: string | null
         termsAcceptedUserAgent?: string | null
         acceptanceLogs?: ContractAcceptanceLog[] | null
+        signatureProvider?: string | null
+        signatureEnvelopeId?: string | null
+        signatureStatus?: string | null
+        signatureRecipients?: ContractSignatureRecipient[] | null
+        signatureEnvelopeSummary?: ContractSignatureEnvelopeSummary
+        signatureDocumentsUri?: string | null
+        signatureCertificateUri?: string | null
+        signatureSentAt?: string | null
+        signatureCompletedAt?: string | null
+        signatureDeclinedAt?: string | null
+        signatureVoidedAt?: string | null
+        signatureLastError?: string | null
         [key: string]: unknown
 }
 

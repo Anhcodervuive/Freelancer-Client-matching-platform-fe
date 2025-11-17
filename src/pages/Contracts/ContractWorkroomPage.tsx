@@ -52,7 +52,8 @@ import {
         listContractFeedbacks,
         updateContractFeedback,
         deleteContractFeedback,
-        acceptContractTerms
+        acceptContractTerms,
+        triggerContractSignatureEnvelope
 } from '~/apis/contract.api'
 import TermsSectionBody from '~/components/TermsSectionBody'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
@@ -67,7 +68,8 @@ import type {
         ContractMilestoneResource,
         CreateContractMilestoneInput,
         PayContractMilestoneInput,
-        PayContractMilestoneResponse
+        PayContractMilestoneResponse,
+        TriggerContractSignatureEnvelopeInput
 } from '~/types/contract'
 import type { PaymentMethod } from '~/types/payment-method'
 import { Role } from '~/types/user'
@@ -116,6 +118,76 @@ const MILESTONES_PER_PAGE = 4
 const FEEDBACK_EDIT_WINDOW_MS = 2 * 24 * 60 * 60 * 1000
 const FINALIZED_CONTRACT_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'ENDED', 'CLOSED'])
 const CONTRACT_READY_STATUSES = new Set(['ACTIVE', 'IN_PROGRESS', 'PAUSED'])
+const SIGNATURE_STATUS_META: Record<string, { label: string; badge: string; description: string }> = {
+        DRAFT: {
+                label: 'Chưa gửi',
+                badge: 'bg-slate-100 text-slate-600 border-slate-200',
+                description: 'Chưa gửi phong bì DocuSign cho các bên.'
+        },
+        SENT: {
+                label: 'Đã gửi',
+                badge: 'bg-sky-50 text-sky-700 border-sky-200',
+                description: 'Phong bì DocuSign đang chờ các bên ký.'
+        },
+        COMPLETED: {
+                label: 'Hoàn tất',
+                badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                description: 'Tất cả các bên đã ký xong trên DocuSign.'
+        },
+        DECLINED: {
+                label: 'Bị từ chối',
+                badge: 'bg-amber-50 text-amber-700 border-amber-200',
+                description: 'Một người tham gia đã từ chối phong bì DocuSign.'
+        },
+        VOIDED: {
+                label: 'Đã hủy',
+                badge: 'bg-rose-50 text-rose-700 border-rose-200',
+                description: 'Phong bì DocuSign đã bị hủy hoặc hết hạn.'
+        },
+        ERROR: {
+                label: 'Gặp lỗi',
+                badge: 'bg-rose-50 text-rose-700 border-rose-200',
+                description: 'Không thể gửi phong bì DocuSign. Vui lòng thử lại.'
+        }
+}
+
+const getSignatureStatusMeta = (status?: string | null) => {
+        if (!status) {
+                return {
+                        label: 'Không xác định',
+                        badge: 'bg-slate-100 text-slate-600 border-slate-200',
+                        description: 'Chưa có thông tin về trạng thái ký số.'
+                }
+        }
+
+        const normalized = status.toUpperCase()
+        return (
+                SIGNATURE_STATUS_META[normalized] || {
+                        label: toSentenceCase(normalized),
+                        badge: 'bg-slate-100 text-slate-600 border-slate-200',
+                        description: 'Trạng thái ký số hiện tại chưa được hỗ trợ.'
+                }
+        )
+}
+
+const getSignatureRecipientStatus = (status?: string | null) => {
+        if (!status) return 'Chưa xác định'
+        const normalized = status.toUpperCase()
+        switch (normalized) {
+                case 'COMPLETED':
+                        return 'Đã hoàn tất'
+                case 'SENT':
+                case 'DELIVERED':
+                case 'DELIVERED_AND_READ':
+                        return 'Đang chờ ký'
+                case 'DECLINED':
+                        return 'Đã từ chối'
+                case 'VOIDED':
+                        return 'Đã hủy'
+                default:
+                        return toSentenceCase(normalized)
+        }
+}
 
 const extractErrorMessage = (value: unknown): string | null => {
         if (!value) {
@@ -422,6 +494,9 @@ const ContractWorkroomPage = () => {
         const [milestonePage, setMilestonePage] = useState(1)
         const [isCreateMilestoneOpen, setCreateMilestoneOpen] = useState(false)
         const [isTermsExpanded, setTermsExpanded] = useState(false)
+        const [isSignatureResendFormOpen, setSignatureResendFormOpen] = useState(false)
+        const [signatureResendReason, setSignatureResendReason] = useState('')
+        const [signatureResendError, setSignatureResendError] = useState<string | null>(null)
         const [milestoneToDelete, setMilestoneToDelete] = useState<ContractMilestone | null>(null)
         const [resourceToDelete, setResourceToDelete] = useState<{
                 milestone: ContractMilestone
@@ -511,18 +586,80 @@ const ContractWorkroomPage = () => {
         }, [termsSnapshot])
         const hasTermsSnapshot = Boolean(termsSnapshot && (termsVersion || termsPrimaryBody || termsSections.length))
         const isContractReadyForWork = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
-        const isAwaitingTermsAcceptance = hasTermsSnapshot && normalizedContractStatus === 'DRAFT'
+        const isAwaitingTermsAcceptance =
+                hasTermsSnapshot && normalizedContractStatus === 'DRAFT' && !contract?.termsAcceptedAt
         const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isContractReadyForWork
         const contractSetupLocked = !isContractReadyForWork && !isContractFinalized
         const termsEffectiveFromText = termsSnapshot?.effectiveFrom
                 ? formatDateTime(termsSnapshot.effectiveFrom, { dateStyle: 'long' })
                 : null
+        const signatureProvider = resolveString(contract?.signatureProvider)
+        const signatureEnvelopeId = resolveString(contract?.signatureEnvelopeId)
+        const signatureStatus = resolveString(contract?.signatureStatus)
+        const signatureStatusMeta = getSignatureStatusMeta(signatureStatus)
+        const signatureSentAtText = contract?.signatureSentAt
+                ? formatDateTime(contract.signatureSentAt, { dateStyle: 'long', timeStyle: 'short' })
+                : null
+        const signatureCompletedAtText = contract?.signatureCompletedAt
+                ? formatDateTime(contract.signatureCompletedAt, { dateStyle: 'long', timeStyle: 'short' })
+                : null
+        const signatureDeclinedAtText = contract?.signatureDeclinedAt
+                ? formatDateTime(contract.signatureDeclinedAt, { dateStyle: 'long', timeStyle: 'short' })
+                : null
+        const signatureVoidedAtText = contract?.signatureVoidedAt
+                ? formatDateTime(contract.signatureVoidedAt, { dateStyle: 'long', timeStyle: 'short' })
+                : null
+        const signatureEnvelopeSummary = contract?.signatureEnvelopeSummary ?? null
+        const signatureLastError = resolveString(contract?.signatureLastError)
+        const signatureDocumentsUri = resolveString(contract?.signatureDocumentsUri)
+        const signatureCertificateUri = resolveString(contract?.signatureCertificateUri)
+        const signatureRecipients = useMemo(() => {
+                if (!Array.isArray(contract?.signatureRecipients)) return [] as NonNullable<Contract['signatureRecipients']>
+                return ((contract?.signatureRecipients ?? []).filter(Boolean) ?? []) as NonNullable<Contract['signatureRecipients']>
+        }, [contract?.signatureRecipients])
+        const hasSignatureEnvelope = Boolean(signatureEnvelopeId)
+        const normalizedSignatureStatus = signatureStatus?.toUpperCase() ?? ''
+        const hasSignatureBeenSent = Boolean(
+                contract?.signatureSentAt ||
+                        hasSignatureEnvelope ||
+                        ['SENT', 'COMPLETED', 'DECLINED', 'VOIDED'].includes(normalizedSignatureStatus)
+        )
+        const isSignatureCompleted = normalizedSignatureStatus === 'COMPLETED'
+        const shouldShowSignatureSection = Boolean(signatureProvider || hasSignatureEnvelope || hasSignatureBeenSent)
+        const canTriggerSignatureSend =
+                viewerRole === 'client' && !isContractFinalized && !isAwaitingTermsAcceptance && shouldShowSignatureSection
+        const handleSignatureSend = () => {
+                if (triggerSignatureMutation.isPending) return
+                triggerSignatureMutation.mutate({})
+        }
+        const handleSignatureResendSubmit = () => {
+                if (triggerSignatureMutation.isPending) return
+                const reason = signatureResendReason.trim()
+                if (!reason) {
+                        setSignatureResendError('Vui lòng nhập lý do gửi lại phong bì DocuSign.')
+                        return
+                }
+                if (reason.length > 500) {
+                        setSignatureResendError('Lý do gửi lại không được vượt quá 500 ký tự.')
+                        return
+                }
+                setSignatureResendError(null)
+                triggerSignatureMutation.mutate({ forceResend: true, resendReason: reason })
+        }
 
         useEffect(() => {
                 if (!isAwaitingTermsAcceptance && isTermsExpanded) {
                         setTermsExpanded(false)
                 }
         }, [isAwaitingTermsAcceptance, isTermsExpanded])
+
+        useEffect(() => {
+                if (hasSignatureBeenSent) return
+                if (!isSignatureResendFormOpen && !signatureResendReason && !signatureResendError) return
+                setSignatureResendFormOpen(false)
+                setSignatureResendReason('')
+                setSignatureResendError(null)
+        }, [hasSignatureBeenSent, isSignatureResendFormOpen, signatureResendReason, signatureResendError])
 
         const feedbackQuery = useQuery({
                 queryKey: ['contract-feedbacks', contractId],
@@ -612,6 +749,29 @@ const ContractWorkroomPage = () => {
                         const message =
                                 extractErrorMessage(error) ||
                                 'Không thể ghi nhận việc đồng ý điều khoản. Vui lòng thử lại.'
+                        toast.error(message)
+                }
+        })
+
+        const triggerSignatureMutation = useMutation({
+                mutationFn: async (payload: TriggerContractSignatureEnvelopeInput) => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        return triggerContractSignatureEnvelope(contractId, payload)
+                },
+                onSuccess: (_data, variables) => {
+                        toast.success(
+                                variables?.forceResend
+                                        ? 'Đã gửi lại phong bì DocuSign cho các bên.'
+                                        : 'Đã gửi phong bì DocuSign cho các bên.'
+                        )
+                        setSignatureResendFormOpen(false)
+                        setSignatureResendReason('')
+                        setSignatureResendError(null)
+                        queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                },
+                onError: error => {
+                        const message =
+                                extractErrorMessage(error) || 'Không thể gửi phong bì DocuSign. Vui lòng thử lại.'
                         toast.error(message)
                 }
         })
@@ -3191,6 +3351,261 @@ const ContractWorkroomPage = () => {
                                                         )}
                                                 </div>
                                         )}
+                                </section>
+                        )}
+
+                        {!isAwaitingTermsAcceptance && shouldShowSignatureSection && (
+                                <section className='space-y-6 rounded-[32px] border border-slate-200 bg-white/90 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)]'>
+                                        <div className='flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between'>
+                                                <div className='flex-1 space-y-4'>
+                                                        <div className='space-y-3'>
+                                                                <p className='text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500'>
+                                                                        Ký số DocuSign
+                                                                </p>
+                                                                <div className='flex flex-wrap items-center gap-3'>
+                                                                        <h2 className='text-xl font-semibold text-slate-900'>Theo dõi trạng thái ký</h2>
+                                                                        <span
+                                                                                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${signatureStatusMeta.badge}`}
+                                                                        >
+                                                                                {signatureStatusMeta.label}
+                                                                        </span>
+                                                                </div>
+                                                                <p className='text-sm text-slate-600'>{signatureStatusMeta.description}</p>
+                                                        </div>
+                                                        <dl className='grid gap-4 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-3'>
+                                                                {signatureProvider && (
+                                                                        <div>
+                                                                                <dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Nhà cung cấp</dt>
+                                                                                <dd className='text-base font-semibold text-slate-900'>
+                                                                                        {signatureProvider === 'DOCUSIGN' ? 'DocuSign' : signatureProvider}
+                                                                                </dd>
+                                                                        </div>
+                                                                )}
+                                                                {signatureEnvelopeId && (
+                                                                        <div>
+                                                                                <dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Envelope ID</dt>
+                                                                                <dd className='font-mono text-sm text-slate-900'>{signatureEnvelopeId}</dd>
+                                                                        </div>
+                                                                )}
+                                                                {signatureSentAtText && (
+                                                                        <div>
+                                                                                <dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Đã gửi</dt>
+                                                                                <dd className='text-base text-slate-900'>{signatureSentAtText}</dd>
+                                                                        </div>
+                                                                )}
+                                                                {signatureCompletedAtText && (
+                                                                        <div>
+                                                                                <dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Hoàn tất</dt>
+                                                                                <dd className='text-base text-slate-900'>{signatureCompletedAtText}</dd>
+                                                                        </div>
+                                                                )}
+                                                                {signatureDeclinedAtText && (
+                                                                        <div>
+                                                                                <dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Bị từ chối</dt>
+                                                                                <dd className='text-base text-slate-900'>{signatureDeclinedAtText}</dd>
+                                                                        </div>
+                                                                )}
+                                                                {signatureVoidedAtText && (
+                                                                        <div>
+                                                                                <dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Đã hủy</dt>
+                                                                                <dd className='text-base text-slate-900'>{signatureVoidedAtText}</dd>
+                                                                        </div>
+                                                                )}
+                                                                {signatureEnvelopeSummary && (
+                                                                        <div className='sm:col-span-2'>
+                                                                                <dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Tóm tắt</dt>
+                                                                                <dd className='text-base text-slate-900'>
+                                                                                        {signatureEnvelopeSummary?.subject ||
+                                                                                                signatureEnvelopeSummary?.status ||
+                                                                                                'Đang cập nhật thông tin phong bì.'}
+                                                                                </dd>
+                                                                                {signatureEnvelopeSummary?.message && (
+                                                                                        <p className='mt-1 text-sm text-slate-600'>
+                                                                                                {signatureEnvelopeSummary.message}
+                                                                                        </p>
+                                                                                )}
+                                                                        </div>
+                                                                )}
+                                                        </dl>
+                                                        {signatureLastError && (
+                                                                <div className='rounded-2xl border border-rose-200 bg-rose-50/70 p-4 text-sm text-rose-700'>
+                                                                        <p className='font-semibold text-rose-900'>Không thể gửi DocuSign</p>
+                                                                        <p className='mt-1 text-rose-700'>{signatureLastError}</p>
+                                                                </div>
+                                                        )}
+                                                        {signatureRecipients.length > 0 && (
+                                                                <div className='space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4'>
+                                                                        <p className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Người nhận</p>
+                                                                        <ul className='space-y-3'>
+                                                                                {signatureRecipients.map((recipient, index) => {
+                                                                                        const recipientKey = `${recipient?.email ?? recipient?.role ?? `recipient-${index}`}`
+                                                                                        const completedText = recipient?.completedAt
+                                                                                                ? formatDateTime(recipient.completedAt, {
+                                                                                                          dateStyle: 'medium',
+                                                                                                          timeStyle: 'short'
+                                                                                                  })
+                                                                                                : null
+                                                                                        const sentText = !completedText && recipient?.sentAt
+                                                                                                ? formatDateTime(recipient.sentAt, {
+                                                                                                          dateStyle: 'medium',
+                                                                                                          timeStyle: 'short'
+                                                                                                  })
+                                                                                                : null
+                                                                                        return (
+                                                                                                <li
+                                                                                                        key={recipientKey}
+                                                                                                        className='flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/80 p-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between'
+                                                                                                >
+                                                                                                        <div>
+                                                                                                                <p className='font-semibold text-slate-900'>
+                                                                                                                        {recipient?.name ||
+                                                                                                                                recipient?.email ||
+                                                                                                                                recipient?.role ||
+                                                                                                                                `Người nhận ${index + 1}`}
+                                                                                                                </p>
+                                                                                                                {(recipient?.email || recipient?.role) && (
+                                                                                                                        <p className='text-xs text-slate-500'>
+                                                                                                                                {recipient?.email || recipient?.role}
+                                                                                                                        </p>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                        <div className='text-right text-xs text-slate-500'>
+                                                                                                                <span className='inline-flex items-center justify-center rounded-full border border-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-600'>
+                                                                                                                        {getSignatureRecipientStatus(recipient?.status)}
+                                                                                                                </span>
+                                                                                                                {completedText && (
+                                                                                                                        <p className='mt-1 text-slate-500'>Hoàn tất {completedText}</p>
+                                                                                                                )}
+                                                                                                                {!completedText && sentText && (
+                                                                                                                        <p className='mt-1 text-slate-500'>Đã gửi {sentText}</p>
+                                                                                                                )}
+                                                                                                        </div>
+                                                                                                </li>
+                                                                                        )
+                                                                                })}
+                                                                        </ul>
+                                                                </div>
+                                                        )}
+                                                </div>
+                                                <div className='flex w-full flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 text-sm text-slate-600 lg:max-w-sm'>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Hành động</p>
+                                                        {canTriggerSignatureSend && !hasSignatureBeenSent && (
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-primary btn-sm gap-2 rounded-full px-4'
+                                                                        onClick={handleSignatureSend}
+                                                                        disabled={triggerSignatureMutation.isPending}
+                                                                >
+                                                                        {triggerSignatureMutation.isPending ? (
+                                                                                <>
+                                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                                        Đang gửi DocuSign...
+                                                                                </>
+                                                                        ) : (
+                                                                                <>
+                                                                                        <ShieldCheck className='size-4' /> Gửi DocuSign để ký
+                                                                                </>
+                                                                        )}
+                                                                </button>
+                                                        )}
+                                                        {canTriggerSignatureSend && hasSignatureBeenSent && !isSignatureCompleted && (
+                                                                <div className='space-y-2 rounded-2xl border border-white/60 bg-white/90 p-4'>
+                                                                        {isSignatureResendFormOpen ? (
+                                                                                <>
+                                                                                        <label
+                                                                                                htmlFor='signature-resend-reason'
+                                                                                                className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'
+                                                                                        >
+                                                                                                Lý do gửi lại phong bì
+                                                                                        </label>
+                                                                                        <textarea
+                                                                                                id='signature-resend-reason'
+                                                                                                value={signatureResendReason}
+                                                                                                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                                                                                                        setSignatureResendReason(event.target.value)
+                                                                                                        if (signatureResendError) setSignatureResendError(null)
+                                                                                                }}
+                                                                                                maxLength={500}
+                                                                                                rows={3}
+                                                                                                className='w-full rounded-xl border border-slate-200 bg-slate-50/80 p-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none'
+                                                                                                placeholder='Ví dụ: Freelancer báo không nhận được email...'
+                                                                                        />
+                                                                                        <p className='text-xs text-slate-500'>Thông tin này sẽ được lưu lại trong lịch sử hợp đồng.</p>
+                                                                                        {signatureResendError && (
+                                                                                                <p className='text-sm text-rose-600'>{signatureResendError}</p>
+                                                                                        )}
+                                                                                        <div className='flex flex-wrap gap-2'>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-ghost btn-sm text-slate-600'
+                                                                                                        onClick={() => {
+                                                                                                                if (triggerSignatureMutation.isPending) return
+                                                                                                                setSignatureResendFormOpen(false)
+                                                                                                                setSignatureResendReason('')
+                                                                                                                setSignatureResendError(null)
+                                                                                                        }}
+                                                                                                >
+                                                                                                        Hủy
+                                                                                                </button>
+                                                                                                <button
+                                                                                                        type='button'
+                                                                                                        className='btn btn-warning btn-sm gap-2 text-warning-foreground'
+                                                                                                        onClick={handleSignatureResendSubmit}
+                                                                                                        disabled={triggerSignatureMutation.isPending}
+                                                                                                >
+                                                                                                        {triggerSignatureMutation.isPending ? (
+                                                                                                                <>
+                                                                                                                        <Loader2 className='size-4 animate-spin' />
+                                                                                                                        Đang gửi lại...
+                                                                                                                </>
+                                                                                                        ) : (
+                                                                                                                <>
+                                                                                                                        <ShieldCheck className='size-4' /> Xác nhận gửi lại
+                                                                                                                </>
+                                                                                                        )}
+                                                                                                </button>
+                                                                                        </div>
+                                                                                </>
+                                                                        ) : (
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-outline btn-sm gap-2 rounded-full border-slate-300 text-slate-700'
+                                                                                        onClick={() => {
+                                                                                                setSignatureResendFormOpen(true)
+                                                                                                setSignatureResendReason('')
+                                                                                                setSignatureResendError(null)
+                                                                                        }}
+                                                                                >
+                                                                                        Gửi lại phong bì DocuSign
+                                                                                </button>
+                                                                        )}
+                                                                </div>
+                                                        )}
+                                                        {signatureDocumentsUri && (
+                                                                <a
+                                                                        href={signatureDocumentsUri}
+                                                                        target='_blank'
+                                                                        rel='noopener noreferrer'
+                                                                        className='btn btn-secondary btn-sm gap-2 rounded-full px-4'
+                                                                >
+                                                                        <Download className='size-4' /> Tải tài liệu đã ký
+                                                                </a>
+                                                        )}
+                                                        {signatureCertificateUri && (
+                                                                <a
+                                                                        href={signatureCertificateUri}
+                                                                        target='_blank'
+                                                                        rel='noopener noreferrer'
+                                                                        className='btn btn-ghost btn-sm gap-2 text-slate-600'
+                                                                >
+                                                                        <ShieldCheck className='size-4' /> Chứng thư ký số
+                                                                </a>
+                                                        )}
+                                                        {!canTriggerSignatureSend && !signatureDocumentsUri && !signatureCertificateUri && (
+                                                                <p className='text-sm text-slate-500'>Bạn sẽ nhận thông báo khi phong bì DocuSign có cập nhật mới.</p>
+                                                        )}
+                                                </div>
+                                        </div>
                                 </section>
                         )}
 
