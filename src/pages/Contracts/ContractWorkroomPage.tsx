@@ -40,7 +40,6 @@ import {
         deleteContractMilestone,
         deleteContractMilestoneResource,
         getContractDetail,
-        getContractTermsDetail,
         listContractMilestones,
         uploadContractMilestoneAttachments,
         submitMilestoneWork,
@@ -713,15 +712,6 @@ const ContractWorkroomPage = () => {
         })
 
         const contract = contractQuery.data as Contract | undefined
-        const contractTermsQuery = useQuery({
-                queryKey: ['contract-terms', contractId],
-                queryFn: () => {
-                        if (!contractId) throw new Error('Missing contract id')
-                        return getContractTermsDetail(contractId)
-                },
-                enabled: Boolean(contractId)
-        })
-        const contractTerms = contractTermsQuery.data
         const normalizedContractStatus = useMemo(() => {
                 const status = contract?.status
                 if (!status) return ''
@@ -733,19 +723,17 @@ const ContractWorkroomPage = () => {
                 const trimmed = value.trim()
                 return trimmed.length ? trimmed : null
         }
-        const termsAcceptedAt = contractTerms?.termsAcceptedAt ?? contract?.termsAcceptedAt ?? null
-        const termsAcceptedBy = contractTerms?.termsAcceptedBy ?? contract?.termsAcceptedBy
-        const termsAcceptedIp = contractTerms?.termsAcceptedIp ?? contract?.termsAcceptedIp ?? null
-        const clientAcceptedAt = contractTerms?.clientAcceptedAt ?? contract?.clientAcceptedAt ?? null
-        const clientAcceptedBy = contractTerms?.clientAcceptedBy ?? contract?.clientAcceptedBy
-        const clientAcceptedIp = contractTerms?.clientAcceptedIp ?? contract?.clientAcceptedIp ?? null
+        const termsAcceptedAt = contract?.termsAcceptedAt ?? null
+        const termsAcceptedBy = contract?.termsAcceptedBy
+        const termsAcceptedIp = contract?.termsAcceptedIp ?? null
+        const clientAcceptedAt = contract?.clientAcceptedAt ?? null
+        const clientAcceptedBy = contract?.clientAcceptedBy
+        const clientAcceptedIp = contract?.clientAcceptedIp ?? null
         const isAwaitingTermsAcceptance = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
-        const storedTermsSnapshot = contractTerms?.platformTermsSnapshot ?? contract?.platformTermsSnapshot ?? null
+        const storedTermsSnapshot = contract?.platformTermsSnapshot ?? null
         const termsSnapshot = storedTermsSnapshot ?? null
         const storedTermsVersion =
-                resolveString(contractTerms?.platformTermsVersion) ??
-                resolveString(contract?.platformTermsVersion) ??
-                resolveString(storedTermsSnapshot?.version)
+                resolveString(contract?.platformTermsVersion) ?? resolveString(storedTermsSnapshot?.version)
         const termsVersion = storedTermsVersion ?? resolveString(termsSnapshot?.version)
         const termsTitle = resolveString(termsSnapshot?.title)
         const termsStatus = resolveString(termsSnapshot?.status)
@@ -764,11 +752,11 @@ const ContractWorkroomPage = () => {
                 return []
         }, [termsSnapshot])
         const hasTermsContent = Boolean(termsVersion || termsPrimaryBody || termsSections.length)
-        const platformTermsId = contractTerms?.platformTermsId ?? contract?.platformTermsId ?? null
+        const platformTermsId = contract?.platformTermsId ?? null
         const acceptanceLogs = useMemo(() => {
-                const logs = contractTerms?.acceptanceLogs ?? contract?.acceptanceLogs ?? []
+                const logs = contract?.acceptanceLogs ?? []
                 return Array.isArray(logs) ? (logs.filter(Boolean) as ContractAcceptanceLog[]) : []
-        }, [contractTerms, contract])
+        }, [contract])
         const shouldShowTermsSection = Boolean(
                 hasTermsContent ||
                         platformTermsId ||
@@ -945,7 +933,6 @@ const ContractWorkroomPage = () => {
                 onSuccess: () => {
                         toast.success('Đã ghi nhận việc bạn đồng ý điều khoản nền tảng.')
                         queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-                        queryClient.invalidateQueries({ queryKey: ['contract-terms', contractId] })
                 },
                 onError: error => {
                         const message =

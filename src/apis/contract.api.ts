@@ -5,7 +5,6 @@ import type {
         ApproveMilestoneSubmissionInput,
         CancelContractMilestoneInput,
         Contract,
-        ContractTermsDetail,
         ContractFeedbackListResponse,
         ContractListFilterInput,
         ContractMilestone,
@@ -473,11 +472,6 @@ export const listContracts = async (
 
 export const getContractDetail = async (contractId: string): Promise<Contract> => {
         const response = await authorizeAxiosInstance.get<Contract>(`${baseUrl}/${contractId}`)
-        return response.data
-}
-
-export const getContractTermsDetail = async (contractId: string): Promise<ContractTermsDetail> => {
-        const response = await authorizeAxiosInstance.get<ContractTermsDetail>(`${baseUrl}/${contractId}/terms`)
         return response.data
 }
 
