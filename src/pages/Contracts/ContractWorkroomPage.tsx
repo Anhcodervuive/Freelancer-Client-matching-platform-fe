@@ -63,6 +63,7 @@ import { selectCurrentUser } from '~/redux/user/userSlice'
 import { type ContractClosureReasonOption, type ContractFeedback } from '~/types/contract'
 import type {
         Contract,
+        ContractAcceptanceLog,
         ContractMilestone,
         ContractMilestoneSubmission,
         ContractMilestoneResource,
@@ -448,24 +449,181 @@ const buildEscrowStatusMeta = (
 
 type TabId = (typeof tabs)[number]['id']
 
+const getActorDisplayName = (actor?: Contract['termsAcceptedBy']) => {
+        if (!actor) return null
+        const profileName = getParticipantName(actor.profile, actor.companyName)
+        if (profileName) return profileName
+        const nameSegments = [actor.firstName, actor.lastName]
+                .map(segment => (typeof segment === 'string' ? segment.trim() : ''))
+                .filter(Boolean)
+        if (nameSegments.length) {
+                return nameSegments.join(' ')
+        }
+        const rawFullName = typeof actor.fullName === 'string' ? actor.fullName.trim() : ''
+        if (rawFullName) return rawFullName
+        const email = typeof actor.email === 'string' ? actor.email.trim() : ''
+        return email || null
+}
+
+const getAcceptanceRoleLabel = (role?: string | null) => {
+        if (!role) return 'Người tham gia'
+        const normalized = role.toUpperCase()
+        switch (normalized) {
+                case 'CLIENT':
+                        return 'Client'
+                case 'FREELANCER':
+                        return 'Freelancer'
+                case 'ADMIN':
+                        return 'Quản trị viên'
+                case 'SYSTEM':
+                        return 'Hệ thống'
+                default:
+                        return 'Người tham gia'
+        }
+}
+
+const getAcceptanceActionKey = (log: ContractAcceptanceLog) => {
+        const raw = (log.event ?? log.action ?? log.kind ?? log.status) as string | undefined
+        if (!raw || typeof raw !== 'string') return ''
+        return raw.trim().toUpperCase()
+}
+
+const getAcceptanceActionLabel = (actionKey: string, actorLabel: string) => {
+        const actor = actorLabel || 'Người tham gia'
+        if (!actionKey) {
+                return `${actor} cập nhật điều khoản`
+        }
+        if (actionKey.includes('ATTACH')) return 'Điều khoản được đính kèm'
+        if (actionKey.includes('LOCK')) return 'Điều khoản được khóa'
+        if (actionKey.includes('ACCEPT')) return `${actor} chấp nhận điều khoản`
+        if (actionKey.includes('DECLINE')) return `${actor} từ chối điều khoản`
+        if (actionKey.includes('REQUEST') || actionKey.includes('SEND')) return 'Yêu cầu cập nhật điều khoản'
+        return 'Cập nhật điều khoản'
+}
+
+const extractAcceptanceMetaString = (log: ContractAcceptanceLog, keys: string[]) => {
+        const containers: Array<Record<string, unknown> | null | undefined> = [log.metadata, log.data]
+        for (const container of containers) {
+                if (!container) continue
+                for (const key of keys) {
+                        if (!(key in container)) continue
+                        const value = container[key]
+                        if (typeof value === 'string') {
+                                const trimmed = value.trim()
+                                if (trimmed) {
+                                        return trimmed
+                                }
+                        }
+                }
+        }
+        return null
+}
+
+const buildAcceptanceLogEvent = (log: ContractAcceptanceLog, fallbackVersion?: string | null) => {
+        if (!log) return null
+        const date = typeof log.createdAt === 'string' ? log.createdAt : null
+        if (!date) return null
+        const actorLabel = getAcceptanceRoleLabel(log.actorRole ?? log.userRole)
+        const actionKey = getAcceptanceActionKey(log)
+        const label = getAcceptanceActionLabel(actionKey, actorLabel)
+        const descriptionParts: string[] = []
+        const version =
+                extractAcceptanceMetaString(log, ['termsVersion', 'version', 'platformTermsVersion']) || fallbackVersion
+        if (version) {
+                descriptionParts.push(`Phiên bản ${version}`)
+        }
+        const ip = extractAcceptanceMetaString(log, ['ip', 'ipAddress'])
+        if (ip) {
+                descriptionParts.push(`IP ${ip}`)
+        }
+        const userAgent = extractAcceptanceMetaString(log, ['userAgent'])
+        if (userAgent) {
+                descriptionParts.push(userAgent)
+        }
+        if (!descriptionParts.length && actorLabel) {
+                descriptionParts.push(actorLabel)
+        }
+
+        return {
+                date,
+                label,
+                description: descriptionParts.join(' • ') || undefined
+        }
+}
+
+const buildAcceptanceTimelineEvents = (contract: Contract) => {
+        const events: Array<{ id: string; date?: string | null; label: string; description?: string }> = []
+        const fallbackVersion = contract.platformTermsVersion ?? contract.platformTermsSnapshot?.version ?? null
+        const logs = Array.isArray(contract.acceptanceLogs) ? contract.acceptanceLogs : []
+        logs.forEach((log, index) => {
+                const entry = buildAcceptanceLogEvent(log, fallbackVersion)
+                if (!entry) return
+                events.push({ ...entry, id: `acceptance-log-${log.id ?? index}` })
+        })
+
+        if (contract.clientAcceptedAt) {
+                const actorName = getActorDisplayName(contract.clientAcceptedBy)
+                events.push({
+                        id: 'client-accepted',
+                        date: contract.clientAcceptedAt,
+                        label: actorName ? `Client (${actorName}) xác nhận offer` : 'Client xác nhận offer',
+                        description: contract.clientAcceptedIp ? `IP ${contract.clientAcceptedIp}` : undefined
+                })
+        }
+
+        if (contract.termsAcceptedAt) {
+                const actorName = getActorDisplayName(contract.termsAcceptedBy)
+                const descriptionParts = [] as string[]
+                if (actorName) {
+                        descriptionParts.push(`Được khóa bởi ${actorName}`)
+                }
+                if (contract.termsAcceptedIp) {
+                        descriptionParts.push(`IP ${contract.termsAcceptedIp}`)
+                }
+
+                events.push({
+                        id: 'terms-locked',
+                        date: contract.termsAcceptedAt,
+                        label: 'Điều khoản được khóa',
+                        description: descriptionParts.join(' • ') || undefined
+                })
+        }
+
+        return events
+}
+
+const getEventTimestamp = (value?: string | null) => {
+        if (!value) return Number.POSITIVE_INFINITY
+        const timestamp = Date.parse(value)
+        return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp
+}
+
 const buildTimeline = (contract?: Contract | null) => {
-	if (!contract) return [] as Array<{ id: string; date?: string | null; label: string; description?: string }>
+        if (!contract) return [] as Array<{ id: string; date?: string | null; label: string; description?: string }>
 
-	const events: Array<{ id: string; date?: string | null; label: string; description?: string }> = []
+        const events: Array<{ id: string; date?: string | null; label: string; description?: string }> = []
+        const pushEvent = (id: string, date?: string | null, label?: string, description?: string) => {
+                if (!date || !label) return
+                events.push({ id, date, label, description })
+        }
 
-	if (contract.createdAt) events.push({ id: 'created', date: contract.createdAt, label: 'Hợp đồng được tạo' })
-	if (contract.proposal?.submittedAt)
-		events.push({ id: 'proposal', date: contract.proposal.submittedAt, label: 'Freelancer gửi proposal' })
-	if (contract.offer?.createdAt) events.push({ id: 'offer', date: contract.offer.createdAt, label: 'Client gửi offer' })
-	if (contract.acceptedAt)
-		events.push({ id: 'accepted', date: contract.acceptedAt, label: 'Hai bên chấp nhận điều khoản' })
-	if (contract.startDate || contract.offer?.startDate)
-		events.push({ id: 'start', date: contract.startDate || contract.offer?.startDate, label: 'Bắt đầu thực hiện' })
-	if (contract.endDate || contract.offer?.endDate)
-		events.push({ id: 'end', date: contract.endDate || contract.offer?.endDate, label: 'Kết thúc hợp đồng' })
-	if (contract.updatedAt) events.push({ id: 'updated', date: contract.updatedAt, label: 'Cập nhật gần nhất' })
+        pushEvent('created', contract.createdAt, 'Hợp đồng được tạo')
+        pushEvent('proposal', contract.proposal?.submittedAt, 'Freelancer gửi proposal')
+        pushEvent('offer', contract.offer?.createdAt, 'Client gửi offer')
+        pushEvent('offer-sent', contract.offer?.sentAt, 'Offer được gửi tới freelancer')
+        pushEvent('start', contract.startDate || contract.offer?.startDate, 'Bắt đầu thực hiện')
+        pushEvent('end', contract.endDate || contract.offer?.endDate, 'Kết thúc hợp đồng')
+        pushEvent('updated', contract.updatedAt, 'Cập nhật gần nhất')
 
-	return events.filter(event => Boolean(event.date))
+        const acceptanceEvents = buildAcceptanceTimelineEvents(contract)
+        acceptanceEvents.forEach(event => {
+                if (!event.date || !event.label) return
+                events.push(event)
+        })
+
+        return events
+                .filter(event => Boolean(event.date))
+                .sort((a, b) => getEventTimestamp(a.date) - getEventTimestamp(b.date))
 }
 
 const buildAttachmentList = (contract?: Contract | null): NormalizedAttachment[] =>
@@ -593,6 +751,10 @@ const ContractWorkroomPage = () => {
         const termsEffectiveFromText = termsSnapshot?.effectiveFrom
                 ? formatDateTime(termsSnapshot.effectiveFrom, { dateStyle: 'long' })
                 : null
+        const termsLockedAtText = contract?.termsAcceptedAt
+                ? formatDateTime(contract.termsAcceptedAt, { dateStyle: 'long', timeStyle: 'short' })
+                : null
+        const termsAcceptedByName = getActorDisplayName(contract?.termsAcceptedBy)
         const signatureProvider = resolveString(contract?.signatureProvider)
         const signatureEnvelopeId = resolveString(contract?.signatureEnvelopeId)
         const signatureStatus = resolveString(contract?.signatureStatus)
@@ -3265,78 +3427,122 @@ const ContractWorkroomPage = () => {
                                 </div>
                         </div>
 
-                        {isAwaitingTermsAcceptance && (
-                                <section className='space-y-4 rounded-[32px] border border-amber-200 bg-amber-50/70 p-6 text-amber-900 shadow-inner shadow-amber-100'>
+                        {hasTermsSnapshot && (
+                                <section
+                                        className={`space-y-4 rounded-[32px] border p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] ${
+                                                isAwaitingTermsAcceptance
+                                                        ? 'border-amber-200 bg-amber-50/70 text-amber-900 shadow-inner shadow-amber-100'
+                                                        : 'border-slate-200 bg-white/95 text-slate-800 shadow-[0_20px_60px_rgba(15,23,42,0.05)]'
+                                        }`}
+                                >
                                         <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
                                                 <div className='space-y-3'>
-                                                        <p className='text-[11px] font-semibold uppercase tracking-[0.35em] text-amber-600'>
-                                                                Cần xác nhận điều khoản
+                                                        <p
+                                                                className={`text-[11px] font-semibold uppercase tracking-[0.35em] ${
+                                                                        isAwaitingTermsAcceptance ? 'text-amber-600' : 'text-slate-500'
+                                                                }`}
+                                                        >
+                                                                {isAwaitingTermsAcceptance
+                                                                        ? 'Cần xác nhận điều khoản'
+                                                                        : 'Điều khoản nền tảng đã đính kèm'}
                                                         </p>
                                                         <div className='space-y-2'>
-                                                                <h2 className='text-xl font-semibold text-amber-900'>
-                                                                        {termsTitle || 'Khóa điều khoản nền tảng trước khi bắt đầu'}
+                                                                <h2 className={`text-xl font-semibold ${isAwaitingTermsAcceptance ? 'text-amber-900' : 'text-slate-900'}`}>
+                                                                        {termsTitle || 'Snapshot điều khoản nền tảng'}
                                                                 </h2>
-                                                                <p className='text-sm text-amber-800'>
-                                                                        Hợp đồng đang ở trạng thái nháp. Vui lòng xem bộ điều khoản đã đính kèm và xác nhận để tiếp tục tạo milestones cũng như bắt đầu công việc.
+                                                                <p className={`text-sm ${isAwaitingTermsAcceptance ? 'text-amber-800' : 'text-slate-600'}`}>
+                                                                        {isAwaitingTermsAcceptance
+                                                                                ? 'Hợp đồng đang ở trạng thái nháp. Vui lòng xem bộ điều khoản đã đính kèm và xác nhận để tiếp tục tạo milestones cũng như bắt đầu công việc.'
+                                                                                : 'Đây là bộ điều khoản đã được đính kèm cho hợp đồng này. Nội dung đã được khóa lại để đảm bảo hai bên tham chiếu cùng một phiên bản.'}
                                                                 </p>
                                                         </div>
-                                                        <dl className='flex flex-wrap gap-4 text-xs text-amber-700'>
+                                                        <dl className={`flex flex-wrap gap-4 text-xs ${isAwaitingTermsAcceptance ? 'text-amber-700' : 'text-slate-600'}`}>
                                                                 {termsVersion && (
                                                                         <div>
-                                                                                <dt className='font-semibold uppercase tracking-[0.35em] text-amber-500'>Phiên bản</dt>
-                                                                                <dd className='text-sm text-amber-900'>{termsVersion}</dd>
+                                                                                <dt className='font-semibold uppercase tracking-[0.35em]'>Phiên bản</dt>
+                                                                                <dd className={`text-sm ${isAwaitingTermsAcceptance ? 'text-amber-900' : 'text-slate-900'}`}>{termsVersion}</dd>
                                                                         </div>
                                                                 )}
                                                                 {termsStatus && (
                                                                         <div>
-                                                                                <dt className='font-semibold uppercase tracking-[0.35em] text-amber-500'>Trạng thái</dt>
-                                                                                <dd className='text-sm text-amber-900'>{termsStatus}</dd>
+                                                                                <dt className='font-semibold uppercase tracking-[0.35em]'>Trạng thái</dt>
+                                                                                <dd className={`text-sm ${isAwaitingTermsAcceptance ? 'text-amber-900' : 'text-slate-900'}`}>{termsStatus}</dd>
                                                                         </div>
                                                                 )}
                                                                 {termsEffectiveFromText && (
                                                                         <div>
-                                                                                <dt className='font-semibold uppercase tracking-[0.35em] text-amber-500'>Hiệu lực</dt>
-                                                                                <dd className='text-sm text-amber-900'>Từ {termsEffectiveFromText}</dd>
+                                                                                <dt className='font-semibold uppercase tracking-[0.35em]'>Hiệu lực</dt>
+                                                                                <dd className={`text-sm ${isAwaitingTermsAcceptance ? 'text-amber-900' : 'text-slate-900'}`}>Từ {termsEffectiveFromText}</dd>
+                                                                        </div>
+                                                                )}
+                                                                {termsLockedAtText && !isAwaitingTermsAcceptance && (
+                                                                        <div>
+                                                                                <dt className='font-semibold uppercase tracking-[0.35em]'>Đã khóa</dt>
+                                                                                <dd className='text-sm text-slate-900'>{termsLockedAtText}</dd>
                                                                         </div>
                                                                 )}
                                                         </dl>
                                                 </div>
                                                 <div className='flex w-full flex-col gap-2 sm:w-auto'>
+                                                        {isAwaitingTermsAcceptance && (
+                                                                <button
+                                                                        type='button'
+                                                                        className='btn btn-warning btn-sm gap-2 rounded-full px-5 text-warning-foreground'
+                                                                        onClick={() => {
+                                                                                if (acceptTermsMutation.isPending || !termsVersion) return
+                                                                                acceptTermsMutation.mutate()
+                                                                        }}
+                                                                        disabled={acceptTermsMutation.isPending || !termsVersion}>
+                                                                        {acceptTermsMutation.isPending ? (
+                                                                                <>
+                                                                                        <Loader2 className='size-4 animate-spin' /> Đang xác nhận...
+                                                                                </>
+                                                                        ) : (
+                                                                                <>
+                                                                                        <ShieldCheck className='size-4' /> Tôi đã đọc và đồng ý điều khoản này
+                                                                                </>
+                                                                        )}
+                                                                </button>
+                                                        )}
                                                         <button
                                                                 type='button'
-                                                                className='btn btn-warning btn-sm gap-2 rounded-full px-5 text-warning-foreground'
-                                                                onClick={() => {
-                                                                        if (acceptTermsMutation.isPending || !termsVersion) return
-                                                                        acceptTermsMutation.mutate()
-                                                                }}
-                                                                disabled={acceptTermsMutation.isPending || !termsVersion}>
-                                                                {acceptTermsMutation.isPending ? (
-                                                                        <>
-                                                                                <Loader2 className='size-4 animate-spin' /> Đang xác nhận...
-                                                                        </>
-                                                                ) : (
-                                                                        <>
-                                                                                <ShieldCheck className='size-4' /> Tôi đã đọc và đồng ý điều khoản này
-                                                                        </>
-                                                                )}
-                                                        </button>
-                                                        <button
-                                                                type='button'
-                                                                className='inline-flex items-center justify-center gap-2 rounded-full border border-amber-200/60 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:border-amber-300 hover:bg-white/40'
-                                                                onClick={() => setTermsExpanded(prev => !prev)}>
+                                                                className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                                                                        isAwaitingTermsAcceptance
+                                                                                ? 'border-amber-200/60 text-amber-800 hover:border-amber-300 hover:bg-white/40'
+                                                                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50/60'
+                                                                }`}
+                                                                onClick={() => setTermsExpanded(prev => !prev)}
+                                                        >
                                                                 {isTermsExpanded ? 'Thu gọn nội dung điều khoản' : 'Xem điều khoản đính kèm'}
                                                         </button>
                                                 </div>
                                         </div>
+                                        {!isAwaitingTermsAcceptance && (termsLockedAtText || termsAcceptedByName) && (
+                                                <div className='flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700'>
+                                                        <CheckCircle2 className='mt-0.5 size-4 flex-shrink-0 text-emerald-500' />
+                                                        <div className='space-y-1'>
+                                                                <p className='font-semibold text-emerald-800'>Điều khoản đã được khóa</p>
+                                                                <p>
+                                                                        {termsAcceptedByName ? `Được ${termsAcceptedByName} xác nhận` : 'Được hệ thống khóa lại'}
+                                                                        {termsLockedAtText ? ` vào ${termsLockedAtText}` : ''}.
+                                                                </p>
+                                                        </div>
+                                                </div>
+                                        )}
                                         {isTermsExpanded && (
-                                                <div className='rounded-2xl border border-amber-200/80 bg-white/95 p-4 text-slate-700'>
+                                                <div
+                                                        className={`rounded-2xl border p-4 text-slate-700 ${
+                                                                isAwaitingTermsAcceptance ? 'border-amber-200/80 bg-white/95' : 'border-slate-200 bg-white'
+                                                        }`}
+                                                >
                                                         {termsSections.length ? (
                                                                 <div className='space-y-8'>
                                                                         {termsSections.map((section, index) => (
                                                                                 <article
                                                                                         key={`${section.code ?? section.title ?? 'section'}-${index}`}
-                                                                                        className='space-y-3 border-b border-slate-200 pb-6 last:border-b-0 last:pb-0'>
-                                                                                        <div className='text-xs font-semibold uppercase tracking-[0.35em] text-amber-500'>
+                                                                                        className='space-y-3 border-b border-slate-200 pb-6 last:border-b-0 last:pb-0'
+                                                                                >
+                                                                                        <div className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-400'>
                                                                                                 Section {index + 1}
                                                                                         </div>
                                                                                         <h3 className='text-base font-semibold text-slate-900'>

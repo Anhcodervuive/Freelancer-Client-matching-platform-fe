@@ -73,17 +73,29 @@ export enum ContractStatus {
 }
 
 export type ContractParticipantProfile = {
-	firstName: string | null
-	lastName: string | null
-	country: string | null
-	city: string | null
-	avatar?: string | null
+        firstName: string | null
+        lastName: string | null
+        country: string | null
+        city: string | null
+        avatar?: string | null
 }
 
+export type ContractParticipantSummary = {
+        id?: string
+        email?: string | null
+        role?: ContractParticipantRole | null
+        companyName?: string | null
+        profile?: ContractParticipantProfile | null
+        firstName?: string | null
+        lastName?: string | null
+        fullName?: string | null
+        [key: string]: unknown
+} | null
+
 export type ContractClient = {
-	userId: string
-	profile?: ContractParticipantProfile | null
-	companyName?: string | null
+        userId: string
+        profile?: ContractParticipantProfile | null
+        companyName?: string | null
 }
 
 export type ContractFreelancer = {
@@ -213,22 +225,25 @@ export type ContractJobPost = {
 }
 
 export type ContractProposal = {
-	id: string
-	submittedAt?: string | null
-	bidAmount?: number | null
-	bidCurrency?: string | null
-	coverLetter?: string | null
-	[key: string]: unknown
+        id: string
+        status?: string | null
+        submittedAt?: string | null
+        bidAmount?: number | null
+        bidCurrency?: string | null
+        coverLetter?: string | null
+        [key: string]: unknown
 }
 
 export type ContractOffer = {
-	id: string
-	createdAt?: string | null
-	startDate?: string | null
-	endDate?: string | null
-	totalAmount?: number | null
-	currency?: string | null
-	message?: string | null
+        id: string
+        status?: string | null
+        createdAt?: string | null
+        sentAt?: string | null
+        startDate?: string | null
+        endDate?: string | null
+        totalAmount?: number | null
+        currency?: string | null
+        message?: string | null
 	[key: string]: unknown
 }
 
@@ -245,11 +260,11 @@ export type Contract = {
 	fixedPrice?: number | null
 	fixedPriceCurrency?: string | null
 	totalPaidAmount?: number | null
-	totalPaidCurrency?: string | null
-	outstandingBalance?: number | null
-	outstandingCurrency?: string | null
-	startDate?: string | null
-	endDate?: string | null
+        totalPaidCurrency?: string | null
+        outstandingBalance?: number | null
+        outstandingCurrency?: string | null
+        startDate?: string | null
+        endDate?: string | null
 	submittedAt?: string | null
 	acceptedAt?: string | null
 	createdAt?: string | null
@@ -271,6 +286,12 @@ export type Contract = {
         termsAcceptedById?: string | null
         termsAcceptedIp?: string | null
         termsAcceptedUserAgent?: string | null
+        termsAcceptedBy?: ContractParticipantSummary
+        clientAcceptedAt?: string | null
+        clientAcceptedById?: string | null
+        clientAcceptedIp?: string | null
+        clientAcceptedUserAgent?: string | null
+        clientAcceptedBy?: ContractParticipantSummary
         acceptanceLogs?: ContractAcceptanceLog[] | null
         signatureProvider?: string | null
         signatureEnvelopeId?: string | null
