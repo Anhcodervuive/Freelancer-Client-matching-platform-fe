@@ -40,6 +40,7 @@ import {
         deleteContractMilestone,
         deleteContractMilestoneResource,
         getContractDetail,
+        getContractTermsDetail,
         listContractMilestones,
         uploadContractMilestoneAttachments,
         submitMilestoneWork,
@@ -712,6 +713,15 @@ const ContractWorkroomPage = () => {
         })
 
         const contract = contractQuery.data as Contract | undefined
+        const contractTermsQuery = useQuery({
+                queryKey: ['contract-terms', contractId],
+                queryFn: () => {
+                        if (!contractId) throw new Error('Missing contract id')
+                        return getContractTermsDetail(contractId)
+                },
+                enabled: Boolean(contractId)
+        })
+        const contractTerms = contractTermsQuery.data
         const normalizedContractStatus = useMemo(() => {
                 const status = contract?.status
                 if (!status) return ''
@@ -723,8 +733,11 @@ const ContractWorkroomPage = () => {
                 const trimmed = value.trim()
                 return trimmed.length ? trimmed : null
         }
-        const termsSnapshot = contract?.platformTermsSnapshot ?? null
-        const termsVersion = resolveString(contract?.platformTermsVersion) ?? resolveString(termsSnapshot?.version)
+        const termsSnapshot = contractTerms?.platformTermsSnapshot ?? contract?.platformTermsSnapshot ?? null
+        const termsVersion =
+                resolveString(contractTerms?.platformTermsVersion) ??
+                resolveString(contract?.platformTermsVersion) ??
+                resolveString(termsSnapshot?.version)
         const termsTitle = resolveString(termsSnapshot?.title)
         const termsStatus = resolveString(termsSnapshot?.status)
         const termsPrimaryBody = termsSnapshot?.body ?? null
@@ -742,24 +755,34 @@ const ContractWorkroomPage = () => {
                 return []
         }, [termsSnapshot])
         const hasTermsContent = Boolean(termsVersion || termsPrimaryBody || termsSections.length)
+        const platformTermsId = contractTerms?.platformTermsId ?? contract?.platformTermsId ?? null
+        const termsAcceptedAt = contractTerms?.termsAcceptedAt ?? contract?.termsAcceptedAt ?? null
+        const termsAcceptedBy = contractTerms?.termsAcceptedBy ?? contract?.termsAcceptedBy
+        const termsAcceptedIp = contractTerms?.termsAcceptedIp ?? contract?.termsAcceptedIp ?? null
+        const clientAcceptedAt = contractTerms?.clientAcceptedAt ?? contract?.clientAcceptedAt ?? null
+        const clientAcceptedBy = contractTerms?.clientAcceptedBy ?? contract?.clientAcceptedBy
+        const clientAcceptedIp = contractTerms?.clientAcceptedIp ?? contract?.clientAcceptedIp ?? null
+        const acceptanceLogs = useMemo(() => {
+                const logs = contractTerms?.acceptanceLogs ?? contract?.acceptanceLogs ?? []
+                return Array.isArray(logs) ? (logs.filter(Boolean) as ContractAcceptanceLog[]) : []
+        }, [contractTerms, contract])
         const shouldShowTermsSection = Boolean(
                 hasTermsContent ||
-                        contract?.platformTermsId ||
-                        contract?.platformTermsVersion ||
-                        contract?.termsAcceptedAt ||
+                        platformTermsId ||
+                        termsVersion ||
+                        termsAcceptedAt ||
                         normalizedContractStatus === 'DRAFT'
         )
         const isContractReadyForWork = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
-        const isAwaitingTermsAcceptance = normalizedContractStatus === 'DRAFT' && !contract?.termsAcceptedAt
+        const isAwaitingTermsAcceptance = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
         const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isContractReadyForWork
         const contractSetupLocked = !isContractReadyForWork && !isContractFinalized
         const termsEffectiveFromText = termsSnapshot?.effectiveFrom
                 ? formatDateTime(termsSnapshot.effectiveFrom, { dateStyle: 'long' })
                 : null
-        const termsLockedAtText = contract?.termsAcceptedAt
-                ? formatDateTime(contract.termsAcceptedAt, { dateStyle: 'long', timeStyle: 'short' })
-                : null
-        const termsAcceptedByName = getActorDisplayName(contract?.termsAcceptedBy)
+        const termsLockedAtText =
+                termsAcceptedAt ? formatDateTime(termsAcceptedAt, { dateStyle: 'long', timeStyle: 'short' }) : null
+        const termsAcceptedByName = getActorDisplayName(termsAcceptedBy)
         const signatureProvider = resolveString(contract?.signatureProvider)
         const signatureEnvelopeId = resolveString(contract?.signatureEnvelopeId)
         const signatureStatus = resolveString(contract?.signatureStatus)
@@ -920,6 +943,7 @@ const ContractWorkroomPage = () => {
                 onSuccess: () => {
                         toast.success('Đã ghi nhận việc bạn đồng ý điều khoản nền tảng.')
                         queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+                        queryClient.invalidateQueries({ queryKey: ['contract-terms', contractId] })
                 },
                 onError: error => {
                         const message =
@@ -1412,11 +1436,37 @@ const ContractWorkroomPage = () => {
 	const jobLanguages = extractLanguageLabels(contract ?? ({} as Contract))
 	const budgetSummary = contract ? getBudgetDisplay(contract) : undefined
 	const currency = contract ? getCurrency(contract) : undefined
-	const totalPaid = formatCurrency(contract?.totalPaidAmount ?? undefined, currency)
-	const outstanding = formatCurrency(contract?.outstandingBalance ?? undefined, currency)
-	const hourlyRate = formatCurrency(contract?.hourlyRate ?? undefined, contract?.hourlyRateCurrency ?? currency)
-	const fixedPrice = formatCurrency(contract?.fixedPrice ?? undefined, contract?.fixedPriceCurrency ?? currency)
-        const timelineEvents = useMemo(() => buildTimeline(contract), [contract])
+        const totalPaid = formatCurrency(contract?.totalPaidAmount ?? undefined, currency)
+        const outstanding = formatCurrency(contract?.outstandingBalance ?? undefined, currency)
+        const hourlyRate = formatCurrency(contract?.hourlyRate ?? undefined, contract?.hourlyRateCurrency ?? currency)
+        const fixedPrice = formatCurrency(contract?.fixedPrice ?? undefined, contract?.fixedPriceCurrency ?? currency)
+        const contractForTimeline = useMemo(() => {
+                if (!contract) return undefined
+                return {
+                        ...contract,
+                        platformTermsSnapshot: termsSnapshot ?? contract.platformTermsSnapshot,
+                        platformTermsVersion: termsVersion ?? contract.platformTermsVersion,
+                        termsAcceptedAt: termsAcceptedAt ?? contract.termsAcceptedAt,
+                        termsAcceptedBy: termsAcceptedBy ?? contract.termsAcceptedBy,
+                        termsAcceptedIp: termsAcceptedIp ?? contract.termsAcceptedIp,
+                        clientAcceptedAt: clientAcceptedAt ?? contract.clientAcceptedAt,
+                        clientAcceptedBy: clientAcceptedBy ?? contract.clientAcceptedBy,
+                        clientAcceptedIp: clientAcceptedIp ?? contract.clientAcceptedIp,
+                        acceptanceLogs
+                }
+        }, [
+                contract,
+                acceptanceLogs,
+                termsSnapshot,
+                termsVersion,
+                termsAcceptedAt,
+                termsAcceptedBy,
+                termsAcceptedIp,
+                clientAcceptedAt,
+                clientAcceptedBy,
+                clientAcceptedIp
+        ])
+        const timelineEvents = useMemo(() => buildTimeline(contractForTimeline), [contractForTimeline])
         const attachments = useMemo(() => buildAttachmentList(contract), [contract])
         const closureReasonOptions = useMemo(
                 () =>

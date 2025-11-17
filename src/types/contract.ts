@@ -60,6 +60,25 @@ export type AcceptContractTermsInput = {
         userAgent?: string
 }
 
+export type ContractTermsDetail = {
+        contractId: string
+        platformTermsId?: string | null
+        platformTermsVersion?: string | null
+        platformTermsSnapshot?: ContractPlatformTermsSnapshot
+        termsAcceptedAt?: string | null
+        termsAcceptedById?: string | null
+        termsAcceptedIp?: string | null
+        termsAcceptedUserAgent?: string | null
+        termsAcceptedBy?: ContractParticipantSummary
+        clientAcceptedAt?: string | null
+        clientAcceptedById?: string | null
+        clientAcceptedIp?: string | null
+        clientAcceptedUserAgent?: string | null
+        clientAcceptedBy?: ContractParticipantSummary
+        acceptanceLogs?: ContractAcceptanceLog[] | null
+        [key: string]: unknown
+}
+
 export type ContractRole = 'client' | 'freelancer'
 
 export type ContractParticipantRole = 'CLIENT' | 'FREELANCER' | (string & {})
