@@ -12,6 +12,7 @@ import {
         CreditCard,
         Download,
         Eye,
+        BookOpen,
         Flag,
         FolderOpen,
         ChevronDown,
@@ -57,6 +58,7 @@ import {
 } from '~/apis/contract.api'
 import TermsSectionBody from '~/components/TermsSectionBody'
 import { getAllPaymentMethod } from '~/apis/payment-method.api'
+import { getLatestPlatformTerms } from '~/apis/platform-terms.api'
 import { getContractStatusDescription, getContractStatusMeta } from '~/constants/contract'
 import { routes } from '~/config/routes'
 import { selectCurrentUser } from '~/redux/user/userSlice'
@@ -730,11 +732,20 @@ const ContractWorkroomPage = () => {
         const clientAcceptedBy = contract?.clientAcceptedBy
         const clientAcceptedIp = contract?.clientAcceptedIp ?? null
         const isAwaitingTermsAcceptance = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
+        const latestPlatformTermsQuery = useQuery({
+                queryKey: ['platform-terms', 'latest', 'contract-workroom', contractId],
+                queryFn: getLatestPlatformTerms,
+                enabled: isAwaitingTermsAcceptance
+        })
+        const pendingTermsSnapshot = isAwaitingTermsAcceptance
+                ? (latestPlatformTermsQuery.data ?? null)
+                : null
         const storedTermsSnapshot = contract?.platformTermsSnapshot ?? null
-        const termsSnapshot = storedTermsSnapshot ?? null
+        const termsSnapshot = pendingTermsSnapshot ?? storedTermsSnapshot ?? null
         const storedTermsVersion =
                 resolveString(contract?.platformTermsVersion) ?? resolveString(storedTermsSnapshot?.version)
-        const termsVersion = storedTermsVersion ?? resolveString(termsSnapshot?.version)
+        const termsVersion =
+                resolveString(pendingTermsSnapshot?.version) ?? storedTermsVersion ?? resolveString(termsSnapshot?.version)
         const termsTitle = resolveString(termsSnapshot?.title)
         const termsStatus = resolveString(termsSnapshot?.status)
         const termsPrimaryBody = termsSnapshot?.body ?? null
@@ -752,6 +763,8 @@ const ContractWorkroomPage = () => {
                 return []
         }, [termsSnapshot])
         const hasTermsContent = Boolean(termsVersion || termsPrimaryBody || termsSections.length)
+        const isLoadingLatestTerms = isAwaitingTermsAcceptance && latestPlatformTermsQuery.isLoading
+        const latestTermsError = isAwaitingTermsAcceptance && latestPlatformTermsQuery.isError
         const platformTermsId = contract?.platformTermsId ?? null
         const acceptanceLogs = useMemo(() => {
                 const logs = contract?.acceptanceLogs ?? []
@@ -3578,8 +3591,30 @@ const ContractWorkroomPage = () => {
                                                                                 : 'Xem điều khoản đính kèm'
                                                                         : 'Chưa có nội dung để hiển thị'}
                                                         </button>
+                                                        <Link
+                                                                to={routes.platformTerms}
+                                                                target='_blank'
+                                                                rel='noreferrer'
+                                                                className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                                                                        isAwaitingTermsAcceptance
+                                                                                ? 'border-amber-200/60 text-amber-800 hover:border-amber-300 hover:bg-white/40'
+                                                                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50/60'
+                                                                }`}
+                                                        >
+                                                                <BookOpen className='size-4' /> Xem toàn bộ điều khoản
+                                                        </Link>
                                                 </div>
                                         </div>
+                                        {isAwaitingTermsAcceptance && isLoadingLatestTerms && (
+                                                <p className='flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-700'>
+                                                        <Loader2 className='size-4 animate-spin text-amber-600' /> Đang tải phiên bản điều khoản mới nhất...
+                                                </p>
+                                        )}
+                                        {isAwaitingTermsAcceptance && latestTermsError && (
+                                                <div className='rounded-2xl border border-dashed border-amber-300 bg-white/80 p-4 text-sm text-amber-900'>
+                                                        Không thể tải điều khoản mới nhất. Bạn vẫn có thể mở trang điều khoản công khai để xem chi tiết và thử lại sau.
+                                                </div>
+                                        )}
                                         {!isAwaitingTermsAcceptance && (termsLockedAtText || termsAcceptedByName) && (
                                                 <div className='flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700'>
                                                         <CheckCircle2 className='mt-0.5 size-4 flex-shrink-0 text-emerald-500' />
