@@ -686,9 +686,8 @@ const ContractWorkroomPage = () => {
         const queryClient = useQueryClient()
 
         useEffect(() => {
-                if (activeTab === resolvedTab) return
-                setActiveTab(resolvedTab)
-        }, [resolvedTab, activeTab])
+                setActiveTab(previous => (previous === resolvedTab ? previous : resolvedTab))
+        }, [resolvedTab])
 
         const handleTabChange = (tabId: TabId) => {
                 setActiveTab(tabId)
@@ -742,10 +741,16 @@ const ContractWorkroomPage = () => {
                 }
                 return []
         }, [termsSnapshot])
-        const hasTermsSnapshot = Boolean(termsSnapshot && (termsVersion || termsPrimaryBody || termsSections.length))
+        const hasTermsContent = Boolean(termsVersion || termsPrimaryBody || termsSections.length)
+        const shouldShowTermsSection = Boolean(
+                hasTermsContent ||
+                        contract?.platformTermsId ||
+                        contract?.platformTermsVersion ||
+                        contract?.termsAcceptedAt ||
+                        normalizedContractStatus === 'DRAFT'
+        )
         const isContractReadyForWork = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
-        const isAwaitingTermsAcceptance =
-                hasTermsSnapshot && normalizedContractStatus === 'DRAFT' && !contract?.termsAcceptedAt
+        const isAwaitingTermsAcceptance = normalizedContractStatus === 'DRAFT' && !contract?.termsAcceptedAt
         const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isContractReadyForWork
         const contractSetupLocked = !isContractReadyForWork && !isContractFinalized
         const termsEffectiveFromText = termsSnapshot?.effectiveFrom
@@ -787,7 +792,16 @@ const ContractWorkroomPage = () => {
                         ['SENT', 'COMPLETED', 'DECLINED', 'VOIDED'].includes(normalizedSignatureStatus)
         )
         const isSignatureCompleted = normalizedSignatureStatus === 'COMPLETED'
-        const shouldShowSignatureSection = Boolean(signatureProvider || hasSignatureEnvelope || hasSignatureBeenSent)
+        const signatureHasMetadata = Boolean(
+                signatureProvider ||
+                        signatureStatus ||
+                        hasSignatureEnvelope ||
+                        hasSignatureBeenSent ||
+                        signatureRecipients.length ||
+                        signatureDocumentsUri ||
+                        signatureCertificateUri
+        )
+        const shouldShowSignatureSection = Boolean(signatureHasMetadata || viewerRole === 'client')
         const canTriggerSignatureSend =
                 viewerRole === 'client' && !isContractFinalized && !isAwaitingTermsAcceptance && shouldShowSignatureSection
         const handleSignatureSend = () => {
@@ -3427,7 +3441,7 @@ const ContractWorkroomPage = () => {
                                 </div>
                         </div>
 
-                        {hasTermsSnapshot && (
+                        {shouldShowTermsSection && (
                                 <section
                                         className={`space-y-4 rounded-[32px] border p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] ${
                                                 isAwaitingTermsAcceptance
@@ -3453,7 +3467,9 @@ const ContractWorkroomPage = () => {
                                                                 <p className={`text-sm ${isAwaitingTermsAcceptance ? 'text-amber-800' : 'text-slate-600'}`}>
                                                                         {isAwaitingTermsAcceptance
                                                                                 ? 'Hợp đồng đang ở trạng thái nháp. Vui lòng xem bộ điều khoản đã đính kèm và xác nhận để tiếp tục tạo milestones cũng như bắt đầu công việc.'
-                                                                                : 'Đây là bộ điều khoản đã được đính kèm cho hợp đồng này. Nội dung đã được khóa lại để đảm bảo hai bên tham chiếu cùng một phiên bản.'}
+                                                                                : hasTermsContent
+                                                                                          ? 'Đây là bộ điều khoản đã được đính kèm cho hợp đồng này. Nội dung đã được khóa lại để đảm bảo hai bên tham chiếu cùng một phiên bản.'
+                                                                                          : 'Hệ thống chưa tải được nội dung chi tiết của snapshot, nhưng chúng tôi vẫn giữ nguyên mã phiên bản để đảm bảo tính nhất quán.'}
                                                                 </p>
                                                         </div>
                                                         <dl className={`flex flex-wrap gap-4 text-xs ${isAwaitingTermsAcceptance ? 'text-amber-700' : 'text-slate-600'}`}>
@@ -3511,9 +3527,17 @@ const ContractWorkroomPage = () => {
                                                                                 ? 'border-amber-200/60 text-amber-800 hover:border-amber-300 hover:bg-white/40'
                                                                                 : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50/60'
                                                                 }`}
-                                                                onClick={() => setTermsExpanded(prev => !prev)}
+                                                                onClick={() => {
+                                                                        if (!termsPrimaryBody && !termsSections.length) return
+                                                                        setTermsExpanded(prev => !prev)
+                                                                }}
+                                                                disabled={!termsPrimaryBody && !termsSections.length}
                                                         >
-                                                                {isTermsExpanded ? 'Thu gọn nội dung điều khoản' : 'Xem điều khoản đính kèm'}
+                                                                {termsPrimaryBody || termsSections.length
+                                                                        ? isTermsExpanded
+                                                                                ? 'Thu gọn nội dung điều khoản'
+                                                                                : 'Xem điều khoản đính kèm'
+                                                                        : 'Chưa có nội dung để hiển thị'}
                                                         </button>
                                                 </div>
                                         </div>
@@ -3529,7 +3553,7 @@ const ContractWorkroomPage = () => {
                                                         </div>
                                                 </div>
                                         )}
-                                        {isTermsExpanded && (
+                                        {isTermsExpanded && (termsSections.length || termsPrimaryBody) && (
                                                 <div
                                                         className={`rounded-2xl border p-4 text-slate-700 ${
                                                                 isAwaitingTermsAcceptance ? 'border-amber-200/80 bg-white/95' : 'border-slate-200 bg-white'
@@ -3555,6 +3579,11 @@ const ContractWorkroomPage = () => {
                                                         ) : (
                                                                 <TermsSectionBody body={termsPrimaryBody} />
                                                         )}
+                                                </div>
+                                        )}
+                                        {isTermsExpanded && !termsSections.length && !termsPrimaryBody && (
+                                                <div className='rounded-2xl border border-dashed border-slate-200 bg-white/90 p-4 text-sm text-slate-500'>
+                                                        Chúng tôi chưa thể hiển thị nội dung chi tiết của điều khoản này. Nếu vấn đề tiếp diễn, vui lòng liên hệ bộ phận hỗ trợ để được cung cấp snapshot.
                                                 </div>
                                         )}
                                 </section>
@@ -3692,6 +3721,13 @@ const ContractWorkroomPage = () => {
                                                                         </ul>
                                                                 </div>
                                                         )}
+                                                        {!hasSignatureBeenSent && !signatureHasMetadata && (
+                                                                <p className='text-sm text-slate-500'>
+                                                                        {viewerRole === 'client'
+                                                                                ? 'Chưa có phong bì DocuSign nào được gửi. Nhấn nút hành động để khởi động quy trình ký số.'
+                                                                                : 'Client chưa gửi phong bì DocuSign. Bạn sẽ nhận thông báo ngay khi có tài liệu cần ký.'}
+                                                                </p>
+                                                        )}
                                                 </div>
                                                 <div className='flex w-full flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 text-sm text-slate-600 lg:max-w-sm'>
                                                         <p className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Hành động</p>
@@ -3807,7 +3843,7 @@ const ContractWorkroomPage = () => {
                                                                         <ShieldCheck className='size-4' /> Chứng thư ký số
                                                                 </a>
                                                         )}
-                                                        {!canTriggerSignatureSend && !signatureDocumentsUri && !signatureCertificateUri && (
+                                                        {!canTriggerSignatureSend && signatureHasMetadata && !signatureDocumentsUri && !signatureCertificateUri && (
                                                                 <p className='text-sm text-slate-500'>Bạn sẽ nhận thông báo khi phong bì DocuSign có cập nhật mới.</p>
                                                         )}
                                                 </div>
