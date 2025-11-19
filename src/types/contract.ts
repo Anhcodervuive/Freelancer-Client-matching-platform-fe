@@ -304,6 +304,19 @@ export type Contract = {
         viewerSubmittedFeedbackAt?: string | null
         platformTermsVersion?: string | null
         platformTermsSnapshot?: ContractPlatformTermsSnapshot
+        platformTerms?: (ContractPlatformTermsSnapshot & {
+                snapshot?: ContractPlatformTermsSnapshot | null
+                acceptedAt?: string | null
+                acceptedById?: string | null
+                acceptedBy?: ContractParticipantSummary
+                acceptedIp?: string | null
+                acceptedUserAgent?: string | null
+                clientAcceptedAt?: string | null
+                clientAcceptedById?: string | null
+                clientAcceptedBy?: ContractParticipantSummary
+                clientAcceptedIp?: string | null
+                clientAcceptedUserAgent?: string | null
+        }) | null
         termsAcceptedAt?: string | null
         termsAcceptedById?: string | null
         termsAcceptedIp?: string | null

@@ -67,6 +67,7 @@ import { type ContractClosureReasonOption, type ContractFeedback } from '~/types
 import type {
         Contract,
         ContractAcceptanceLog,
+        ContractPlatformTermsSnapshot,
         ContractMilestone,
         ContractMilestoneSubmission,
         ContractMilestoneResource,
@@ -783,10 +784,41 @@ const ContractWorkroomPage = () => {
         })
         const shouldUseLatestTerms = contractDraftAwaitingTerms && viewerNeedsToAcceptTerms
         const pendingTermsSnapshot = shouldUseLatestTerms ? latestPlatformTermsQuery.data ?? null : null
-        const storedTermsSnapshot = contract?.platformTermsSnapshot ?? null
+        const storedTermsSnapshot = useMemo<ContractPlatformTermsSnapshot>(() => {
+                if (contract?.platformTermsSnapshot) {
+                        return contract.platformTermsSnapshot
+                }
+
+                const relation = contract?.platformTerms as ContractPlatformTermsSnapshot & {
+                        snapshot?: ContractPlatformTermsSnapshot | null
+                        sections?: PlatformTermsSection[]
+                }
+
+                if (!relation) return null
+
+                const nestedSnapshot = relation.snapshot
+
+                if (nestedSnapshot && typeof nestedSnapshot === 'object') {
+                        return {
+                                ...relation,
+                                ...nestedSnapshot,
+                                sections:
+                                        (Array.isArray(nestedSnapshot.sections)
+                                                ? nestedSnapshot.sections
+                                                : Array.isArray(relation.sections)
+                                                  ? relation.sections
+                                                  : undefined) ?? undefined,
+                                body: nestedSnapshot.body ?? relation.body
+                        }
+                }
+
+                return relation
+        }, [contract?.platformTerms, contract?.platformTermsSnapshot])
         const termsSnapshot = pendingTermsSnapshot ?? storedTermsSnapshot ?? null
         const storedTermsVersion =
-                resolveString(contract?.platformTermsVersion) ?? resolveString(storedTermsSnapshot?.version)
+                resolveString(contract?.platformTermsVersion) ??
+                resolveString(contract?.platformTerms?.version) ??
+                resolveString(storedTermsSnapshot?.version)
         const termsVersion =
                 resolveString(pendingTermsSnapshot?.version) ?? storedTermsVersion ?? resolveString(termsSnapshot?.version)
         const termsTitle = resolveString(termsSnapshot?.title)
