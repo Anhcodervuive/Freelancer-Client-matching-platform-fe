@@ -686,8 +686,9 @@ const ContractWorkroomPage = () => {
         const [isDeleteFeedbackConfirmOpen, setDeleteFeedbackConfirmOpen] = useState(false)
         const pendingPaymentMetaRef = useRef<Record<string, { idempotencyKey?: string; clientSecret?: string }>>({})
 
-	const viewerRole: ViewerRole =
-		currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
+        const viewerRole: ViewerRole =
+                currentUser?.role === Role.CLIENT ? 'client' : currentUser?.role === Role.FREELANCER ? 'freelancer' : 'all'
+        const viewerId = currentUser?.id ?? null
 
         const queryClient = useQueryClient()
 
@@ -735,15 +736,53 @@ const ContractWorkroomPage = () => {
         const clientAcceptedAt = contract?.clientAcceptedAt ?? null
         const clientAcceptedBy = contract?.clientAcceptedBy
         const clientAcceptedIp = contract?.clientAcceptedIp ?? null
-        const isAwaitingTermsAcceptance = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
+        const acceptanceLogs = useMemo(() => {
+                const logs = contract?.acceptanceLogs ?? []
+                return Array.isArray(logs) ? (logs.filter(Boolean) as ContractAcceptanceLog[]) : []
+        }, [contract])
+        const viewerHasAcceptedTerms = useMemo(() => {
+                if (!viewerId || viewerRole === 'all') return true
+                const normalizeId = (value?: string | null) => {
+                        if (typeof value !== 'string') return null
+                        const trimmed = value.trim()
+                        return trimmed.length ? trimmed : null
+                }
+                const matchesViewer = (...values: Array<string | null | undefined>) => {
+                        return values.some(value => normalizeId(value) === viewerId)
+                }
+                if (matchesViewer(contract?.termsAcceptedById, contract?.termsAcceptedBy?.id)) {
+                        return true
+                }
+                if (viewerRole === 'client' && matchesViewer(contract?.clientAcceptedById, contract?.clientAcceptedBy?.id)) {
+                        return true
+                }
+                return acceptanceLogs.some(log => {
+                        const actionKey = getAcceptanceActionKey(log)
+                        if (!actionKey.includes('ACCEPT')) return false
+                        const rawActorId = typeof log.actorId === 'string' ? log.actorId : log.userId
+                        const actorId = normalizeId(rawActorId as string | undefined)
+                        return Boolean(actorId) && actorId === viewerId
+                })
+        }, [
+                acceptanceLogs,
+                contract?.clientAcceptedBy?.id,
+                contract?.clientAcceptedById,
+                contract?.termsAcceptedBy?.id,
+                contract?.termsAcceptedById,
+                viewerId,
+                viewerRole
+        ])
+        const viewerNeedsToAcceptTerms = Boolean(
+                viewerId && viewerRole !== 'all' && !viewerHasAcceptedTerms && !isContractFinalized
+        )
+        const contractDraftAwaitingTerms = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
         const latestPlatformTermsQuery = useQuery({
                 queryKey: ['platform-terms', 'latest', 'contract-workroom', contractId],
                 queryFn: getLatestPlatformTerms,
-                enabled: isAwaitingTermsAcceptance
+                enabled: contractDraftAwaitingTerms && viewerNeedsToAcceptTerms
         })
-        const pendingTermsSnapshot = isAwaitingTermsAcceptance
-                ? (latestPlatformTermsQuery.data ?? null)
-                : null
+        const shouldUseLatestTerms = contractDraftAwaitingTerms && viewerNeedsToAcceptTerms
+        const pendingTermsSnapshot = shouldUseLatestTerms ? latestPlatformTermsQuery.data ?? null : null
         const storedTermsSnapshot = contract?.platformTermsSnapshot ?? null
         const termsSnapshot = pendingTermsSnapshot ?? storedTermsSnapshot ?? null
         const storedTermsVersion =
@@ -767,19 +806,17 @@ const ContractWorkroomPage = () => {
                 return []
         }, [termsSnapshot])
         const hasTermsContent = Boolean(termsVersion || termsPrimaryBody || termsSections.length)
-        const isLoadingLatestTerms = isAwaitingTermsAcceptance && latestPlatformTermsQuery.isLoading
-        const latestTermsError = isAwaitingTermsAcceptance && latestPlatformTermsQuery.isError
+        const isAwaitingTermsAcceptance = Boolean(viewerNeedsToAcceptTerms || contractDraftAwaitingTerms)
+        const isLoadingLatestTerms = shouldUseLatestTerms && latestPlatformTermsQuery.isLoading
+        const latestTermsError = shouldUseLatestTerms && latestPlatformTermsQuery.isError
         const platformTermsId = contract?.platformTermsId ?? null
-        const acceptanceLogs = useMemo(() => {
-                const logs = contract?.acceptanceLogs ?? []
-                return Array.isArray(logs) ? (logs.filter(Boolean) as ContractAcceptanceLog[]) : []
-        }, [contract])
         const shouldShowTermsSection = Boolean(
                 hasTermsContent ||
                         platformTermsId ||
                         termsVersion ||
                         termsAcceptedAt ||
-                        normalizedContractStatus === 'DRAFT'
+                        normalizedContractStatus === 'DRAFT' ||
+                        viewerNeedsToAcceptTerms
         )
         const isContractReadyForWork = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
         const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isContractReadyForWork
@@ -790,6 +827,9 @@ const ContractWorkroomPage = () => {
         const termsLockedAtText =
                 termsAcceptedAt ? formatDateTime(termsAcceptedAt, { dateStyle: 'long', timeStyle: 'short' }) : null
         const termsAcceptedByName = getActorDisplayName(termsAcceptedBy)
+        const pendingTermsDescription = viewerNeedsToAcceptTerms
+                ? 'Bạn cần xem và xác nhận bộ điều khoản đã đính kèm trước khi tiếp tục tạo milestones cũng như bắt đầu công việc.'
+                : 'Hợp đồng đang ở trạng thái nháp. Vui lòng xem bộ điều khoản đã đính kèm và xác nhận để tiếp tục tạo milestones cũng như bắt đầu công việc.'
 const signatureDetail = contract?.signature ?? null
 const signatureProvider = resolveString(contract?.signatureProvider ?? signatureDetail?.provider)
 const signatureEnvelopeId = resolveString(contract?.signatureEnvelopeId ?? signatureDetail?.envelopeId)
@@ -3621,7 +3661,7 @@ const renderOverview = () => (
                                                                 </h2>
                                                                 <p className={`text-sm ${isAwaitingTermsAcceptance ? 'text-amber-800' : 'text-slate-600'}`}>
                                                                         {isAwaitingTermsAcceptance
-                                                                                ? 'Hợp đồng đang ở trạng thái nháp. Vui lòng xem bộ điều khoản đã đính kèm và xác nhận để tiếp tục tạo milestones cũng như bắt đầu công việc.'
+                                                                                ? pendingTermsDescription
                                                                                 : hasTermsContent
                                                                                           ? 'Đây là bộ điều khoản đã được đính kèm cho hợp đồng này. Nội dung đã được khóa lại để đảm bảo hai bên tham chiếu cùng một phiên bản.'
                                                                                           : 'Hệ thống chưa tải được nội dung chi tiết của snapshot, nhưng chúng tôi vẫn giữ nguyên mã phiên bản để đảm bảo tính nhất quán.'}
@@ -3655,7 +3695,7 @@ const renderOverview = () => (
                                                         </dl>
                                                 </div>
                                                 <div className='flex w-full flex-col gap-2 sm:w-auto'>
-                                                        {isAwaitingTermsAcceptance && (
+                                                        {viewerNeedsToAcceptTerms && (
                                                                 <button
                                                                         type='button'
                                                                         className='btn btn-warning btn-sm gap-2 rounded-full px-5 text-warning-foreground'
@@ -3708,12 +3748,12 @@ const renderOverview = () => (
                                                         </Link>
                                                 </div>
                                         </div>
-                                        {isAwaitingTermsAcceptance && isLoadingLatestTerms && (
+                                        {shouldUseLatestTerms && isLoadingLatestTerms && (
                                                 <p className='flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-700'>
                                                         <Loader2 className='size-4 animate-spin text-amber-600' /> Đang tải phiên bản điều khoản mới nhất...
                                                 </p>
                                         )}
-                                        {isAwaitingTermsAcceptance && latestTermsError && (
+                                        {shouldUseLatestTerms && latestTermsError && (
                                                 <div className='rounded-2xl border border-dashed border-amber-300 bg-white/80 p-4 text-sm text-amber-900'>
                                                         Không thể tải điều khoản mới nhất. Bạn vẫn có thể mở trang điều khoản công khai để xem chi tiết và thử lại sau.
                                                 </div>
