@@ -777,13 +777,6 @@ const ContractWorkroomPage = () => {
                 viewerId && viewerRole !== 'all' && !viewerHasAcceptedTerms && !isContractFinalized
         )
         const contractDraftAwaitingTerms = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
-        const latestPlatformTermsQuery = useQuery({
-                queryKey: ['platform-terms', 'latest', 'contract-workroom', contractId],
-                queryFn: getLatestPlatformTerms,
-                enabled: contractDraftAwaitingTerms && viewerNeedsToAcceptTerms
-        })
-        const shouldUseLatestTerms = contractDraftAwaitingTerms && viewerNeedsToAcceptTerms
-        const pendingTermsSnapshot = shouldUseLatestTerms ? latestPlatformTermsQuery.data ?? null : null
         const storedTermsSnapshot = useMemo<ContractPlatformTermsSnapshot>(() => {
                 if (contract?.platformTermsSnapshot) {
                         return contract.platformTermsSnapshot
@@ -814,11 +807,20 @@ const ContractWorkroomPage = () => {
 
                 return relation
         }, [contract?.platformTerms, contract?.platformTermsSnapshot])
-        const termsSnapshot = pendingTermsSnapshot ?? storedTermsSnapshot ?? null
         const storedTermsVersion =
                 resolveString(contract?.platformTermsVersion) ??
                 resolveString(contract?.platformTerms?.version) ??
                 resolveString(storedTermsSnapshot?.version)
+        const shouldUseLatestTerms = Boolean(
+                viewerNeedsToAcceptTerms && (contractDraftAwaitingTerms || !storedTermsVersion)
+        )
+        const latestPlatformTermsQuery = useQuery({
+                queryKey: ['platform-terms', 'latest', 'contract-workroom', contractId],
+                queryFn: getLatestPlatformTerms,
+                enabled: shouldUseLatestTerms
+        })
+        const pendingTermsSnapshot = shouldUseLatestTerms ? latestPlatformTermsQuery.data ?? null : null
+        const termsSnapshot = pendingTermsSnapshot ?? storedTermsSnapshot ?? null
         const termsVersion =
                 resolveString(pendingTermsSnapshot?.version) ?? storedTermsVersion ?? resolveString(termsSnapshot?.version)
         const termsTitle = resolveString(termsSnapshot?.title)
