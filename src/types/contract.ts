@@ -31,15 +31,18 @@ export type ContractAcceptanceLog = {
 }
 
 export type ContractSignatureRecipient = {
-        name?: string | null
-        email?: string | null
-        role?: string | null
-        status?: string | null
-        viewedAt?: string | null
-        sentAt?: string | null
-        deliveredAt?: string | null
-        completedAt?: string | null
-        [key: string]: unknown
+name?: string | null
+email?: string | null
+role?: string | null
+status?: string | null
+viewedAt?: string | null
+sentAt?: string | null
+deliveredAt?: string | null
+completedAt?: string | null
+userId?: string | null
+recipientId?: string | null
+routingOrder?: number | null
+[key: string]: unknown
 }
 
 export type ContractSignatureEnvelopeSummary = {
@@ -47,6 +50,25 @@ export type ContractSignatureEnvelopeSummary = {
         subject?: string | null
         message?: string | null
         completedDocumentUri?: string | null
+        envelopeId?: string | null
+        uri?: string | null
+        statusDateTime?: string | null
+        [key: string]: unknown
+} | null
+
+export type ContractSignatureDetail = {
+        provider?: string | null
+        envelopeId?: string | null
+        status?: string | null
+        recipients?: ContractSignatureRecipient[] | null
+        envelopeSummary?: ContractSignatureEnvelopeSummary
+        documentsUri?: string | null
+        certificateUri?: string | null
+        sentAt?: string | null
+        completedAt?: string | null
+        declinedAt?: string | null
+        voidedAt?: string | null
+        lastError?: string | null
         [key: string]: unknown
 } | null
 
@@ -293,6 +315,7 @@ export type Contract = {
         clientAcceptedUserAgent?: string | null
         clientAcceptedBy?: ContractParticipantSummary
         acceptanceLogs?: ContractAcceptanceLog[] | null
+        signature?: ContractSignatureDetail
         signatureProvider?: string | null
         signatureEnvelopeId?: string | null
         signatureStatus?: string | null

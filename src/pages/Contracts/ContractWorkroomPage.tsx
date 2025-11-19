@@ -30,7 +30,8 @@ import {
         Star,
         Pencil,
         ThumbsUp,
-        ThumbsDown
+        ThumbsDown,
+        FileSignature
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -108,11 +109,12 @@ import EndContractDialog from './components/EndContractDialog'
 import SubmitContractFeedbackDialog from './components/SubmitContractFeedbackDialog'
 
 const tabs = [
-        { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
-        { id: 'milestones', label: 'Milestones', icon: Flag },
-        { id: 'files', label: 'Tệp đính kèm', icon: FolderOpen },
-        { id: 'payments', label: 'Thanh toán', icon: CreditCard },
-        { id: 'history', label: 'Lịch sử', icon: History }
+{ id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
+{ id: 'milestones', label: 'Milestones', icon: Flag },
+{ id: 'files', label: 'Tệp đính kèm', icon: FolderOpen },
+{ id: 'payments', label: 'Thanh toán', icon: CreditCard },
+{ id: 'signature', label: 'Ký số', icon: FileSignature },
+{ id: 'history', label: 'Lịch sử', icon: History }
 ] as const
 
 type ViewerRole = 'client' | 'freelancer' | 'all'
@@ -153,6 +155,8 @@ const SIGNATURE_STATUS_META: Record<string, { label: string; badge: string; desc
                 description: 'Không thể gửi phong bì DocuSign. Vui lòng thử lại.'
         }
 }
+
+const SIGNATURE_RESEND_ELIGIBLE_STATUSES = new Set(['DECLINED', 'VOIDED', 'ERROR'])
 
 const getSignatureStatusMeta = (status?: string | null) => {
         if (!status) {
@@ -786,50 +790,86 @@ const ContractWorkroomPage = () => {
         const termsLockedAtText =
                 termsAcceptedAt ? formatDateTime(termsAcceptedAt, { dateStyle: 'long', timeStyle: 'short' }) : null
         const termsAcceptedByName = getActorDisplayName(termsAcceptedBy)
-        const signatureProvider = resolveString(contract?.signatureProvider)
-        const signatureEnvelopeId = resolveString(contract?.signatureEnvelopeId)
-        const signatureStatus = resolveString(contract?.signatureStatus)
-        const signatureStatusMeta = getSignatureStatusMeta(signatureStatus)
-        const signatureSentAtText = contract?.signatureSentAt
-                ? formatDateTime(contract.signatureSentAt, { dateStyle: 'long', timeStyle: 'short' })
-                : null
-        const signatureCompletedAtText = contract?.signatureCompletedAt
-                ? formatDateTime(contract.signatureCompletedAt, { dateStyle: 'long', timeStyle: 'short' })
-                : null
-        const signatureDeclinedAtText = contract?.signatureDeclinedAt
-                ? formatDateTime(contract.signatureDeclinedAt, { dateStyle: 'long', timeStyle: 'short' })
-                : null
-        const signatureVoidedAtText = contract?.signatureVoidedAt
-                ? formatDateTime(contract.signatureVoidedAt, { dateStyle: 'long', timeStyle: 'short' })
-                : null
-        const signatureEnvelopeSummary = contract?.signatureEnvelopeSummary ?? null
-        const signatureLastError = resolveString(contract?.signatureLastError)
-        const signatureDocumentsUri = resolveString(contract?.signatureDocumentsUri)
-        const signatureCertificateUri = resolveString(contract?.signatureCertificateUri)
-        const signatureRecipients = useMemo(() => {
-                if (!Array.isArray(contract?.signatureRecipients)) return [] as NonNullable<Contract['signatureRecipients']>
-                return ((contract?.signatureRecipients ?? []).filter(Boolean) ?? []) as NonNullable<Contract['signatureRecipients']>
-        }, [contract?.signatureRecipients])
-        const hasSignatureEnvelope = Boolean(signatureEnvelopeId)
-        const normalizedSignatureStatus = signatureStatus?.toUpperCase() ?? ''
-        const hasSignatureBeenSent = Boolean(
-                contract?.signatureSentAt ||
-                        hasSignatureEnvelope ||
-                        ['SENT', 'COMPLETED', 'DECLINED', 'VOIDED'].includes(normalizedSignatureStatus)
-        )
-        const isSignatureCompleted = normalizedSignatureStatus === 'COMPLETED'
-        const signatureHasMetadata = Boolean(
-                signatureProvider ||
-                        signatureStatus ||
-                        hasSignatureEnvelope ||
-                        hasSignatureBeenSent ||
-                        signatureRecipients.length ||
-                        signatureDocumentsUri ||
-                        signatureCertificateUri
-        )
-        const shouldShowSignatureSection = Boolean(signatureHasMetadata || viewerRole === 'client')
-        const canTriggerSignatureSend =
-                viewerRole === 'client' && !isContractFinalized && !isAwaitingTermsAcceptance && shouldShowSignatureSection
+const signatureDetail = contract?.signature ?? null
+const signatureProvider = resolveString(contract?.signatureProvider ?? signatureDetail?.provider)
+const signatureEnvelopeId = resolveString(contract?.signatureEnvelopeId ?? signatureDetail?.envelopeId)
+const signatureStatus = resolveString(contract?.signatureStatus ?? signatureDetail?.status)
+const signatureStatusMeta = getSignatureStatusMeta(signatureStatus)
+const signatureSentAtRaw = contract?.signatureSentAt ?? signatureDetail?.sentAt ?? null
+const signatureCompletedAtRaw = contract?.signatureCompletedAt ?? signatureDetail?.completedAt ?? null
+const signatureDeclinedAtRaw = contract?.signatureDeclinedAt ?? signatureDetail?.declinedAt ?? null
+const signatureVoidedAtRaw = contract?.signatureVoidedAt ?? signatureDetail?.voidedAt ?? null
+const signatureSentAtText = signatureSentAtRaw
+? formatDateTime(signatureSentAtRaw, { dateStyle: 'long', timeStyle: 'short' })
+: null
+const signatureCompletedAtText = signatureCompletedAtRaw
+? formatDateTime(signatureCompletedAtRaw, { dateStyle: 'long', timeStyle: 'short' })
+: null
+const signatureDeclinedAtText = signatureDeclinedAtRaw
+? formatDateTime(signatureDeclinedAtRaw, { dateStyle: 'long', timeStyle: 'short' })
+: null
+const signatureVoidedAtText = signatureVoidedAtRaw
+? formatDateTime(signatureVoidedAtRaw, { dateStyle: 'long', timeStyle: 'short' })
+: null
+const signatureEnvelopeSummary = signatureDetail?.envelopeSummary ?? contract?.signatureEnvelopeSummary ?? null
+const signatureLastError = resolveString(contract?.signatureLastError ?? signatureDetail?.lastError)
+const signatureDocumentsUri = resolveString(contract?.signatureDocumentsUri ?? signatureDetail?.documentsUri)
+const signatureCertificateUri = resolveString(contract?.signatureCertificateUri ?? signatureDetail?.certificateUri)
+const signatureRecipients = useMemo(() => {
+const recipients = signatureDetail?.recipients ?? contract?.signatureRecipients
+if (!Array.isArray(recipients)) return [] as NonNullable<Contract['signatureRecipients']>
+return ((recipients ?? []).filter(Boolean) ?? []) as NonNullable<Contract['signatureRecipients']>
+}, [contract?.signatureRecipients, signatureDetail?.recipients])
+const hasSignatureEnvelope = Boolean(signatureEnvelopeId)
+const normalizedSignatureStatus = signatureStatus?.toUpperCase() ?? ''
+const hasSignatureBeenSent = Boolean(
+signatureSentAtRaw ||
+hasSignatureEnvelope ||
+['SENT', 'COMPLETED', 'DECLINED', 'VOIDED'].includes(normalizedSignatureStatus)
+)
+const isSignatureCompleted = normalizedSignatureStatus === 'COMPLETED'
+const signatureHasMetadata = Boolean(
+signatureProvider ||
+signatureStatus ||
+hasSignatureEnvelope ||
+hasSignatureBeenSent ||
+signatureRecipients.length ||
+signatureDocumentsUri ||
+signatureCertificateUri
+)
+const shouldShowSignatureSection = Boolean(signatureHasMetadata || viewerRole === 'client')
+const visibleTabs = useMemo(() => {
+if (shouldShowSignatureSection) {
+return tabs
+}
+return tabs.filter(tab => tab.id !== 'signature')
+}, [shouldShowSignatureSection])
+
+useEffect(() => {
+if (visibleTabs.some(tab => tab.id === activeTab)) {
+return
+}
+setActiveTab('overview')
+setSearchParams(previous => {
+const params = new URLSearchParams(previous)
+params.delete('tab')
+return params
+})
+}, [visibleTabs, activeTab, setSearchParams])
+const canSendSignatureEnvelope =
+viewerRole === 'client' &&
+!isContractFinalized &&
+!isAwaitingTermsAcceptance &&
+shouldShowSignatureSection &&
+!hasSignatureBeenSent
+const canResendSignatureEnvelope =
+viewerRole === 'client' &&
+!isContractFinalized &&
+!isAwaitingTermsAcceptance &&
+signatureHasMetadata &&
+hasSignatureBeenSent &&
+!isSignatureCompleted &&
+SIGNATURE_RESEND_ELIGIBLE_STATUSES.has(normalizedSignatureStatus)
         const handleSignatureSend = () => {
                 if (triggerSignatureMutation.isPending) return
                 triggerSignatureMutation.mutate({ forceResend: true })
@@ -855,13 +895,18 @@ const ContractWorkroomPage = () => {
                 }
         }, [isAwaitingTermsAcceptance, isTermsExpanded])
 
-        useEffect(() => {
-                if (hasSignatureBeenSent) return
-                if (!isSignatureResendFormOpen && !signatureResendReason && !signatureResendError) return
-                setSignatureResendFormOpen(false)
-                setSignatureResendReason('')
-                setSignatureResendError(null)
-        }, [hasSignatureBeenSent, isSignatureResendFormOpen, signatureResendReason, signatureResendError])
+useEffect(() => {
+if (canResendSignatureEnvelope) return
+if (!isSignatureResendFormOpen && !signatureResendReason && !signatureResendError) return
+setSignatureResendFormOpen(false)
+setSignatureResendReason('')
+setSignatureResendError(null)
+}, [
+canResendSignatureEnvelope,
+isSignatureResendFormOpen,
+signatureResendReason,
+signatureResendError
+])
 
         const feedbackQuery = useQuery({
                 queryKey: ['contract-feedbacks', contractId],
@@ -1891,8 +1936,65 @@ const ContractWorkroomPage = () => {
                 )
         }
 
-        const renderOverview = () => (
-                <div className='space-y-8'>
+const renderSignatureRecipientsPanel = () => {
+if (!signatureRecipients.length) {
+return (
+<div className='rounded-2xl border border-dashed border-slate-200 bg-white/80 p-4 text-sm text-slate-500'>
+Chưa có danh sách người nhận DocuSign.
+</div>
+)
+}
+
+return (
+<div className='space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4'>
+<p className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Người nhận</p>
+<ul className='space-y-3'>
+{signatureRecipients.map((recipient, index) => {
+const recipientKey = `${recipient?.email ?? recipient?.role ?? `recipient-${index}`}`
+const completedText = recipient?.completedAt
+? formatDateTime(recipient.completedAt, {
+dateStyle: 'medium',
+timeStyle: 'short'
+  })
+: null
+const sentText = !completedText && recipient?.sentAt
+? formatDateTime(recipient.sentAt, {
+dateStyle: 'medium',
+timeStyle: 'short'
+  })
+: null
+return (
+<li
+key={recipientKey}
+className='flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/80 p-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between'
+>
+<div>
+<p className='font-semibold text-slate-900'>
+{recipient?.name || recipient?.email || recipient?.role || `Người nhận ${index + 1}`}
+</p>
+{(recipient?.email || recipient?.role) && (
+<p className='text-xs text-slate-500'>
+{recipient?.email || recipient?.role}
+</p>
+)}
+</div>
+<div className='text-right text-xs text-slate-500'>
+<span className='inline-flex items-center justify-center rounded-full border border-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-600'>
+{getSignatureRecipientStatus(recipient?.status)}
+</span>
+{completedText && <p className='mt-1 text-slate-500'>Hoàn tất {completedText}</p>}
+{!completedText && sentText && <p className='mt-1 text-slate-500'>Đã gửi {sentText}</p>}
+</div>
+</li>
+)
+})}
+</ul>
+</div>
+)
+}
+
+const renderOverview = () => (
+<div className='space-y-8'>
 			<div className='grid gap-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:grid-cols-3 md:p-8'>
 				<div className='space-y-3'>
 					<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Trạng thái</p>
@@ -2093,7 +2195,8 @@ const ContractWorkroomPage = () => {
 											{metadata.length > 0 && <p className='mt-1 text-xs text-slate-500'>{metadata.join(' • ')}</p>}
 										</div>
 									</div>
-								)
+)
+
 
 								if (attachment.url) {
 									return (
@@ -3742,59 +3845,7 @@ const ContractWorkroomPage = () => {
                                                                         <p className='mt-1 text-rose-700'>{signatureLastError}</p>
                                                                 </div>
                                                         )}
-                                                        {signatureRecipients.length > 0 && (
-                                                                <div className='space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4'>
-                                                                        <p className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Người nhận</p>
-                                                                        <ul className='space-y-3'>
-                                                                                {signatureRecipients.map((recipient, index) => {
-                                                                                        const recipientKey = `${recipient?.email ?? recipient?.role ?? `recipient-${index}`}`
-                                                                                        const completedText = recipient?.completedAt
-                                                                                                ? formatDateTime(recipient.completedAt, {
-                                                                                                          dateStyle: 'medium',
-                                                                                                          timeStyle: 'short'
-                                                                                                  })
-                                                                                                : null
-                                                                                        const sentText = !completedText && recipient?.sentAt
-                                                                                                ? formatDateTime(recipient.sentAt, {
-                                                                                                          dateStyle: 'medium',
-                                                                                                          timeStyle: 'short'
-                                                                                                  })
-                                                                                                : null
-                                                                                        return (
-                                                                                                <li
-                                                                                                        key={recipientKey}
-                                                                                                        className='flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/80 p-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between'
-                                                                                                >
-                                                                                                        <div>
-                                                                                                                <p className='font-semibold text-slate-900'>
-                                                                                                                        {recipient?.name ||
-                                                                                                                                recipient?.email ||
-                                                                                                                                recipient?.role ||
-                                                                                                                                `Người nhận ${index + 1}`}
-                                                                                                                </p>
-                                                                                                                {(recipient?.email || recipient?.role) && (
-                                                                                                                        <p className='text-xs text-slate-500'>
-                                                                                                                                {recipient?.email || recipient?.role}
-                                                                                                                        </p>
-                                                                                                                )}
-                                                                                                        </div>
-                                                                                                        <div className='text-right text-xs text-slate-500'>
-                                                                                                                <span className='inline-flex items-center justify-center rounded-full border border-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-600'>
-                                                                                                                        {getSignatureRecipientStatus(recipient?.status)}
-                                                                                                                </span>
-                                                                                                                {completedText && (
-                                                                                                                        <p className='mt-1 text-slate-500'>Hoàn tất {completedText}</p>
-                                                                                                                )}
-                                                                                                                {!completedText && sentText && (
-                                                                                                                        <p className='mt-1 text-slate-500'>Đã gửi {sentText}</p>
-                                                                                                                )}
-                                                                                                        </div>
-                                                                                                </li>
-                                                                                        )
-                                                                                })}
-                                                                        </ul>
-                                                                </div>
-                                                        )}
+                                                        {signatureRecipients.length > 0 && renderSignatureRecipientsPanel()}
                                                         {!hasSignatureBeenSent && !signatureHasMetadata && (
                                                                 <p className='text-sm text-slate-500'>
                                                                         {viewerRole === 'client'
@@ -3804,14 +3855,14 @@ const ContractWorkroomPage = () => {
                                                         )}
                                                 </div>
                                                 <div className='flex w-full flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 text-sm text-slate-600 lg:max-w-sm'>
-                                                        <p className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Hành động</p>
-                                                        {canTriggerSignatureSend && !hasSignatureBeenSent && (
-                                                                <button
-                                                                        type='button'
-                                                                        className='btn btn-primary btn-sm gap-2 rounded-full px-4'
-                                                                        onClick={handleSignatureSend}
-                                                                        disabled={triggerSignatureMutation.isPending}
-                                                                >
+<p className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Hành động</p>
+{canSendSignatureEnvelope && (
+<button
+type='button'
+className='btn btn-primary btn-sm gap-2 rounded-full px-4'
+onClick={handleSignatureSend}
+disabled={triggerSignatureMutation.isPending}
+>
                                                                         {triggerSignatureMutation.isPending ? (
                                                                                 <>
                                                                                         <Loader2 className='size-4 animate-spin' />
@@ -3824,8 +3875,8 @@ const ContractWorkroomPage = () => {
                                                                         )}
                                                                 </button>
                                                         )}
-                                                        {canTriggerSignatureSend && hasSignatureBeenSent && !isSignatureCompleted && (
-                                                                <div className='space-y-2 rounded-2xl border border-white/60 bg-white/90 p-4'>
+{canResendSignatureEnvelope && (
+<div className='space-y-2 rounded-2xl border border-white/60 bg-white/90 p-4'>
                                                                         {isSignatureResendFormOpen ? (
                                                                                 <>
                                                                                         <label
@@ -3917,9 +3968,20 @@ const ContractWorkroomPage = () => {
                                                                         <ShieldCheck className='size-4' /> Chứng thư ký số
                                                                 </a>
                                                         )}
-                                                        {!canTriggerSignatureSend && signatureHasMetadata && !signatureDocumentsUri && !signatureCertificateUri && (
-                                                                <p className='text-sm text-slate-500'>Bạn sẽ nhận thông báo khi phong bì DocuSign có cập nhật mới.</p>
-                                                        )}
+{!canSendSignatureEnvelope &&
+!canResendSignatureEnvelope &&
+signatureHasMetadata &&
+!signatureDocumentsUri &&
+!signatureCertificateUri && (
+<p className='text-sm text-slate-500'>Bạn sẽ nhận thông báo khi phong bì DocuSign có cập nhật mới.</p>
+)}
+<button
+type='button'
+className='btn btn-ghost btn-sm gap-2 text-slate-600'
+onClick={() => handleTabChange('signature')}
+>
+<FileSignature className='size-4' /> Xem chi tiết ký số
+</button>
                                                 </div>
                                         </div>
                                 </section>
@@ -3939,8 +4001,8 @@ const ContractWorkroomPage = () => {
                                 </div>
                         )}
 
-                        <nav className='flex flex-wrap items-center gap-2 rounded-[28px] border border-white/70 bg-white/85 p-2 shadow-[0_20px_60px_rgba(15,23,42,0.08)]'>
-                                {tabs.map(tab => {
+<nav className='flex flex-wrap items-center gap-2 rounded-[28px] border border-white/70 bg-white/85 p-2 shadow-[0_20px_60px_rgba(15,23,42,0.08)]'>
+{visibleTabs.map(tab => {
                                         const Icon = tab.icon
                                         const isActive = activeTab === tab.id
                                         return (
@@ -3960,13 +4022,172 @@ const ContractWorkroomPage = () => {
 				})}
 			</nav>
 
-			<section className='rounded-[34px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] md:p-8'>
-				{activeTab === 'overview' && renderOverview()}
-				{activeTab === 'milestones' && renderMilestones()}
-				{activeTab === 'files' && renderFiles()}
-				{activeTab === 'payments' && renderPayments()}
-				{activeTab === 'history' && renderHistory()}
-			</section>
+<section className='rounded-[34px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] md:p-8'>
+{activeTab === 'overview' && renderOverview()}
+{activeTab === 'milestones' && renderMilestones()}
+{activeTab === 'files' && renderFiles()}
+{activeTab === 'payments' && renderPayments()}
+{activeTab === 'signature' &&
+(shouldShowSignatureSection ? (
+<div className='space-y-6'>
+<div className='space-y-4 rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] md:p-8'>
+<div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+<div className='space-y-3'>
+<p className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Trạng thái ký số</p>
+<div className='flex flex-wrap items-center gap-3'>
+<h2 className='text-xl font-semibold text-slate-900'>Phong bì DocuSign</h2>
+<span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${signatureStatusMeta.badge}`}>
+{signatureStatusMeta.label}
+</span>
+</div>
+<p className='text-sm text-slate-600'>{signatureStatusMeta.description}</p>
+</div>
+<div className='flex flex-wrap gap-2'>
+{signatureDocumentsUri && (
+<a
+href={signatureDocumentsUri}
+target='_blank'
+rel='noopener noreferrer'
+className='btn btn-secondary btn-sm gap-2 rounded-full px-4'
+>
+<Download className='size-4' /> Tải tài liệu đã ký
+</a>
+)}
+{signatureCertificateUri && (
+<a
+href={signatureCertificateUri}
+target='_blank'
+rel='noopener noreferrer'
+className='btn btn-ghost btn-sm gap-2 text-slate-600'
+>
+<ShieldCheck className='size-4' /> Chứng thư ký số
+</a>
+)}
+</div>
+</div>
+<dl className='grid gap-4 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-3'>
+{signatureProvider && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Nhà cung cấp</dt>
+<dd className='text-base font-semibold text-slate-900'>
+{signatureProvider === 'DOCUSIGN' ? 'DocuSign' : signatureProvider}
+</dd>
+</div>
+)}
+{signatureEnvelopeId && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Envelope ID</dt>
+<dd className='font-mono text-sm text-slate-900'>{signatureEnvelopeId}</dd>
+</div>
+)}
+{signatureSentAtText && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Đã gửi</dt>
+<dd className='text-base text-slate-900'>{signatureSentAtText}</dd>
+</div>
+)}
+{signatureCompletedAtText && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Hoàn tất</dt>
+<dd className='text-base text-slate-900'>{signatureCompletedAtText}</dd>
+</div>
+)}
+{signatureDeclinedAtText && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Bị từ chối</dt>
+<dd className='text-base text-slate-900'>{signatureDeclinedAtText}</dd>
+</div>
+)}
+{signatureVoidedAtText && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Đã hủy</dt>
+<dd className='text-base text-slate-900'>{signatureVoidedAtText}</dd>
+</div>
+)}
+{signatureEnvelopeSummary?.uri && (
+<div className='sm:col-span-2'>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>URI DocuSign</dt>
+<dd className='font-mono text-sm text-slate-900 break-all'>{signatureEnvelopeSummary.uri}</dd>
+</div>
+)}
+</dl>
+{signatureLastError && (
+<div className='rounded-2xl border border-rose-200 bg-rose-50/70 p-4 text-sm text-rose-700'>
+<p className='font-semibold text-rose-900'>Không thể gửi DocuSign</p>
+<p className='mt-1 text-rose-700'>{signatureLastError}</p>
+</div>
+)}
+</div>
+<div className='grid gap-6 lg:grid-cols-2'>
+<div className='rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_15px_40px_rgba(15,23,42,0.05)]'>
+<h3 className='text-base font-semibold text-slate-900'>Người nhận</h3>
+<p className='mt-1 text-sm text-slate-500'>Theo thứ tự định tuyến trên phong bì.</p>
+<div className='mt-4'>{renderSignatureRecipientsPanel()}</div>
+</div>
+<div className='rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_15px_40px_rgba(15,23,42,0.05)]'>
+<h3 className='text-base font-semibold text-slate-900'>Chi tiết phong bì</h3>
+<dl className='mt-4 space-y-3 text-sm text-slate-600'>
+{signatureEnvelopeSummary?.envelopeId && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Envelope ID</dt>
+<dd className='font-mono text-sm text-slate-900'>{signatureEnvelopeSummary.envelopeId}</dd>
+</div>
+)}
+{signatureEnvelopeSummary?.status && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Trạng thái từ DocuSign</dt>
+<dd className='text-base text-slate-900'>{signatureEnvelopeSummary.status}</dd>
+</div>
+)}
+{signatureEnvelopeSummary?.statusDateTime && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Cập nhật gần nhất</dt>
+<dd className='text-base text-slate-900'>
+{formatDateTime(signatureEnvelopeSummary.statusDateTime, {
+dateStyle: 'long',
+timeStyle: 'short'
+})}
+</dd>
+</div>
+)}
+{signatureSentAtText && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Đã gửi</dt>
+<dd className='text-base text-slate-900'>{signatureSentAtText}</dd>
+</div>
+)}
+{signatureCompletedAtText && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Hoàn tất</dt>
+<dd className='text-base text-slate-900'>{signatureCompletedAtText}</dd>
+</div>
+)}
+{signatureDeclinedAtText && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Bị từ chối</dt>
+<dd className='text-base text-slate-900'>{signatureDeclinedAtText}</dd>
+</div>
+)}
+{signatureVoidedAtText && (
+<div>
+<dt className='text-xs font-semibold uppercase tracking-[0.35em] text-slate-500'>Đã hủy</dt>
+<dd className='text-base text-slate-900'>{signatureVoidedAtText}</dd>
+</div>
+)}
+</dl>
+{signatureEnvelopeSummary?.message && (
+<p className='mt-3 text-sm text-slate-500'>{signatureEnvelopeSummary.message}</p>
+)}
+</div>
+</div>
+</div>
+) : (
+<div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-6 text-sm text-slate-500'>
+Chưa có thông tin ký số cho hợp đồng này.
+</div>
+))}
+{activeTab === 'history' && renderHistory()}
+</section>
                         <CreateMilestoneDialog
                                 open={isCreateMilestoneOpen}
                                 currency={currency}
