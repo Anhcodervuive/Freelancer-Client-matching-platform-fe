@@ -914,9 +914,6 @@ const ContractWorkroomPage = () => {
                         viewerNeedsToAcceptTerms
         )
         const isContractStatusReady = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
-        const isWorkroomReady = Boolean(isContractStatusReady && hasAllParticipantsAccepted && isSignatureCompleted)
-        const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isWorkroomReady
-        const contractSetupLocked = !isWorkroomReady && !isContractFinalized
         const termsEffectiveFromText = termsSnapshot?.effectiveFrom
                 ? formatDateTime(termsSnapshot.effectiveFrom, { dateStyle: 'long' })
                 : null
@@ -926,18 +923,6 @@ const ContractWorkroomPage = () => {
         const pendingTermsDescription = viewerNeedsToAcceptTerms
                 ? 'Bạn cần xem và xác nhận bộ điều khoản đã đính kèm trước khi tiếp tục tạo milestones cũng như bắt đầu công việc.'
                 : 'Hợp đồng đang ở trạng thái nháp. Vui lòng xem bộ điều khoản đã đính kèm và xác nhận để tiếp tục tạo milestones cũng như bắt đầu công việc.'
-        const workroomLockReason = (() => {
-                if (!hasAllParticipantsAccepted) {
-                        return 'Cả hai bên cần đồng ý điều khoản nền tảng trước khi bắt đầu công việc.'
-                }
-                if (!isSignatureCompleted) {
-                        return 'Phong bì DocuSign cần được hoàn tất trước khi mở các thao tác công việc.'
-                }
-                if (!isContractStatusReady) {
-                        return `Hợp đồng đang ở trạng thái ${statusMeta.label.toLowerCase()} nên chưa thể thao tác cho đến khi được kích hoạt lại.`
-                }
-                return null
-        })()
 const signatureDetail = contract?.signature ?? null
 const signatureProvider = resolveString(contract?.signatureProvider ?? signatureDetail?.provider)
 const signatureEnvelopeId = resolveString(contract?.signatureEnvelopeId ?? signatureDetail?.envelopeId)
@@ -976,21 +961,36 @@ hasSignatureEnvelope ||
 ['SENT', 'COMPLETED', 'DECLINED', 'VOIDED'].includes(normalizedSignatureStatus)
 )
 const isSignatureCompleted = normalizedSignatureStatus === 'COMPLETED'
-const signatureHasMetadata = Boolean(
-signatureProvider ||
-signatureStatus ||
-hasSignatureEnvelope ||
-hasSignatureBeenSent ||
-signatureRecipients.length ||
-signatureDocumentsUri ||
-signatureCertificateUri
-)
-const shouldShowSignatureSection = Boolean(signatureHasMetadata || viewerRole === 'client')
-const visibleTabs = useMemo(() => {
-if (shouldShowSignatureSection) {
-return tabs
-}
-return tabs.filter(tab => tab.id !== 'signature')
+        const signatureHasMetadata = Boolean(
+                signatureProvider ||
+                signatureStatus ||
+                hasSignatureEnvelope ||
+                hasSignatureBeenSent ||
+                signatureRecipients.length ||
+                signatureDocumentsUri ||
+                signatureCertificateUri
+        )
+        const shouldShowSignatureSection = Boolean(signatureHasMetadata || viewerRole === 'client')
+        const isWorkroomReady = Boolean(isContractStatusReady && hasAllParticipantsAccepted && isSignatureCompleted)
+        const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isWorkroomReady
+        const contractSetupLocked = !isWorkroomReady && !isContractFinalized
+        const workroomLockReason = (() => {
+                if (!hasAllParticipantsAccepted) {
+                        return 'Cả hai bên cần đồng ý điều khoản nền tảng trước khi bắt đầu công việc.'
+                }
+                if (!isSignatureCompleted) {
+                        return 'Phong bì DocuSign cần được hoàn tất trước khi mở các thao tác công việc.'
+                }
+                if (!isContractStatusReady) {
+                        return `Hợp đồng đang ở trạng thái ${statusMeta.label.toLowerCase()} nên chưa thể thao tác cho đến khi được kích hoạt lại.`
+                }
+                return null
+        })()
+        const visibleTabs = useMemo(() => {
+                if (shouldShowSignatureSection) {
+                        return tabs
+                }
+                return tabs.filter(tab => tab.id !== 'signature')
 }, [shouldShowSignatureSection])
 
 useEffect(() => {
