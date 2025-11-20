@@ -114,6 +114,7 @@ const tabs = [
 { id: 'milestones', label: 'Milestones', icon: Flag },
 { id: 'files', label: 'Tệp đính kèm', icon: FolderOpen },
 { id: 'payments', label: 'Thanh toán', icon: CreditCard },
+{ id: 'readiness', label: 'Tiến trình', icon: ShieldCheck },
 { id: 'signature', label: 'Ký số', icon: FileSignature },
 { id: 'history', label: 'Lịch sử', icon: History }
 ] as const
@@ -741,13 +742,69 @@ const ContractWorkroomPage = () => {
                 const logs = contract?.acceptanceLogs ?? []
                 return Array.isArray(logs) ? (logs.filter(Boolean) as ContractAcceptanceLog[]) : []
         }, [contract])
+
+        const normalizeId = (value?: string | null) => {
+                if (typeof value !== 'string') return null
+                const trimmed = value.trim()
+                return trimmed.length ? trimmed : null
+        }
+
+        const clientUserId = normalizeId(contract?.clientId ?? contract?.client?.id)
+        const freelancerUserId = normalizeId(contract?.freelancerId ?? contract?.freelancer?.id)
+
+        const resolveAcceptanceForUser = (userId?: string | null) => {
+                const normalizedUserId = normalizeId(userId)
+                if (!normalizedUserId) {
+                        return { accepted: false, acceptedAt: null as string | null, version: null as string | null }
+                }
+
+                const consider = (candidateAt?: string | null, candidateVersion?: string | null) => {
+                        if (!candidateAt) return
+                        const currentTs = acceptedAt ? Date.parse(acceptedAt) : Number.NEGATIVE_INFINITY
+                        const candidateTs = Date.parse(candidateAt)
+                        if (!Number.isNaN(candidateTs) && candidateTs >= currentTs) {
+                                acceptedAt = candidateAt
+                                acceptedVersion = resolveString(candidateVersion)
+                        }
+                }
+
+                let acceptedAt: string | null = null
+                let acceptedVersion: string | null = null
+
+                if (normalizeId(contract?.termsAcceptedById) === normalizedUserId ||
+                        normalizeId(contract?.termsAcceptedBy?.id) === normalizedUserId) {
+                        consider(contract?.termsAcceptedAt, contract?.platformTermsVersion)
+                }
+
+                if (normalizeId(contract?.clientAcceptedById) === normalizedUserId ||
+                        normalizeId(contract?.clientAcceptedBy?.id) === normalizedUserId) {
+                        consider(contract?.clientAcceptedAt, contract?.platformTermsVersion)
+                }
+
+                if (normalizeId(contract?.platformTerms?.acceptedById) === normalizedUserId) {
+                        consider(contract?.platformTerms?.acceptedAt, contract?.platformTerms?.version)
+                }
+
+                if (normalizeId(contract?.platformTerms?.clientAcceptedById) === normalizedUserId) {
+                        consider(contract?.platformTerms?.clientAcceptedAt, contract?.platformTerms?.version)
+                }
+
+                acceptanceLogs.forEach(log => {
+                        const actionKey = getAcceptanceActionKey(log)
+                        if (!actionKey.includes('ACCEPT')) return
+                        const actorId = normalizeId(log.actorId as string | undefined)
+                        if (actorId !== normalizedUserId) return
+                        consider(log.createdAt, log.termsVersion)
+                })
+
+                return {
+                        accepted: Boolean(acceptedAt),
+                        acceptedAt,
+                        version: acceptedVersion
+                }
+        }
         const viewerHasAcceptedTerms = useMemo(() => {
                 if (!viewerId || viewerRole === 'all') return true
-                const normalizeId = (value?: string | null) => {
-                        if (typeof value !== 'string') return null
-                        const trimmed = value.trim()
-                        return trimmed.length ? trimmed : null
-                }
                 const matchesViewer = (...values: Array<string | null | undefined>) => {
                         return values.some(value => normalizeId(value) === viewerId)
                 }
@@ -770,12 +827,16 @@ const ContractWorkroomPage = () => {
                 contract?.clientAcceptedById,
                 contract?.termsAcceptedBy?.id,
                 contract?.termsAcceptedById,
+                normalizeId,
                 viewerId,
                 viewerRole
         ])
         const viewerNeedsToAcceptTerms = Boolean(
                 viewerId && viewerRole !== 'all' && !viewerHasAcceptedTerms && !isContractFinalized
         )
+        const clientAcceptance = resolveAcceptanceForUser(clientUserId)
+        const freelancerAcceptance = resolveAcceptanceForUser(freelancerUserId)
+        const hasAllParticipantsAccepted = Boolean(clientAcceptance.accepted && freelancerAcceptance.accepted)
         const contractDraftAwaitingTerms = normalizedContractStatus === 'DRAFT' && !termsAcceptedAt
         const storedTermsSnapshot = useMemo<ContractPlatformTermsSnapshot>(() => {
                 if (contract?.platformTermsSnapshot) {
@@ -852,9 +913,10 @@ const ContractWorkroomPage = () => {
                         normalizedContractStatus === 'DRAFT' ||
                         viewerNeedsToAcceptTerms
         )
-        const isContractReadyForWork = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
-        const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isContractReadyForWork
-        const contractSetupLocked = !isContractReadyForWork && !isContractFinalized
+        const isContractStatusReady = CONTRACT_READY_STATUSES.has(normalizedContractStatus)
+        const isWorkroomReady = Boolean(isContractStatusReady && hasAllParticipantsAccepted && isSignatureCompleted)
+        const viewerCanManageMilestones = viewerRole === 'client' && !isContractFinalized && isWorkroomReady
+        const contractSetupLocked = !isWorkroomReady && !isContractFinalized
         const termsEffectiveFromText = termsSnapshot?.effectiveFrom
                 ? formatDateTime(termsSnapshot.effectiveFrom, { dateStyle: 'long' })
                 : null
@@ -864,6 +926,18 @@ const ContractWorkroomPage = () => {
         const pendingTermsDescription = viewerNeedsToAcceptTerms
                 ? 'Bạn cần xem và xác nhận bộ điều khoản đã đính kèm trước khi tiếp tục tạo milestones cũng như bắt đầu công việc.'
                 : 'Hợp đồng đang ở trạng thái nháp. Vui lòng xem bộ điều khoản đã đính kèm và xác nhận để tiếp tục tạo milestones cũng như bắt đầu công việc.'
+        const workroomLockReason = (() => {
+                if (!hasAllParticipantsAccepted) {
+                        return 'Cả hai bên cần đồng ý điều khoản nền tảng trước khi bắt đầu công việc.'
+                }
+                if (!isSignatureCompleted) {
+                        return 'Phong bì DocuSign cần được hoàn tất trước khi mở các thao tác công việc.'
+                }
+                if (!isContractStatusReady) {
+                        return `Hợp đồng đang ở trạng thái ${statusMeta.label.toLowerCase()} nên chưa thể thao tác cho đến khi được kích hoạt lại.`
+                }
+                return null
+        })()
 const signatureDetail = contract?.signature ?? null
 const signatureProvider = resolveString(contract?.signatureProvider ?? signatureDetail?.provider)
 const signatureEnvelopeId = resolveString(contract?.signatureEnvelopeId ?? signatureDetail?.envelopeId)
@@ -930,18 +1004,20 @@ params.delete('tab')
 return params
 })
 }, [visibleTabs, activeTab, setSearchParams])
-const canSendSignatureEnvelope =
-viewerRole === 'client' &&
-!isContractFinalized &&
-!isAwaitingTermsAcceptance &&
-shouldShowSignatureSection &&
-!hasSignatureBeenSent
-const canResendSignatureEnvelope =
-viewerRole === 'client' &&
-!isContractFinalized &&
-!isAwaitingTermsAcceptance &&
-signatureHasMetadata &&
-hasSignatureBeenSent &&
+        const canSendSignatureEnvelope =
+                viewerRole === 'client' &&
+                !isContractFinalized &&
+                hasAllParticipantsAccepted &&
+                !isAwaitingTermsAcceptance &&
+                shouldShowSignatureSection &&
+                !hasSignatureBeenSent
+        const canResendSignatureEnvelope =
+                viewerRole === 'client' &&
+                !isContractFinalized &&
+                hasAllParticipantsAccepted &&
+                !isAwaitingTermsAcceptance &&
+                signatureHasMetadata &&
+                hasSignatureBeenSent &&
 !isSignatureCompleted &&
 SIGNATURE_RESEND_ELIGIBLE_STATUSES.has(normalizedSignatureStatus)
         const handleSignatureSend = () => {
@@ -1782,7 +1858,7 @@ signatureResendError
 	}
 
         const handleMilestoneAttachmentUpload = (milestoneId: string, files: FileList | File[]) => {
-                if (!isContractReadyForWork) {
+                if (!isWorkroomReady) {
                         toast.warning('Hợp đồng chưa sẵn sàng để cập nhật tệp đính kèm.')
                         return
                 }
@@ -2322,9 +2398,11 @@ const renderOverview = () => (
                 const displayStart = totalMilestones ? pageStart + 1 : 0
                 const displayEnd = pageEnd
                 const milestoneActionLocked = contractSetupLocked
-                const milestoneLockDescription = isAwaitingTermsAcceptance
-                        ? 'Bạn cần đồng ý điều khoản nền tảng đã đính kèm trước khi tạo hoặc cập nhật milestones.'
-                        : `Hợp đồng đang ở trạng thái ${statusMeta.label.toLowerCase()} nên chưa thể thao tác với milestones cho đến khi được kích hoạt lại.`
+                const milestoneLockDescription =
+                        workroomLockReason ||
+                        (isAwaitingTermsAcceptance
+                                ? 'Bạn cần đồng ý điều khoản nền tảng đã đính kèm trước khi tạo hoặc cập nhật milestones.'
+                                : `Hợp đồng đang ở trạng thái ${statusMeta.label.toLowerCase()} nên chưa thể thao tác với milestones cho đến khi được kích hoạt lại.`)
                 if (!milestones.length) {
                         return (
                                 <div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
@@ -2596,7 +2674,7 @@ const renderOverview = () => (
                                                         respondMilestoneCancellationMutation.variables?.action
                                                 const canSubmitWork =
                                                         viewerRole === 'freelancer' &&
-                                                        isContractReadyForWork &&
+                                                        isWorkroomReady &&
                                                         !isContractFinalized &&
                                                         !isMilestoneReleased &&
                                                         normalizedMilestoneStatus !== 'CANCELLED' &&
@@ -3466,8 +3544,8 @@ const renderOverview = () => (
 		)
 	}
 
-	const renderPayments = () => (
-		<div className='grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]'>
+        const renderPayments = () => (
+                <div className='grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]'>
 			<div className='space-y-6 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
 				<h3 className='text-sm font-semibold text-slate-800'>Tổng quan thanh toán</h3>
 				<div className='grid gap-4 md:grid-cols-2'>
@@ -3499,8 +3577,142 @@ const renderOverview = () => (
 					Chưa có giao dịch nào được ghi nhận. Khi milestones được duyệt và giải ngân, bạn sẽ thấy chi tiết tại đây.
 				</p>
 			</div>
-		</div>
-	)
+                </div>
+        )
+
+        const renderReadiness = () => {
+                const acceptanceRows = [
+                        { label: 'Khách hàng', name: clientName, acceptance: clientAcceptance },
+                        { label: 'Freelancer', name: freelancerName, acceptance: freelancerAcceptance }
+                ]
+
+                return (
+                        <div className='space-y-6'>
+                                <div className='space-y-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:p-8'>
+                                        <div className='flex items-center justify-between gap-4'>
+                                                <div>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Điều khoản</p>
+                                                        <h3 className='text-lg font-semibold text-slate-900'>Trạng thái chấp nhận</h3>
+                                                        <p className='mt-1 text-sm text-slate-600'>Mỗi bên cần xác nhận đúng bộ điều khoản đi kèm hợp đồng.</p>
+                                                </div>
+                                                <span
+                                                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${hasAllParticipantsAccepted
+                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                : 'border-amber-200 bg-amber-50 text-amber-700'}`}
+                                                >
+                                                        <ShieldCheck className='size-4' />
+                                                        {hasAllParticipantsAccepted ? 'Đã khóa điều khoản' : 'Chưa đủ xác nhận'}
+                                                </span>
+                                        </div>
+                                        <ul className='divide-y divide-slate-200 rounded-2xl border border-slate-200/80 bg-white/60'>
+                                                {acceptanceRows.map(row => {
+                                                        const { acceptance } = row
+                                                        const acceptedAtText = acceptance.acceptedAt
+                                                                ? formatDateTime(acceptance.acceptedAt, {
+                                                                          dateStyle: 'medium',
+                                                                          timeStyle: 'short'
+                                                                  })
+                                                                : null
+                                                        return (
+                                                                <li key={row.label} className='flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4'>
+                                                                        <div>
+                                                                                <p className='text-sm font-semibold text-slate-800'>{row.label}</p>
+                                                                                <p className='text-sm text-slate-500'>{row.name || '—'}</p>
+                                                                        </div>
+                                                                        <div className='flex flex-col items-start gap-1 text-sm md:items-end'>
+                                                                                <span
+                                                                                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${acceptance.accepted
+                                                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                                                : 'border-amber-200 bg-amber-50 text-amber-700'}`}
+                                                                                >
+                                                                                        {acceptance.accepted ? 'Đã đồng ý điều khoản' : 'Chưa xác nhận'}
+                                                                                </span>
+                                                                                <div className='text-xs text-slate-500'>
+                                                                                        {acceptance.accepted
+                                                                                                ? (
+                                                                                                        <span>
+                                                                                                                {acceptedAtText ?? 'Đã ghi nhận'}
+                                                                                                                {acceptance.version && ` • Bản ${acceptance.version}`}
+                                                                                                        </span>
+                                                                                                )
+                                                                                                : 'Đang chờ người dùng này xác nhận.'}
+                                                                                </div>
+                                                                        </div>
+                                                                </li>
+                                                        )
+                                                })}
+                                        </ul>
+                                </div>
+
+                                <div className='space-y-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:p-8'>
+                                        <div className='flex items-center justify-between gap-4'>
+                                                <div>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Ký số</p>
+                                                        <h3 className='text-lg font-semibold text-slate-900'>DocuSign</h3>
+                                                        <p className='mt-1 text-sm text-slate-600'>Tình trạng phong bì và trình tự ký.</p>
+                                                </div>
+                                                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${signatureStatusMeta.badge}`}>
+                                                        {signatureStatusMeta.label}
+                                                </span>
+                                        </div>
+                                        <div className='rounded-2xl border border-slate-200/80 bg-white/60 p-4 text-sm text-slate-600'>
+                                                <p className='font-semibold text-slate-800'>Trạng thái phong bì</p>
+                                                <p className='mt-1 text-sm text-slate-600'>{signatureStatusMeta.description}</p>
+                                                <div className='mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-3'>
+                                                        <div>
+                                                                <p className='font-semibold text-slate-700'>Gửi lúc</p>
+                                                                <p>{signatureSentAtText ?? '—'}</p>
+                                                        </div>
+                                                        <div>
+                                                                <p className='font-semibold text-slate-700'>Hoàn tất</p>
+                                                                <p>{signatureCompletedAtText ?? '—'}</p>
+                                                        </div>
+                                                        <div>
+                                                                <p className='font-semibold text-slate-700'>Envelope ID</p>
+                                                                <p className='break-all'>{signatureEnvelopeId ?? '—'}</p>
+                                                        </div>
+                                                </div>
+                                                <div className='mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-600'>
+                                                        <p className='font-semibold text-slate-700'>Người tham gia</p>
+                                                        <ul className='mt-2 grid gap-2 sm:grid-cols-2'>
+                                                                {signatureRecipients.slice(0, 4).map((recipient, index) => (
+                                                                        <li key={recipient.userId ?? recipient.email ?? index} className='flex items-start gap-2'>
+                                                                                <Users className='mt-0.5 size-4 text-slate-400' />
+                                                                                <div>
+                                                                                        <p className='text-sm font-semibold text-slate-800'>{recipient.name || recipient.email || recipient.role || 'Người ký'}</p>
+                                                                                        <p className='text-xs text-slate-500'>Thứ tự {recipient.routingOrder ?? index + 1}</p>
+                                                                                </div>
+                                                                        </li>
+                                                                ))}
+                                                                {!signatureRecipients.length && <li className='text-xs text-slate-500'>Chưa có danh sách người ký.</li>}
+                                                        </ul>
+                                                </div>
+                                        </div>
+
+                                        <div className={`space-y-2 rounded-[24px] border p-4 text-sm ${isWorkroomReady ? 'border-emerald-200 bg-emerald-50/70 text-emerald-800' : 'border-slate-200 bg-slate-50/80 text-slate-700'}`}>
+                                                <div className='flex items-center gap-2'>
+                                                        {isWorkroomReady ? (
+                                                                <CheckCircle2 className='size-5 text-emerald-600' />
+                                                        ) : (
+                                                                <AlertTriangle className='size-5 text-amber-600' />
+                                                        )}
+                                                        <p className='font-semibold'>Trạng thái Workroom</p>
+                                                </div>
+                                                <p className='text-sm'>
+                                                        {isWorkroomReady
+                                                                ? 'Tất cả bước chuẩn bị đã hoàn tất. Bạn có thể tiếp tục tạo milestone và quản lý công việc.'
+                                                                : workroomLockReason || 'Workroom đang chờ hoàn tất các bước chuẩn bị.'}
+                                                </p>
+                                                <ul className='text-xs text-slate-600'>
+                                                        <li className='mt-1'>• Điều khoản: {hasAllParticipantsAccepted ? 'Cả hai bên đã đồng ý.' : 'Cần cả hai bên xác nhận.'}</li>
+                                                        <li>• Ký số: {isSignatureCompleted ? 'Phong bì DocuSign đã hoàn tất.' : 'Cần hoàn tất phong bì DocuSign.'}</li>
+                                                        <li>• Trạng thái hợp đồng: {isContractStatusReady ? 'Đang hoạt động.' : statusMeta.label}</li>
+                                                </ul>
+                                        </div>
+                                </div>
+                        </div>
+                )
+        }
 
 	const renderHistory = () => {
 		if (!timelineEvents.length) {
@@ -3847,7 +4059,7 @@ const renderOverview = () => (
                                                 <div>
                                                         <p className='font-semibold text-slate-800'>Hợp đồng đang chờ kích hoạt</p>
                                                         <p className='mt-1 text-sm text-slate-600'>
-                                                                Trạng thái hiện tại: {statusMeta.label}. Chúng tôi sẽ thông báo ngay khi Workroom sẵn sàng để tạo milestone và bắt đầu công việc.
+                                                                {workroomLockReason || `Trạng thái hiện tại: ${statusMeta.label}. Chúng tôi sẽ thông báo ngay khi Workroom sẵn sàng để tạo milestone và bắt đầu công việc.`}
                                                         </p>
                                                 </div>
                                         </div>
@@ -3880,6 +4092,7 @@ const renderOverview = () => (
 {activeTab === 'milestones' && renderMilestones()}
 {activeTab === 'files' && renderFiles()}
 {activeTab === 'payments' && renderPayments()}
+{activeTab === 'readiness' && renderReadiness()}
 {activeTab === 'signature' &&
 (shouldShowSignatureSection ? (
 <div className='space-y-6'>
@@ -4149,7 +4362,7 @@ Chưa có thông tin ký số cho hợp đồng này.
                                 currency={currency}
                                 isSubmitting={createMilestoneMutation.isPending}
                                 onSubmit={(values, attachments) => {
-                                        if (isContractFinalized || !isContractReadyForWork) return
+                                        if (isContractFinalized || !isWorkroomReady) return
                                         return createMilestoneMutation.mutateAsync({ values, attachments })
                                 }}
                                 onClose={() => setCreateMilestoneOpen(false)}
@@ -4159,7 +4372,7 @@ Chưa có thông tin ký số cho hợp đồng này.
                                 milestoneTitle={milestoneToSubmit?.title}
                                 isSubmitting={submitMilestoneWorkMutation.isPending}
                                 onSubmit={async (values, files) => {
-                                        if (!milestoneToSubmit || isContractFinalized) return
+                                        if (!milestoneToSubmit || isContractFinalized || !isWorkroomReady) return
                                         await submitMilestoneWorkMutation.mutateAsync({
                                                 milestoneId: milestoneToSubmit.id,
                                                 message: values.message,
