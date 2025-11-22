@@ -44,11 +44,6 @@ export default function UserMenu({ user }: { user: { name?: string; avatar?: str
                                                 <Link to={routes.admin.category.list}>Admin</Link>
                                         </li>
                                 )}
-                                {user.role == Role.ARBITRATOR && (
-                                        <li>
-                                                <Link to={routes.arbitrator.disputes.list}>Trọng tài</Link>
-                                        </li>
-                                )}
 				<li>
 					<Link to={routes.me.setting.contactInfo}>Settings</Link>
 				</li>

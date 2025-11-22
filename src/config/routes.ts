@@ -101,14 +101,6 @@ export const routes = {
                 },
                 project: '/admin/projects'
         },
-        arbitrator: {
-                root: '/arbitrator',
-                dashboard: '/arbitrator',
-                disputes: {
-                        list: '/arbitrator/disputes',
-                        detail: (id: string = 'disputeId') => `/arbitrator/disputes/${id}`
-                }
-        },
         error: {
                 notFound: '/404'
         }

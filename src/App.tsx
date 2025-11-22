@@ -12,11 +12,10 @@ import { persistStore } from 'redux-persist'
 import AuthPage from './pages/Auth'
 import HomePage from './pages/Comons/HomePage'
 import {
-	checkAuthenticatedUser,
-	checkWhetherUserLoginMiddleware,
+        checkAuthenticatedUser,
+        checkWhetherUserLoginMiddleware,
         composeLoaders,
         isAdminUser,
-        isArbitratorUser,
         isClientUser,
         isFreelancerUser,
         requireAuthenticatedUserOrRedirectHome
@@ -47,10 +46,6 @@ import AdminDisputeListPage from './pages/Admin/dispute/List'
 import AdminChatPage from './pages/Admin/chat/AdminChatPage'
 import AdminUserListPage from './pages/Admin/users/AdminUserListPage'
 import AdminPlatformTermsPage from './pages/Admin/platform-terms/AdminPlatformTermsPage'
-import ArbitratorLayout from './layouts/ArbitratorLayout'
-import ArbitratorDashboardPage from './pages/Arbitrator/DashboardPage'
-import ArbitratorDisputeListPage from './pages/Arbitrator/DisputeListPage'
-import ArbitratorDisputeDetailPage from './pages/Arbitrator/DisputeDetailPage'
 import OnboardingWizard from './pages/onBoarding/OnboardingWizard'
 import PolicyLayout from './layouts/PolicyLayout'
 import ConnectAccountPolicyPage from './pages/Comons/policies/ConnectAccountPolicyPage'
@@ -342,26 +337,6 @@ const router = createBrowserRouter([
 				path: 'skills',
 				element: <SkillsAdminPage />
 			}
-                ]
-        },
-        // Arbitrator
-        {
-                path: '/arbitrator',
-                loader: composeLoaders(checkAuthenticatedUser, isArbitratorUser),
-                element: <ArbitratorLayout />,
-                children: [
-                        {
-                                index: true,
-                                element: <ArbitratorDashboardPage />
-                        },
-                        {
-                                path: 'disputes',
-                                element: <ArbitratorDisputeListPage />
-                        },
-                        {
-                                path: 'disputes/:disputeId',
-                                element: <ArbitratorDisputeDetailPage />
-                        }
                 ]
         },
         // Auth
