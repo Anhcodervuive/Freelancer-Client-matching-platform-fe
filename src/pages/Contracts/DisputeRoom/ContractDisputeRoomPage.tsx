@@ -214,18 +214,24 @@ const getNegotiationStatusMeta = (status?: string) => {
 const getPartyLabel = (
   user: DisputeNegotiation["proposer"] | DisputeNegotiation["counterparty"],
   {
-    userId,
+    candidateId,
     clientId,
     freelancerId,
-  }: { userId?: string | null; clientId?: string | null; freelancerId?: string | null },
+    currentUserId,
+  }: {
+    candidateId?: string | null;
+    clientId?: string | null;
+    freelancerId?: string | null;
+    currentUserId?: string | null;
+  },
 ) => {
-  const displayName = getUserDisplayName(user, userId ?? undefined);
+  const displayName = getUserDisplayName(user, currentUserId ?? undefined);
 
   if (displayName && displayName !== "Người dùng") {
     return displayName;
   }
 
-  const candidateId = user?.id ?? userId ?? null;
+  const candidateId = user?.id ?? candidateId ?? null;
 
   if (candidateId) {
     if (clientId && candidateId === clientId) return "Khách hàng";
@@ -977,9 +983,10 @@ const ContractDisputeRoomPage = () => {
       ? ({ id: dispute.openedById } as DisputeNegotiation["proposer"])
       : null);
   const openedByLabel = getPartyLabel(openedByUser, {
-    userId: openedByUser?.id ?? dispute?.openedById ?? null,
+    candidateId: openedByUser?.id ?? dispute?.openedById ?? null,
     clientId: contractClientId,
     freelancerId: contractFreelancerId,
+    currentUserId,
   });
 
   const currency =
@@ -1796,10 +1803,11 @@ const ContractDisputeRoomPage = () => {
                                 } as DisputeNegotiation["proposer"])
                               : null);
                           const proposerLabel = getPartyLabel(proposerUser, {
-                            userId:
+                            candidateId:
                               proposerUser?.id ?? negotiation.proposerId ?? null,
                             clientId: contractClientId,
                             freelancerId: contractFreelancerId,
+                            currentUserId,
                           });
 
                           return (
