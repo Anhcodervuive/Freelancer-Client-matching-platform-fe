@@ -4,12 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { Controller, type Resolver, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isAxiosError } from "axios";
 import {
   AlertTriangle,
   ArrowLeft,
   BarChart3,
-  CircleDollarSign,
   Clock,
   Gavel,
   Handshake,
@@ -22,12 +20,10 @@ import {
   Trash2,
   Undo2,
   X,
-  Wallet2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
 import {
-  confirmArbitrationFee,
   createDisputeNegotiation,
   deleteDisputeNegotiation,
   getContractDetail,
@@ -37,7 +33,6 @@ import {
   respondDisputeNegotiation,
   updateDisputeNegotiation,
 } from "~/apis/contract.api";
-import { getAllPaymentMethod } from "~/apis/payment-method.api";
 import { routes } from "~/config/routes";
 import { selectCurrentUser } from "~/redux/user/userSlice";
 import type { Contract, ContractMilestone } from "~/types/contract";
@@ -45,30 +40,14 @@ import type {
   DisputeContractSummary,
   DisputeMilestoneSummary,
   DisputeNegotiation,
-  DisputePayment,
   MilestoneDisputeSummary,
 } from "~/types/dispute";
 import { DisputeNegotiationStatus, DisputeStatus } from "~/types/dispute";
-import type { PaymentMethod } from "~/types/payment-method";
-import {
-  getDisputePaymentIdentityKey,
-  getDisputePaymentPayerId,
-  getDisputePaymentReference,
-  humanizeDisputePaymentStatus,
-  isDisputePaymentSuccessful,
-} from "~/utils/disputePayments";
 import { formatCurrency, formatDateTime } from "~/utils/format";
 import {
-  extractPaymentErrorMessage,
-  extractPaymentMeta,
-} from "~/utils/payment";
-import { getStripe } from "~/utils/stripe";
-import {
   DisputeNegotiationSchema,
-  ConfirmArbitrationFeeSchema,
   OpenDisputeSchema,
   RejectNegotiationSchema,
-  type ConfirmArbitrationFeeFormOutput,
   type DisputeNegotiationFormOutput,
   type OpenDisputeFormOutput,
   type RejectNegotiationFormValues,
@@ -268,7 +247,6 @@ type NegotiationActionState = {
 type DisputeTabId =
   | "overview"
   | "negotiations"
-  | "payments"
   | "actions"
   | "evidence";
 
@@ -689,21 +667,6 @@ const ContractDisputeRoomPage = () => {
     },
   });
 
-  const {
-    register: confirmArbFeeRegister,
-    handleSubmit: handleConfirmArbFeeSubmit,
-    formState: { errors: confirmArbFeeErrors },
-    reset: resetConfirmArbFeeForm,
-  } = useForm<ConfirmArbitrationFeeFormOutput>({
-    resolver: zodResolver(
-      ConfirmArbitrationFeeSchema,
-    ) as Resolver<ConfirmArbitrationFeeFormOutput>,
-    defaultValues: {
-      paymentMethodRefId: "",
-      idempotencyKey: undefined,
-    },
-  });
-
   const [actionState, setActionState] = useState<NegotiationActionState>({
     negotiation: null,
     action: null,
@@ -900,158 +863,6 @@ const ContractDisputeRoomPage = () => {
     },
   });
 
-  const confirmArbitrationFeeMutation = useMutation({
-    mutationFn: async ({
-      disputeId,
-      payload,
-    }: {
-      disputeId: string;
-      payload: ConfirmArbitrationFeeFormOutput;
-    }) => {
-      if (!contractId || !milestoneId) {
-        throw new Error("Thiếu thông tin dispute");
-      }
-
-      const resolveIdempotencyKey = (candidate?: string) => {
-        if (typeof candidate === "string") {
-          const trimmed = candidate.trim();
-          if (trimmed) {
-            return trimmed;
-          }
-        }
-
-        if (typeof payload.idempotencyKey === "string") {
-          const trimmed = payload.idempotencyKey.trim();
-          if (trimmed) {
-            return trimmed;
-          }
-        }
-
-        return undefined;
-      };
-
-      const performConfirmation = async (idempotencyKey?: string) => {
-        const body = {
-          paymentMethodRefId: payload.paymentMethodRefId,
-        } as ConfirmArbitrationFeeFormOutput;
-
-        const normalizedIdempotencyKey = resolveIdempotencyKey(idempotencyKey);
-
-        if (normalizedIdempotencyKey) {
-          body.idempotencyKey = normalizedIdempotencyKey;
-        }
-
-        try {
-          const response = await confirmArbitrationFee(
-            contractId,
-            milestoneId,
-            disputeId,
-            body,
-          );
-          return { response, meta: extractPaymentMeta(response) };
-        } catch (error) {
-          if (!isAxiosError(error)) {
-            throw error;
-          }
-
-          const rawPayload = error.response?.data ?? null;
-          const meta = extractPaymentMeta(rawPayload);
-
-          if (
-            meta.requiresAction ||
-            meta.clientSecret ||
-            meta.idempotencyKey ||
-            meta.paymentIntentId
-          ) {
-            return { response: rawPayload, meta };
-          }
-
-          throw new Error(
-            extractPaymentErrorMessage(error) ||
-              "Không thể xác nhận thanh toán phí trọng tài. Vui lòng thử lại.",
-          );
-        }
-      };
-
-      const { meta: initialMeta } = await performConfirmation();
-
-      if (!initialMeta.requiresAction) {
-        return;
-      }
-
-      if (!initialMeta.clientSecret) {
-        throw new Error("Thiếu client secret để xác thực 3-D Secure.");
-      }
-
-      const stripe = await getStripe();
-      const confirmation = await stripe.confirmCardPayment(
-        initialMeta.clientSecret,
-        {
-          payment_method: payload.paymentMethodRefId,
-        },
-      );
-
-      if (confirmation.error) {
-        const code = confirmation.error.code;
-        const baseMessage =
-          confirmation.error.message ||
-          (code === "payment_intent_authentication_failure"
-            ? "Xác thực 3-D Secure thất bại. Vui lòng thử lại."
-            : undefined);
-
-        if (
-          confirmation.error.type === "canceled" ||
-          code === "payment_intent_authentication_failure"
-        ) {
-          throw new Error(
-            baseMessage ||
-              "Xác thực 3-D Secure đã bị hủy. Vui lòng thử lại nếu bạn vẫn muốn thanh toán.",
-          );
-        }
-
-        throw new Error(
-          baseMessage || "Xác thực 3-D Secure thất bại. Vui lòng thử lại.",
-        );
-      }
-
-      const followupIdempotencyKey =
-        initialMeta.idempotencyKey ||
-        initialMeta.paymentIntentId ||
-        confirmation.paymentIntent?.id ||
-        resolveIdempotencyKey();
-
-      if (!followupIdempotencyKey) {
-        throw new Error(
-          "Không tìm thấy khóa định danh thanh toán để hoàn tất xác thực.",
-        );
-      }
-
-      const { meta: finalMeta } = await performConfirmation(
-        followupIdempotencyKey,
-      );
-
-      if (finalMeta.requiresAction) {
-        throw new Error(
-          "Thanh toán vẫn cần xác thực bổ sung. Vui lòng kiểm tra lại trạng thái 3-D Secure.",
-        );
-      }
-    },
-    onSuccess: async () => {
-      toast.success("Đã xác nhận thanh toán phí trọng tài.");
-      resetConfirmArbFeeForm({
-        paymentMethodRefId: "",
-        idempotencyKey: undefined,
-      });
-      await queryClient.invalidateQueries({ queryKey: disputeQueryKey });
-    },
-    onError: (error) => {
-      const message =
-        extractPaymentErrorMessage(error) ||
-        "Không thể xác nhận thanh toán phí trọng tài.";
-      toast.error(message);
-    },
-  });
-
   const milestoneDispute = disputeQuery.data;
   const contractFromPayload = milestoneDispute?.contract ?? null;
   const milestones = useMemo(
@@ -1089,8 +900,6 @@ const ContractDisputeRoomPage = () => {
   const isEvidenceSubmissionStage =
     dispute?.status === DisputeStatus.ARBITRATION_READY ||
     dispute?.status === DisputeStatus.ARBITRATION;
-  const isAwaitingArbitrationFees =
-    dispute?.status === DisputeStatus.AWAITING_ARBITRATION_FEES;
   const isArbitrationPhase = Boolean(
     dispute?.status &&
       [
@@ -1119,14 +928,6 @@ const ContractDisputeRoomPage = () => {
       contractFreelancerId &&
       currentUserId === contractFreelancerId,
   );
-  const shouldLoadPaymentMethods = Boolean(
-    isAwaitingArbitrationFees && (isClientParty || isFreelancerParty),
-  );
-  const paymentMethodsQuery = useQuery<PaymentMethod[]>({
-    queryKey: ["payment-methods"],
-    queryFn: async () => (await getAllPaymentMethod()) as PaymentMethod[],
-    enabled: shouldLoadPaymentMethods,
-  });
 
   const clientDisplayName =
     (
@@ -1203,10 +1004,6 @@ const ContractDisputeRoomPage = () => {
     parseAmount(milestoneEscrow?.amountRefunded),
     escrowCurrency,
   );
-  const arbFeePerParty = formatCurrency(
-    parseAmount(dispute?.arbFeePerParty),
-    currency,
-  );
   const milestoneUpdatedAt = formatDateTime(
     milestoneFromPayload?.updatedAt ??
       milestone?.updatedAt ??
@@ -1218,150 +1015,6 @@ const ContractDisputeRoomPage = () => {
   );
   const disputeCreatedAt = formatDateTime(dispute?.createdAt);
   const disputeUpdatedAt = formatDateTime(dispute?.updatedAt);
-  const arbitrationPayments = useMemo<DisputePayment[]>(() => {
-    if (!dispute?.arbitrationFeePayments?.length) {
-      return [];
-    }
-
-    const filtered = dispute.arbitrationFeePayments.filter(
-      Boolean,
-    ) as DisputePayment[];
-    return filtered.sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
-  }, [dispute?.arbitrationFeePayments]);
-  const hasPartyPaid = useMemo(
-    () => (flag: boolean | undefined | null, userId?: string | null) => {
-      if (flag === true) {
-        return true;
-      }
-      if (!userId) {
-        return false;
-      }
-      return arbitrationPayments.some(
-        (payment) =>
-          isDisputePaymentSuccessful(payment) &&
-          getDisputePaymentPayerId(payment) === userId,
-      );
-    },
-    [arbitrationPayments],
-  );
-  const clientHasPaid = hasPartyPaid(
-    dispute?.clientArbFeePaid,
-    contractClientId,
-  );
-  const freelancerHasPaid = hasPartyPaid(
-    dispute?.freelancerArbFeePaid,
-    contractFreelancerId,
-  );
-  const currentUserHasPaidArbFee = useMemo(() => {
-    if (!currentUserId) {
-      return false;
-    }
-    if (currentUserId === contractClientId) {
-      return clientHasPaid;
-    }
-    if (currentUserId === contractFreelancerId) {
-      return freelancerHasPaid;
-    }
-    return arbitrationPayments.some(
-      (payment) =>
-        isDisputePaymentSuccessful(payment) &&
-        getDisputePaymentPayerId(payment) === currentUserId,
-    );
-  }, [
-    arbitrationPayments,
-    clientHasPaid,
-    contractClientId,
-    contractFreelancerId,
-    currentUserId,
-    freelancerHasPaid,
-  ]);
-  const bothPartiesPaid = clientHasPaid && freelancerHasPaid;
-  const paymentMethods =
-    (paymentMethodsQuery.data as PaymentMethod[] | undefined) ?? [];
-  const isPaymentMethodsLoading = paymentMethodsQuery.isFetching;
-  const paymentMethodsError = paymentMethodsQuery.error as Error | null;
-  const clientArbFeeStatus = contractClientId
-    ? clientHasPaid
-      ? "Đã nộp"
-      : "Chưa nộp"
-    : "—";
-  const freelancerArbFeeStatus = contractFreelancerId
-    ? freelancerHasPaid
-      ? "Đã nộp"
-      : "Chưa nộp"
-    : "—";
-  const canCurrentUserPayArbFee = Boolean(
-    isAwaitingArbitrationFees &&
-      (isClientParty || isFreelancerParty) &&
-      !currentUserHasPaidArbFee,
-  );
-  const clientBadgeClass = contractClientId
-    ? clientHasPaid
-      ? "badge-success"
-      : "badge-warning"
-    : "badge-outline";
-  const freelancerBadgeClass = contractFreelancerId
-    ? freelancerHasPaid
-      ? "badge-success"
-      : "badge-warning"
-    : "badge-outline";
-  const formatPaymentAmount = (payment: DisputePayment) =>
-    formatCurrency(
-      parseAmount(payment?.amount),
-      payment?.currency || currency,
-    ) ?? "—";
-  const getPaymentPayerLabel = (payment: DisputePayment) => {
-    if (!payment) {
-      return "Không xác định";
-    }
-
-    if (payment.payer) {
-      const label = getUserDisplayName(
-        payment.payer,
-        currentUserId ?? undefined,
-      );
-      if (label) {
-        return label;
-      }
-    }
-
-    const payerId = getDisputePaymentPayerId(payment);
-    if (!payerId) {
-      return "Không xác định";
-    }
-
-    if (payerId === currentUserId) {
-      return "Bạn";
-    }
-
-    if (contractClientId && payerId === contractClientId) {
-      return clientDisplayName;
-    }
-
-    if (contractFreelancerId && payerId === contractFreelancerId) {
-      return freelancerDisplayName;
-    }
-
-    return payerId.length > 8
-      ? `Người dùng #${payerId.slice(0, 8)}`
-      : `Người dùng #${payerId}`;
-  };
-  const formatPaymentMethodLabel = (method: PaymentMethod) => {
-    const brand = (method.brand ?? "Thẻ").toString().toUpperCase();
-    const digits = method.last4
-      ? `•••• ${method.last4}`
-      : method.paymentMethodId;
-    const expMonth = method.expMonth
-      ? String(method.expMonth).padStart(2, "0")
-      : "";
-    const expYear = method.expYear ? String(method.expYear).slice(-2) : "";
-    const expiry = expMonth && expYear ? ` (${expMonth}/${expYear})` : "";
-    return `${brand} ${digits}${expiry}`.trim();
-  };
   const hasEscrowReleased =
     typeof escrowReleasedValue === "number" && escrowReleasedValue > 0;
   const hasApprovedTimeline = Boolean(
@@ -1434,7 +1087,6 @@ const ContractDisputeRoomPage = () => {
 
     if (hasDispute) {
       items.push({ id: "negotiations", label: "Thương lượng" });
-      items.push({ id: "payments", label: "Phí & thanh toán" });
 
       if (shouldShowEvidenceTab) {
         items.push({ id: "evidence", label: "Hồ sơ & chứng cứ" });
@@ -1509,16 +1161,6 @@ const ContractDisputeRoomPage = () => {
     updateNegotiationMutation.mutate({
       disputeId: dispute.id,
       negotiationId: actionState.negotiation.id,
-      payload: values,
-    });
-  };
-
-  const handleConfirmArbitrationFee = (
-    values: ConfirmArbitrationFeeFormOutput,
-  ) => {
-    if (!dispute?.id) return;
-    confirmArbitrationFeeMutation.mutate({
-      disputeId: dispute.id,
       payload: values,
     });
   };
@@ -1707,20 +1349,6 @@ const ContractDisputeRoomPage = () => {
                       </p>
                     )}
                   </div>
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50/80 p-4 text-violet-800 shadow-sm">
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-violet-600">
-                      <Gavel className="size-4" /> Phí trọng tài / bên
-                    </div>
-                    <p className="mt-2 text-xl font-semibold">
-                      {arbFeePerParty ?? "—"}
-                    </p>
-                    {dispute?.arbitrationDeadline && (
-                      <p className="flex items-center gap-1 text-xs text-violet-600/80">
-                        <Clock className="size-3.5" />{" "}
-                        {formatDateTime(dispute.arbitrationDeadline)}
-                      </p>
-                    )}
-                  </div>
                 </div>
               </section>
               <section className="space-y-4 rounded-3xl border border-base-200/70 bg-base-100/80 p-5 shadow-sm lg:col-span-2">
@@ -1835,24 +1463,6 @@ const ContractDisputeRoomPage = () => {
                       </dd>
                     </div>
                   )}
-                  <div className="flex items-center justify-between gap-2">
-                    <dt>Phí trọng tài / bên</dt>
-                    <dd className="font-medium text-base-content">
-                      {arbFeePerParty ?? "—"}
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <dt>Client đã nộp</dt>
-                    <dd className="font-medium text-base-content">
-                      {clientArbFeeStatus}
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <dt>Freelancer đã nộp</dt>
-                    <dd className="font-medium text-base-content">
-                      {freelancerArbFeeStatus}
-                    </dd>
-                  </div>
                   <div className="flex items-center justify-between gap-2">
                     <dt>Tạo lúc</dt>
                     <dd className="font-medium text-base-content">
@@ -2334,259 +1944,6 @@ const ContractDisputeRoomPage = () => {
             </div>
           )}
 
-          {activeTab === "payments" && (
-            <div className="space-y-6">
-              {hasDispute ? (
-                <section className="space-y-5 rounded-3xl border border-violet-200/70 bg-gradient-to-br from-violet-50/70 via-base-100 to-base-100 p-5 text-sm text-base-content/80 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-base font-semibold text-base-content">
-                      <Gavel className="size-4 text-violet-500" /> Phí trọng tài
-                    </div>
-                    {dispute?.arbitrationDeadline && (
-                      <div className="flex items-center gap-2 text-xs text-base-content/70">
-                        <Clock className="size-4 text-purple-500" />
-                        <span>
-                          Hạn nộp phí:{" "}
-                          <strong>
-                            {formatDateTime(dispute.arbitrationDeadline)}
-                          </strong>
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2 rounded-xl border border-base-200/80 bg-base-100/90 p-3 shadow-sm">
-                      <p className="text-xs uppercase text-base-content/60">
-                        Khách hàng
-                      </p>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-medium text-base-content">
-                          {contractClientId ? clientDisplayName : "Khách hàng"}
-                        </span>
-                        <span className={`badge ${clientBadgeClass}`}>
-                          {clientArbFeeStatus}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-2 rounded-xl border border-base-200/80 bg-base-100/90 p-3 shadow-sm">
-                      <p className="text-xs uppercase text-base-content/60">
-                        Freelancer
-                      </p>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-medium text-base-content">
-                          {contractFreelancerId
-                            ? freelancerDisplayName
-                            : "Freelancer"}
-                        </span>
-                        <span className={`badge ${freelancerBadgeClass}`}>
-                          {freelancerArbFeeStatus}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  {bothPartiesPaid ? (
-                    <div className="rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-sm text-success">
-                      Cả hai bên đã hoàn tất việc nộp phí trọng tài. Hệ thống sẽ
-                      chuyển hồ sơ sang bước tiếp theo.
-                    </div>
-                  ) : null}
-                  {isAwaitingArbitrationFees &&
-                  currentUserHasPaidArbFee &&
-                  !bothPartiesPaid ? (
-                    <div className="rounded-xl border border-info/40 bg-info/10 px-4 py-3 text-sm text-info">
-                      Bạn đã xác nhận thanh toán. Vui lòng chờ bên còn lại hoàn
-                      tất.
-                    </div>
-                  ) : null}
-                  {canCurrentUserPayArbFee ? (
-                    <form
-                      onSubmit={handleConfirmArbFeeSubmit(
-                        handleConfirmArbitrationFee,
-                      )}
-                      className="space-y-4 rounded-2xl border border-base-200/80 bg-base-100/90 p-4 shadow-sm"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-base-content">
-                          Xác nhận đã thanh toán
-                        </p>
-                        <span className="text-xs text-base-content/60">
-                          Phí mỗi bên:{" "}
-                          <strong className="text-base-content">
-                            {arbFeePerParty ?? "—"}
-                          </strong>
-                        </span>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium uppercase text-base-content/60">
-                          Phương thức thanh toán
-                        </label>
-                        <select
-                          className="select select-bordered w-full"
-                          {...confirmArbFeeRegister("paymentMethodRefId")}
-                          disabled={
-                            isPaymentMethodsLoading ||
-                            confirmArbitrationFeeMutation.isPending
-                          }
-                        >
-                          <option value="">Chọn phương thức thanh toán</option>
-                          {paymentMethods.map((method) => (
-                            <option
-                              key={method.paymentMethodId}
-                              value={method.paymentMethodId}
-                            >
-                              {formatPaymentMethodLabel(method)}
-                            </option>
-                          ))}
-                        </select>
-                        {confirmArbFeeErrors.paymentMethodRefId ? (
-                          <p className="text-xs text-error">
-                            {confirmArbFeeErrors.paymentMethodRefId.message}
-                          </p>
-                        ) : null}
-                        {paymentMethodsError ? (
-                          <p className="text-xs text-error">
-                            Không thể tải phương thức thanh toán:{" "}
-                            {paymentMethodsError.message}
-                          </p>
-                        ) : null}
-                        {!paymentMethods.length && !isPaymentMethodsLoading ? (
-                          <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                            Bạn chưa có phương thức thanh toán khả dụng. Vui
-                            lòng thêm thẻ trong phần cài đặt thanh toán.
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium uppercase text-base-content/60">
-                          Mã giao dịch (nếu có)
-                        </label>
-                        <input
-                          type="text"
-                          className="input input-bordered w-full"
-                          placeholder="Nhập mã giao dịch hoặc tham chiếu"
-                          {...confirmArbFeeRegister("idempotencyKey")}
-                          disabled={confirmArbitrationFeeMutation.isPending}
-                        />
-                        {confirmArbFeeErrors.idempotencyKey ? (
-                          <p className="text-xs text-error">
-                            {confirmArbFeeErrors.idempotencyKey.message}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => paymentMethodsQuery.refetch()}
-                          disabled={
-                            isPaymentMethodsLoading ||
-                            confirmArbitrationFeeMutation.isPending
-                          }
-                        >
-                          {isPaymentMethodsLoading
-                            ? "Đang tải…"
-                            : "Tải lại phương thức"}
-                        </button>
-                        <button
-                          type="submit"
-                          className="btn btn-primary btn-sm"
-                          disabled={
-                            confirmArbitrationFeeMutation.isPending ||
-                            isPaymentMethodsLoading ||
-                            !paymentMethods.length
-                          }
-                        >
-                          {confirmArbitrationFeeMutation.isPending
-                            ? "Đang xử lý…"
-                            : "Tôi đã thanh toán"}
-                        </button>
-                      </div>
-                    </form>
-                  ) : null}
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-base-content">
-                      Lịch sử thanh toán
-                    </h4>
-                    {arbitrationPayments.length ? (
-                      <div className="space-y-2">
-                        {arbitrationPayments.map((payment, index) => {
-                          const reference = getDisputePaymentReference(payment);
-                          const identityKey =
-                            getDisputePaymentIdentityKey(payment);
-                          const statusLabel = humanizeDisputePaymentStatus(
-                            payment.status,
-                          );
-                          const statusClass = isDisputePaymentSuccessful(
-                            payment,
-                          )
-                            ? "badge-success"
-                            : "badge-ghost";
-                          const createdAtLabel =
-                            formatDateTime(payment.createdAt) ?? "Không rõ";
-                          const key =
-                            payment.id ||
-                            `${reference ?? identityKey ?? "payment"}-${payment.createdAt ?? index}`;
-
-                          return (
-                            <div
-                              key={key}
-                              className="space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="space-y-1">
-                                  <p className="font-semibold text-base-content">
-                                    {getPaymentPayerLabel(payment)}
-                                  </p>
-                                  <p className="text-xs text-base-content/60">
-                                    Mã giao dịch:{" "}
-                                    <span className="break-all font-medium text-base-content">
-                                      {reference ?? identityKey ?? "—"}
-                                    </span>
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-base font-semibold text-base-content">
-                                    {formatPaymentAmount(payment)}
-                                  </p>
-                                  <div className="mt-1 flex flex-wrap items-center justify-end gap-2 text-xs text-base-content/70">
-                                    <span className={`badge ${statusClass}`}>
-                                      {statusLabel}
-                                    </span>
-                                    <span>{createdAtLabel}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              {identityKey &&
-                              reference &&
-                              identityKey !== reference ? (
-                                <p className="break-all text-xs text-base-content/60">
-                                  Mã xác nhận: {identityKey}
-                                </p>
-                              ) : null}
-                              {payment.description ? (
-                                <p className="text-xs text-base-content/70">
-                                  Ghi chú: {payment.description}
-                                </p>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-base-content/70">
-                        Chưa có giao dịch phí trọng tài nào được ghi nhận.
-                      </p>
-                    )}
-                  </div>
-                </section>
-              ) : (
-                <div className="rounded-3xl border border-dashed border-base-200 bg-base-50/80 p-6 text-sm text-base-content/80">
-                  Chưa có thông tin phí trọng tài vì milestone chưa mở dispute.
-                </div>
-              )}
-            </div>
-          )}
-
           {activeTab === "actions" && (
             <div className="space-y-6">
               {shouldBlockOpeningDispute ? (
@@ -2780,7 +2137,6 @@ const ContractDisputeRoomPage = () => {
                   currentUserId={currentUserId}
                   isClientParty={isClientParty}
                   isFreelancerParty={isFreelancerParty}
-                  isAwaitingArbitrationFees={isAwaitingArbitrationFees}
                   clientEvidenceSubmitted={clientEvidenceSubmitted ?? undefined}
                   freelancerEvidenceSubmitted={freelancerEvidenceSubmitted ?? undefined}
                   hasSubmittedEvidence={hasSubmittedEvidence ?? undefined}

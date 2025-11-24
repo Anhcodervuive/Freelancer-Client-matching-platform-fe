@@ -35,7 +35,6 @@ type FinalEvidenceSectionProps = {
         currentUserId?: string | null
         isClientParty: boolean
         isFreelancerParty: boolean
-        isAwaitingArbitrationFees?: boolean
         clientEvidenceSubmitted?: boolean | null
         freelancerEvidenceSubmitted?: boolean | null
         hasSubmittedEvidence?: boolean | null
@@ -115,7 +114,6 @@ export default function FinalEvidenceSection({
         currentUserId,
         isClientParty,
         isFreelancerParty,
-        isAwaitingArbitrationFees,
         clientEvidenceSubmitted,
         freelancerEvidenceSubmitted,
         hasSubmittedEvidence,
@@ -336,7 +334,6 @@ export default function FinalEvidenceSection({
         const disableSubmit =
                 isSubmitting ||
                 !allowSubmission ||
-                Boolean(isAwaitingArbitrationFees) ||
                 !isSubmissionWindowOpen ||
                 currentUserHasSubmitted
 
@@ -380,12 +377,6 @@ export default function FinalEvidenceSection({
                                                 <p className='text-sm text-base-content/70'>Trình bày luận điểm và chọn những tài liệu hỗ trợ tranh chấp.</p>
                                         </div>
                                 </div>
-                                {isAwaitingArbitrationFees && (
-                                        <div className='flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800'>
-                                                <AlertTriangle className='size-4 flex-shrink-0' />
-                                                <span>Cần hoàn tất phí trọng tài để trọng tài viên xem xét chứng cứ.</span>
-                                        </div>
-                                )}
                         </div>
 
                         <div className='mb-6 space-y-3 text-xs'>
