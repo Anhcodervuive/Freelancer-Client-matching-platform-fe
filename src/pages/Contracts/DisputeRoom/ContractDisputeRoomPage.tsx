@@ -231,14 +231,14 @@ const getPartyLabel = (
     return displayName;
   }
 
-  const candidateId = user?.id ?? candidateId ?? null;
+  const resolvedCandidateId = user?.id ?? candidateId ?? null;
 
-  if (candidateId) {
-    if (clientId && candidateId === clientId) return "Khách hàng";
-    if (freelancerId && candidateId === freelancerId) return "Freelancer";
-    return candidateId.length > 8
-      ? `Người dùng #${candidateId.slice(0, 8)}`
-      : `Người dùng #${candidateId}`;
+  if (resolvedCandidateId) {
+    if (clientId && resolvedCandidateId === clientId) return "Khách hàng";
+    if (freelancerId && resolvedCandidateId === freelancerId) return "Freelancer";
+    return resolvedCandidateId.length > 8
+      ? `Người dùng #${resolvedCandidateId.slice(0, 8)}`
+      : `Người dùng #${resolvedCandidateId}`;
   }
 
   return displayName;
