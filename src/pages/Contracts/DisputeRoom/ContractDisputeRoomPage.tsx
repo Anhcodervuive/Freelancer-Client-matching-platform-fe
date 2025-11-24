@@ -211,6 +211,33 @@ const getNegotiationStatusMeta = (status?: string) => {
   }
 };
 
+const getPartyLabel = (
+  user: DisputeNegotiation["proposer"] | DisputeNegotiation["counterparty"],
+  {
+    userId,
+    clientId,
+    freelancerId,
+  }: { userId?: string | null; clientId?: string | null; freelancerId?: string | null },
+) => {
+  const displayName = getUserDisplayName(user, userId ?? undefined);
+
+  if (displayName && displayName !== "Người dùng") {
+    return displayName;
+  }
+
+  const candidateId = user?.id ?? userId ?? null;
+
+  if (candidateId) {
+    if (clientId && candidateId === clientId) return "Khách hàng";
+    if (freelancerId && candidateId === freelancerId) return "Freelancer";
+    return candidateId.length > 8
+      ? `Người dùng #${candidateId.slice(0, 8)}`
+      : `Người dùng #${candidateId}`;
+  }
+
+  return displayName;
+};
+
 const getUserDisplayName = (
   user: DisputeNegotiation["proposer"] | DisputeNegotiation["counterparty"],
   currentUserId?: string,
@@ -944,6 +971,17 @@ const ContractDisputeRoomPage = () => {
       (contractEntity?.freelancer?.profile?.lastName ?? "")
     ).trim() || "Freelancer";
 
+  const openedByUser =
+    dispute?.openedBy ??
+    (dispute?.openedById
+      ? ({ id: dispute.openedById } as DisputeNegotiation["proposer"])
+      : null);
+  const openedByLabel = getPartyLabel(openedByUser, {
+    userId: openedByUser?.id ?? dispute?.openedById ?? null,
+    clientId: contractClientId,
+    freelancerId: contractFreelancerId,
+  });
+
   const currency =
     milestone?.currency ||
     contract?.fixedPriceCurrency ||
@@ -961,14 +999,6 @@ const ContractDisputeRoomPage = () => {
   );
   const proposedRefund = formatCurrency(
     parseAmount(dispute?.proposedRefund),
-    currency,
-  );
-  const decidedRelease = formatCurrency(
-    parseAmount(dispute?.decidedRelease),
-    currency,
-  );
-  const decidedRefund = formatCurrency(
-    parseAmount(dispute?.decidedRefund),
     currency,
   );
   const disputableAmount = formatCurrency(
@@ -1448,7 +1478,7 @@ const ContractDisputeRoomPage = () => {
                   <div className="flex items-center justify-between gap-2">
                     <dt>Mở bởi</dt>
                     <dd className="break-all font-medium text-base-content">
-                      {dispute?.openedById ?? "—"}
+                      {openedByLabel ?? "—"}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -1500,17 +1530,6 @@ const ContractDisputeRoomPage = () => {
                     </span>
                   </div>
                 )}
-                {dispute?.arbitrationDeadline && (
-                  <div className="flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50/60 px-3 py-2 text-xs text-purple-700/90">
-                    <Clock className="size-4 text-purple-600" />
-                    <span>
-                      Hạn nộp phí trọng tài:{" "}
-                      <strong>
-                        {formatDateTime(dispute.arbitrationDeadline)}
-                      </strong>
-                    </span>
-                  </div>
-                )}
                 {proposedRelease && proposedRefund && (
                   <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-3 text-sm text-sky-900/80">
                     <p className="font-semibold">Đề xuất ban đầu</p>
@@ -1524,23 +1543,6 @@ const ContractDisputeRoomPage = () => {
                       Hoàn client:{" "}
                       <span className="font-semibold text-sky-900">
                         {proposedRefund}
-                      </span>
-                    </p>
-                  </div>
-                )}
-                {decidedRelease && decidedRefund && (
-                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-sm text-emerald-900/80">
-                    <p className="font-semibold">Kết quả trọng tài</p>
-                    <p>
-                      Trả freelancer:{" "}
-                      <span className="font-semibold text-emerald-900">
-                        {decidedRelease}
-                      </span>
-                    </p>
-                    <p>
-                      Hoàn client:{" "}
-                      <span className="font-semibold text-emerald-900">
-                        {decidedRefund}
                       </span>
                     </p>
                   </div>
@@ -1783,6 +1785,23 @@ const ContractDisputeRoomPage = () => {
                             negotiation.status ===
                             DisputeNegotiationStatus.PENDING;
 
+                          const proposerUser =
+                            negotiation.proposer ??
+                            (negotiation.proposerId
+                              ? ({
+                                  id: negotiation.proposerId,
+                                  profile: negotiation.proposer?.profile ?? null,
+                                  firstName: negotiation.proposer?.firstName,
+                                  lastName: negotiation.proposer?.lastName,
+                                } as DisputeNegotiation["proposer"])
+                              : null);
+                          const proposerLabel = getPartyLabel(proposerUser, {
+                            userId:
+                              proposerUser?.id ?? negotiation.proposerId ?? null,
+                            clientId: contractClientId,
+                            freelancerId: contractFreelancerId,
+                          });
+
                           return (
                             <div
                               key={negotiation.id}
@@ -1791,9 +1810,7 @@ const ContractDisputeRoomPage = () => {
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="space-y-1">
                                   <p className="text-sm font-semibold text-base-content">
-                                    {negotiation.proposedBy?.displayName ||
-                                      negotiation.proposedBy?.fullName ||
-                                      "Người dùng"}
+                                    {proposerLabel ?? "Người dùng"}
                                   </p>
                                   <p className="text-xs text-base-content/60">
                                     {formatDateTime(negotiation.createdAt) ??
