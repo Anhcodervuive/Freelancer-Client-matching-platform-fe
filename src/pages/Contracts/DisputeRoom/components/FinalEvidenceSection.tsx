@@ -191,7 +191,7 @@ export default function FinalEvidenceSection({
                 mutationFn: (payload: SubmitFinalEvidenceFormOutput) =>
                         submitFinalEvidence(contractId, milestoneId, disputeId, payload),
                 onSuccess: async () => {
-                        toast.success('Đã gửi chứng cứ tới trọng tài.')
+                        toast.success('Đã gửi chứng cứ tới bộ phận hỗ trợ.')
                         reset({ statement: undefined, noAdditionalEvidence: false, items: [] })
                         await queryClient.invalidateQueries({
                                 queryKey: ['dispute-final-evidence-sources', contractId, milestoneId, disputeId]
@@ -443,7 +443,7 @@ export default function FinalEvidenceSection({
                                                                 {...field}
                                                                 rows={4}
                                                                 className='textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100'
-                                                                placeholder='Chia sẻ bối cảnh, yêu cầu và điều bạn muốn trọng tài cân nhắc.'
+                                                                placeholder='Chia sẻ bối cảnh, yêu cầu và điều bạn muốn bộ phận hỗ trợ cân nhắc.'
                                                                 disabled={isReadOnly}
                                                         />
                                                 )}
@@ -477,7 +477,7 @@ export default function FinalEvidenceSection({
 
                                 <div className='space-y-4'>
                                         <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-                                                <p className='text-sm font-semibold text-base-content'>Quản lý chứng cứ gửi tới trọng tài</p>
+                                                <p className='text-sm font-semibold text-base-content'>Quản lý chứng cứ gửi tới bộ phận hỗ trợ</p>
                                                 {activeTab === 'selected' && (
                                                         <div className='flex flex-wrap gap-2'>
                                                                 <button

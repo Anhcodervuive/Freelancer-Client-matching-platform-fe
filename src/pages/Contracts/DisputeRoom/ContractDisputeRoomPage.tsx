@@ -123,22 +123,12 @@ const getDisputeStatusMeta = (status?: string) => {
         badge: "border-indigo-200 bg-indigo-50/80 text-indigo-700",
       };
     case DisputeStatus.AWAITING_ARBITRATION_FEES:
-      return {
-        label: "Chờ nộp phí trọng tài",
-        tone: "pending" as const,
-        badge: "border-violet-200 bg-violet-50/80 text-violet-700",
-      };
     case DisputeStatus.ARBITRATION_READY:
-      return {
-        label: "Đang chuẩn bị trọng tài",
-        tone: "arbitration" as const,
-        badge: "border-purple-300 bg-purple-50/80 text-purple-700",
-      };
     case DisputeStatus.ARBITRATION:
       return {
-        label: "Đang phân xử",
-        tone: "arbitration" as const,
-        badge: "border-purple-200 bg-purple-50/80 text-purple-700",
+        label: "Đang xử lý tranh chấp",
+        tone: "negotiation" as const,
+        badge: "border-sky-200 bg-sky-50/80 text-sky-700",
       };
     case DisputeStatus.RESOLVED_RELEASE_ALL:
       return {
@@ -932,17 +922,7 @@ const ContractDisputeRoomPage = () => {
     dispute?.freelancerEvidenceSubmited ??
     null;
   const hasSubmittedEvidence = dispute?.hasSubmittedEvidence ?? null;
-  const isEvidenceSubmissionStage =
-    dispute?.status === DisputeStatus.ARBITRATION_READY ||
-    dispute?.status === DisputeStatus.ARBITRATION;
-  const isArbitrationPhase = Boolean(
-    dispute?.status &&
-      [
-        DisputeStatus.AWAITING_ARBITRATION_FEES,
-        DisputeStatus.ARBITRATION_READY,
-        DisputeStatus.ARBITRATION,
-      ].includes(dispute.status as DisputeStatus),
-  );
+  const isEvidenceSubmissionStage = Boolean(dispute?.status);
   const contractEntity = (contract as Contract | null) ?? null;
   const contractSummary = (contract as DisputeContractSummary | null) ?? null;
   const contractClientId =
@@ -1117,7 +1097,7 @@ const ContractDisputeRoomPage = () => {
     (item) => item.status === DisputeNegotiationStatus.PENDING,
   );
   const hasDispute = Boolean(dispute);
-  const isNegotiationLocked = isFinalDispute || isArbitrationPhase;
+  const isNegotiationLocked = isFinalDispute;
   const shouldShowEvidenceTab = Boolean(dispute?.id && isEvidenceSubmissionStage);
   const tabItems = useMemo(() => {
     const items: { id: DisputeTabId; label: string }[] = [
@@ -1595,7 +1575,7 @@ const ContractDisputeRoomPage = () => {
                     >
                       {isFinalDispute
                         ? "Dispute đã kết thúc. Bạn vẫn có thể xem lại lịch sử thương lượng bên dưới."
-                        : "Dispute đã chuyển sang giai đoạn đóng phí trọng tài nên không thể gửi thêm đề xuất thương lượng mới."}
+                        : "Dispute tạm thời bị khóa. Vui lòng liên hệ bộ phận hỗ trợ nếu cần thêm giúp đỡ."}
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-base-200 bg-base-50/80 p-5">
@@ -2121,7 +2101,7 @@ const ContractDisputeRoomPage = () => {
                               rows={4}
                               value={field.value ?? ""}
                               className="textarea textarea-bordered h-auto w-full rounded-2xl border-base-300 bg-base-100"
-                              placeholder="Thông tin này chỉ hiển thị với bộ phận hỗ trợ trọng tài."
+                              placeholder="Thông tin này chỉ hiển thị với bộ phận hỗ trợ."
                               disabled={openDisputeMutation.isPending}
                             />
                           )}

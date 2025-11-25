@@ -913,6 +913,7 @@ export default function AdminDisputeListPage() {
                 detailData?.evidenceSubmissions?.filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item)) ?? []
         const detailDossiers = dossierData ?? []
         const detailArbitrators = arbitratorsData ?? []
+        const showArbitrationActions = false
         const detailStatus = detailDispute?.status ?? detailTarget?.status ?? null
 	const detailNeedsAdmin = Boolean(
 		detailMetrics?.needsAdmin ??
@@ -1101,9 +1102,6 @@ export default function AdminDisputeListPage() {
 	if (detailDisputeId) {
 		if (detailIsLocked) {
 			detailLockBlockedReasons.push('Tranh chấp đã được khóa.')
-		}
-		if (!detailBothFeesPaid) {
-			detailLockBlockedReasons.push('Cả khách hàng và freelancer đều phải hoàn tất phí trọng tài.')
 		}
 		if (!detailClientEvidenceDone) {
 			detailLockBlockedReasons.push('Khách hàng chưa nộp chứng cứ cuối cùng.')
@@ -1616,10 +1614,10 @@ export default function AdminDisputeListPage() {
 											{detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
 										</button>
 									) : null}
-									{detailCanRequestFees ? (
-										<button
-											type='button'
-											className='btn btn-sm btn-primary'
+                                                                        {showArbitrationActions && detailCanRequestFees ? (
+                                                                                <button
+                                                                                        type='button'
+                                                                                        className='btn btn-sm btn-primary'
 											onClick={() => {
 												resetRequestFeesForm({ deadlineDays: 7 })
 												setRequestFeesOpen(true)
@@ -1635,13 +1633,13 @@ export default function AdminDisputeListPage() {
 							</div>
 						</header>
 
-						{isDetailLoading ? (
-							<div className='space-y-3'>
-								{Array.from({ length: 4 }).map((_, index) => (
-									<div key={index} className='skeleton h-6 w-full rounded-lg' />
-								))}
-							</div>
-						) : isDetailError ? (
+                                                {isDetailLoading ? (
+                                                        <div className='space-y-3'>
+                                                                {Array.from({ length: 4 }).map((_, index) => (
+                                                                        <div key={index} className='skeleton h-6 w-full rounded-lg' />
+                                                                ))}
+                                                        </div>
+                                                ) : isDetailError ? (
 							<div className='alert alert-error'>
 								<AlertTriangle className='size-5' />
 								<div className='flex-1 space-y-2'>
@@ -1760,10 +1758,12 @@ export default function AdminDisputeListPage() {
 													<p className='text-xs uppercase text-base-content/60'>Hạn phản hồi</p>
 													<p className='font-medium text-base-content'>{formatDateTime(detailResponseDeadline)}</p>
 												</div>
-												<div>
-													<p className='text-xs uppercase text-base-content/60'>Hạn trọng tài</p>
-													<p className='font-medium text-base-content'>{formatDateTime(detailArbitrationDeadline)}</p>
-												</div>
+                                                                                                {showArbitrationActions ? (
+                                                                                                        <div>
+                                                                                                                <p className='text-xs uppercase text-base-content/60'>Hạn trọng tài</p>
+                                                                                                                <p className='font-medium text-base-content'>{formatDateTime(detailArbitrationDeadline)}</p>
+                                                                                                        </div>
+                                                                                                ) : null}
 												<div>
 													<p className='text-xs uppercase text-base-content/60'>Khóa tranh chấp</p>
 													<p className='font-medium text-base-content'>
@@ -1867,8 +1867,9 @@ export default function AdminDisputeListPage() {
 													</span>
 												</div>
 											</div>
-										</div>
-									</section>
+                                                                                </div>
+                                                                                ) : null}
+                                                                        </section>
 								) : null}
 
 								{detailActiveTab === 'payments' ? (
@@ -2027,6 +2028,7 @@ export default function AdminDisputeListPage() {
 
                                                                 {detailActiveTab === 'evidence' ? (
                                                                         <div className='space-y-5'>
+                                                                                {showArbitrationActions ? (
                                                                                 <section className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'>
                                                                                         <div className='flex flex-wrap items-center justify-between gap-3'>
                                                                                                 <div className='flex items-center gap-2 text-base font-semibold text-base-content'>
@@ -2140,6 +2142,7 @@ export default function AdminDisputeListPage() {
                                                                                                 )
                                                                                         })}
                                                                                 </section>
+                                                                                ) : null}
 
                                                                                 <section className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'>
                                                                                         <div className='flex flex-wrap items-center justify-between gap-3'>
@@ -2607,8 +2610,8 @@ export default function AdminDisputeListPage() {
 				</div>
 			) : null}
 
-			{requestFeesOpen && detailDisputeId ? (
-				<div className='modal modal-open'>
+                        {showArbitrationActions && requestFeesOpen && detailDisputeId ? (
+                                <div className='modal modal-open'>
 					<div className='modal-box max-w-md space-y-4'>
 						<h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
 							<BadgeDollarSign className='size-5 text-primary' /> Yêu cầu đóng phí trọng tài
@@ -2629,8 +2632,8 @@ export default function AdminDisputeListPage() {
 								/>
 								{requestFeesErrors.deadlineDays ? (
 									<p className='text-xs text-error'>{requestFeesErrors.deadlineDays.message}</p>
-								) : null}
-							</div>
+                        ) : null}
+                </div>
 							<div className='modal-action'>
 								<button
 									type='button'
