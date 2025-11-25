@@ -47,16 +47,16 @@ const FreelancerJobOfferListPage = () => {
                 onSuccess: async (_, variables) => {
                         const action = variables.action
                         if (action === 'ACCEPT') {
-                                toast.success('Bạn đã chấp nhận offer thành công')
+                                toast.success('You accepted the offer successfully')
                         } else if (action === 'DECLINE') {
-                                toast.success('Bạn đã từ chối offer')
+                                toast.success('You declined the offer')
                         } else {
-                                toast.success('Đã cập nhật phản hồi')
+                                toast.success('Response updated')
                         }
                         await queryClient.invalidateQueries({ queryKey: ['freelancer-job-offers'] })
                 },
                 onError: error => {
-                        const message = error instanceof Error ? error.message : 'Không thể phản hồi offer'
+                        const message = error instanceof Error ? error.message : 'Unable to respond to the offer'
                         toast.error(message)
                 }
         })
@@ -67,7 +67,7 @@ const FreelancerJobOfferListPage = () => {
         }
 
         const renderOfferCard = (offer: JobOffer) => {
-                const jobTitle = offer.job?.title ?? 'Công việc không xác định'
+                const jobTitle = offer.job?.title ?? 'Unknown job'
                 const statusMeta = JOB_OFFER_STATUS_META[offer.status]
                 const priceLabel = formatJobOfferCurrency(offer.fixedPrice, offer.currency)
                 const startDateLabel = formatJobOfferDate(offer.startDate)
@@ -80,7 +80,7 @@ const FreelancerJobOfferListPage = () => {
                                 <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
                                         <div className='space-y-1'>
                                                 <p className='text-sm font-semibold text-base-content'>{offer.title}</p>
-                                                <p className='text-sm text-base-content/70'>Từ job: {jobTitle}</p>
+                                                <p className='text-sm text-base-content/70'>From job: {jobTitle}</p>
                                         </div>
                                         <div className='flex items-center gap-2'>
                                                 <span className={`badge ${statusMeta.badgeClass}`}>{statusMeta.label}</span>
@@ -89,43 +89,43 @@ const FreelancerJobOfferListPage = () => {
 
                                 <div className='mt-4 grid gap-3 md:grid-cols-3'>
                                         <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
-                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ngân sách</p>
+                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Budget</p>
                                                 <p className='mt-2 text-base font-semibold text-base-content'>
-                                                        {priceLabel ?? 'Chưa xác định'}
+                                                        {priceLabel ?? 'Not specified yet'}
                                                 </p>
                                         </div>
                                         <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
-                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ngày bắt đầu</p>
+                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Start date</p>
                                                 <p className='mt-2 text-base font-semibold text-base-content'>
-                                                        {startDateLabel ?? 'Chưa có'}
+                                                        {startDateLabel ?? 'Not set'}
                                                 </p>
                                         </div>
                                         <div className='rounded-2xl border border-base-200 bg-base-200/60 p-4'>
-                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ngày kết thúc</p>
+                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>End date</p>
                                                 <p className='mt-2 text-base font-semibold text-base-content'>
-                                                        {endDateLabel ?? 'Chưa có'}
+                                                        {endDateLabel ?? 'Not set'}
                                                 </p>
                                         </div>
                                 </div>
 
                                 <div className='mt-3 rounded-2xl border border-base-200 bg-base-200/60 p-4'>
-                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Hạn chấp nhận offer</p>
+                                        <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Offer acceptance deadline</p>
                                         <p className='mt-2 text-base font-semibold text-base-content'>
-                                                {expireAtLabel ?? 'Không đặt'}
+                                                {expireAtLabel ?? 'Not specified'}
                                         </p>
-                                        <p className='mt-1 text-xs text-base-content/60'>Hãy chấp nhận trước hạn để bắt đầu hợp tác với client.</p>
+                                        <p className='mt-1 text-xs text-base-content/60'>Accept before the deadline to start working with the client.</p>
                                 </div>
 
                                 {offer.message ? (
                                         <div className='mt-4 rounded-2xl border border-base-200 bg-base-200/60 p-4 text-sm text-base-content/80'>
-                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Ghi chú từ client</p>
+                                                <p className='text-xs font-semibold uppercase tracking-wide text-base-content/60'>Notes from client</p>
                                                 <p className='mt-2 whitespace-pre-line leading-relaxed'>{offer.message}</p>
                                         </div>
                                 ) : null}
 
                                 {offer.status === 'WITHDRAWN' && offer.withdrawReason ? (
                                         <div className='mt-4 rounded-2xl border border-error/30 bg-error/5 p-4 text-sm text-error'>
-                                                <p className='text-xs font-semibold uppercase tracking-wide text-error/80'>Lý do client rút offer</p>
+                                                <p className='text-xs font-semibold uppercase tracking-wide text-error/80'>Reason client withdrew the offer</p>
                                                 <p className='mt-2 whitespace-pre-line leading-relaxed text-error/90'>
                                                         {offer.withdrawReason}
                                                 </p>
@@ -146,7 +146,7 @@ const FreelancerJobOfferListPage = () => {
                                                                 ) : (
                                                                         <ThumbsUp className='size-4' />
                                                                 )}
-                                                                {respondMutation.isPending ? 'Đang xử lý…' : 'Chấp nhận offer'}
+                                                                {respondMutation.isPending ? 'Processing…' : 'Accept offer'}
                                                         </button>
                                                         <button
                                                                 type='button'
@@ -154,13 +154,13 @@ const FreelancerJobOfferListPage = () => {
                                                                 disabled={respondMutation.isPending}
                                                                 onClick={() => handleRespond(offer, 'DECLINE')}
                                                         >
-                                                                <ThumbsDown className='size-4' /> Từ chối
+                                                                <ThumbsDown className='size-4' /> Decline
                                                         </button>
                                                 </>
                                         ) : null}
                                         {offer.status === 'ACCEPTED' ? (
                                                 <div className='rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-xs font-semibold text-success'>
-                                                        <ShieldCheck className='mr-1 inline size-4' /> Bạn đã chấp nhận offer này
+                                                        <ShieldCheck className='mr-1 inline size-4' /> You accepted this offer
                                                 </div>
                                         ) : null}
                                 </div>
@@ -171,8 +171,8 @@ const FreelancerJobOfferListPage = () => {
         return (
                 <div className='mx-auto w-full max-w-6xl px-4 py-8 lg:px-0'>
                         <div className='flex flex-col gap-2'>
-                                <h1 className='text-2xl font-semibold text-base-content'>Job offers từ khách hàng</h1>
-                                <p className='text-sm text-base-content/70'>Xem chi tiết điều khoản và phản hồi để bắt đầu hợp tác.</p>
+                                <h1 className='text-2xl font-semibold text-base-content'>Job offers from clients</h1>
+                                <p className='text-sm text-base-content/70'>Review offer details and respond to start working.</p>
                         </div>
 
                         <div className='mt-6 grid gap-4 md:grid-cols-3'>
@@ -204,21 +204,21 @@ const FreelancerJobOfferListPage = () => {
                                 {offerQuery.isLoading ? (
                                         <div className='flex min-h-[200px] items-center justify-center rounded-3xl border border-base-200 bg-base-100'>
                                                 <div className='flex items-center gap-3 text-base-content/70'>
-                                                        <Loader2 className='size-5 animate-spin text-primary' /> Đang tải danh sách offer…
+                                                        <Loader2 className='size-5 animate-spin text-primary' /> Loading offers…
                                                 </div>
                                         </div>
                                 ) : null}
 
                                 {offerQuery.isError ? (
                                         <div className='rounded-3xl border border-error/30 bg-error/10 px-6 py-4 text-sm text-error'>
-                                                Không thể tải offer. Vui lòng thử lại sau.
+                                                Unable to load offers. Please try again later.
                                         </div>
                                 ) : null}
 
                                 {!offerQuery.isLoading && offers.length === 0 ? (
                                         <div className='rounded-3xl border border-dashed border-base-300 bg-base-100 px-8 py-16 text-center text-sm text-base-content/70'>
-                                                <p className='text-lg font-medium text-base-content'>Chưa có offer nào</p>
-                                                <p className='mt-2'>Khi khách hàng gửi offer, bạn có thể xem và phản hồi ngay tại đây.</p>
+                                                <p className='text-lg font-medium text-base-content'>No offers available</p>
+                                                <p className='mt-2'>When clients send offers, you can view and respond here immediately.</p>
                                         </div>
                                 ) : null}
 
@@ -228,7 +228,7 @@ const FreelancerJobOfferListPage = () => {
 
                                 {totalPages > 1 ? (
                                         <div className='flex items-center justify-between rounded-2xl border border-base-200 bg-base-100 px-4 py-3 text-sm'>
-                                                <span className='text-base-content/60'>Trang {page} / {totalPages}</span>
+                                                <span className='text-base-content/60'>Page {page} / {totalPages}</span>
                                                 <div className='flex gap-2'>
                                                         <button
                                                                 type='button'
@@ -236,7 +236,7 @@ const FreelancerJobOfferListPage = () => {
                                                                 disabled={page <= 1 || offerQuery.isLoading}
                                                                 onClick={() => setPage(prev => Math.max(1, prev - 1))}
                                                         >
-                                                                Trước
+                                                                Previous
                                                         </button>
                                                         <button
                                                                 type='button'
@@ -244,7 +244,7 @@ const FreelancerJobOfferListPage = () => {
                                                                 disabled={page >= totalPages || offerQuery.isLoading}
                                                                 onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
                                                         >
-                                                                Sau
+                                                                Next
                                                         </button>
                                                 </div>
                                         </div>
