@@ -1868,9 +1868,8 @@ export default function AdminDisputeListPage() {
 												</div>
 											</div>
                                                                                 </div>
-                                                                                ) : null}
                                                                         </section>
-								) : null}
+                                                                ) : null}
 
 								{detailActiveTab === 'payments' ? (
 									<section className='grid gap-4 md:grid-cols-2'>
