@@ -937,32 +937,6 @@ export default function AdminDisputeListPage() {
 		detailMetrics?.isResponseOverdue ??
 			(detailResponseDeadline ? new Date(detailResponseDeadline).getTime() < Date.now() : false)
 	)
-	const detailArbitrationPayments = useMemo<DisputePayment[]>(() => {
-		if (!detailDispute?.arbitrationFeePayments?.length) {
-			return []
-		}
-
-		const filtered = detailDispute.arbitrationFeePayments.filter(Boolean) as DisputePayment[]
-		return filtered.sort((a, b) => {
-			const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
-			const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
-			return bTime - aTime
-		})
-	}, [detailDispute?.arbitrationFeePayments])
-	const detailHasPartyPaid = useMemo(
-		() => (flag: unknown, userId?: string | null) => {
-			if (normalizeBooleanFlag(flag) === true) {
-				return true
-			}
-			if (!userId) {
-				return false
-			}
-			return detailArbitrationPayments.some(
-				payment => isDisputePaymentSuccessful(payment) && getDisputePaymentPayerId(payment) === userId
-			)
-		},
-		[detailArbitrationPayments]
-	)
         const detailAdminUser = detailTarget?.admin ?? null
         const detailAdminLabel = detailAdminUser
                 ? formatUserName(detailAdminUser)
@@ -1025,40 +999,10 @@ export default function AdminDisputeListPage() {
 	const detailFreelancerEvidenceDone = detailFreelancerEvidenceStatus === true
 	const detailBothEvidenceSubmitted = detailClientEvidenceDone && detailFreelancerEvidenceDone
 	const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
-	const detailArbFeePerParty = detailDispute?.arbFeePerParty ?? null
-	const detailClientFeePaid = detailHasPartyPaid(detailDispute?.clientArbFeePaid, detailClientId)
-	const detailFreelancerFeePaid = detailHasPartyPaid(detailDispute?.freelancerArbFeePaid, detailFreelancerId)
-	const detailClientFeeDisplay = detailClientId ? detailClientFeePaid : undefined
-	const detailFreelancerFeeDisplay = detailFreelancerId ? detailFreelancerFeePaid : undefined
-	const detailBothFeesPaid = detailClientFeePaid && detailFreelancerFeePaid
 	const detailLockedAt = detailDispute?.lockedAt ?? null
 	const detailLockedBy = detailDispute?.lockedBy ?? null
 	const detailLockedById = detailDispute?.lockedById ?? null
 	const detailIsLocked = Boolean(detailLockedAt || detailLockedById)
-	const getDetailPaymentPayerLabel = (payment: DisputePayment) => {
-		const payerId = getDisputePaymentPayerId(payment)
-
-		if (payerId && detailClientId && payerId === detailClientId) {
-			return formatUserName(detailClient ?? null, detailClientId) || `Khách hàng #${detailClientId}`
-		}
-
-		if (payerId && detailFreelancerId && payerId === detailFreelancerId) {
-			return formatUserName(detailFreelancer ?? null, detailFreelancerId) || `Freelancer #${detailFreelancerId}`
-		}
-
-		if (payment.payer) {
-			const label = formatUserName(payment.payer, payerId ?? undefined)
-			if (label && label !== '—') {
-				return label
-			}
-		}
-
-		if (payerId) {
-			return payerId.length > 8 ? `Người dùng #${payerId.slice(0, 8)}` : `Người dùng #${payerId}`
-		}
-
-		return 'Không xác định'
-	}
 	const detailNote = detailDispute?.note ?? null
 	const detailOpenedBy = detailDispute?.openedBy ?? null
 	const detailOpenedAt = detailDispute?.createdAt ?? detailTarget?.createdAt ?? null
@@ -1080,24 +1024,8 @@ export default function AdminDisputeListPage() {
 	const detailShowJoin = detailHasJoined || detailCanJoin
 	const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
 
-	const detailCanRequestFees = Boolean(
-		detailDisputeId &&
-			detailArbFeePerParty &&
-			detailStatus &&
-			!FINAL_DISPUTE_STATUSES.has(detailStatus) &&
-			![DisputeStatus.AWAITING_ARBITRATION_FEES, DisputeStatus.ARBITRATION_READY, DisputeStatus.ARBITRATION].includes(
-				detailStatus as DisputeStatus
-			) &&
-			!detailBothFeesPaid
-	)
-	const detailCanLockDispute = Boolean(
-		detailDisputeId &&
-			!detailIsLocked &&
-			detailBothFeesPaid &&
-			detailBothEvidenceSubmitted &&
-			detailStatus &&
-			!FINAL_DISPUTE_STATUSES.has(detailStatus)
-	)
+	const detailCanRequestFees = false
+	const detailCanLockDispute = false
 	const detailLockBlockedReasons: string[] = []
 	if (detailDisputeId) {
 		if (detailIsLocked) {
@@ -1872,160 +1800,52 @@ export default function AdminDisputeListPage() {
                                                                 ) : null}
 
 								{detailActiveTab === 'payments' ? (
-									<section className='grid gap-4 md:grid-cols-2'>
-										<div className='space-y-2'>
-											<p className='text-xs uppercase text-base-content/60'>Tài chính</p>
-											<div className='space-y-1'>
-												<div className='flex items-center justify-between gap-3'>
-													<span className='text-base-content/70'>Ký quỹ</span>
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailFunded, detailCurrency)}
-													</span>
-												</div>
-												<div className='flex items-center justify-between gap-3'>
-													<span className='text-base-content/70'>Đã giải ngân</span>
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailReleased, detailCurrency)}
-													</span>
-												</div>
-												<div className='flex items-center justify-between gap-3'>
-													<span className='text-base-content/70'>Đã hoàn</span>
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailRefunded, detailCurrency)}
-													</span>
-												</div>
-												<div className='flex items-center justify-between gap-3'>
-													<span className='text-base-content/70'>Đang tranh chấp</span>
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailDisputable, detailCurrency)}
-													</span>
-												</div>
-												<div className='flex items-center justify-between gap-3'>
-													<span className='text-base-content/70'>Đề xuất trả freelancer</span>
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailProposedRelease, detailCurrency)}
-													</span>
-												</div>
-												<div className='flex items-center justify-between gap-3'>
-													<span className='text-base-content/70'>Đề xuất trả khách hàng</span>
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailProposedRefund, detailCurrency)}
-													</span>
-												</div>
+								<section className='grid gap-4 md:grid-cols-1'>
+									<div className='space-y-2'>
+										<p className='text-xs uppercase text-base-content/60'>Tài chính</p>
+										<div className='space-y-1'>
+											<div className='flex items-center justify-between gap-3'>
+												<span className='text-base-content/70'>Ký quỹ</span>
+												<span className='font-medium text-base-content'>
+													{formatCurrencyValue(detailFunded, detailCurrency)}
+												</span>
+											</div>
+											<div className='flex items-center justify-between gap-3'>
+												<span className='text-base-content/70'>Đã giải ngân</span>
+												<span className='font-medium text-base-content'>
+													{formatCurrencyValue(detailReleased, detailCurrency)}
+												</span>
+											</div>
+											<div className='flex items-center justify-between gap-3'>
+												<span className='text-base-content/70'>Đã hoàn</span>
+												<span className='font-medium text-base-content'>
+													{formatCurrencyValue(detailRefunded, detailCurrency)}
+												</span>
+											</div>
+											<div className='flex items-center justify-between gap-3'>
+												<span className='text-base-content/70'>Đang tranh chấp</span>
+												<span className='font-medium text-base-content'>
+													{formatCurrencyValue(detailDisputable, detailCurrency)}
+												</span>
+											</div>
+											<div className='flex items-center justify-between gap-3'>
+												<span className='text-base-content/70'>Đề xuất trả freelancer</span>
+												<span className='font-medium text-base-content'>
+													{formatCurrencyValue(detailProposedRelease, detailCurrency)}
+												</span>
+											</div>
+											<div className='flex items-center justify-between gap-3'>
+												<span className='text-base-content/70'>Đề xuất trả khách hàng</span>
+												<span className='font-medium text-base-content'>
+													{formatCurrencyValue(detailProposedRefund, detailCurrency)}
+												</span>
 											</div>
 										</div>
-										<div className='space-y-3'>
-											<p className='text-xs uppercase text-base-content/60'>Phí trọng tài</p>
-											<div className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3 text-xs text-base-content/70'>
-												<div className='flex items-center justify-between gap-3'>
-													<span>Phí mỗi bên</span>
-													<span className='font-medium text-base-content'>
-														{formatCurrencyValue(detailArbFeePerParty, detailCurrency)}
-													</span>
-												</div>
-												<div className='flex items-center justify-between gap-3'>
-													<span>Khách đã nộp</span>
-													<span
-														className={`badge ${
-															detailClientId
-																? detailClientFeePaid
-																	? 'badge-success'
-																	: 'badge-warning'
-																: 'badge-outline'
-														}`}>
-														{formatBoolean(detailClientFeeDisplay)}
-													</span>
-												</div>
-												<div className='flex items-center justify-between gap-3'>
-													<span>Freelancer đã nộp</span>
-													<span
-														className={`badge ${
-															detailFreelancerId
-																? detailFreelancerFeePaid
-																	? 'badge-success'
-																	: 'badge-warning'
-																: 'badge-outline'
-														}`}>
-														{formatBoolean(detailFreelancerFeeDisplay)}
-													</span>
-												</div>
-												{detailArbitrationDeadline ? (
-													<div className='flex items-center justify-between gap-3'>
-														<span>Hạn nộp phí</span>
-														<span className='font-medium text-base-content'>
-															{formatDateTime(detailArbitrationDeadline)}
-														</span>
-													</div>
-												) : null}
-											</div>
-											{detailBothFeesPaid ? (
-												<div className='rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-success'>
-													Cả hai bên đã hoàn tất việc nộp phí trọng tài.
-												</div>
-											) : null}
-											<div className='space-y-2'>
-												<h5 className='text-xs font-semibold uppercase text-base-content/60'>Lịch sử thanh toán</h5>
-												{detailArbitrationPayments.length ? (
-													<div className='space-y-2'>
-														{detailArbitrationPayments.map((payment, index) => {
-															const reference = getDisputePaymentReference(payment)
-															const identityKey = getDisputePaymentIdentityKey(payment)
-															const statusLabel = humanizeDisputePaymentStatus(payment.status)
-															const statusClass = isDisputePaymentSuccessful(payment) ? 'badge-success' : 'badge-ghost'
-															const createdAtLabel = formatDateTime(payment.createdAt) ?? 'Không rõ'
-															const key =
-																payment.id || `${reference ?? identityKey ?? 'payment'}-${payment.createdAt ?? index}`
+									</div>
+								</section>
+						) : null}
 
-															return (
-																<div
-																	key={key}
-																	className='space-y-2 rounded-xl border border-base-200 bg-base-200/60 p-3'>
-																	<div className='flex flex-wrap items-center justify-between gap-3'>
-																		<div className='space-y-1'>
-																			<p className='font-medium text-base-content'>
-																				{getDetailPaymentPayerLabel(payment)}
-																			</p>
-																			<p className='text-[11px] text-base-content/60'>
-																				Mã tham chiếu:{' '}
-																				<span className='break-all font-medium text-base-content'>
-																					{reference ?? identityKey ?? '—'}
-																				</span>
-																			</p>
-																		</div>
-																		<div className='text-right'>
-																			<p className='text-sm font-semibold text-base-content'>
-																				{formatCurrencyValue(
-																					payment.amount ?? null,
-																					payment.currency ?? detailCurrency
-																				)}
-																			</p>
-																			<div className='mt-1 flex flex-wrap items-center justify-end gap-2 text-[11px] text-base-content/60'>
-																				<span className={`badge ${statusClass}`}>{statusLabel}</span>
-																				<span>{createdAtLabel}</span>
-																			</div>
-																		</div>
-																	</div>
-																	{identityKey && reference && identityKey !== reference ? (
-																		<p className='break-all text-[11px] text-base-content/60'>
-																			Mã xác nhận: {identityKey}
-																		</p>
-																	) : null}
-																	{payment.description ? (
-																		<p className='text-[11px] text-base-content/60'>Ghi chú: {payment.description}</p>
-																	) : null}
-																</div>
-															)
-														})}
-													</div>
-												) : (
-													<p className='text-xs text-base-content/60'>Chưa có giao dịch phí trọng tài.</p>
-												)}
-											</div>
-										</div>
-									</section>
-								) : null}
-
-                                                                {detailActiveTab === 'evidence' ? (
+{detailActiveTab === 'evidence' ? (
                                                                         <div className='space-y-5'>
                                                                                 {showArbitrationActions ? (
                                                                                 <section className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'>
