@@ -350,20 +350,20 @@ const buildEscrowStatusMeta = (
 				dateStyle: 'medium'
 			}) ?? undefined
 		const captionParts = [] as string[]
-		if (fundedAmount) {
-			captionParts.push(`${fundedAmount} đang được giữ an toàn trong tài khoản đảm bảo.`)
-		} else {
-			captionParts.push('Tài khoản đảm bảo đã được nạp tiền.')
-		}
-		if (updatedAtText) {
-			captionParts.push(`Cập nhật ngày ${updatedAtText}.`)
-		}
-		return {
-			status: normalizedStatus,
-			label: 'Đã giải ngân',
-			icon: ShieldCheck,
-			iconClass: 'text-emerald-500',
-			textClass: 'text-emerald-700',
+                if (fundedAmount) {
+                        captionParts.push(`${fundedAmount} is safely held in escrow.`)
+                } else {
+                        captionParts.push('Escrow has been funded.')
+                }
+                if (updatedAtText) {
+                        captionParts.push(`Updated on ${updatedAtText}.`)
+                }
+                return {
+                        status: normalizedStatus,
+                        label: 'Funded',
+                        icon: ShieldCheck,
+                        iconClass: 'text-emerald-500',
+                        textClass: 'text-emerald-700',
 			chip: fundedAmount ?? undefined,
 			caption: captionParts.join(' '),
 			captionClass: 'text-emerald-600'
@@ -371,13 +371,13 @@ const buildEscrowStatusMeta = (
 	}
 
 	if (normalizedStatus === 'PENDING') {
-		const caption = 'Khoản tiền đang được xử lý. Vui lòng kiểm tra lại sau ít phút.'
-		return {
-			status: normalizedStatus,
-			label: 'Đang xử lý giải ngân',
-			icon: Loader2,
-			iconClass: 'text-sky-500',
-			textClass: 'text-sky-700',
+                const caption = 'Funds are being processed. Please check back in a few minutes.'
+                return {
+                        status: normalizedStatus,
+                        label: 'Processing payout',
+                        icon: Loader2,
+                        iconClass: 'text-sky-500',
+                        textClass: 'text-sky-700',
 			chip: fundedAmount ?? milestoneBudget ?? undefined,
 			caption,
 			captionClass: 'text-sky-600',
@@ -391,18 +391,18 @@ const buildEscrowStatusMeta = (
 				dateStyle: 'medium'
 			}) ?? undefined
 		const captionParts = [] as string[]
-		if (releaseDateText) {
-			captionParts.push(`Thanh toán ngày ${releaseDateText}.`)
-		}
-		if (releasedAmount) {
-			captionParts.push(`${releasedAmount} đã được chuyển tới freelancer.`)
-		}
-		return {
-			status: normalizedStatus,
-			label: 'Đã thanh toán',
-			icon: CheckCircle2,
-			iconClass: 'text-emerald-500',
-			textClass: 'text-emerald-700',
+                if (releaseDateText) {
+                        captionParts.push(`Paid on ${releaseDateText}.`)
+                }
+                if (releasedAmount) {
+                        captionParts.push(`${releasedAmount} has been sent to the freelancer.`)
+                }
+                return {
+                        status: normalizedStatus,
+                        label: 'Paid',
+                        icon: CheckCircle2,
+                        iconClass: 'text-emerald-500',
+                        textClass: 'text-emerald-700',
 			chip: releasedAmount ?? undefined,
 			caption: captionParts.join(' '),
 			captionClass: 'text-emerald-600'
@@ -410,16 +410,16 @@ const buildEscrowStatusMeta = (
 	}
 
 	if (normalizedStatus === 'REFUNDED') {
-		const caption =
-			viewerRole === 'client'
-				? 'Khoản tiền đã được hoàn về phương thức thanh toán của bạn.'
-				: 'Milestone đã được hoàn tiền. Hãy trao đổi thêm với client để biết chi tiết tiếp theo.'
-		return {
-			status: normalizedStatus,
-			label: 'Đã hoàn tiền',
-			icon: Wallet2,
-			iconClass: 'text-slate-500',
-			textClass: 'text-slate-700',
+                const caption =
+                        viewerRole === 'client'
+                                ? 'The amount was returned to your payment method.'
+                                : 'This milestone was refunded. Please coordinate with the client for next steps.'
+                return {
+                        status: normalizedStatus,
+                        label: 'Refunded',
+                        icon: Wallet2,
+                        iconClass: 'text-slate-500',
+                        textClass: 'text-slate-700',
 			chip: refundedAmount ?? undefined,
 			caption,
 			captionClass: 'text-slate-500'
@@ -427,16 +427,16 @@ const buildEscrowStatusMeta = (
 	}
 
 	if (normalizedStatus === 'UNFUNDED') {
-		const caption =
-			viewerRole === 'client'
-				? 'Giải ngân milestone để chuyển tiền vào tài khoản đảm bảo trước khi freelancer tiếp tục.'
-				: 'Client chưa giải ngân milestone này. Bạn có thể trao đổi thêm trước khi bàn giao để tránh rủi ro thanh toán.'
-		return {
-			status: normalizedStatus,
-			label: 'Chưa giải ngân',
-			icon: Wallet2,
-			iconClass: 'text-amber-500',
-			textClass: 'text-amber-700',
+                const caption =
+                        viewerRole === 'client'
+                                ? 'Fund this milestone to move money into escrow before the freelancer continues.'
+                                : 'The client has not funded this milestone yet. Discuss next steps before delivering to avoid payment risks.'
+                return {
+                        status: normalizedStatus,
+                        label: 'Unfunded',
+                        icon: Wallet2,
+                        iconClass: 'text-amber-500',
+                        textClass: 'text-amber-700',
 			chip: milestoneBudget ?? undefined,
 			caption,
 			captionClass: viewerRole === 'client' ? 'text-slate-500' : 'text-amber-600'
@@ -446,13 +446,13 @@ const buildEscrowStatusMeta = (
 	return {
 		status: normalizedStatus,
 		label: toSentenceCase(normalizedStatus),
-		icon: Wallet2,
-		iconClass: 'text-slate-500',
-		textClass: 'text-slate-700',
-		chip: fundedAmount ?? milestoneBudget ?? undefined,
-		caption: viewerRole === 'client' ? 'Trạng thái giải ngân sẽ được cập nhật khi có thay đổi.' : undefined,
-		captionClass: 'text-slate-500'
-	}
+                icon: Wallet2,
+                iconClass: 'text-slate-500',
+                textClass: 'text-slate-700',
+                chip: fundedAmount ?? milestoneBudget ?? undefined,
+                caption: viewerRole === 'client' ? 'Escrow status will update when changes occur.' : undefined,
+                captionClass: 'text-slate-500'
+        }
 }
 
 type TabId = (typeof tabs)[number]['id']
@@ -474,7 +474,7 @@ const getActorDisplayName = (actor?: Contract['termsAcceptedBy']) => {
 }
 
 const getAcceptanceRoleLabel = (role?: string | null) => {
-        if (!role) return 'Người tham gia'
+        if (!role) return 'Participant'
         const normalized = role.toUpperCase()
         switch (normalized) {
                 case 'CLIENT':
@@ -482,11 +482,11 @@ const getAcceptanceRoleLabel = (role?: string | null) => {
                 case 'FREELANCER':
                         return 'Freelancer'
                 case 'ADMIN':
-                        return 'Quản trị viên'
+                        return 'Administrator'
                 case 'SYSTEM':
-                        return 'Hệ thống'
+                        return 'System'
                 default:
-                        return 'Người tham gia'
+                        return 'Participant'
         }
 }
 
@@ -497,16 +497,16 @@ const getAcceptanceActionKey = (log: ContractAcceptanceLog) => {
 }
 
 const getAcceptanceActionLabel = (actionKey: string, actorLabel: string) => {
-        const actor = actorLabel || 'Người tham gia'
+        const actor = actorLabel || 'Participant'
         if (!actionKey) {
-                return `${actor} cập nhật điều khoản`
+                return `${actor} updated the terms`
         }
-        if (actionKey.includes('ATTACH')) return 'Điều khoản được đính kèm'
-        if (actionKey.includes('LOCK')) return 'Điều khoản được khóa'
-        if (actionKey.includes('ACCEPT')) return `${actor} chấp nhận điều khoản`
-        if (actionKey.includes('DECLINE')) return `${actor} từ chối điều khoản`
-        if (actionKey.includes('REQUEST') || actionKey.includes('SEND')) return 'Yêu cầu cập nhật điều khoản'
-        return 'Cập nhật điều khoản'
+        if (actionKey.includes('ATTACH')) return 'Terms attached'
+        if (actionKey.includes('LOCK')) return 'Terms locked'
+        if (actionKey.includes('ACCEPT')) return `${actor} accepted the terms`
+        if (actionKey.includes('DECLINE')) return `${actor} declined the terms`
+        if (actionKey.includes('REQUEST') || actionKey.includes('SEND')) return 'Requested term update'
+        return 'Terms updated'
 }
 
 const extractAcceptanceMetaString = (log: ContractAcceptanceLog, keys: string[]) => {
@@ -976,13 +976,13 @@ const isSignatureCompleted = normalizedSignatureStatus === 'COMPLETED'
         const contractSetupLocked = !isWorkroomReady && !isContractFinalized
         const workroomLockReason = (() => {
                 if (!hasAllParticipantsAccepted) {
-                        return 'Cả hai bên cần đồng ý điều khoản nền tảng trước khi bắt đầu công việc.'
+                        return 'Both parties must accept the platform terms before the workroom can be used.'
                 }
                 if (!isSignatureCompleted) {
-                        return 'Phong bì DocuSign cần được hoàn tất trước khi mở các thao tác công việc.'
+                        return 'The DocuSign envelope must be completed before workroom actions are available.'
                 }
                 if (!isContractStatusReady) {
-                        return `Hợp đồng đang ở trạng thái ${statusMeta.label.toLowerCase()} nên chưa thể thao tác cho đến khi được kích hoạt lại.`
+                        return `The contract is currently ${statusMeta.label.toLowerCase()} and must be reactivated before workroom actions are enabled.`
                 }
                 return null
         })()
@@ -2401,27 +2401,29 @@ const renderOverview = () => (
                 const milestoneLockDescription =
                         workroomLockReason ||
                         (isAwaitingTermsAcceptance
-                                ? 'Bạn cần đồng ý điều khoản nền tảng đã đính kèm trước khi tạo hoặc cập nhật milestones.'
-                                : `Hợp đồng đang ở trạng thái ${statusMeta.label.toLowerCase()} nên chưa thể thao tác với milestones cho đến khi được kích hoạt lại.`)
+                                ? 'Please accept the attached platform terms before creating or updating milestones.'
+                                : `The contract is currently ${statusMeta.label.toLowerCase()} and must be reactivated before milestones can be managed.`)
                 if (!milestones.length) {
                         return (
                                 <div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
                                         <Flag className='mx-auto mb-3 size-8 text-primary' />
-                                        <p className='text-base font-semibold text-slate-700'>Chưa có milestone nào</p>
-                                        <p className='mt-2 text-sm text-slate-500'>Tạo milestones để chia nhỏ công việc và giải ngân theo tiến độ.</p>
+                                        <p className='text-base font-semibold text-slate-700'>No milestones yet</p>
+                                        <p className='mt-2 text-sm text-slate-500'>Create milestones to break down the work and release funds by phase.</p>
                                         {milestoneActionLocked ? (
                                                 <p className='mt-4 text-xs text-amber-600'>{milestoneLockDescription}</p>
                                         ) : (
-                                                <button
-                                                        type='button'
-                                                        onClick={() => {
-                                                                if (!viewerCanManageMilestones) return
-                                                                setCreateMilestoneOpen(true)
-                                                        }}
-                                                        className='mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
-                                                        disabled={createMilestoneMutation.isPending || !viewerCanManageMilestones}>
-                                                        <Flag className='size-4' /> Tạo milestone
-                                                </button>
+                                                viewerCanManageMilestones && (
+                                                        <button
+                                                                type='button'
+                                                                onClick={() => {
+                                                                        if (!viewerCanManageMilestones) return
+                                                                        setCreateMilestoneOpen(true)
+                                                                }}
+                                                                className='mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary/50 hover:bg-primary/20'
+                                                                disabled={createMilestoneMutation.isPending || !viewerCanManageMilestones}>
+                                                                <Flag className='size-4' /> Create milestone
+                                                        </button>
+                                                )
                                         )}
                                 </div>
                         )

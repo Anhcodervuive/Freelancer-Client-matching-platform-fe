@@ -480,7 +480,7 @@ export default function JobProposalsPage() {
                                 ) : canSubmitProposal ? (
                                         <div className='flex flex-col gap-4 rounded-2xl border border-base-200 bg-base-100/70 p-5 text-sm text-base-content/70'>
                                                 <p>
-                                                        Bạn đã chấp nhận lời mời. Hãy gửi proposal để khách hàng có thể xem xét hồ sơ của bạn.
+                                                        You accepted this invitation. Send a proposal so the client can review your profile.
                                                 </p>
                                                 <div className='flex flex-wrap gap-3'>
                                                         <Link
@@ -488,7 +488,7 @@ export default function JobProposalsPage() {
                                                                 className='btn btn-primary gap-2'
                                                         >
                                                                 <FileText className='size-4' />
-                                                                Viết proposal
+                                                                Write proposal
                                                         </Link>
                                                         {detail.job?.id && (
                                                                 <Link
@@ -700,7 +700,7 @@ export default function JobProposalsPage() {
                                                                         new Date(filterInputs.submittedFrom) >
                                                                                 new Date(filterInputs.submittedTo)
                                                                 ) {
-                                                                        setFilterError('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.')
+                                setFilterError('Start date must be before or equal to the end date.')
                                                                         return
                                                                 }
                                                                 setFilterError(null)
@@ -709,7 +709,7 @@ export default function JobProposalsPage() {
                                                 >
                                                         <div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,260px)]'>
                                                                 <label className='flex flex-col gap-2 text-sm text-base-content/70'>
-                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content'>Tìm kiếm</span>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content'>Search</span>
                                                                         <input
                                                                                 type='text'
                                                                                 value={filterInputs.search}
@@ -719,12 +719,12 @@ export default function JobProposalsPage() {
                                                                                                 search: event.target.value
                                                                                         }))
                                                                                 }
-                                                                                placeholder='Tìm theo tiêu đề job hoặc khách hàng'
+                                                                                placeholder='Search by job title or client'
                                                                                 className='input input-bordered input-sm rounded-2xl'
                                                                         />
                                                                 </label>
                                                                 <label className='flex flex-col gap-2 text-sm text-base-content/70'>
-                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content'>Sắp xếp</span>
+                                                                        <span className='text-xs font-semibold uppercase tracking-wide text-base-content'>Sort by</span>
                                                                         <select
                                                                                 className='select select-bordered select-sm rounded-2xl'
                                                                                 value={filterInputs.sortBy}
@@ -736,16 +736,16 @@ export default function JobProposalsPage() {
                                                                                         }))
                                                                                 }}
                                                                         >
-                                                                                <option value='newest'>Mới nhất</option>
-                                                                                <option value='oldest'>Cũ nhất</option>
-                                                                                <option value='bid-asc'>Bid thấp đến cao</option>
-                                                                                <option value='bid-desc'>Bid cao đến thấp</option>
+                                                                                <option value='newest'>Newest</option>
+                                                                                <option value='oldest'>Oldest</option>
+                                                                                <option value='bid-asc'>Bid: Low to high</option>
+                                                                                <option value='bid-desc'>Bid: High to low</option>
                                                                         </select>
                                                                 </label>
                                                         </div>
                                                         <div className='grid gap-4 lg:grid-cols-2'>
                                                                 <fieldset className='rounded-2xl border border-base-200 bg-base-100/70 p-4'>
-                                                                        <legend className='px-2 text-xs font-semibold uppercase tracking-wide text-base-content/80'>Trạng thái</legend>
+                                                                        <legend className='px-2 text-xs font-semibold uppercase tracking-wide text-base-content/80'>Status</legend>
                                                                         <div className='mt-3 grid gap-2 sm:grid-cols-2'>
                                                                                 {JOB_PROPOSAL_STATUSES.map(status => {
                                                                                         const meta = JOB_PROPOSAL_STATUS_META[status]
@@ -783,7 +783,7 @@ export default function JobProposalsPage() {
                                                                 </fieldset>
                                                                 <div className='grid gap-4 rounded-2xl border border-base-200 bg-base-100/70 p-4 text-sm text-base-content/70 sm:grid-cols-2'>
                                                                         <label className='flex flex-col gap-2'>
-                                                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/80'>Từ ngày</span>
+                                                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/80'>From date</span>
                                                                                 <input
                                                                                         type='date'
                                                                                         value={filterInputs.submittedFrom}
@@ -799,7 +799,7 @@ export default function JobProposalsPage() {
                                                                                 />
                                                                         </label>
                                                                         <label className='flex flex-col gap-2'>
-                                                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/80'>Đến ngày</span>
+                                                                                <span className='text-xs font-semibold uppercase tracking-wide text-base-content/80'>To date</span>
                                                                                 <input
                                                                                         type='date'
                                                                                         value={filterInputs.submittedTo}
@@ -833,10 +833,10 @@ export default function JobProposalsPage() {
                                                                                 setProposalPage(1)
                                                                         }}
                                                                 >
-                                                                        Xóa lọc
+                                                                        Reset filters
                                                                 </button>
                                                                 <button type='submit' className='btn btn-sm btn-primary'>
-                                                                        Áp dụng lọc
+                                                                        Apply filters
                                                                 </button>
                                                         </div>
                                                 </form>
@@ -865,7 +865,7 @@ export default function JobProposalsPage() {
                                                         if (!proposals.length) {
                                                                 return (
                                                                         <div className='rounded-3xl border border-dashed border-base-200 bg-base-100 p-10 text-center text-sm text-base-content/70 shadow-sm'>
-                                                                                Không có proposal nào khớp với bộ lọc hiện tại.
+                                                                                No proposals match the current filters.
                                                                         </div>
                                                                 )
                                                         }
@@ -877,10 +877,10 @@ export default function JobProposalsPage() {
                                                                 <div className='space-y-5'>
                                                                         <div className='flex flex-wrap items-center justify-between gap-3 text-sm text-base-content/60'>
                                                                                 <span>
-                                                                                        Hiển thị {startItem} - {endItem} trong tổng số {proposalsTotal} proposal
+                                                                                        Showing {startItem} - {endItem} of {proposalsTotal} proposals
                                                                                 </span>
                                                                                 <span className='text-xs uppercase tracking-wide text-base-content/60'>
-                                                                                        Lọc đang áp dụng: {hasActiveFilters ? 'Có' : 'Không'}
+                                                                                        Active filters: {hasActiveFilters ? 'Yes' : 'No'}
                                                                                 </span>
                                                                         </div>
                                                                         <div className='space-y-4'>
@@ -888,7 +888,7 @@ export default function JobProposalsPage() {
                                                                         </div>
                                                                         {proposalTotalPages > 1 && (
                                                                                 <div className='flex items-center justify-between rounded-3xl border border-base-200 bg-base-100 p-4 text-sm shadow-sm'>
-                                                                                        <span className='text-base-content/60'>Trang {proposalPage} / {proposalTotalPages}</span>
+                                                                                        <span className='text-base-content/60'>Page {proposalPage} / {proposalTotalPages}</span>
                                                                                         <div className='flex gap-2'>
                                                                                                 <button
                                                                                                         type='button'
@@ -896,7 +896,7 @@ export default function JobProposalsPage() {
                                                                                                         onClick={() => setProposalPage(Math.max(1, proposalPage - 1))}
                                                                                                         disabled={proposalPage === 1}
                                                                                                 >
-                                                                                                        Trước
+                                                                                                        Previous
                                                                                                 </button>
                                                                                                 <button
                                                                                                         type='button'
@@ -904,7 +904,7 @@ export default function JobProposalsPage() {
                                                                                                         onClick={() => setProposalPage(Math.min(proposalTotalPages, proposalPage + 1))}
                                                                                                         disabled={proposalPage === proposalTotalPages}
                                                                                                 >
-                                                                                                        Sau
+                                                                                                        Next
                                                                                                 </button>
                                                                                         </div>
                                                                                 </div>
