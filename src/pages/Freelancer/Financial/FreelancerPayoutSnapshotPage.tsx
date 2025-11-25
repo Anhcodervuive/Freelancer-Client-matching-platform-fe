@@ -113,7 +113,7 @@ const getCapabilityStatusVisuals = (status: string) => {
 
         if (normalized === 'active') {
                 return {
-                        badgeLabel: 'Đã kích hoạt',
+                        badgeLabel: 'Active',
                         badgeClass: 'bg-emerald-100 text-emerald-700',
                         iconBg: 'bg-emerald-500',
                         icon: ShieldCheck
@@ -122,7 +122,7 @@ const getCapabilityStatusVisuals = (status: string) => {
 
         if (normalized === 'pending') {
                 return {
-                        badgeLabel: 'Đang chờ Stripe duyệt',
+                        badgeLabel: 'Pending Stripe review',
                         badgeClass: 'bg-amber-100 text-amber-700',
                         iconBg: 'bg-amber-500',
                         icon: Clock
@@ -131,7 +131,7 @@ const getCapabilityStatusVisuals = (status: string) => {
 
         if (normalized === 'inactive' || normalized === 'unrequested') {
                 return {
-                        badgeLabel: normalized === 'inactive' ? 'Chưa kích hoạt' : 'Chưa yêu cầu',
+                        badgeLabel: normalized === 'inactive' ? 'Inactive' : 'Not requested',
                         badgeClass: 'bg-slate-200 text-slate-700',
                         iconBg: 'bg-slate-500',
                         icon: AlertCircle
@@ -139,7 +139,7 @@ const getCapabilityStatusVisuals = (status: string) => {
         }
 
         return {
-                badgeLabel: 'Trạng thái cần kiểm tra',
+                badgeLabel: 'Status needs review',
                 badgeClass: 'bg-rose-100 text-rose-700',
                 iconBg: 'bg-rose-500',
                 icon: AlertTriangle
@@ -177,8 +177,8 @@ const CapabilityStatusCard = ({ summary }: { summary: PayoutCapabilityStatus }) 
 }
 
 const TAB_DEFINITIONS = [
-        { key: 'overview', label: 'Tổng quan', icon: Landmark },
-        { key: 'history', label: 'Lịch sử payouts', icon: Calendar },
+        { key: 'overview', label: 'Overview', icon: Landmark },
+        { key: 'history', label: 'Payout history', icon: Calendar },
         { key: 'stripe', label: 'Stripe Connect', icon: ShieldCheck }
 ] as const
 
@@ -254,8 +254,8 @@ const FilterControlsCard = ({
 }) => (
         <section className={`${SECTION_CARD_CLASS} flex flex-wrap items-center justify-between gap-4 px-5 py-4`}>
                 <div>
-                        <h2 className='text-base font-semibold text-base-content'>Bộ lọc</h2>
-                        <p className='text-sm text-base-content/60'>Chọn tiền tệ và số lượng bản ghi lịch sử hiển thị.</p>
+                        <h2 className='text-base font-semibold text-base-content'>Filters</h2>
+                        <p className='text-sm text-base-content/60'>Choose the currency and number of payout history rows to display.</p>
                 </div>
                 <div className='flex flex-wrap items-center gap-3'>
                         <label className='flex flex-col text-xs font-medium uppercase tracking-wide text-base-content/60'>
@@ -323,7 +323,7 @@ const resolveCreatePayoutErrorMessage = (error: unknown) => {
                 return error.message
         }
 
-        return 'Không thể tạo yêu cầu rút tiền. Vui lòng thử lại sau.'
+        return 'Unable to create a payout request. Please try again later.'
 }
 
 const resolveCapabilityRequestErrorMessage = (error: unknown) => {
@@ -342,14 +342,14 @@ const resolveCapabilityRequestErrorMessage = (error: unknown) => {
                 return error.message
         }
 
-        return 'Không thể gửi yêu cầu Stripe xem xét capabilities. Vui lòng thử lại sau.'
+        return 'Unable to send the capability review request to Stripe. Please try again later.'
 }
 
 const createPayoutFormSchemaBase = z.object({
         amount: z
                 .string()
                 .trim()
-                .min(1, 'Vui lòng nhập số tiền muốn rút')
+                .min(1, 'Please enter the amount you want to withdraw')
                 .refine(value => {
                         const numeric = Number(value)
                         return Number.isFinite(numeric) && numeric > 0
@@ -357,8 +357,8 @@ const createPayoutFormSchemaBase = z.object({
         currency: z
                 .string()
                 .trim()
-                .min(3, 'Mã tiền tệ phải có 3 ký tự')
-                .max(3, 'Mã tiền tệ phải có 3 ký tự')
+                .min(3, 'Currency code must contain 3 characters')
+                .max(3, 'Currency code must contain 3 characters')
 })
 
 type CreatePayoutFormValues = z.infer<typeof createPayoutFormSchemaBase>
@@ -379,7 +379,7 @@ const buildCreatePayoutFormSchema = (
                         if (currencyOptions.length > 0 && !currencyOptions.includes(normalizedCurrency)) {
                                 ctx.addIssue({
                                         code: z.ZodIssueCode.custom,
-                                        message: 'Mã tiền tệ không nằm trong danh sách được phép rút.',
+                                        message: 'Currency is not in the allowed withdrawal list.',
                                         path: ['currency']
                                 })
                         }
@@ -393,7 +393,7 @@ const buildCreatePayoutFormSchema = (
                                                 formatCurrencyAmount(availableAmount, normalizedCurrency)
                                         ctx.addIssue({
                                                 code: z.ZodIssueCode.custom,
-                                                message: `Số tiền vượt quá số dư khả dụng (${formatted}).`,
+                                                message: `Amount exceeds the available balance (${formatted}).`,
                                                 path: ['amount']
                                         })
                                 }
@@ -1140,8 +1140,8 @@ const PageHeader = ({
                         <div className='flex flex-wrap items-start justify-between gap-4'>
                                 <div className='space-y-2'>
                                         <p className='text-xs font-semibold uppercase tracking-wide text-primary'>Stripe payouts</p>
-                                        <h1 className='text-2xl font-semibold text-base-content'>Tổng quan trạng thái rút tiền</h1>
-                                        <p className='text-sm text-base-content/60'>Theo dõi số dư, lịch sử và mức độ sẵn sàng của tài khoản Stripe Connect.</p>
+                                        <h1 className='text-2xl font-semibold text-base-content'>Payout status overview</h1>
+                                        <p className='text-sm text-base-content/60'>Track balances, history, and readiness for your Stripe Connect account.</p>
                                 </div>
                                 <div className='flex flex-col items-end gap-2 text-right'>
                                         <span
@@ -1152,15 +1152,15 @@ const PageHeader = ({
                                                 }`}
                                         >
                                                 <ShieldCheck className='size-4' />
-                                                {payoutsEnabled ? 'Đã bật payouts' : 'Payouts đang bị khoá'}
+                                                {payoutsEnabled ? 'Payouts enabled' : 'Payouts locked'}
                                         </span>
                                         <div className='text-xs text-base-content/60'>
                                                 <span className='font-semibold text-base-content'>Stripe account:</span>{' '}
-                                                {stripeAccountId || 'Chưa kết nối'}
+                                                {stripeAccountId || 'Not connected'}
                                         </div>
                                         {showDisabledSince ? (
                                                 <span className='rounded-full bg-base-200 px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-base-content/70'>
-                                                        Cập nhật: {disabledSince}
+                                                        Updated: {disabledSince}
                                                 </span>
                                         ) : null}
                                 </div>
@@ -1171,10 +1171,10 @@ const PageHeader = ({
                                         <div className='flex items-start gap-3'>
                                                 <AlertCircle className='mt-0.5 size-4 flex-shrink-0' />
                                                 <div className='space-y-1'>
-                                                        <p className='font-semibold text-amber-800'>Stripe yêu cầu bạn xem lại thông tin payouts</p>
+                                                        <p className='font-semibold text-amber-800'>Stripe needs you to review payout details</p>
                                                         <p className='text-amber-700'>
                                                                 {primaryRestrictionMessage ??
-                                                                        'Có một số hạng mục Stripe cần bạn xử lý trước khi tiếp tục rút tiền.'}
+                                                                        'Stripe requires you to resolve a few items before payouts can continue.'}
                                                         </p>
                                                 </div>
                                         </div>
@@ -1184,7 +1184,7 @@ const PageHeader = ({
                                                         onClick={onNavigateToStripe}
                                                         className='btn btn-sm btn-ghost border border-amber-300/60 bg-white/70 text-amber-700 hover:border-amber-400 hover:bg-white'
                                                 >
-                                                        Xem chi tiết
+                                                        View details
                                                 </button>
                                         ) : null}
                                 </div>
@@ -1193,7 +1193,7 @@ const PageHeader = ({
                         {!stripeAccountId ? (
                                 <div className='flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700'>
                                         <Calendar className='mt-0.5 size-4 flex-shrink-0' />
-                                        <p>Kết nối tài khoản Stripe để tự động hiển thị số dư và lịch sử payouts.</p>
+                                        <p>Connect your Stripe account to automatically show balances and payout history.</p>
                                 </div>
                         ) : null}
                 </section>

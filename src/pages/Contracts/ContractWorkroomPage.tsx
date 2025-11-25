@@ -2434,7 +2434,7 @@ const renderOverview = () => (
                                                 <div className='flex items-start gap-3'>
                                                         <AlertTriangle className='mt-1 size-4 flex-shrink-0 text-amber-600' />
                                                         <div>
-                                                                <p className='font-semibold text-amber-900'>Hợp đồng chưa sẵn sàng quản lý milestones</p>
+                                                                <p className='font-semibold text-amber-900'>Contract not ready for milestones</p>
                                                                 <p className='mt-1 text-sm'>{milestoneLockDescription}</p>
                                                         </div>
                                                 </div>
@@ -2443,19 +2443,19 @@ const renderOverview = () => (
                                 {viewerRole === 'client' && pendingReviewMilestones.length > 0 && (
 					<div className='space-y-4 rounded-[24px] border border-sky-200/80 bg-sky-50/80 p-5 shadow-inner shadow-white/60'>
 						<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-							<div>
-								<p className='text-[11px] font-semibold uppercase tracking-[0.35em] text-sky-500'>
-									Bàn giao đang chờ duyệt
-								</p>
-								<h3 className='text-base font-semibold text-slate-900'>
-									{pendingReviewMilestones.length === 1
-										? 'Có 1 bàn giao cần bạn xử lý'
-										: `Có ${pendingReviewMilestones.length} bàn giao cần bạn xử lý`}
-								</h3>
-								<p className='text-xs text-slate-500'>
-									Xem nhanh các bàn giao mới nhất bên dưới hoặc duyệt ngay tại từng milestone.
-								</p>
-							</div>
+                                                        <div>
+                                                                <p className='text-[11px] font-semibold uppercase tracking-[0.35em] text-sky-500'>
+                                                                        Deliveries awaiting review
+                                                                </p>
+                                                                <h3 className='text-base font-semibold text-slate-900'>
+                                                                        {pendingReviewMilestones.length === 1
+                                                                                ? '1 delivery needs your review'
+                                                                                : `${pendingReviewMilestones.length} deliveries need your review`}
+                                                                </h3>
+                                                                <p className='text-xs text-slate-500'>
+                                                                        Check the newest submissions below or review them directly on each milestone.
+                                                                </p>
+                                                        </div>
 						</div>
 						<ul className='space-y-3'>
 							{pendingReviewMilestones.slice(0, 3).map(({ milestone, submission }) => {
@@ -3013,18 +3013,18 @@ const renderOverview = () => (
                                                                                 <div className='space-y-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4'>
                                                                                         <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
 												<div className='min-w-0 flex-1 space-y-2'>
-													<p className='text-xs font-semibold uppercase tracking-[0.25em] text-sky-600'>
-														Bàn giao chờ duyệt
-													</p>
-													<p className='whitespace-pre-line text-sm text-slate-700'>
-														{pendingSubmission.message ?? 'Không có mô tả chi tiết.'}
-													</p>
-													{pendingSubmission.note ? (
-														<p className='text-xs text-slate-500'>Ghi chú: {pendingSubmission.note}</p>
-													) : null}
-													{pendingSubmittedAtText && (
-														<span className='text-xs text-slate-400'>Gửi {pendingSubmittedAtText}</span>
-													)}
+                                                                                                        <p className='text-xs font-semibold uppercase tracking-[0.25em] text-sky-600'>
+                                                                                                                Delivery pending approval
+                                                                                                        </p>
+                                                                                                        <p className='whitespace-pre-line text-sm text-slate-700'>
+                                                                                                                {pendingSubmission.message ?? 'No additional details provided.'}
+                                                                                                        </p>
+                                                                                                        {pendingSubmission.note ? (
+                                                                                                                <p className='text-xs text-slate-500'>Note: {pendingSubmission.note}</p>
+                                                                                                        ) : null}
+                                                                                                        {pendingSubmittedAtText && (
+                                                                                                                <span className='text-xs text-slate-400'>Submitted {pendingSubmittedAtText}</span>
+                                                                                                        )}
 												</div>
 												<div className='flex flex-shrink-0 flex-wrap items-center justify-end gap-2'>
                                                                                                         <button
@@ -3039,17 +3039,17 @@ const renderOverview = () => (
                                                                                                                         })
                                                                                                                 }}
                                                                                                                 disabled={isReviewingSubmission || isContractFinalized}>
-														{isReviewingCurrentMilestone && milestoneReviewState?.mode === 'approve' ? (
-															<>
-																<Loader2 className='size-3.5 animate-spin' />
-																Đang xử lý...
-															</>
-														) : (
-															<>
-																<CheckCircle2 className='size-3.5' />
-																Chấp nhận
-															</>
-														)}
+                                                                                                                {isReviewingCurrentMilestone && milestoneReviewState?.mode === 'approve' ? (
+                                                                                                                        <>
+                                                                                                                                <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                                Processing...
+                                                                                                                        </>
+                                                                                                                ) : (
+                                                                                                                        <>
+                                                                                                                                <CheckCircle2 className='size-3.5' />
+                                                                                                                                Approve delivery
+                                                                                                                        </>
+                                                                                                                )}
 													</button>
                                                                                                         <button
                                                                                                                 type='button'
@@ -3063,17 +3063,17 @@ const renderOverview = () => (
                                                                                                                         })
                                                                                                                 }}
                                                                                                                 disabled={isReviewingSubmission || isContractFinalized}>
-														{isReviewingCurrentMilestone && milestoneReviewState?.mode === 'decline' ? (
-															<>
-																<Loader2 className='size-3.5 animate-spin' />
-																Đang xử lý...
-															</>
-														) : (
-															<>
-																<XCircle className='size-3.5' />
-																Yêu cầu chỉnh sửa
-															</>
-														)}
+                                                                                                                {isReviewingCurrentMilestone && milestoneReviewState?.mode === 'decline' ? (
+                                                                                                                        <>
+                                                                                                                                <Loader2 className='size-3.5 animate-spin' />
+                                                                                                                                Processing...
+                                                                                                                        </>
+                                                                                                                ) : (
+                                                                                                                        <>
+                                                                                                                                <XCircle className='size-3.5' />
+                                                                                                                                Request changes
+                                                                                                                        </>
+                                                                                                                )}
 													</button>
 												</div>
 											</div>
@@ -3123,23 +3123,23 @@ const renderOverview = () => (
                                                                                                 {isSubmittingWork && milestoneToSubmit?.id === milestone.id ? (
                                                                                                         <>
                                                                                                                 <Loader2 className='size-3.5 animate-spin' />
-														Đang gửi...
-													</>
-												) : (
-													<>
-														<UploadCloud className='size-3.5' />
-														Gửi bàn giao
-													</>
-												)}
+                                                                                                                Submitting...
+                                                                                                        </>
+                                                                                                ) : (
+                                                                                                        <>
+                                                                                                                <UploadCloud className='size-3.5' />
+                                                                                                                Submit delivery
+                                                                                                        </>
+                                                                                                )}
 											</button>
 										</div>
 									)}
 									<div className='space-y-3'>
 										<div className='flex items-center justify-between'>
-											<p className='text-sm font-semibold text-slate-800'>Bàn giao milestone</p>
-											{submissions.length > 1 && (
-												<span className='text-xs text-slate-400'>{submissions.length} lần bàn giao</span>
-											)}
+                                                                                        <p className='text-sm font-semibold text-slate-800'>Milestone deliveries</p>
+                                                                                        {submissions.length > 1 && (
+                                                                                                <span className='text-xs text-slate-400'>{submissions.length} deliveries</span>
+                                                                                        )}
 										</div>
 										{submissions.length ? (
 											<ul className='space-y-3'>
@@ -3547,42 +3547,41 @@ const renderOverview = () => (
         const renderPayments = () => (
                 <div className='grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]'>
 			<div className='space-y-6 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
-				<h3 className='text-sm font-semibold text-slate-800'>Tổng quan thanh toán</h3>
+                                <h3 className='text-sm font-semibold text-slate-800'>Payment overview</h3>
 				<div className='grid gap-4 md:grid-cols-2'>
 					<div className='rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-emerald-700'>
-						<p className='text-xs font-semibold uppercase tracking-[0.3em]'>Đã thanh toán</p>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.3em]'>Paid</p>
 						<p className='mt-2 text-2xl font-semibold text-emerald-900'>{totalPaid ?? '—'}</p>
-						<p className='text-xs text-emerald-700/80'>Bao gồm các milestones đã duyệt và giải ngân.</p>
+                                                <p className='text-xs text-emerald-700/80'>Includes milestones that have been approved and released.</p>
 					</div>
 					<div className='rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-amber-700'>
-						<p className='text-xs font-semibold uppercase tracking-[0.3em]'>Số dư còn lại</p>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.3em]'>Outstanding balance</p>
 						<p className='mt-2 text-2xl font-semibold text-amber-900'>{outstanding ?? '—'}</p>
-						<p className='text-xs text-amber-700/80'>Sẽ được thanh toán sau khi milestone hoàn tất.</p>
+                                                <p className='text-xs text-amber-700/80'>Will be paid after milestones are completed.</p>
 					</div>
 				</div>
-				<div className='space-y-3 rounded-2xl border border-white/70 bg-white/80 p-4 text-sm text-slate-600'>
-					<p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Phương thức thanh toán</p>
-					<p>
-						Quản lý thanh toán trực tiếp trong Workroom. Các khoản thanh toán sẽ hiển thị tại đây khi bạn phát hành
-						milestone.
-					</p>
-					<p className='text-xs text-slate-400'>
-						Lưu ý: hệ thống thanh toán đang được tích hợp, thông tin hiện tại chỉ mang tính mô phỏng.
-					</p>
-				</div>
+                                <div className='space-y-3 rounded-2xl border border-white/70 bg-white/80 p-4 text-sm text-slate-600'>
+                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Payment method</p>
+                                        <p>
+                                                Manage payments directly in the Workroom. Transactions will appear here when you release a milestone.
+                                        </p>
+                                        <p className='text-xs text-slate-400'>
+                                                Note: payment processing is being integrated; the current data is for illustration only.
+                                        </p>
+                                </div>
 			</div>
 			<div className='space-y-4 rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-6 text-sm text-slate-500 shadow-inner shadow-white/30'>
-				<h3 className='text-sm font-semibold text-slate-800'>Lịch sử gần đây</h3>
-				<p>
-					Chưa có giao dịch nào được ghi nhận. Khi milestones được duyệt và giải ngân, bạn sẽ thấy chi tiết tại đây.
-				</p>
+                                <h3 className='text-sm font-semibold text-slate-800'>Recent activity</h3>
+                                <p>
+                                        No transactions have been recorded yet. Once milestones are approved and released, their details will appear here.
+                                </p>
 			</div>
                 </div>
         )
 
         const renderReadiness = () => {
                 const acceptanceRows = [
-                        { label: 'Khách hàng', name: clientName, acceptance: clientAcceptance },
+                        { label: 'Client', name: clientName, acceptance: clientAcceptance },
                         { label: 'Freelancer', name: freelancerName, acceptance: freelancerAcceptance }
                 ]
 
@@ -3591,9 +3590,9 @@ const renderOverview = () => (
                                 <div className='space-y-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:p-8'>
                                         <div className='flex items-center justify-between gap-4'>
                                                 <div>
-                                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Điều khoản</p>
-                                                        <h3 className='text-lg font-semibold text-slate-900'>Trạng thái chấp nhận</h3>
-                                                        <p className='mt-1 text-sm text-slate-600'>Mỗi bên cần xác nhận đúng bộ điều khoản đi kèm hợp đồng.</p>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Terms</p>
+                                                        <h3 className='text-lg font-semibold text-slate-900'>Acceptance status</h3>
+                                                        <p className='mt-1 text-sm text-slate-600'>Each party must confirm the exact contract terms.</p>
                                                 </div>
                                                 <span
                                                         className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${hasAllParticipantsAccepted
@@ -3601,7 +3600,7 @@ const renderOverview = () => (
                                                                 : 'border-amber-200 bg-amber-50 text-amber-700'}`}
                                                 >
                                                         <ShieldCheck className='size-4' />
-                                                        {hasAllParticipantsAccepted ? 'Đã khóa điều khoản' : 'Chưa đủ xác nhận'}
+                                                        {hasAllParticipantsAccepted ? 'Terms locked' : 'Awaiting confirmations'}
                                                 </span>
                                         </div>
                                         <ul className='divide-y divide-slate-200 rounded-2xl border border-slate-200/80 bg-white/60'>
@@ -3625,17 +3624,17 @@ const renderOverview = () => (
                                                                                                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                                                                                 : 'border-amber-200 bg-amber-50 text-amber-700'}`}
                                                                                 >
-                                                                                        {acceptance.accepted ? 'Đã đồng ý điều khoản' : 'Chưa xác nhận'}
+                                                                                {acceptance.accepted ? 'Terms accepted' : 'Not confirmed yet'}
                                                                                 </span>
                                                                                 <div className='text-xs text-slate-500'>
                                                                                         {acceptance.accepted
                                                                                                 ? (
                                                                                                         <span>
-                                                                                                                {acceptedAtText ?? 'Đã ghi nhận'}
-                                                                                                                {acceptance.version && ` • Bản ${acceptance.version}`}
+                                                                                                                {acceptedAtText ?? 'Recorded'}
+                                                                                                                {acceptance.version && ` • Version ${acceptance.version}`}
                                                                                                         </span>
                                                                                                 )
-                                                                                                : 'Đang chờ người dùng này xác nhận.'}
+                                                                                                : 'Waiting for this participant to confirm.'}
                                                                                 </div>
                                                                         </div>
                                                                 </li>
@@ -3647,24 +3646,24 @@ const renderOverview = () => (
                                 <div className='space-y-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] md:p-8'>
                                         <div className='flex items-center justify-between gap-4'>
                                                 <div>
-                                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Ký số</p>
+                                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>E-signature</p>
                                                         <h3 className='text-lg font-semibold text-slate-900'>DocuSign</h3>
-                                                        <p className='mt-1 text-sm text-slate-600'>Tình trạng phong bì và trình tự ký.</p>
+                                                        <p className='mt-1 text-sm text-slate-600'>Envelope status and signing order.</p>
                                                 </div>
                                                 <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${signatureStatusMeta.badge}`}>
                                                         {signatureStatusMeta.label}
                                                 </span>
                                         </div>
                                         <div className='rounded-2xl border border-slate-200/80 bg-white/60 p-4 text-sm text-slate-600'>
-                                                <p className='font-semibold text-slate-800'>Trạng thái phong bì</p>
+                                                <p className='font-semibold text-slate-800'>Envelope status</p>
                                                 <p className='mt-1 text-sm text-slate-600'>{signatureStatusMeta.description}</p>
                                                 <div className='mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-3'>
                                                         <div>
-                                                                <p className='font-semibold text-slate-700'>Gửi lúc</p>
+                                                                <p className='font-semibold text-slate-700'>Sent at</p>
                                                                 <p>{signatureSentAtText ?? '—'}</p>
                                                         </div>
                                                         <div>
-                                                                <p className='font-semibold text-slate-700'>Hoàn tất</p>
+                                                                <p className='font-semibold text-slate-700'>Completed</p>
                                                                 <p>{signatureCompletedAtText ?? '—'}</p>
                                                         </div>
                                                         <div>
@@ -3673,18 +3672,18 @@ const renderOverview = () => (
                                                         </div>
                                                 </div>
                                                 <div className='mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-slate-600'>
-                                                        <p className='font-semibold text-slate-700'>Người tham gia</p>
+                                                        <p className='font-semibold text-slate-700'>Participants</p>
                                                         <ul className='mt-2 grid gap-2 sm:grid-cols-2'>
                                                                 {signatureRecipients.slice(0, 4).map((recipient, index) => (
                                                                         <li key={recipient.userId ?? recipient.email ?? index} className='flex items-start gap-2'>
                                                                                 <Users className='mt-0.5 size-4 text-slate-400' />
                                                                                 <div>
-                                                                                        <p className='text-sm font-semibold text-slate-800'>{recipient.name || recipient.email || recipient.role || 'Người ký'}</p>
-                                                                                        <p className='text-xs text-slate-500'>Thứ tự {recipient.routingOrder ?? index + 1}</p>
+                                                                                        <p className='text-sm font-semibold text-slate-800'>{recipient.name || recipient.email || recipient.role || 'Signer'}</p>
+                                                                                        <p className='text-xs text-slate-500'>Order {recipient.routingOrder ?? index + 1}</p>
                                                                                 </div>
                                                                         </li>
                                                                 ))}
-                                                                {!signatureRecipients.length && <li className='text-xs text-slate-500'>Chưa có danh sách người ký.</li>}
+                                                                {!signatureRecipients.length && <li className='text-xs text-slate-500'>No signers listed.</li>}
                                                         </ul>
                                                 </div>
                                         </div>
@@ -3696,17 +3695,17 @@ const renderOverview = () => (
                                                         ) : (
                                                                 <AlertTriangle className='size-5 text-amber-600' />
                                                         )}
-                                                        <p className='font-semibold'>Trạng thái Workroom</p>
+                                                        <p className='font-semibold'>Workroom status</p>
                                                 </div>
                                                 <p className='text-sm'>
                                                         {isWorkroomReady
-                                                                ? 'Tất cả bước chuẩn bị đã hoàn tất. Bạn có thể tiếp tục tạo milestone và quản lý công việc.'
-                                                                : workroomLockReason || 'Workroom đang chờ hoàn tất các bước chuẩn bị.'}
+                                                                ? 'All preparation steps are complete. You can start creating milestones and managing work.'
+                                                                : workroomLockReason || 'The Workroom is waiting for the remaining setup steps.'}
                                                 </p>
                                                 <ul className='text-xs text-slate-600'>
-                                                        <li className='mt-1'>• Điều khoản: {hasAllParticipantsAccepted ? 'Cả hai bên đã đồng ý.' : 'Cần cả hai bên xác nhận.'}</li>
-                                                        <li>• Ký số: {isSignatureCompleted ? 'Phong bì DocuSign đã hoàn tất.' : 'Cần hoàn tất phong bì DocuSign.'}</li>
-                                                        <li>• Trạng thái hợp đồng: {isContractStatusReady ? 'Đang hoạt động.' : statusMeta.label}</li>
+                                                        <li className='mt-1'>• Terms: {hasAllParticipantsAccepted ? 'Both parties have agreed.' : 'Both parties must confirm.'}</li>
+                                                        <li>• E-signature: {isSignatureCompleted ? 'DocuSign envelope is complete.' : 'DocuSign envelope still needs to finish.'}</li>
+                                                        <li>• Contract status: {isContractStatusReady ? 'Active.' : statusMeta.label}</li>
                                                 </ul>
                                         </div>
                                 </div>
@@ -3719,10 +3718,10 @@ const renderOverview = () => (
 			return (
 				<div className='rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-10 text-center text-slate-500 shadow-inner shadow-white/30'>
 					<History className='mx-auto mb-3 size-8 text-slate-400' />
-					<p className='text-base font-semibold text-slate-700'>Chưa có hoạt động nào được ghi nhận</p>
-					<p className='mt-2 text-sm text-slate-500'>
-						Những cập nhật của hợp đồng sẽ hiển thị tại đây theo trình tự thời gian.
-					</p>
+                                        <p className='text-base font-semibold text-slate-700'>No activity recorded yet</p>
+                                        <p className='mt-2 text-sm text-slate-500'>
+                                                Contract updates will appear here in chronological order.
+                                        </p>
 				</div>
 			)
 		}
