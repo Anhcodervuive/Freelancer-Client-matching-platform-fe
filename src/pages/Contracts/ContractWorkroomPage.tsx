@@ -110,13 +110,13 @@ import EndContractDialog from './components/EndContractDialog'
 import SubmitContractFeedbackDialog from './components/SubmitContractFeedbackDialog'
 
 const tabs = [
-{ id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
-{ id: 'milestones', label: 'Milestones', icon: Flag },
-{ id: 'files', label: 'Tệp đính kèm', icon: FolderOpen },
-{ id: 'payments', label: 'Thanh toán', icon: CreditCard },
-{ id: 'readiness', label: 'Tiến trình', icon: ShieldCheck },
-{ id: 'signature', label: 'Ký số', icon: FileSignature },
-{ id: 'history', label: 'Lịch sử', icon: History }
+        { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+        { id: 'milestones', label: 'Milestones', icon: Flag },
+        { id: 'files', label: 'Files', icon: FolderOpen },
+        { id: 'payments', label: 'Payments', icon: CreditCard },
+        { id: 'readiness', label: 'Readiness', icon: ShieldCheck },
+        { id: 'signature', label: 'E-signature', icon: FileSignature },
+        { id: 'history', label: 'History', icon: History }
 ] as const
 
 type ViewerRole = 'client' | 'freelancer' | 'all'
@@ -127,34 +127,34 @@ const FINALIZED_CONTRACT_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'ENDED', 
 const CONTRACT_READY_STATUSES = new Set(['ACTIVE', 'IN_PROGRESS', 'PAUSED'])
 const SIGNATURE_STATUS_META: Record<string, { label: string; badge: string; description: string }> = {
         DRAFT: {
-                label: 'Chưa gửi',
+                label: 'Not sent',
                 badge: 'bg-slate-100 text-slate-600 border-slate-200',
-                description: 'Chưa gửi phong bì DocuSign cho các bên.'
+                description: 'The DocuSign envelope has not been sent to participants yet.'
         },
         SENT: {
-                label: 'Đã gửi',
+                label: 'Sent',
                 badge: 'bg-sky-50 text-sky-700 border-sky-200',
-                description: 'Phong bì DocuSign đang chờ các bên ký.'
+                description: 'The DocuSign envelope is waiting for recipients to sign.'
         },
         COMPLETED: {
-                label: 'Hoàn tất',
+                label: 'Completed',
                 badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                description: 'Tất cả các bên đã ký xong trên DocuSign.'
+                description: 'All participants have finished signing in DocuSign.'
         },
         DECLINED: {
-                label: 'Bị từ chối',
+                label: 'Declined',
                 badge: 'bg-amber-50 text-amber-700 border-amber-200',
-                description: 'Một người tham gia đã từ chối phong bì DocuSign.'
+                description: 'Someone declined the DocuSign envelope.'
         },
         VOIDED: {
-                label: 'Đã hủy',
+                label: 'Voided',
                 badge: 'bg-rose-50 text-rose-700 border-rose-200',
-                description: 'Phong bì DocuSign đã bị hủy hoặc hết hạn.'
+                description: 'The DocuSign envelope was voided or expired.'
         },
         ERROR: {
-                label: 'Gặp lỗi',
+                label: 'Error',
                 badge: 'bg-rose-50 text-rose-700 border-rose-200',
-                description: 'Không thể gửi phong bì DocuSign. Vui lòng thử lại.'
+                description: 'Unable to send the DocuSign envelope. Please try again.'
         }
 }
 
@@ -163,9 +163,9 @@ const SIGNATURE_RESEND_ELIGIBLE_STATUSES = new Set(['DECLINED', 'VOIDED', 'ERROR
 const getSignatureStatusMeta = (status?: string | null) => {
         if (!status) {
                 return {
-                        label: 'Không xác định',
+                        label: 'Unknown',
                         badge: 'bg-slate-100 text-slate-600 border-slate-200',
-                        description: 'Chưa có thông tin về trạng thái ký số.'
+                        description: 'No information about the e-signature status yet.'
                 }
         }
 
@@ -174,25 +174,25 @@ const getSignatureStatusMeta = (status?: string | null) => {
                 SIGNATURE_STATUS_META[normalized] || {
                         label: toSentenceCase(normalized),
                         badge: 'bg-slate-100 text-slate-600 border-slate-200',
-                        description: 'Trạng thái ký số hiện tại chưa được hỗ trợ.'
+                        description: 'This e-signature status is not handled yet.'
                 }
         )
 }
 
 const getSignatureRecipientStatus = (status?: string | null) => {
-        if (!status) return 'Chưa xác định'
+        if (!status) return 'Unknown'
         const normalized = status.toUpperCase()
         switch (normalized) {
                 case 'COMPLETED':
-                        return 'Đã hoàn tất'
+                        return 'Completed'
                 case 'SENT':
                 case 'DELIVERED':
                 case 'DELIVERED_AND_READ':
-                        return 'Đang chờ ký'
+                        return 'Waiting for signature'
                 case 'DECLINED':
-                        return 'Đã từ chối'
+                        return 'Declined'
                 case 'VOIDED':
-                        return 'Đã hủy'
+                        return 'Voided'
                 default:
                         return toSentenceCase(normalized)
         }
@@ -243,18 +243,18 @@ const extractErrorMessage = (value: unknown): string | null => {
 }
 
 const milestoneStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
-	PENDING: { label: 'Chờ bắt đầu', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
-	IN_PROGRESS: { label: 'Đang thực hiện', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-	SUBMITTED: { label: 'Đã gửi duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	APPROVED: { label: 'Đã duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	RELEASED: { label: 'Đã thanh toán', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-	COMPLETED: { label: 'Hoàn thành', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-	CANCELLED: { label: 'Đã hủy', badge: 'bg-rose-50 border-rose-200', text: 'text-rose-700' }
+        PENDING: { label: 'Pending', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
+        IN_PROGRESS: { label: 'In progress', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+        SUBMITTED: { label: 'Submitted', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        APPROVED: { label: 'Approved', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        RELEASED: { label: 'Released', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+        COMPLETED: { label: 'Completed', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+        CANCELLED: { label: 'Cancelled', badge: 'bg-rose-50 border-rose-200', text: 'text-rose-700' }
 }
 
 const getMilestoneStatusMeta = (status?: string | null) => {
 	if (!status) {
-		return { label: 'Không xác định', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' }
+                return { label: 'Unknown', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' }
 	}
 	const normalized = status.toUpperCase()
 	return (
@@ -271,19 +271,19 @@ const getMilestoneStatusMeta = (status?: string | null) => {
 }
 
 const submissionStatusMeta: Record<string, { label: string; badge: string; text: string }> = {
-	SUBMITTED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	PENDING: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	SUBMITED: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	AWAITING_REVIEW: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	AWAITING_APPROVAL: { label: 'Chờ duyệt', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
-	APPROVED: { label: 'Đã duyệt', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
-	DECLINED: { label: 'Yêu cầu chỉnh sửa', badge: 'bg-amber-50 border-amber-200', text: 'text-amber-700' },
-	REVISED: { label: 'Đã cập nhật', badge: 'bg-secondary/10 border-secondary/40', text: 'text-secondary' }
+        SUBMITTED: { label: 'Awaiting review', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        PENDING: { label: 'Awaiting review', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        SUBMITED: { label: 'Awaiting review', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        AWAITING_REVIEW: { label: 'Awaiting review', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        AWAITING_APPROVAL: { label: 'Awaiting review', badge: 'bg-sky-50 border-sky-200', text: 'text-sky-700' },
+        APPROVED: { label: 'Approved', badge: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+        DECLINED: { label: 'Revision requested', badge: 'bg-amber-50 border-amber-200', text: 'text-amber-700' },
+        REVISED: { label: 'Updated submission', badge: 'bg-secondary/10 border-secondary/40', text: 'text-secondary' }
 }
 
 const getSubmissionStatusMeta = (status?: string | null) => {
 	if (!status) {
-		return { label: 'Không xác định', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' }
+                return { label: 'Unknown', badge: 'bg-slate-100 border-slate-200', text: 'text-slate-600' }
 	}
 	const normalized = status.toUpperCase()
 	return (
