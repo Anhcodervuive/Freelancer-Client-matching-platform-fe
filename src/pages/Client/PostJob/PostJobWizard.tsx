@@ -100,7 +100,7 @@ function mapDetailToForm(detail: JobPostDetail): JobPostFormValues {
 				: undefined,
 		paymentMode: detail.paymentMode ?? JOB_PAYMENT_MODES[0]?.value ?? 'fix_single',
 		budgetAmount: detail.budgetAmount ?? undefined,
-		budgetCurrency: detail.budgetCurrency ?? undefined,
+                budgetCurrency: 'USD',
 		duration: detail.duration ?? undefined,
 		experienceLevel: detail.experienceLevel ?? 'ENTRY_LEVEL',
 		locationType: detail.locationType ?? 'REMOTE',
@@ -358,16 +358,14 @@ export default function PostJobWizard() {
 				'status'
 			]
 
-			optionalKeys.forEach(key => {
-				const value = payload[key]
-				if (value === undefined || value === null || value === '') {
-					delete payload[key]
-				}
-			})
+                        optionalKeys.forEach(key => {
+                                const value = payload[key]
+                                if (value === undefined || value === null || value === '') {
+                                        delete payload[key]
+                                }
+                        })
 
-			if (typeof values.budgetCurrency === 'string' && values.budgetCurrency.trim()) {
-				payload.budgetCurrency = values.budgetCurrency.trim().toUpperCase()
-			}
+                        payload.budgetCurrency = 'USD'
 
 			if (typeof values.budgetAmount === 'number') {
 				payload.budgetAmount = values.budgetAmount

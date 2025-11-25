@@ -3,7 +3,7 @@ import { Controller, useForm } from 'react-hook-form'
 import type { Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
-import { CURRENCY_CODES, JOB_DURATION_COMMITMENTS } from '~/constants/job'
+import { JOB_DURATION_COMMITMENTS } from '~/constants/job'
 import { UpdateJobProposalSchema } from '~/types/job-proposal'
 import type { JobDurationCommitment } from '~/constants/job'
 import type { z } from 'zod'
@@ -41,13 +41,14 @@ const JobProposalForm = ({
                 handleSubmit,
                 formState: { errors },
                 reset,
-                watch
+                watch,
+                setValue
         } = useForm<JobProposalFormValues>({
                 resolver: zodResolver(BaseProposalSchema) as Resolver<JobProposalFormValues>,
                 defaultValues: {
                         coverLetter: defaultValues?.coverLetter ?? '',
                         bidAmount: defaultValues?.bidAmount ?? undefined,
-                        bidCurrency: defaultValues?.bidCurrency ?? undefined,
+                        bidCurrency: defaultValues?.bidAmount ? 'USD' : undefined,
                         estimatedDuration: defaultValues?.estimatedDuration ?? undefined
                 }
         })
@@ -56,12 +57,21 @@ const JobProposalForm = ({
                 reset({
                         coverLetter: defaultValues?.coverLetter ?? '',
                         bidAmount: defaultValues?.bidAmount ?? undefined,
-                        bidCurrency: defaultValues?.bidCurrency ?? undefined,
+                        bidCurrency: defaultValues?.bidAmount ? 'USD' : undefined,
                         estimatedDuration: defaultValues?.estimatedDuration ?? undefined
                 })
         }, [defaultValues?.bidAmount, defaultValues?.bidCurrency, defaultValues?.coverLetter, defaultValues?.estimatedDuration, reset])
 
         const watchedBidAmount = watch('bidAmount')
+
+        useEffect(() => {
+                if (watchedBidAmount === undefined || watchedBidAmount === null) {
+                        setValue('bidCurrency', undefined, { shouldValidate: true })
+                        return
+                }
+
+                setValue('bidCurrency', 'USD', { shouldValidate: true })
+        }, [setValue, watchedBidAmount])
 
         const handleFormSubmit = (values: JobProposalFormValues) => {
                 onSubmit(values)
@@ -141,28 +151,19 @@ const JobProposalForm = ({
                                                 name='bidCurrency'
                                                 control={control}
                                                 render={({ field }) => (
-                                                        <select
+                                                        <input
                                                                 {...field}
                                                                 id='bidCurrency'
                                                                 value={field.value ?? ''}
-                                                                onChange={event => {
-                                                                        const value = event.target.value
-                                                                        field.onChange(value ? value : undefined)
-                                                                }}
+                                                                readOnly
                                                                 disabled={watchedBidAmount === undefined || watchedBidAmount === null}
-                                                                className='select select-bordered w-full rounded-2xl border-base-300 bg-base-100'
-                                                        >
-                                                                <option value=''>Select currency</option>
-                                                                {CURRENCY_CODES.map(code => (
-                                                                        <option key={code} value={code}>
-                                                                                {code}
-                                                                        </option>
-                                                                ))}
-                                                        </select>
+                                                                className='input input-bordered w-full rounded-2xl border-base-300 bg-base-100'
+                                                                placeholder='USD'
+                                                        />
                                                 )}
                                         />
                                         {errors.bidCurrency && <p className='text-xs text-error'>{errors.bidCurrency.message}</p>}
-                                        <p className='text-xs text-base-content/60'>Currency is required when you include a bid.</p>
+                                        <p className='text-xs text-base-content/60'>Currency is fixed to USD.</p>
                                 </div>
                         </div>
 

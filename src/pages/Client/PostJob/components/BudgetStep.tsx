@@ -1,8 +1,7 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 import { Banknote, CheckCircle2, Eye, Timer } from 'lucide-react'
 import {
-        CURRENCY_CODES,
         JOB_DURATION_COMMITMENTS,
         JOB_PAYMENT_MODES,
         JOB_STATUS_OPTIONS,
@@ -33,6 +32,10 @@ export function BudgetStep({ hidden }: BudgetStepProps) {
         const budgetLabel = paymentModeConfig?.budgetLabel ?? 'Project budget'
         const budgetPlaceholder = paymentModeConfig?.placeholder ?? 'e.g. 1500'
         const budgetStep = paymentModeConfig?.step ?? 5
+
+        useEffect(() => {
+                setValue('budgetCurrency', 'USD', { shouldValidate: true, shouldDirty: false })
+        }, [setValue])
 
         const talentSummary = useMemo(() => {
                 const requiredCount = skills.required?.length ?? 0
@@ -118,16 +121,12 @@ export function BudgetStep({ hidden }: BudgetStepProps) {
                                                                         />
                                                                 )}
                                                         />
-                                                        <select
-                                                                className={`select select-bordered ${errors.budgetCurrency ? 'select-error' : ''}`}
+                                                        <input
+                                                                className={`input input-bordered ${errors.budgetCurrency ? 'input-error' : ''}`}
+                                                                value='USD'
+                                                                readOnly
                                                                 {...register('budgetCurrency')}
-                                                        >
-                                                                {CURRENCY_CODES.map(code => (
-                                                                        <option key={code} value={code}>
-                                                                                {code}
-                                                                        </option>
-                                                                ))}
-                                                        </select>
+                                                        />
                                                 </div>
                                                 {errors.budgetAmount ? (
                                                         <p className='mt-1 text-xs text-error'>{errors.budgetAmount.message as string}</p>

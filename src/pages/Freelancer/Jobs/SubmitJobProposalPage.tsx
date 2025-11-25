@@ -59,7 +59,7 @@ const SubmitJobProposalPage = () => {
                                 bidCurrency:
                                         values.bidAmount === undefined || values.bidAmount === null
                                                 ? undefined
-                                                : values.bidCurrency ?? undefined,
+                                                : 'USD',
                                 estimatedDuration: values.estimatedDuration ?? undefined
                         }
                         return createJobProposal(payload)
@@ -79,7 +79,7 @@ const SubmitJobProposalPage = () => {
         const defaultFormValues = useMemo(() => {
                 if (!jobQuery.data) return undefined
                 return {
-                        bidCurrency: jobQuery.data.budgetCurrency ?? undefined
+                        bidCurrency: 'USD'
                 } satisfies Partial<JobProposalFormValues>
         }, [jobQuery.data])
 

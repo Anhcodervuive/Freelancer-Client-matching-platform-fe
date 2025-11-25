@@ -51,7 +51,7 @@ const EditJobProposalPage = () => {
                                 bidCurrency:
                                         values.bidAmount === undefined || values.bidAmount === null
                                                 ? null
-                                                : values.bidCurrency ?? null,
+                                                : 'USD',
                                 estimatedDuration: values.estimatedDuration ?? null
                         }
                         return updateJobProposal(proposalId, payload)
@@ -73,7 +73,7 @@ const EditJobProposalPage = () => {
                 return {
                         coverLetter: proposalQuery.data.coverLetter ?? '',
                         bidAmount: proposalQuery.data.bidAmount ?? undefined,
-                        bidCurrency: proposalQuery.data.bidCurrency ?? undefined,
+                        bidCurrency: proposalQuery.data.bidAmount ? 'USD' : undefined,
                         estimatedDuration: proposalQuery.data.estimatedDuration ?? undefined
                 } satisfies Partial<JobProposalFormValues>
         }, [proposalQuery.data])
