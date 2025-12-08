@@ -36,15 +36,15 @@ import { getSpecialties } from '~/apis/admin/specialty.api'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import { routes } from '~/config/routes'
 import {
-        formatCurrency,
-        formatLabel,
-        formatMemberSince,
-        formatNumberValue,
-        formatProficiency,
-        getFreelancerId,
-        getFreelancerInitials,
-        normalizeFreelancer,
-        type NormalizedFreelancer
+	formatCurrency,
+	formatLabel,
+	formatMemberSince,
+	formatNumberValue,
+	formatProficiency,
+	getFreelancerId,
+	getFreelancerInitials,
+	normalizeFreelancer,
+	type NormalizedFreelancer
 } from './utils'
 import type { ClientFreelancerListItem, PaginatedClientFreelancerResponse } from '~/types/client-freelancer'
 
@@ -146,11 +146,11 @@ export default function ClientFreelancerListPage() {
 
 	const queryClient = useQueryClient()
 
-        const { data, isLoading, isFetching, isError, error } = useQuery<PaginatedClientFreelancerResponse>({
-                queryKey,
-                queryFn: () => listClientFreelancers(filters),
-                placeholderData: keepPreviousData
-        })
+	const { data, isLoading, isFetching, isError, error } = useQuery<PaginatedClientFreelancerResponse>({
+		queryKey,
+		queryFn: () => listClientFreelancers(filters),
+		placeholderData: keepPreviousData
+	})
 
 	const toggleSaveMutation = useMutation({
 		mutationFn: async ({ id, isSaved }: { id: string; isSaved?: boolean }) => {
@@ -245,20 +245,20 @@ export default function ClientFreelancerListPage() {
 		setPage(1)
 	}
 
-        const handleSpecialtyChange = (option: SingleValue<Option>) => {
-                setSelectedSpecialty(option ?? null)
-                setPage(1)
-        }
+	const handleSpecialtyChange = (option: SingleValue<Option>) => {
+		setSelectedSpecialty(option ?? null)
+		setPage(1)
+	}
 
-        const handleSkillChange = (option: MultiValue<Option>) => {
-                setSelectedSkills([...option])
-                setPage(1)
-        }
+	const handleSkillChange = (option: MultiValue<Option>) => {
+		setSelectedSkills([...option])
+		setPage(1)
+	}
 
-        const handleCountryChange = (option: SingleValue<Option>) => {
-                setSelectedCountry(option ?? null)
-                setPage(1)
-        }
+	const handleCountryChange = (option: SingleValue<Option>) => {
+		setSelectedCountry(option ?? null)
+		setPage(1)
+	}
 
 	const renderSkeletonCard = (index: number) => (
 		<div key={`freelancer-skeleton-${index}`} className='rounded-3xl border border-base-200 bg-base-100 p-6 shadow-sm'>
@@ -358,12 +358,12 @@ export default function ClientFreelancerListPage() {
 						<span className='mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
 							<Sparkles className='size-3' /> Specialty
 						</span>
-                                                <AsyncSelect<Option, false>
-                                                        cacheOptions
-                                                        defaultOptions
-                                                        value={selectedSpecialty}
-                                                        loadOptions={loadSpecialtyOptions}
-                                                        onChange={handleSpecialtyChange}
+						<AsyncSelect<Option, false>
+							cacheOptions
+							defaultOptions
+							value={selectedSpecialty}
+							loadOptions={loadSpecialtyOptions}
+							onChange={handleSpecialtyChange}
 							placeholder='Search specialty…'
 							styles={selectStyles}
 							classNamePrefix='freelancer-select'
@@ -373,12 +373,12 @@ export default function ClientFreelancerListPage() {
 						<span className='mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
 							<Sparkles className='size-3 text-secondary' /> Skills
 						</span>
-                                                <AsyncSelect<Option, true>
-                                                        isMulti
-                                                        cacheOptions
-                                                        defaultOptions
-                                                        value={selectedSkills}
-                                                        loadOptions={loadSkillOptions}
+						<AsyncSelect<Option, true>
+							isMulti
+							cacheOptions
+							defaultOptions
+							value={selectedSkills}
+							loadOptions={loadSkillOptions}
 							onChange={handleSkillChange}
 							placeholder='Search skills…'
 							styles={selectStyles}
@@ -389,11 +389,11 @@ export default function ClientFreelancerListPage() {
 						<span className='mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/60'>
 							<MapPin className='size-3 text-rose-500' /> Location
 						</span>
-                                                <Select<Option, false>
-                                                        isClearable
-                                                        value={selectedCountry}
-                                                        onChange={handleCountryChange}
-                                                        options={countryOptions}
+						<Select<Option, false>
+							isClearable
+							value={selectedCountry}
+							onChange={handleCountryChange}
+							options={countryOptions}
 							placeholder='Select country…'
 							styles={selectStyles}
 							classNamePrefix='freelancer-select'
@@ -591,19 +591,19 @@ export default function ClientFreelancerListPage() {
 							const isTogglingSave = toggleSaveMutation.isPending && toggleSaveMutation.variables?.id === freelancer.id
 							const SaveIcon = isTogglingSave ? Loader2 : freelancer.isSaved ? BookmarkCheck : Bookmark
 
-                                                        return (
-                                                                <Link
-                                                                        key={freelancer.id}
-                                                                        to={routes.comons.freelancerProfile(freelancer.id)}
-                                                                        className='group relative block overflow-hidden rounded-3xl border border-base-200 bg-base-100 p-6 shadow-md transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-lg'>
-                                                                        <span
-                                                                                className='pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/40 to-primary/0'
-                                                                                aria-hidden='true'
-                                                                        />
-                                                                        <div className='flex flex-col gap-6'>
-                                                                                <div className='flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between'>
+							return (
+								<Link
+									key={freelancer.id}
+									to={routes.comons.freelancerProfile(freelancer.id, 'interactionSource=search')}
+									className='group relative block overflow-hidden rounded-3xl border border-base-200 bg-base-100 p-6 shadow-md transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-lg'>
+									<span
+										className='pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-primary/0 via-primary/40 to-primary/0'
+										aria-hidden='true'
+									/>
+									<div className='flex flex-col gap-6'>
+										<div className='flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between'>
 											<div className='flex flex-1 items-start gap-4'>
-                                                                                                <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 text-lg font-semibold text-primary shadow-inner'>
+												<div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 text-lg font-semibold text-primary shadow-inner'>
 													{freelancer.avatar ? (
 														<img
 															src={freelancer.avatar}
@@ -651,15 +651,13 @@ export default function ClientFreelancerListPage() {
 												</div>
 											</div>
 
-                                                                                        <div className='flex w-full flex-col gap-3 lg:max-w-xl'>
-                                                                                                <div className='flex justify-end'>
-                                                                                                        <button
-                                                                                                                type='button'
-                                                                                                                className={`btn btn-outline btn-sm gap-2 transition ${
-                                                                                                                        freelancer.isSaved
-                                                                                                                                ? 'border-primary bg-primary/10 text-primary'
-                                                                                                                                : 'text-base-content/70'
-                                                                                                                }`}
+											<div className='flex w-full flex-col gap-3 lg:max-w-xl'>
+												<div className='flex justify-end'>
+													<button
+														type='button'
+														className={`btn btn-outline btn-sm gap-2 transition ${
+															freelancer.isSaved ? 'border-primary bg-primary/10 text-primary' : 'text-base-content/70'
+														}`}
 														aria-pressed={freelancer.isSaved}
 														disabled={isTogglingSave}
 														onClick={(event: MouseEvent<HTMLButtonElement>) => {
@@ -674,27 +672,27 @@ export default function ClientFreelancerListPage() {
 														{freelancer.isSaved ? 'Saved' : 'Save'}
 													</button>
 												</div>
-                                                                                                {stats.length > 0 && (
-                                                                                                        <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
-                                                                                                                {stats.map(stat => (
-                                                                                                                        <div
-                                                                                                                                key={`${freelancer.id}-${stat.key}`}
-                                                                                                                                className='rounded-2xl border border-base-200/70 bg-base-100/90 px-4 py-3 text-xs text-base-content/70 shadow-sm transition group-hover:border-primary/40'>
-                                                                                                                                <span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
-                                                                                                                                        {stat.icon}
-                                                                                                                                        {stat.label}
-                                                                                                                                </span>
-                                                                                                                                <p className='mt-1 text-sm font-medium text-base-content'>{stat.value}</p>
-                                                                                                                        </div>
-                                                                                                                ))}
-                                                                                                        </div>
-                                                                                                )}
+												{stats.length > 0 && (
+													<div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+														{stats.map(stat => (
+															<div
+																key={`${freelancer.id}-${stat.key}`}
+																className='rounded-2xl border border-base-200/70 bg-base-100/90 px-4 py-3 text-xs text-base-content/70 shadow-sm transition group-hover:border-primary/40'>
+																<span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
+																	{stat.icon}
+																	{stat.label}
+																</span>
+																<p className='mt-1 text-sm font-medium text-base-content'>{stat.value}</p>
+															</div>
+														))}
+													</div>
+												)}
 
-                                                                                                <div className='flex items-center justify-end text-sm font-semibold text-primary'>
-                                                                                                        <span className='flex items-center gap-2 transition group-hover:translate-x-1'>
-                                                                                                                View profile <ArrowRight className='size-4' />
-                                                                                                        </span>
-                                                                                                </div>
+												<div className='flex items-center justify-end text-sm font-semibold text-primary'>
+													<span className='flex items-center gap-2 transition group-hover:translate-x-1'>
+														View profile <ArrowRight className='size-4' />
+													</span>
+												</div>
 											</div>
 										</div>
 
@@ -705,9 +703,9 @@ export default function ClientFreelancerListPage() {
 													const remaining = section.items.length - displayedItems.length
 
 													return (
-                                                                                                                <div
-                                                                                                                        key={`${freelancer.id}-${section.key}`}
-                                                                                                                        className='rounded-2xl border border-base-200/60 bg-base-200/40 px-4 py-3 text-xs text-base-content/70 shadow-sm'>
+														<div
+															key={`${freelancer.id}-${section.key}`}
+															className='rounded-2xl border border-base-200/60 bg-base-200/40 px-4 py-3 text-xs text-base-content/70 shadow-sm'>
 															<span className='flex items-center gap-2 font-semibold uppercase tracking-wide text-base-content/60'>
 																{section.icon} {section.label}
 															</span>

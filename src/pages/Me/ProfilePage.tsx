@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { getProfileInfo } from '~/apis/profile.api'
 import AvatarUploader from '~/components/setting/AvatarUploader'
 import AboutSection from '~/components/setting/freelancer/AboutSection'
@@ -16,15 +16,17 @@ export default function ProfilePage() {
 	const signInUser = useSelector(selectCurrentUser)
 	const location = useLocation()
 	const { id: freelancerId } = useParams()
+	const [searchParams] = useSearchParams()
 
 	// Kiểm tra route hiện tại có chứa chữ "freelancer"
 	const isCurrentSignInUserRoute = location.pathname.includes('/me/freelancer/profile')
+	const interactionSource = searchParams.get('interactionSource')
 	const userId = isCurrentSignInUserRoute ? signInUser?.id : freelancerId
 	const isEditable = isCurrentSignInUserRoute
 
 	const { data } = useQuery({
-		queryKey: ['profile-data', userId],
-		queryFn: () => getProfileInfo(userId!),
+		queryKey: ['profile-data', userId, interactionSource],
+		queryFn: () => getProfileInfo(userId!, interactionSource ?? ''),
 		enabled: !!userId
 	})
 

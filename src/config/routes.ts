@@ -1,107 +1,105 @@
 export const routes = {
-        comons: {
-                home: '/',
-                onboarding: '/onboarding',
-                chat: '/chat',
-                platformTerms: '/platform-terms',
-                freelancerProfile: (id?: string) => `/freelancer/${id || ''}`,
-                policies: {
-                        root: '/policies',
-                        connectAccount: '/policies/connect-account'
-                }
-        },
-        messages: {
-                jobs: '/messages/jobs'
-        },
-        contracts: {
-                list: '/contracts',
-                detail: (contractId: string = 'contractId') => `/contracts/${contractId}`,
-                dispute: (
-                        contractId: string = 'contractId',
-                        milestoneId: string = 'milestoneId'
-                ) => `/contracts/${contractId}/milestones/${milestoneId}/disputes`
-        },
-        freelancer: {
-                jobs: {
-                        list: '/freelancer/jobs',
-                        saved: '/freelancer/jobs/saved',
-                        invitations: '/freelancer/jobs/proposals',
-                        invitationDetail: (id: string = 'id') => `/freelancer/jobs/proposals/${id}`,
-                        proposalEdit: (id: string = 'id') => `/freelancer/jobs/proposals/${id}/edit`,
-                        proposalCreate: (jobId: string = 'id') => `/freelancer/jobs/${jobId}/proposal`,
-                        detail: (id: string = 'id') => `/freelancer/jobs/${id}`
-                },
-                offers: {
-                        list: '/freelancer/offers'
-                },
-                financial: {
-                        overview: '/freelancer/financial/overview',
-                        payouts: '/freelancer/financial/payouts'
-                }
-        },
-        auth: {
-                signin: '/signin',
-                signup: '/signup',
-                verify: '/verify'
-        },
-        client: {
-                freelancers: {
-                        list: '/client/freelancers'
-                },
-                financial: {
-                        spending: '/client/financial/spending'
-                }
-        },
-        me: {
-                client: {
-                        postJob: '/me/client/jobs/create',
-                        jobs: {
-                                list: '/me/client/jobs',
-                                create: '/me/client/jobs/create',
-                                edit: (id: string = 'id') => `/me/client/jobs/${id}/edit`,
-                                detail: (id: string = 'id') => `/me/client/jobs/${id}`
-                        },
-                        offers: {
-                                list: '/me/client/offers'
-                        }
-                },
-                freelancer: {
-                        profile: '/me/freelancer/profile'
-                },
-                setting: {
-                        contactInfo: '/me/setting/contact-info',
-                        getPaid: '/me/setting/get-paid',
-                        payment: {
-                                list: '/me/setting/payment-method',
-                                create: '/me/setting/payment-method/create',
-                                edit: (id: string) => `/me/setting/payment-method/edit/${id}`
+	comons: {
+		home: '/',
+		onboarding: '/onboarding',
+		chat: '/chat',
+		platformTerms: '/platform-terms',
+		freelancerProfile: (id?: string, params: string = '') => `/freelancer/${id || ''}${id ? '?' + params || '' : ''}`,
+		policies: {
+			root: '/policies',
+			connectAccount: '/policies/connect-account'
+		}
+	},
+	messages: {
+		jobs: '/messages/jobs'
+	},
+	contracts: {
+		list: '/contracts',
+		detail: (contractId: string = 'contractId') => `/contracts/${contractId}`,
+		dispute: (contractId: string = 'contractId', milestoneId: string = 'milestoneId') =>
+			`/contracts/${contractId}/milestones/${milestoneId}/disputes`
+	},
+	freelancer: {
+		jobs: {
+			list: '/freelancer/jobs',
+			saved: '/freelancer/jobs/saved',
+			invitations: '/freelancer/jobs/proposals',
+			invitationDetail: (id: string = 'id') => `/freelancer/jobs/proposals/${id}`,
+			proposalEdit: (id: string = 'id') => `/freelancer/jobs/proposals/${id}/edit`,
+			proposalCreate: (jobId: string = 'id') => `/freelancer/jobs/${jobId}/proposal`,
+			detail: (id: string = 'id') => `/freelancer/jobs/${id}`
+		},
+		offers: {
+			list: '/freelancer/offers'
+		},
+		financial: {
+			overview: '/freelancer/financial/overview',
+			payouts: '/freelancer/financial/payouts'
+		}
+	},
+	auth: {
+		signin: '/signin',
+		signup: '/signup',
+		verify: '/verify'
+	},
+	client: {
+		freelancers: {
+			list: '/client/freelancers'
+		},
+		financial: {
+			spending: '/client/financial/spending'
+		}
+	},
+	me: {
+		client: {
+			postJob: '/me/client/jobs/create',
+			jobs: {
+				list: '/me/client/jobs',
+				create: '/me/client/jobs/create',
+				edit: (id: string = 'id') => `/me/client/jobs/${id}/edit`,
+				detail: (id: string = 'id') => `/me/client/jobs/${id}`
+			},
+			offers: {
+				list: '/me/client/offers'
+			}
+		},
+		freelancer: {
+			profile: '/me/freelancer/profile'
+		},
+		setting: {
+			contactInfo: '/me/setting/contact-info',
+			getPaid: '/me/setting/get-paid',
+			payment: {
+				list: '/me/setting/payment-method',
+				create: '/me/setting/payment-method/create',
+				edit: (id: string) => `/me/setting/payment-method/edit/${id}`
 			}
 		}
 	},
-        admin: {
-                users: {
-                        list: '/admin/users',
-                        detail: (id: string = 'userId') => `/admin/users/${id}`
-                },
-                messages: '/admin/messages',
-                dispute: {
-                        list: '/admin/disputes'
-                },
-                platformTerms: {
-                        list: '/admin/platform-terms'
-                },
-                category: {
-                        list: '/admin/categories',
-                        categorySpecialties: (id: string = 'id') => `/admin/categories/${id}/specialties`,
-                        categorySkills: (id: string = 'id') => `/admin/categories/${id}/skills`
-                },
+	admin: {
+		users: {
+			list: '/admin/users',
+			detail: (id: string = 'userId') => `/admin/users/${id}`
+		},
+		messages: '/admin/messages',
+		dispute: {
+			list: '/admin/disputes'
+		},
+		platformTerms: {
+			list: '/admin/platform-terms'
+		},
+		category: {
+			list: '/admin/categories',
+			categorySpecialties: (id: string = 'id') => `/admin/categories/${id}/specialties`,
+			categorySkills: (id: string = 'id') => `/admin/categories/${id}/skills`
+		},
 		specialty: {
 			list: '/admin/specialties',
 			specialtySkills: (id: string = 'id') => `/admin/specialties/${id}/skills`
-                },
-                project: '/admin/projects'
-        },
-        error: {
-                notFound: '/404'
-        }
+		},
+		project: '/admin/projects'
+	},
+	error: {
+		notFound: '/404'
+	}
 }

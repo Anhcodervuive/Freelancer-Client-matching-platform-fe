@@ -120,7 +120,8 @@ const buildFilters = (
 	search?: string,
 	country?: string,
 	saved?: boolean,
-	invitedJobId?: string
+	invitedJobId?: string,
+	jobId?: string
 ): ClientFreelancerFilterInput => {
 	const filters: ClientFreelancerFilterInput = {
 		page,
@@ -145,6 +146,10 @@ const buildFilters = (
 
 	if (country) {
 		filters.country = country
+	}
+
+	if (jobId) {
+		filters.jobId = jobId
 	}
 
 	if (saved) {
@@ -508,7 +513,8 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 				appliedFilters.search,
 				appliedFilters.country?.value,
 				appliedFilters.savedOnly,
-				invitationFilter === 'invited' ? job.id : undefined
+				invitationFilter === 'invited' ? job.id : undefined,
+				job.id
 			),
 		[
 			page,
@@ -959,7 +965,7 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 													{inviteButtonLabel}
 												</button>
 												<Link
-													to={routes.comons.freelancerProfile(freelancer.id)}
+													to={routes.comons.freelancerProfile(freelancer.id, 'interactionSource=recommend')}
 													className='btn btn-ghost btn-sm gap-2'>
 													View profile
 													<ArrowRight className='size-4' />
@@ -1119,17 +1125,17 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 							<div className='grid gap-4 md:grid-cols-2'>
 								<div className='space-y-2'>
 									<span className='font-semibold text-base-content'>Specialty</span>
-                                                                        <AsyncSelect<Option, false>
-                                                                                cacheOptions
-                                                                                defaultOptions
-                                                                                loadOptions={loadSpecialtyOptions}
-                                                                                value={filterDraft.specialty}
-                                                                                onChange={(option: SingleValue<Option>) =>
-                                                                                        setFilterDraft(previous => ({
-                                                                                                ...previous,
-                                                                                                specialty: option ? { ...option } : null
-                                                                                        }))
-                                                                                }
+									<AsyncSelect<Option, false>
+										cacheOptions
+										defaultOptions
+										loadOptions={loadSpecialtyOptions}
+										value={filterDraft.specialty}
+										onChange={(option: SingleValue<Option>) =>
+											setFilterDraft(previous => ({
+												...previous,
+												specialty: option ? { ...option } : null
+											}))
+										}
 										isClearable
 										styles={selectStyles}
 										placeholder='Search specialties'
@@ -1137,15 +1143,15 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 								</div>
 								<div className='space-y-2'>
 									<span className='font-semibold text-base-content'>Country</span>
-                                                                        <Select<Option, false>
-                                                                                options={countryOptions}
-                                                                                value={filterDraft.country}
-                                                                                onChange={(option: SingleValue<Option>) =>
-                                                                                        setFilterDraft(previous => ({
-                                                                                                ...previous,
-                                                                                                country: option ? { ...option } : null
-                                                                                        }))
-                                                                                }
+									<Select<Option, false>
+										options={countryOptions}
+										value={filterDraft.country}
+										onChange={(option: SingleValue<Option>) =>
+											setFilterDraft(previous => ({
+												...previous,
+												country: option ? { ...option } : null
+											}))
+										}
 										isClearable
 										styles={selectStyles}
 										placeholder='Any location'
@@ -1154,18 +1160,18 @@ export function InviteFreelancersTab({ job, isActive }: Props) {
 							</div>
 							<div className='space-y-2'>
 								<span className='font-semibold text-base-content'>Skills</span>
-                                                                <AsyncSelect<Option, true>
-                                                                        isMulti
-                                                                        cacheOptions
-                                                                        defaultOptions
+								<AsyncSelect<Option, true>
+									isMulti
+									cacheOptions
+									defaultOptions
 									loadOptions={loadSkillOptions}
 									value={filterDraft.skills}
-                                                                        onChange={(options: MultiValue<Option>) =>
-                                                                                setFilterDraft(previous => ({
-                                                                                        ...previous,
-                                                                                        skills: options.map(option => ({ ...option }))
-                                                                                }))
-                                                                        }
+									onChange={(options: MultiValue<Option>) =>
+										setFilterDraft(previous => ({
+											...previous,
+											skills: options.map(option => ({ ...option }))
+										}))
+									}
 									styles={selectStyles}
 									placeholder='Add skills to focus the list'
 								/>

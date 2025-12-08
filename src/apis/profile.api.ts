@@ -34,7 +34,11 @@ export const updateProfileAPI = async (data: UpdateProfileDto) => {
 	return res.data
 }
 
-export const getProfileInfo = async (userId: string): Promise<User> => {
-	const response = await authorizeAxiosInstance.get(`${profileBaseUrl}/${userId}`)
+export const getProfileInfo = async (userId: string, interaction: string = ''): Promise<User> => {
+	const response = await authorizeAxiosInstance.get(`${profileBaseUrl}/${userId}`, {
+		params: {
+			interactionSource: interaction
+		}
+	})
 	return response.data
 }
