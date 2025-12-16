@@ -1,24 +1,15 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
-import type { AxiosResponse } from 'axios'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+
 import { Link } from 'react-router-dom'
 import {
         AlertTriangle,
         BadgeDollarSign,
         CalendarClock,
-        Download,
         ChevronDown,
         Filter,
-        FileDown,
-        FileText,
-        Lock,
         LifeBuoy,
-        Link2,
         RefreshCcw,
-        Gavel,
-        ScrollText,
         Search,
         ShieldCheck,
         Undo2
@@ -26,51 +17,25 @@ import {
 import { toast } from 'react-toastify'
 
 import {
-        assignArbitratorToDispute,
-        downloadDisputeDossierPdf,
-        generateArbitrationDossier,
         getAdminDisputeDetail,
         getAdminDisputes,
-        joinDisputeAsAdmin,
-        listDisputeArbitrators,
-        listDisputeDossiers,
-        lockDispute,
-        requestArbitrationFees
+        joinDisputeAsAdmin
 } from '~/apis/admin/dispute.api'
+import MediationEvidenceSection from '~/components/mediation-evidence/MediationEvidenceSection'
 import { routes } from '~/config/routes'
 import { useDebounce } from '~/hooks/comons/useDebounce'
 import type {
-        AdminAssignArbitratorInput,
-        AdminDisputeArbitrator,
         AdminDisputeDetail,
-        AdminDisputeDossier,
         AdminDisputeListItem,
-        AdminGenerateArbitrationDossierInput,
         AdminJoinDisputeInput,
-        AdminLockDisputeInput,
-        AdminRequestArbitrationFeesInput,
 	DecimalLike,
 	DisputeFinalEvidenceSubmission,
-	DisputePayment,
 	DisputeUserSummary
 } from '~/types/dispute'
 import { DisputeNegotiationStatus, DisputeStatus } from '~/types/dispute'
-import {
-        getDisputePaymentIdentityKey,
-        getDisputePaymentPayerId,
-        getDisputePaymentReference,
-        humanizeDisputePaymentStatus,
-        isDisputePaymentSuccessful
-} from '~/utils/disputePayments'
-import { downloadBlob, extractFileNameFromContentDisposition } from '~/utils/download'
-import {
-	AdminGenerateArbitrationDossierFormSchema,
-	AdminLockDisputeFormSchema,
-	AdminRequestArbitrationFeesSchema,
-	type AdminGenerateArbitrationDossierFormOutput,
-	type AdminLockDisputeFormOutput,
-	type AdminRequestArbitrationFeesFormOutput
-} from './schemas'
+
+
+
 
 const STATUS_OPTIONS = Object.values(DisputeStatus)
 
@@ -96,13 +61,7 @@ const negotiationStatusClassMap: Partial<Record<DisputeNegotiationStatus, string
 	[DisputeNegotiationStatus.EXPIRED]: 'badge-neutral'
 }
 
-const FINAL_DISPUTE_STATUSES = new Set<DisputeStatus | string>([
-	DisputeStatus.RESOLVED_RELEASE_ALL,
-	DisputeStatus.RESOLVED_REFUND_ALL,
-	DisputeStatus.RESOLVED_SPLIT,
-	DisputeStatus.CANCELED,
-	DisputeStatus.EXPIRED
-])
+
 
 const ADMIN_JOIN_WAIT_MS = 5 * 24 * 60 * 60 * 1000
 
@@ -214,98 +173,11 @@ const formatUserName = (user?: DisputeUserSummary | null, fallback?: string | nu
 	return user.id || fallback || '—'
 }
 
-const humanizeEvidenceSourceType = (value?: string | null) => {
-	if (!value) {
-		return 'Không rõ nguồn'
-	}
 
-	const normalized = value.toString().trim().toUpperCase()
 
-	switch (normalized) {
-		case 'MILESTONE_ATTACHMENT':
-			return 'Tệp milestone'
-		case 'CHAT_ATTACHMENT':
-			return 'Tệp trò chuyện'
-		case 'ASSET':
-			return 'Tệp đã tải lên'
-		case 'EXTERNAL_URL':
-			return 'Liên kết ngoài'
-		default:
-			return 'Nguồn khác'
-	}
-}
 
-const formatEvidencePersonName = (person: DisputeFinalEvidenceSubmission['submittedBy']): string | undefined => {
-	if (!person) {
-		return undefined
-	}
 
-	if (typeof person.displayName === 'string' && person.displayName.trim().length) {
-		return person.displayName.trim()
-	}
 
-	if (typeof person.name === 'string' && person.name.trim().length) {
-		return person.name.trim()
-	}
-
-	const firstName = typeof person.firstName === 'string' ? person.firstName.trim() : ''
-	const lastName = typeof person.lastName === 'string' ? person.lastName.trim() : ''
-	const fullName = `${firstName} ${lastName}`.trim()
-
-	return fullName.length ? fullName : undefined
-}
-
-const formatSubmissionSubmitterLabel = (
-	submission: DisputeFinalEvidenceSubmission,
-	clientId?: string | null,
-	clientLabel?: string | null,
-	freelancerId?: string | null,
-	freelancerLabel?: string | null
-) => {
-	const submitterId = submission.submittedById ?? undefined
-
-	if (submitterId && clientId && submitterId === clientId) {
-		return clientLabel ?? `Khách hàng #${clientId}`
-	}
-
-	if (submitterId && freelancerId && submitterId === freelancerId) {
-		return freelancerLabel ?? `Freelancer #${freelancerId}`
-	}
-
-	const personName = formatEvidencePersonName(submission.submittedBy)
-	if (personName) {
-		return personName
-	}
-
-	if (submitterId) {
-		const shortened = submitterId.length > 8 ? `${submitterId.slice(0, 8)}…` : submitterId
-		return `Người dùng #${shortened}`
-	}
-
-	return 'Không rõ'
-}
-
-const getEvidenceItemUrl = (item: NonNullable<DisputeFinalEvidenceSubmission['items']>[number] | null | undefined) => {
-	if (!item) {
-		return null
-	}
-
-	if (typeof item.url === 'string') {
-		const trimmed = item.url.trim()
-		if (trimmed.length) {
-			return trimmed
-		}
-	}
-
-	if (item.asset && typeof item.asset.url === 'string') {
-		const trimmed = item.asset.url.trim()
-		if (trimmed.length) {
-			return trimmed
-		}
-	}
-
-	return null
-}
 
 const SUBMISSION_PARTICIPANT_ID_KEYS = [
 	'submittedById',
@@ -484,43 +356,14 @@ export default function AdminDisputeListPage() {
 	const [joinTarget, setJoinTarget] = useState<AdminDisputeListItem | null>(null)
 	const [joinReason, setJoinReason] = useState('')
         const [detailTarget, setDetailTarget] = useState<AdminDisputeListItem | null>(null)
-        const [requestFeesOpen, setRequestFeesOpen] = useState(false)
-        const [lockDisputeOpen, setLockDisputeOpen] = useState(false)
-        const [generateDossierOpen, setGenerateDossierOpen] = useState(false)
+
         const [detailActiveTab, setDetailActiveTab] = useState<AdminDetailTabId>('overview')
-        const [selectedArbitratorId, setSelectedArbitratorId] = useState('')
 
 	const queryClient = useQueryClient()
 
-	const {
-		register: requestFeesRegister,
-		handleSubmit: handleRequestFeesSubmit,
-		formState: { errors: requestFeesErrors },
-		reset: resetRequestFeesForm
-	} = useForm<AdminRequestArbitrationFeesFormOutput>({
-		resolver: zodResolver(AdminRequestArbitrationFeesSchema),
-		defaultValues: { deadlineDays: 7 }
-	})
 
-	const {
-		register: lockDisputeRegister,
-		handleSubmit: handleLockDisputeSubmit,
-		formState: { errors: lockDisputeErrors },
-		reset: resetLockDisputeForm
-	} = useForm<AdminLockDisputeFormOutput>({
-		resolver: zodResolver(AdminLockDisputeFormSchema),
-		defaultValues: { note: '' }
-	})
 
-	const {
-		register: generateDossierRegister,
-		handleSubmit: handleGenerateDossierSubmit,
-		formState: { errors: generateDossierErrors },
-		reset: resetGenerateDossierForm
-	} = useForm<AdminGenerateArbitrationDossierFormOutput>({
-		resolver: zodResolver(AdminGenerateArbitrationDossierFormSchema),
-		defaultValues: { notes: '', finalize: false }
-	})
+
 
 	const dateRangeError = useMemo(() => {
 		if (!createdFrom || !createdTo) return false
@@ -610,141 +453,13 @@ export default function AdminDisputeListPage() {
 		}
 	})
 
-	const requestFeesMutation = useMutation({
-		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminRequestArbitrationFeesInput }) =>
-			requestArbitrationFees(disputeId, payload),
-		onSuccess: async () => {
-			toast.success('Đã yêu cầu các bên nộp phí trọng tài.')
-			resetRequestFeesForm({ deadlineDays: 7 })
-			setRequestFeesOpen(false)
-			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-			if (detailDisputeId) {
-				await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
-			}
-		},
-		onError: error => {
-			const message = error instanceof Error ? error.message : 'Không thể yêu cầu đóng phí trọng tài.'
-			toast.error(message)
-		}
-	})
 
-	const lockDisputeMutation = useMutation({
-		mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminLockDisputeInput }) =>
-			lockDispute(disputeId, payload),
-		onSuccess: async () => {
-			toast.success('Đã khóa tranh chấp.')
-			resetLockDisputeForm({ note: '' })
-			setLockDisputeOpen(false)
-			await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-			if (detailDisputeId) {
-				await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
-			}
-		},
-		onError: error => {
-			const message = error instanceof Error ? error.message : 'Không thể khóa tranh chấp.'
-			toast.error(message)
-		}
-	})
 
-        const generateDossierMutation = useMutation({
-                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminGenerateArbitrationDossierInput }) =>
-                        generateArbitrationDossier(disputeId, payload),
-                onSuccess: async () => {
-                        toast.success('Đã tạo hồ sơ tranh chấp.')
-                        resetGenerateDossierForm({ notes: '', finalize: false })
-                        setGenerateDossierOpen(false)
-                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-                        if (detailDisputeId) {
-                                await queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] })
-                        }
-                },
-                onError: error => {
-                        const message = error instanceof Error ? error.message : 'Không thể tạo hồ sơ tranh chấp.'
-                        toast.error(message)
-                }
-        })
 
-        const assignArbitratorMutation = useMutation({
-                mutationFn: ({ disputeId, payload }: { disputeId: string; payload: AdminAssignArbitratorInput }) =>
-                        assignArbitratorToDispute(disputeId, payload),
-                onSuccess: async () => {
-                        toast.success('Đã gán trọng tài cho tranh chấp.')
-                        setSelectedArbitratorId('')
-                        await queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-                        if (detailDisputeId) {
-                                await Promise.all([
-                                        queryClient.invalidateQueries({ queryKey: ['admin-dispute-detail', detailDisputeId] }),
-                                        queryClient.invalidateQueries({ queryKey: ['admin-dispute-dossiers', detailDisputeId] })
-                                ])
-                        }
-                        await queryClient.invalidateQueries({ queryKey: ['admin-dispute-arbitrators'] })
-                },
-                onError: error => {
-                        const message = error instanceof Error ? error.message : 'Không thể gán trọng tài cho tranh chấp.'
-                        toast.error(message)
-                }
-        })
 
-        const downloadDossierPdfMutation = useMutation<
-                AxiosResponse<Blob>,
-                unknown,
-                { disputeId: string; dossier: AdminDisputeDossier }
-        >({
-                mutationFn: ({
-                        disputeId,
-                        dossier
-                }: {
-                        disputeId: string
-                        dossier: AdminDisputeDossier
-                }) => downloadDisputeDossierPdf(disputeId, dossier.id),
-                onSuccess: (response, variables) => {
-                        const contentDisposition =
-                                response.headers?.['content-disposition'] ??
-                                response.headers?.['Content-Disposition'] ??
-                                null
-                        const rawFileName = extractFileNameFromContentDisposition(contentDisposition)
-                        const fallbackFileName = (() => {
-                                const version = variables.dossier.version ?? null
-                                const identifier = version !== null ? `v${version}` : variables.dossier.id
-                                return `dispute-${variables.disputeId}-dossier-${identifier}`
-                        })()
-                        const sanitizeFileName = (value: string) =>
-                                value
-                                        .replace(/[\r\n]+/g, ' ')
-                                        .replace(/[<>:"/\\|?*]+/g, '_')
-                                        .trim()
-                        const fileNameBase = sanitizeFileName(rawFileName ?? fallbackFileName)
-                        const fileName = fileNameBase.toLowerCase().endsWith('.pdf')
-                                ? fileNameBase
-                                : `${fileNameBase}.pdf`
 
-                        const blob = response.data instanceof Blob
-                                ? response.data
-                                : new Blob([response.data], { type: 'application/pdf' })
 
-                        downloadBlob(blob, fileName)
-                        toast.success('Đang tải hồ sơ tranh chấp (PDF).')
-                },
-                onError: error => {
-                        const message =
-                                error instanceof Error
-                                        ? error.message
-                                        : 'Không thể tải hồ sơ tranh chấp (PDF).'
-                        toast.error(message)
-                }
-        })
 
-	const closeLockDisputeModal = () => {
-		if (lockDisputeMutation.isPending) return
-		setLockDisputeOpen(false)
-		resetLockDisputeForm({ note: '' })
-	}
-
-	const closeGenerateDossierModal = () => {
-		if (generateDossierMutation.isPending) return
-		setGenerateDossierOpen(false)
-		resetGenerateDossierForm({ notes: '', finalize: false })
-	}
 
         const {
                 data: detailData,
@@ -758,31 +473,7 @@ export default function AdminDisputeListPage() {
                 enabled: Boolean(detailDisputeId)
         })
 
-        const {
-                data: dossierData,
-                isLoading: isDossierLoading,
-                isFetching: isDossierFetching,
-                isError: isDossierError,
-                refetch: refetchDossiers,
-                error: dossierError
-        } = useQuery<AdminDisputeDossier[]>({
-                queryKey: ['admin-dispute-dossiers', detailDisputeId],
-                queryFn: () => listDisputeDossiers(detailDisputeId!),
-                enabled: Boolean(detailDisputeId)
-        })
 
-        const {
-                data: arbitratorsData,
-                isLoading: isArbitratorsLoading,
-                isFetching: isArbitratorsFetching,
-                isError: isArbitratorsError,
-                refetch: refetchArbitrators,
-                error: arbitratorsError
-        } = useQuery<AdminDisputeArbitrator[]>({
-                queryKey: ['admin-dispute-arbitrators'],
-                queryFn: () => listDisputeArbitrators(),
-                enabled: Boolean(detailTarget)
-        })
 
 	const toggleStatus = (status: DisputeStatus) => {
 		setSelectedStatuses(prev => {
@@ -814,76 +505,19 @@ export default function AdminDisputeListPage() {
 		})
 	}
 
-	const handleRequestFees = (values: AdminRequestArbitrationFeesFormOutput) => {
-		if (!detailDisputeId) return
-		requestFeesMutation.mutate({
-			disputeId: detailDisputeId,
-			payload: { deadlineDays: values.deadlineDays }
-		})
-	}
 
-	const handleLockDispute = (values: AdminLockDisputeFormOutput) => {
-		if (!detailDisputeId) return
-		const payload: AdminLockDisputeInput = {}
-		if (values.note && values.note.trim().length) {
-			payload.note = values.note.trim()
-		}
-		lockDisputeMutation.mutate({
-			disputeId: detailDisputeId,
-			payload
-		})
-	}
 
-        const handleGenerateDossier = (values: AdminGenerateArbitrationDossierFormOutput) => {
-                if (!detailDisputeId) return
-                const payload: AdminGenerateArbitrationDossierInput = {}
-                if (values.notes && values.notes.trim().length) {
-                        payload.notes = values.notes.trim()
-                }
-                if (values.finalize !== undefined) {
-                        payload.finalize = values.finalize
-                }
-                generateDossierMutation.mutate({
-                        disputeId: detailDisputeId,
-                        payload
-                })
-        }
 
-        const handleAssignArbitrator = (event: FormEvent<HTMLFormElement>) => {
-                event.preventDefault()
-                if (!detailDisputeId || !selectedArbitratorId) return
-
-                const payload: AdminAssignArbitratorInput = { arbitratorId: selectedArbitratorId }
-                assignArbitratorMutation.mutate({
-                        disputeId: detailDisputeId,
-                        payload
-                })
-        }
-
-        const handleDownloadDossierPdf = (dossier: AdminDisputeDossier) => {
-                if (!detailDisputeId) return
-                downloadDossierPdfMutation.mutate({
-                        disputeId: detailDisputeId,
-                        dossier
-                })
-        }
 
         useEffect(() => {
                 if (!detailTarget) {
-                        setRequestFeesOpen(false)
-                        setLockDisputeOpen(false)
-                        setGenerateDossierOpen(false)
                         setDetailActiveTab('overview')
-                        resetLockDisputeForm({ note: '' })
-                        resetGenerateDossierForm({ notes: '', finalize: false })
-                        setSelectedArbitratorId('')
                 }
-        }, [detailTarget, resetGenerateDossierForm, resetLockDisputeForm])
+        }, [detailTarget])
 
         useEffect(() => {
                 if (!detailDisputeId) {
                         setDetailActiveTab('overview')
-                        setSelectedArbitratorId('')
                         return
                 }
 
@@ -892,7 +526,6 @@ export default function AdminDisputeListPage() {
 
                         return allowedTabs.includes(current) ? current : 'overview'
                 })
-                setSelectedArbitratorId('')
         }, [detailDisputeId])
 
 	const limitOptions = [10, 20, 50]
@@ -911,9 +544,8 @@ export default function AdminDisputeListPage() {
         const detailCounts = detailData?.counts ?? null
         const detailEvidenceSubmissions: DisputeFinalEvidenceSubmission[] =
                 detailData?.evidenceSubmissions?.filter((item): item is DisputeFinalEvidenceSubmission => Boolean(item)) ?? []
-        const detailDossiers = dossierData ?? []
-        const detailArbitrators = arbitratorsData ?? []
-        const showArbitrationActions = false
+
+
         const detailStatus = detailDispute?.status ?? detailTarget?.status ?? null
 	const detailNeedsAdmin = Boolean(
 		detailMetrics?.needsAdmin ??
@@ -932,7 +564,7 @@ export default function AdminDisputeListPage() {
 				: false)
 	)
 	const detailResponseDeadline = detailDispute?.responseDeadline ?? null
-	const detailArbitrationDeadline = detailDispute?.arbitrationDeadline ?? null
+
 	const detailIsOverdue = Boolean(
 		detailMetrics?.isResponseOverdue ??
 			(detailResponseDeadline ? new Date(detailResponseDeadline).getTime() < Date.now() : false)
@@ -943,17 +575,7 @@ export default function AdminDisputeListPage() {
                 : detailHasJoined
                 ? 'Đã tham gia'
                 : 'Chưa tham gia'
-        const detailArbitrator = detailDispute?.arbitrator ?? null
-        const detailArbitratorId = detailDispute?.arbitratorId ?? detailArbitrator?.id ?? null
-        const detailArbitratorAssignedAt = detailDispute?.arbitratorAssignedAt ?? null
-        const detailArbitratorLabel = detailArbitrator
-                ? formatUserName(detailArbitrator, detailArbitratorId ?? undefined)
-                : detailArbitratorId ?? null
-        const isDossierBusy = isDossierLoading || isDossierFetching
-        const isArbitratorsBusy = isArbitratorsLoading || isArbitratorsFetching
-        const canAssignArbitrator = detailArbitrators.length > 0
-        const isArbitratorSelectDisabled = isArbitratorsBusy || assignArbitratorMutation.isPending || !canAssignArbitrator
-        const isAssignArbitratorDisabled = assignArbitratorMutation.isPending || !selectedArbitratorId
+
 	const detailCurrency =
 		detailAmounts?.currency ??
 		detailEscrow?.currency ??
@@ -995,9 +617,8 @@ export default function AdminDisputeListPage() {
 	const detailFreelancerEvidenceStatus: boolean | null = detailFreelancerEvidenceHasSubmission
 		? true
 		: detailFreelancerEvidenceSubmitted
-	const detailClientEvidenceDone = detailClientEvidenceStatus === true
-	const detailFreelancerEvidenceDone = detailFreelancerEvidenceStatus === true
-	const detailBothEvidenceSubmitted = detailClientEvidenceDone && detailFreelancerEvidenceDone
+
+
 	const detailProposedRefund = detailAmounts?.proposedRefund ?? detailDispute?.proposedRefund ?? null
 	const detailLockedAt = detailDispute?.lockedAt ?? null
 	const detailLockedBy = detailDispute?.lockedBy ?? null
@@ -1008,7 +629,7 @@ export default function AdminDisputeListPage() {
 	const detailOpenedAt = detailDispute?.createdAt ?? detailTarget?.createdAt ?? null
 	const detailUpdatedAt = detailDispute?.updatedAt ?? detailTarget?.updatedAt ?? null
 	const detailLatestProposal = detailDispute?.latestProposal ?? null
-	const detailEvidenceSubmissionCount = detailEvidenceSubmissions.length
+
 	const detailNegotiationTotal =
 		detailCounts?.negotiations ??
 		detailMetrics?.negotiationCount ??
@@ -1024,31 +645,8 @@ export default function AdminDisputeListPage() {
 	const detailShowJoin = detailHasJoined || detailCanJoin
 	const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
 
-	const detailCanRequestFees = false
-	const detailCanLockDispute = false
-	const detailLockBlockedReasons: string[] = []
-	if (detailDisputeId) {
-		if (detailIsLocked) {
-			detailLockBlockedReasons.push('Tranh chấp đã được khóa.')
-		}
-		if (!detailClientEvidenceDone) {
-			detailLockBlockedReasons.push('Khách hàng chưa nộp chứng cứ cuối cùng.')
-		}
-		if (!detailFreelancerEvidenceDone) {
-			detailLockBlockedReasons.push('Freelancer chưa nộp chứng cứ cuối cùng.')
-		}
-		if (!detailStatus) {
-			detailLockBlockedReasons.push('Không xác định được trạng thái tranh chấp hiện tại.')
-		} else if (FINAL_DISPUTE_STATUSES.has(detailStatus)) {
-			detailLockBlockedReasons.push('Tranh chấp đã kết thúc và không thể khóa thêm lần nữa.')
-		}
-	}
-	const detailCanGenerateDossier = Boolean(detailDisputeId && detailIsLocked)
-	const detailGenerateDossierBlockedReasons: string[] = []
-	if (detailDisputeId && !detailIsLocked) {
-		detailGenerateDossierBlockedReasons.push('Cần khóa tranh chấp trước khi tạo hồ sơ snapshot.')
-	}
-	const detailDossierVersion = detailDispute?.currentDossierVersion ?? null
+
+
 	const detailTabItems = useMemo(
 		() =>
 			[
@@ -1542,18 +1140,7 @@ export default function AdminDisputeListPage() {
 											{detailHasJoined ? 'Đã tham gia' : 'Tham gia tranh chấp'}
 										</button>
 									) : null}
-                                                                        {showArbitrationActions && detailCanRequestFees ? (
-                                                                                <button
-                                                                                        type='button'
-                                                                                        className='btn btn-sm btn-primary'
-											onClick={() => {
-												resetRequestFeesForm({ deadlineDays: 7 })
-												setRequestFeesOpen(true)
-											}}
-											disabled={requestFeesMutation.isPending}>
-											Yêu cầu đóng phí
-										</button>
-									) : null}
+
 									<button type='button' className='btn btn-sm btn-ghost' onClick={() => setDetailTarget(null)}>
 										Đóng
 									</button>
@@ -1600,71 +1187,7 @@ export default function AdminDisputeListPage() {
 								{detailActiveTab === 'overview' ? (
 									<section className='grid gap-4 lg:grid-cols-2'>
 										<div className='space-y-3'>
-											<div className='space-y-3 rounded-2xl border border-base-200 p-4'>
-												<div className='flex flex-wrap items-center justify-between gap-2'>
-													<h4 className='font-semibold text-base-content'>Hành động admin</h4>
-													{detailIsLocked ? <span className='badge badge-outline text-xs'>Đã khóa</span> : null}
-												</div>
-												<div className='flex flex-wrap gap-2'>
-													<button
-														type='button'
-														className='btn btn-sm btn-secondary'
-														onClick={() => {
-															if (!detailCanLockDispute) return
-															resetLockDisputeForm({ note: '' })
-															setLockDisputeOpen(true)
-														}}
-														disabled={!detailCanLockDispute || lockDisputeMutation.isPending}>
-														{lockDisputeMutation.isPending ? (
-															<span className='loading loading-spinner size-4' />
-														) : (
-															<Lock className='size-4' />
-														)}{' '}
-														Khóa tranh chấp
-													</button>
-													<button
-														type='button'
-														className='btn btn-sm btn-outline'
-														onClick={() => {
-															if (!detailCanGenerateDossier) return
-															resetGenerateDossierForm({ notes: '', finalize: false })
-															setGenerateDossierOpen(true)
-														}}
-														disabled={!detailCanGenerateDossier || generateDossierMutation.isPending}>
-														{generateDossierMutation.isPending ? (
-															<span className='loading loading-spinner size-4' />
-														) : (
-															<ScrollText className='size-4' />
-														)}{' '}
-														Tạo hồ sơ
-													</button>
-												</div>
-												{(!detailCanLockDispute || !detailCanGenerateDossier) &&
-												(detailLockBlockedReasons.length || detailGenerateDossierBlockedReasons.length) ? (
-													<div className='space-y-2 rounded-xl bg-base-200/40 p-3 text-xs text-base-content/70'>
-														{detailLockBlockedReasons.length ? (
-															<div>
-																<p className='font-medium text-base-content'>Điều kiện khóa:</p>
-																<ul className='list-disc space-y-1 pl-5'>
-																	{detailLockBlockedReasons.map(reason => (
-																		<li key={reason}>{reason}</li>
-																	))}
-																</ul>
-															</div>
-														) : null}
-														{detailGenerateDossierBlockedReasons.length ? (
-															<div>
-																<p className='font-medium text-base-content'>Điều kiện tạo hồ sơ:</p>
-																<ul className='list-disc space-y-1 pl-5'>
-																	{detailGenerateDossierBlockedReasons.map(reason => (
-																		<li key={reason}>{reason}</li>
-																	))}
-																</ul>
-															</div>
-														) : null}
-													</div>
-												) : null}
-											</div>
+
 											<div className='grid gap-3 sm:grid-cols-2'>
 												<div>
 													<p className='text-xs uppercase text-base-content/60'>Trạng thái</p>
@@ -1686,12 +1209,7 @@ export default function AdminDisputeListPage() {
 													<p className='text-xs uppercase text-base-content/60'>Hạn phản hồi</p>
 													<p className='font-medium text-base-content'>{formatDateTime(detailResponseDeadline)}</p>
 												</div>
-                                                                                                {showArbitrationActions ? (
-                                                                                                        <div>
-                                                                                                                <p className='text-xs uppercase text-base-content/60'>Hạn trọng tài</p>
-                                                                                                                <p className='font-medium text-base-content'>{formatDateTime(detailArbitrationDeadline)}</p>
-                                                                                                        </div>
-                                                                                                ) : null}
+
 												<div>
 													<p className='text-xs uppercase text-base-content/60'>Khóa tranh chấp</p>
 													<p className='font-medium text-base-content'>
@@ -1710,14 +1228,7 @@ export default function AdminDisputeListPage() {
 															: '—'}
 													</p>
 												</div>
-												<div>
-													<p className='text-xs uppercase text-base-content/60'>Phiên bản hồ sơ</p>
-													<p className='font-medium text-base-content'>
-														{detailDossierVersion !== null && detailDossierVersion !== undefined
-															? `#${detailDossierVersion}`
-															: 'Chưa tạo'}
-													</p>
-												</div>
+
 											</div>
 											{detailOpenedBy ? (
 												<div className='text-xs text-base-content/70'>
@@ -1846,300 +1357,16 @@ export default function AdminDisputeListPage() {
 						) : null}
 
 {detailActiveTab === 'evidence' ? (
-                                                                        <div className='space-y-5'>
-                                                                                {showArbitrationActions ? (
-                                                                                <section className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'>
-                                                                                        <div className='flex flex-wrap items-center justify-between gap-3'>
-                                                                                                <div className='flex items-center gap-2 text-base font-semibold text-base-content'>
-                                                                                                        <FileText className='size-4 text-primary' /> Hồ sơ tranh chấp
-                                                                                                </div>
-                                                                                                {isDossierBusy ? (
-                                                                                                        <span className='badge badge-outline gap-2 text-xs'>
-                                                                                                                <span className='loading loading-spinner size-3' /> Đang tải
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        {isDossierError ? (
-                                                                                                <div className='alert alert-error text-sm'>
-                                                                                                        <AlertTriangle className='size-4' />
-                                                                                                        <div className='flex flex-1 flex-col gap-2'>
-                                                                                                                <p>
-                                                                                                                        {dossierError instanceof Error
-                                                                                                                                ? dossierError.message
-                                                                                                                                : 'Không thể tải hồ sơ tranh chấp.'}
-                                                                                                                </p>
-                                                                                                                <button type='button' className='btn btn-xs' onClick={() => refetchDossiers()}>
-                                                                                                                        Thử lại
-                                                                                                                </button>
-                                                                                                        </div>
-                                                                                                </div>
-                                                                                        ) : null}
-                                                                                        {!isDossierBusy && !isDossierError && detailDossiers.length === 0 ? (
-                                                                                                <p className='text-sm text-base-content/70'>Chưa có hồ sơ tranh chấp nào được tạo.</p>
-                                                                                        ) : null}
-                                                                                        {detailDossiers.map(dossier => {
-                                                                                                const versionLabel =
-                                                                                                        dossier.version !== undefined && dossier.version !== null
-                                                                                                                ? `Phiên bản #${dossier.version}`
-                                                                                                                : 'Hồ sơ tranh chấp'
-                                                                                                const createdAtLabel = formatDateTime(dossier.createdAt)
-                                                                                                const finalizedAtLabel = dossier.finalizedAt ? formatDateTime(dossier.finalizedAt) : null
-                                                                                                const createdByLabel = dossier.createdBy
-                                                                                                        ? formatUserName(dossier.createdBy, dossier.createdBy.id)
-                                                                                                        : null
-                                                                                                const downloadUrl = dossier.downloadUrl ?? dossier.fileUrl ?? null
-                                                                                                const milestoneLabel = dossier.milestoneTitle ?? null
-                                                                                                const milestoneId = dossier.milestoneId ?? null
-                                                                                                const notes =
-                                                                                                        typeof dossier.notes === 'string' && dossier.notes.trim().length
-                                                                                                                ? dossier.notes.trim()
-                                                                                                                : null
-                                                                                                const isDownloadingPdf =
-                                                                                                        downloadDossierPdfMutation.isPending &&
-                                                                                                        downloadDossierPdfMutation.variables?.dossier?.id === dossier.id
-
-                                                                                                return (
-                                                                                                        <article
-                                                                                                                key={dossier.id}
-                                                                                                                className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'>
-                                                                                                                <div className='flex flex-wrap items-start justify-between gap-3'>
-                                                                                                                        <div>
-                                                                                                                                <p className='text-base font-semibold text-base-content'>{versionLabel}</p>
-                                                                                                                                {milestoneLabel ? (
-                                                                                                                                        <p className='text-xs text-base-content/60'>
-                                                                                                                                                Milestone: {milestoneLabel}
-                                                                                                                                                {milestoneId ? ` (${milestoneId})` : ''}
-                                                                                                                                        </p>
-                                                                                                                                ) : null}
-                                                                                                                        </div>
-                                                                                                                        <div className='flex flex-wrap gap-2'>
-                                                                                                                                {downloadUrl ? (
-                                                                                                                                        <a
-                                                                                                                                                href={downloadUrl}
-                                                                                                                                                target='_blank'
-                                                                                                                                                rel='noopener noreferrer'
-                                                                                                                                                className='btn btn-xs btn-outline gap-2'>
-                                                                                                                                                <Download className='size-3.5' /> Tải xuống
-                                                                                                                                        </a>
-                                                                                                                                ) : null}
-                                                                                                                                <button
-                                                                                                                                        type='button'
-                                                                                                                                        className='btn btn-xs btn-outline gap-2'
-                                                                                                                                        onClick={() => handleDownloadDossierPdf(dossier)}
-                                                                                                                                        disabled={isDownloadingPdf}>
-                                                                                                                                        {isDownloadingPdf ? (
-                                                                                                                                                <span className='loading loading-spinner size-3' />
-                                                                                                                                        ) : (
-                                                                                                                                                <FileDown className='size-3.5' />
-                                                                                                                                        )}
-                                                                                                                                        Xuất PDF
-                                                                                                                                </button>
-                                                                                                                        </div>
-                                                                                                                </div>
-                                                                                                                <div className='grid gap-2 text-xs text-base-content/70 sm:grid-cols-2'>
-                                                                                                                        <span>
-                                                                                                                                Tạo lúc:{' '}
-                                                                                                                                <span className='font-medium text-base-content'>{createdAtLabel}</span>
-                                                                                                                        </span>
-                                                                                                                        {createdByLabel ? (
-                                                                                                                                <span>
-                                                                                                                                        Người tạo:{' '}
-                                                                                                                                        <span className='font-medium text-base-content'>{createdByLabel}</span>
-                                                                                                                                </span>
-                                                                                                                        ) : null}
-                                                                                                                        {finalizedAtLabel ? (
-                                                                                                                                <span>
-                                                                                                                                        Hoàn tất lúc:{' '}
-                                                                                                                                        <span className='font-medium text-base-content'>{finalizedAtLabel}</span>
-                                                                                                                                </span>
-                                                                                                                        ) : null}
-                                                                                                                </div>
-                                                                                                                {notes ? (
-                                                                                                                        <p className='rounded-lg bg-base-100/80 p-2 text-xs text-base-content/80'>{notes}</p>
-                                                                                                                ) : null}
-                                                                                                        </article>
-                                                                                                )
-                                                                                        })}
-                                                                                </section>
-                                                                                ) : null}
-
-                                                                                <section className='space-y-4 rounded-2xl border border-base-200 bg-base-100 p-4'>
-                                                                                        <div className='flex flex-wrap items-center justify-between gap-3'>
-                                                                                                <div className='flex items-center gap-2 text-base font-semibold text-base-content'>
-                                                                                                        <Gavel className='size-4 text-primary' /> Trọng tài tranh chấp
-                                                                                                </div>
-                                                                                                {isArbitratorsBusy ? (
-                                                                                                        <span className='badge badge-outline gap-2 text-xs'>
-                                                                                                                <span className='loading loading-spinner size-3' /> Đang tải
-                                                                                                        </span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        <div className='space-y-2 text-sm text-base-content'>
-                                                                                                <div>
-                                                                                                        <p className='text-xs uppercase text-base-content/60'>Trọng tài hiện tại</p>
-                                                                                                        <p className='font-medium text-base-content'>
-                                                                                                                {detailArbitratorLabel ?? 'Chưa chỉ định'}
-                                                                                                        </p>
-                                                                                                        {detailArbitratorAssignedAt ? (
-                                                                                                                <p className='text-xs text-base-content/60'>
-                                                                                                                        Gán lúc: {formatDateTime(detailArbitratorAssignedAt)}
-                                                                                                                </p>
-                                                                                                        ) : null}
-                                                                                                </div>
-                                                                                        </div>
-                                                                                        {isArbitratorsError ? (
-                                                                                                <div className='alert alert-error text-sm'>
-                                                                                                        <AlertTriangle className='size-4' />
-                                                                                                        <div className='flex flex-1 flex-col gap-2'>
-                                                                                                                <p>
-                                                                                                                        {arbitratorsError instanceof Error
-                                                                                                                                ? arbitratorsError.message
-                                                                                                                                : 'Không thể tải danh sách trọng tài.'}
-                                                                                                                </p>
-                                                                                                                <button type='button' className='btn btn-xs' onClick={() => refetchArbitrators()}>
-                                                                                                                        Thử lại
-                                                                                                                </button>
-                                                                                                        </div>
-                                                                                                </div>
-                                                                                        ) : null}
-                                                                                        {!isArbitratorsBusy && !isArbitratorsError && !canAssignArbitrator ? (
-                                                                                                <p className='text-xs text-base-content/60'>Chưa có trọng tài nào khả dụng để gán.</p>
-                                                                                        ) : null}
-                                                                                        <form className='flex flex-col gap-3 sm:flex-row sm:items-end' onSubmit={handleAssignArbitrator}>
-                                                                                                <label className='form-control flex-1'>
-                                                                                                        <span className='label-text text-sm font-medium'>Chọn trọng tài</span>
-                                                                                                        <select
-                                                                                                                className='select select-bordered'
-                                                                                                                value={selectedArbitratorId}
-                                                                                                                onChange={event => setSelectedArbitratorId(event.target.value)}
-                                                                                                                disabled={isArbitratorSelectDisabled}
-                                                                                                        >
-                                                                                                                <option value=''>-- Chọn trọng tài --</option>
-                                                                                                                {detailArbitrators.map(arbitrator => {
-                                                                                                                        const optionLabel =
-                                                                                                                                arbitrator.displayName?.trim().length
-                                                                                                                                        ? arbitrator.displayName.trim()
-                                                                                                                                        : arbitrator.email?.trim().length
-                                                                                                                                        ? arbitrator.email.trim()
-                                                                                                                                        : arbitrator.id
-                                                                                                                        const emailLabel =
-                                                                                                                                arbitrator.email && arbitrator.email.trim().length && optionLabel !== arbitrator.email.trim()
-                                                                                                                                        ? arbitrator.email.trim()
-                                                                                                                                        : null
-
-                                                                                                                        return (
-                                                                                                                                <option key={arbitrator.id} value={arbitrator.id}>
-                                                                                                                                        {optionLabel}
-                                                                                                                                        {emailLabel ? ` — ${emailLabel}` : ''}
-                                                                                                                                </option>
-                                                                                                                        )
-                                                                                                                })}
-                                                                                                        </select>
-                                                                                                </label>
-                                                                                                <button
-                                                                                                        type='submit'
-                                                                                                        className='btn btn-primary sm:w-auto'
-                                                                                                        disabled={isAssignArbitratorDisabled || !canAssignArbitrator}
-                                                                                                >
-                                                                                                        {assignArbitratorMutation.isPending ? 'Đang gán…' : 'Gán trọng tài'}
-                                                                                                </button>
-                                                                                        </form>
-                                                                                </section>
-
-                                                                                <section className='space-y-3'>
-                                                                                        <div className='flex flex-wrap items-center gap-2'>
-                                                                                                <ScrollText className='size-4 text-primary' />
-                                                                                                <h4 className='text-sm font-semibold text-base-content'>Chứng cứ cuối cùng</h4>
-                                                                                                {detailEvidenceSubmissionCount ? (
-                                                                                                        <span className='badge badge-outline text-[11px]'>{detailEvidenceSubmissionCount}</span>
-                                                                                                ) : null}
-                                                                                        </div>
-                                                                                        {detailEvidenceSubmissionCount ? (
-                                                                                                <div className='space-y-3'>
-                                                                                                        {detailEvidenceSubmissions.map((submission, submissionIndex) => {
-                                                                                                                const key = submission.id ?? `submission-${submissionIndex}`
-                                                                                                                const submitterLabel = formatSubmissionSubmitterLabel(
-                                                                                                                        submission,
-                                                                                                                        detailClientId,
-                                                                                                                        formatUserName(detailClient, detailClientId ?? undefined),
-                                                                                                                        detailFreelancerId,
-                                                                                                                        formatUserName(detailFreelancer, detailFreelancerId ?? undefined)
-                                                                                                                )
-                                                                                                                const items = submission.items?.filter(Boolean) ?? []
-
-                                                                                                                return (
-                                                                                                                        <div
-                                                                                                                                key={key}
-                                                                                                                                className='space-y-3 rounded-xl border border-base-200 bg-base-200/60 p-3 text-sm text-base-content'>
-                                                                                                                                <div className='flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60'>
-                                                                                                                                        <span className='font-medium text-base-content'>{submitterLabel}</span>
-                                                                                                                                        <span>{formatDateTime(submission.submittedAt)}</span>
-                                                                                                                                </div>
-                                                                                                                                {submission.statement ? (
-                                                                                                                                        <p className='text-sm text-base-content'>{submission.statement}</p>
-                                                                                                                                ) : null}
-                                                                                                                                {submission.noAdditionalEvidence ? (
-                                                                                                                                        <div className='rounded-lg bg-base-100/80 p-2 text-[11px] text-base-content/70'>
-                                                                                                                                                Người gửi xác nhận không có chứng cứ bổ sung.
-                                                                                                                                        </div>
-                                                                                                                                ) : null}
-                                                                                                                                {items.length ? (
-                                                                                                                                        <div className='space-y-2 text-xs text-base-content/80'>
-                                                                                                                                                {items.map((item, itemIndex) => {
-                                                                                                                                                        const itemKey = item?.id ?? `${key}-item-${itemIndex}`
-                                                                                                                                                        const itemLabel = item?.label?.trim().length
-                                                                                                                                                                ? item.label.trim()
-                                                                                                                                                                : `Chứng cứ #${itemIndex + 1}`
-                                                                                                                                                        const itemSourceLabel = humanizeEvidenceSourceType(item?.sourceType)
-                                                                                                                                                        const itemUrl = getEvidenceItemUrl(item)
-                                                                                                                                                        const itemCreatedAt = formatDateTime(item?.createdAt ?? null)
-
-                                                                                                                                                        return (
-                                                                                                                                                                <div
-                                                                                                                                                                        key={itemKey}
-                                                                                                                                                                        className='space-y-1 rounded-xl border border-base-200 bg-base-100 p-3'>
-                                                                                                                                                                        <div className='flex flex-wrap items-center justify-between gap-2'>
-                                                                                                                                                                                <p className='font-medium text-base-content'>{itemLabel}</p>
-                                                                                                                                                                                <span className='badge badge-ghost text-[11px]'>{itemSourceLabel}</span>
-                                                                                                                                                                        </div>
-                                                                                                                                                                        {item?.description ? (
-                                                                                                                                                                                <p className='text-[11px] text-base-content/70'>{item.description}</p>
-                                                                                                                                                                        ) : null}
-                                                                                                                                                                        {itemUrl ? (
-                                                                                                                                                                                <a
-                                                                                                                                                                                        href={itemUrl}
-                                                                                                                                                                                        target='_blank'
-                                                                                                                                                                                        rel='noopener noreferrer'
-                                                                                                                                                                                        className='inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline'>
-                                                                                                                                                                                        <Link2 className='size-3' /> Mở liên kết
-                                                                                                                                                                                </a>
-                                                                                                                                                                        ) : null}
-                                                                                                                                                                        {item?.assetId ? (
-                                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Asset ID: {item.assetId}</p>
-                                                                                                                                                                        ) : null}
-                                                                                                                                                                        {item?.sourceId ? (
-                                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Nguồn: {item.sourceId}</p>
-                                                                                                                                                                        ) : null}
-                                                                                                                                                                        {itemCreatedAt !== '—' ? (
-                                                                                                                                                                                <p className='text-[11px] text-base-content/60'>Thêm lúc: {itemCreatedAt}</p>
-                                                                                                                                                                        ) : null}
-                                                                                                                                                                </div>
-                                                                                                                                                        )
-                                                                                                                                                })}
-                                                                                                                                        </div>
-                                                                                                                                ) : (
-                                                                                                                                        <p className='text-[11px] text-base-content/60'>Không có tài liệu đính kèm.</p>
-                                                                                                                                )}
-                                                                                                                        </div>
-                                                                                                                )
-                                                                                                        })}
-                                                                                                </div>
-                                                                                        ) : (
-                                                                                                <p className='text-xs text-base-content/60'>Chưa có chứng cứ cuối cùng nào được gửi.</p>
-                                                                                        )}
-                                                                                </section>
-                                                                        </div>
-                                                                ) : null}
+					<div className='space-y-5'>
+						<MediationEvidenceSection
+							disputeId={detailDisputeId!}
+							userRole="ADMIN"
+							userId="admin"
+							escrowAmount={toNumber(detailFunded) || 0}
+							currency={detailCurrency || 'USD'}
+						/>
+					</div>
+				) : null}
 
 								{detailActiveTab === 'negotiations' ? (
 									<>
@@ -2337,141 +1564,11 @@ export default function AdminDisputeListPage() {
 				</div>
 			) : null}
 
-			{lockDisputeOpen && detailDisputeId ? (
-				<div className='modal modal-open'>
-					<div className='modal-box max-w-md space-y-4'>
-						<h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
-							<Lock className='size-5 text-primary' /> Khóa tranh chấp
-						</h3>
-						<p className='text-sm text-base-content/70'>
-							Chỉ khóa tranh chấp khi cả hai bên đã nộp phí trọng tài và hoàn tất việc gửi chứng cứ.
-						</p>
-						<form onSubmit={handleLockDisputeSubmit(handleLockDispute)} className='space-y-4'>
-							<div className='space-y-2'>
-								<label className='text-sm font-medium text-base-content'>Ghi chú (tuỳ chọn)</label>
-								<textarea
-									className='textarea textarea-bordered w-full'
-									rows={4}
-									placeholder='Ghi chú nội bộ cho quyết định khóa'
-									{...lockDisputeRegister('note')}
-									disabled={lockDisputeMutation.isPending}
-								/>
-								{lockDisputeErrors.note ? <p className='text-xs text-error'>{lockDisputeErrors.note.message}</p> : null}
-							</div>
-							<div className='modal-action'>
-								<button
-									type='button'
-									className='btn btn-ghost'
-									onClick={closeLockDisputeModal}
-									disabled={lockDisputeMutation.isPending}>
-									Hủy
-								</button>
-								<button type='submit' className='btn btn-secondary' disabled={lockDisputeMutation.isPending}>
-									{lockDisputeMutation.isPending ? 'Đang khóa…' : 'Khóa tranh chấp'}
-								</button>
-							</div>
-						</form>
-					</div>
-					<div className='modal-backdrop' onClick={closeLockDisputeModal}>
-						Đóng
-					</div>
-				</div>
-			) : null}
 
-			{generateDossierOpen && detailDisputeId ? (
-				<div className='modal modal-open'>
-					<div className='modal-box max-w-md space-y-4'>
-						<h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
-							<ScrollText className='size-5 text-primary' /> Tạo hồ sơ tranh chấp
-						</h3>
-						<p className='text-sm text-base-content/70'>Tạo snapshot hồ sơ tranh chấp để lưu trữ trong hệ thống.</p>
-						<form onSubmit={handleGenerateDossierSubmit(handleGenerateDossier)} className='space-y-4'>
-							<div className='space-y-2'>
-								<label className='text-sm font-medium text-base-content'>Ghi chú nội bộ (tuỳ chọn)</label>
-								<textarea
-									className='textarea textarea-bordered w-full'
-									rows={4}
-									placeholder='Ghi chú bổ sung cho hồ sơ'
-									{...generateDossierRegister('notes')}
-									disabled={generateDossierMutation.isPending}
-								/>
-								{generateDossierErrors.notes ? (
-									<p className='text-xs text-error'>{generateDossierErrors.notes.message}</p>
-								) : null}
-							</div>
-							<label className='flex items-center gap-2 text-sm text-base-content'>
-								<input
-									type='checkbox'
-									className='checkbox'
-									{...generateDossierRegister('finalize', { valueAsBoolean: true })}
-									disabled={generateDossierMutation.isPending}
-								/>
-								<span>Đánh dấu hồ sơ là bản cuối cùng</span>
-							</label>
-							<p className='text-xs text-base-content/60'>Bản snapshot sẽ được ghi nhận cùng ghi chú của bạn.</p>
-							<div className='modal-action'>
-								<button
-									type='button'
-									className='btn btn-ghost'
-									onClick={closeGenerateDossierModal}
-									disabled={generateDossierMutation.isPending}>
-									Hủy
-								</button>
-								<button type='submit' className='btn btn-primary' disabled={generateDossierMutation.isPending}>
-									{generateDossierMutation.isPending ? 'Đang tạo…' : 'Tạo hồ sơ'}
-								</button>
-							</div>
-						</form>
-					</div>
-					<div className='modal-backdrop' onClick={closeGenerateDossierModal}>
-						Đóng
-					</div>
-				</div>
-			) : null}
 
-                        {showArbitrationActions && requestFeesOpen && detailDisputeId ? (
-                                <div className='modal modal-open'>
-					<div className='modal-box max-w-md space-y-4'>
-						<h3 className='flex items-center gap-2 text-lg font-semibold text-base-content'>
-							<BadgeDollarSign className='size-5 text-primary' /> Yêu cầu đóng phí trọng tài
-						</h3>
-						<p className='text-sm text-base-content/70'>
-							Chọn số ngày mà các bên cần hoàn tất việc nộp phí trọng tài. Thời hạn tối đa là 14 ngày.
-						</p>
-						<form onSubmit={handleRequestFeesSubmit(handleRequestFees)} className='space-y-4'>
-							<div className='space-y-2'>
-								<label className='text-sm font-medium text-base-content'>Hạn nộp phí (ngày)</label>
-								<input
-									type='number'
-									min={1}
-									max={14}
-									className='input input-bordered w-full'
-									{...requestFeesRegister('deadlineDays', { valueAsNumber: true })}
-									disabled={requestFeesMutation.isPending}
-								/>
-								{requestFeesErrors.deadlineDays ? (
-									<p className='text-xs text-error'>{requestFeesErrors.deadlineDays.message}</p>
-                        ) : null}
-                </div>
-							<div className='modal-action'>
-								<button
-									type='button'
-									className='btn btn-ghost'
-									onClick={() => !requestFeesMutation.isPending && setRequestFeesOpen(false)}
-									disabled={requestFeesMutation.isPending}>
-									Hủy
-								</button>
-								<button type='submit' className='btn btn-primary' disabled={requestFeesMutation.isPending}>
-									{requestFeesMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}
-								</button>
-							</div>
-						</form>
-					</div>
-					<div className='modal-backdrop' onClick={() => !requestFeesMutation.isPending && setRequestFeesOpen(false)}>
-						Đóng
-					</div>
-				</div>
-			) : null}
+
+
+
 		</div>
 	)
 }

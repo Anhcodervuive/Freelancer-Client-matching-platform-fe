@@ -54,7 +54,7 @@ import {
   type OpenDisputeFormOutput,
   type RejectNegotiationFormValues,
 } from "./schemas";
-import FinalEvidenceSection from "./components/FinalEvidenceSection";
+import MediationEvidenceSection from "~/components/mediation-evidence/MediationEvidenceSection";
 
 const DISPUTE_FINAL_STATUSES = new Set<DisputeStatus | string>([
   DisputeStatus.RESOLVED_RELEASE_ALL,
@@ -923,6 +923,7 @@ const ContractDisputeRoomPage = () => {
     null;
   const hasSubmittedEvidence = dispute?.hasSubmittedEvidence ?? null;
   const isEvidenceSubmissionStage = Boolean(dispute?.status);
+  const isMediationStage = dispute?.status === DisputeStatus.INTERNAL_MEDIATION;
   const contractEntity = (contract as Contract | null) ?? null;
   const contractSummary = (contract as DisputeContractSummary | null) ?? null;
   const contractClientId =
@@ -1098,7 +1099,7 @@ const ContractDisputeRoomPage = () => {
   );
   const hasDispute = Boolean(dispute);
   const isNegotiationLocked = isFinalDispute;
-  const shouldShowEvidenceTab = Boolean(dispute?.id && isEvidenceSubmissionStage);
+  const shouldShowEvidenceTab = Boolean(dispute?.id && (isEvidenceSubmissionStage || currentUser?.role === 'ADMIN'));
   const tabItems = useMemo(() => {
     const items: { id: DisputeTabId; label: string }[] = [
       { id: "overview", label: "Tổng quan" },
@@ -1777,9 +1778,9 @@ const ContractDisputeRoomPage = () => {
                             (negotiation.proposerId
                               ? ({
                                   id: negotiation.proposerId,
-                                  profile: negotiation.proposer?.profile ?? null,
-                                  firstName: negotiation.proposer?.firstName,
-                                  lastName: negotiation.proposer?.lastName,
+                                  profile: (negotiation.proposer as any)?.profile ?? null,
+                                  firstName: (negotiation.proposer as any)?.firstName,
+                                  lastName: (negotiation.proposer as any)?.lastName,
                                 } as DisputeNegotiation["proposer"])
                               : null);
                           const proposerLabel = getPartyLabel(proposerUser, {
@@ -1845,69 +1846,80 @@ const ContractDisputeRoomPage = () => {
                                     : "Chưa cập nhật"}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                  {isPending && isClientParty && (
-                                    <button
-                                      type="button"
-                                      className="btn btn-ghost btn-xs text-success"
-                                      onClick={() =>
-                                        requestAction(negotiation, "accept")
-                                      }
-                                      disabled={
-                                        respondNegotiationMutation.isPending
-                                      }
-                                    >
-                                      <CircleDollarSign className="mr-1 size-4" />{" "}
-                                      Chấp nhận
-                                    </button>
-                                  )}
-                                  {isPending && isFreelancerParty && (
-                                    <button
-                                      type="button"
-                                      className="btn btn-ghost btn-xs text-success"
-                                      onClick={() =>
-                                        requestAction(negotiation, "accept")
-                                      }
-                                      disabled={
-                                        respondNegotiationMutation.isPending
-                                      }
-                                    >
-                                      <CircleDollarSign className="mr-1 size-4" />{" "}
-                                      Chấp nhận
-                                    </button>
-                                  )}
+                                  {(() => {
+                                    // Check if current user is the counterparty (receiver of the negotiation)
+                                    const isCounterparty = negotiation.counterparty?.id === currentUserId;
+                                    const isProposer = negotiation.proposer?.id === currentUserId;
+                                    
+                                    // Only counterparty can respond to negotiation
+                                    if (isPending && isCounterparty) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          className="btn btn-ghost btn-xs text-success"
+                                          onClick={() =>
+                                            requestAction(negotiation, "accept")
+                                          }
+                                          disabled={
+                                            respondNegotiationMutation.isPending
+                                          }
+                                        >
+                                          <CircleDollarSign className="mr-1 size-4" />{" "}
+                                          Chấp nhận
+                                        </button>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                  {(() => {
+                                    // Check if current user is the counterparty (receiver of the negotiation)
+                                    const isCounterparty = negotiation.counterparty?.id === currentUserId;
+                                    
+                                    // Only counterparty can respond to negotiation
+                                    if (isPending && isCounterparty) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          className="btn btn-ghost btn-xs text-error"
+                                          onClick={() =>
+                                            requestAction(negotiation, "reject")
+                                          }
+                                          disabled={
+                                            respondNegotiationMutation.isPending
+                                          }
+                                        >
+                                          <ShieldAlert className="mr-1 size-4" />{" "}
+                                          Từ chối
+                                        </button>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                  {(() => {
+                                    // Only proposer can edit their own negotiation
+                                    const isProposer = negotiation.proposer?.id === currentUserId;
+                                    
+                                    if (isPending && isProposer) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          className="btn btn-ghost btn-xs"
+                                          onClick={() =>
+                                            requestAction(negotiation, "edit")
+                                          }
+                                          disabled={
+                                            updateNegotiationMutation.isPending
+                                          }
+                                        >
+                                          <Pencil className="mr-1 size-4" /> Chỉnh
+                                          sửa
+                                        </button>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                   {isPending &&
-                                    (isClientParty || isFreelancerParty) && (
-                                      <button
-                                        type="button"
-                                        className="btn btn-ghost btn-xs text-error"
-                                        onClick={() =>
-                                          requestAction(negotiation, "reject")
-                                        }
-                                        disabled={
-                                          respondNegotiationMutation.isPending
-                                        }
-                                      >
-                                        <ShieldAlert className="mr-1 size-4" />{" "}
-                                        Từ chối
-                                      </button>
-                                    )}
-                                  {(isClientParty || isFreelancerParty) && (
-                                    <button
-                                      type="button"
-                                      className="btn btn-ghost btn-xs"
-                                      onClick={() =>
-                                        requestAction(negotiation, "edit")
-                                      }
-                                      disabled={
-                                        updateNegotiationMutation.isPending
-                                      }
-                                    >
-                                      <Pencil className="mr-1 size-4" /> Chỉnh
-                                      sửa
-                                    </button>
-                                  )}
-                                  {isPending &&
-                                    negotiation.proposedBy?.id ===
+                                    (negotiation.proposedBy as any)?.id ===
                                       currentUserId && (
                                       <button
                                         type="button"
@@ -1923,21 +1935,28 @@ const ContractDisputeRoomPage = () => {
                                         lại
                                       </button>
                                     )}
-                                  {isPending &&
-                                    (isClientParty || isFreelancerParty) && (
-                                      <button
-                                        type="button"
-                                        className="btn btn-ghost btn-xs text-error"
-                                        onClick={() =>
-                                          requestAction(negotiation, "delete")
-                                        }
-                                        disabled={
-                                          deleteNegotiationMutation.isPending
-                                        }
-                                      >
-                                        <Trash2 className="mr-1 size-4" /> Xóa
-                                      </button>
-                                    )}
+                                  {(() => {
+                                    // Only proposer can delete their own negotiation
+                                    const isProposer = negotiation.proposer?.id === currentUserId;
+                                    
+                                    if (isPending && isProposer) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          className="btn btn-ghost btn-xs text-error"
+                                          onClick={() =>
+                                            requestAction(negotiation, "delete")
+                                          }
+                                          disabled={
+                                            deleteNegotiationMutation.isPending
+                                          }
+                                        >
+                                          <Trash2 className="mr-1 size-4" /> Xóa
+                                        </button>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                               </div>
                             </div>
@@ -2130,27 +2149,50 @@ const ContractDisputeRoomPage = () => {
             </div>
           )}
 
-          {activeTab === "evidence" &&
-            shouldShowEvidenceTab &&
-            hasDispute &&
-            dispute?.id &&
-            contractId &&
-            milestoneId && (
-              <div className="space-y-6">
-                <FinalEvidenceSection
-                  contractId={contractId}
-                  milestoneId={milestoneId}
-                  disputeId={dispute.id}
-                  currentUserId={currentUserId}
-                  isClientParty={isClientParty}
-                  isFreelancerParty={isFreelancerParty}
-                  clientEvidenceSubmitted={clientEvidenceSubmitted ?? undefined}
-                  freelancerEvidenceSubmitted={freelancerEvidenceSubmitted ?? undefined}
-                  hasSubmittedEvidence={hasSubmittedEvidence ?? undefined}
-                  isSubmissionWindowOpen={isEvidenceSubmissionStage}
-                />
+          {activeTab === "evidence" && dispute?.id && (
+            <div className="space-y-6">
+              {console.log('Rendering Evidence Tab', {
+                activeTab,
+                disputeId: dispute?.id,
+                userRole: currentUser?.role,
+                shouldShowEvidenceTab
+              })}
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <h3 className="font-medium text-blue-800">
+                  {currentUser?.role === 'ADMIN' ? 'Giao diện Admin - Hòa giải nội bộ' : 'Bằng chứng hòa giải'}
+                </h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  {currentUser?.role === 'ADMIN' 
+                    ? 'Xem bằng chứng từ cả hai bên và tạo đề xuất hòa giải.'
+                    : 'Nộp bằng chứng và xem đề xuất hòa giải từ admin.'
+                  }
+                </p>
               </div>
-            )}
+              
+              <MediationEvidenceSection
+                disputeId={dispute.id}
+                userRole={
+                  currentUser?.role === 'ADMIN' 
+                    ? 'ADMIN' 
+                    : isClientParty 
+                    ? 'CLIENT' 
+                    : 'FREELANCER'
+                }
+                userId={currentUserId || ''}
+                escrowAmount={
+                  contractSummary?.escrowAmount ?? 
+                  (contractEntity?.milestones as any)?.find((m: any) => m.id === milestoneId)?.amount ?? 
+                  0
+                }
+                currency={
+                  (contractSummary?.currency ?? 
+                  contractEntity?.currency ?? 
+                  'USD') as string
+                }
+              />
+            </div>
+          )}
         </div>
       </div>
       {actionState.negotiation && actionState.action === "accept" && (
