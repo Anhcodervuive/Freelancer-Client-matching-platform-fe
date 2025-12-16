@@ -411,6 +411,22 @@ function ProposalCard({ proposal, currency, onDelete, isLoading }: ProposalCardP
 				</div>
 			</div>
 
+			{/* Payment Status for Accepted Proposals */}
+			{proposal.status === MediationProposalStatus.ACCEPTED_BY_ALL && (
+				<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-2">
+							<div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+							<span className="text-sm font-medium text-blue-800">Trạng thái thanh toán</span>
+						</div>
+						<span className="text-xs text-blue-600">Đang xử lý tự động</span>
+					</div>
+					<p className="text-xs text-blue-700 mt-2">
+						Hệ thống đang chuyển tiền qua Stripe theo thỏa thuận đã được chấp nhận.
+					</p>
+				</div>
+			)}
+
 			{/* Deadline */}
 			<div className="flex items-center gap-2 text-sm text-gray-600">
 				<Clock className="w-4 h-4" />

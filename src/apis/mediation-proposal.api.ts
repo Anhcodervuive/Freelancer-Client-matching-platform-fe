@@ -40,3 +40,15 @@ export const deleteMediationProposal = async (proposalId: string): Promise<{ suc
 	const response = await authorizeAxiosInstance.delete(`/mediation-proposal/${proposalId}`)
 	return response.data
 }
+
+// Get payment status for a mediation proposal
+export const getMediationPaymentStatus = async (proposalId: string) => {
+	const response = await authorizeAxiosInstance.get(`/mediation-proposal/${proposalId}/payment-status`)
+	return response.data
+}
+
+// Retry payment for a mediation proposal (admin only)
+export const retryMediationPayment = async (proposalId: string) => {
+	const response = await authorizeAxiosInstance.post(`/mediation-proposal/${proposalId}/retry-payment`)
+	return response.data
+}
