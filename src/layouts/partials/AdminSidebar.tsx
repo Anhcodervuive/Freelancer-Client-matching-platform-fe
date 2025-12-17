@@ -14,7 +14,9 @@ import {
         Hammer,
         Network,
         MessageSquare,
-        FileText
+        FileText,
+        Briefcase,
+        DollarSign
 } from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
 import { routes } from '~/config/routes'
@@ -27,7 +29,19 @@ type Item = {
 }
 
 const NAV: Item[] = [
-        { label: 'Overview', to: '/admin', icon: <LayoutDashboard size={18} /> },
+        { 
+                label: 'Dashboard', 
+                to: '#', 
+                icon: <LayoutDashboard size={18} />,
+                children: [
+                        { label: 'Tổng quan', to: '/admin', icon: <LayoutDashboard size={16} /> },
+                        { label: 'Người dùng', to: '/admin/dashboard/users', icon: <Users size={16} /> },
+                        { label: 'Công việc', to: '/admin/dashboard/jobs', icon: <Briefcase size={16} /> },
+                        { label: 'Hợp đồng', to: '/admin/dashboard/contracts', icon: <FileText size={16} /> },
+                        { label: 'Tài chính', to: '/admin/dashboard/financial', icon: <DollarSign size={16} /> },
+                        { label: 'Tranh chấp', to: '/admin/dashboard/disputes', icon: <BadgeDollarSign size={16} /> }
+                ]
+        },
         { label: 'Users', to: routes.admin.users.list, icon: <Users size={18} /> },
         { label: 'Messages', to: routes.admin.messages, icon: <MessageSquare size={18} /> },
         { label: 'Projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },

@@ -77,6 +77,7 @@ export const routes = {
 		}
 	},
 	admin: {
+		dashboard: '/admin/dashboard',
 		users: {
 			list: '/admin/users',
 			detail: (id: string = 'userId') => `/admin/users/${id}`

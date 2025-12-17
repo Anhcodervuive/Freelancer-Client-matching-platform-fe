@@ -70,6 +70,9 @@ import { ChatSocketProvider } from '~/contexts/chat-socket/ChatSocketProvider'
 import ContractListPage from './pages/Contracts/ContractListPage'
 import ContractWorkroomPage from './pages/Contracts/ContractWorkroomPage'
 import ContractDisputeRoomPage from './pages/Contracts/DisputeRoom/ContractDisputeRoomPage'
+import AdminDashboardPage from './pages/Admin/Dashboard/AdminDashboardPage'
+import UserStatsPage from './pages/Admin/Dashboard/UserStatsPage'
+import JobStatsPage from './pages/Admin/Dashboard/JobStatsPage'
 
 const persistor = persistStore(store)
 
@@ -282,6 +285,23 @@ const router = createBrowserRouter([
                 loader: composeLoaders(checkAuthenticatedUser, isAdminUser),
 		element: <AdminLayout />,
 		children: [
+                        {
+                                index: true,
+                                element: <AdminDashboardPage />
+                        },
+                        {
+                                path: 'dashboard',
+                                children: [
+                                        {
+                                                path: 'users',
+                                                element: <UserStatsPage />
+                                        },
+                                        {
+                                                path: 'jobs',
+                                                element: <JobStatsPage />
+                                        }
+                                ]
+                        },
                         {
                                 path: 'messages',
                                 element: <AdminChatPage />
