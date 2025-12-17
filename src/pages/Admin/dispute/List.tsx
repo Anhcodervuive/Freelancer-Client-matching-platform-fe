@@ -1360,10 +1360,13 @@ export default function AdminDisputeListPage() {
 					<div className='space-y-5'>
 						<MediationEvidenceSection
 							disputeId={detailDisputeId!}
+							contractId={detailContractId || ''}
+							milestoneId={detailMilestoneSummary?.id || ''}
 							userRole="ADMIN"
 							userId="admin"
 							escrowAmount={toNumber(detailFunded) || 0}
 							currency={detailCurrency || 'USD'}
+							disputeStatus={detailStatus || ''}
 						/>
 					</div>
 				) : null}

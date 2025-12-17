@@ -4,12 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Trash2, Upload, Link, FileText, Camera, File } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { useQuery } from '@tanstack/react-query'
 
 import { MediationEvidenceSourceType } from '~/types/mediation-evidence'
 import type { 
-	CreateMediationEvidenceSubmissionInput,
-	MediationEvidenceItemInput 
+	CreateMediationEvidenceSubmissionInput
 } from '~/types/mediation-evidence'
+import type { ContractMilestoneResource } from '~/types/contract'
+import { listMilestoneResources } from '~/apis/contract.api'
 
 const MediationEvidenceItemSchema = z.object({
 	label: z.string().min(1, 'Vui lòng nhập label cho bằng chứng').max(255, 'Label không được quá 255 ký tự'),
@@ -21,7 +23,7 @@ const MediationEvidenceItemSchema = z.object({
 	fileName: z.string().max(500).optional(),
 	fileSize: z.number().int().min(0).optional(),
 	mimeType: z.string().max(100).optional(),
-	displayOrder: z.number().int().min(0).optional().default(0)
+	displayOrder: z.number().int().min(0)
 }).superRefine((data, ctx) => {
 	// For external URL, require URL and validate format
 	if (data.sourceType === MediationEvidenceSourceType.EXTERNAL_URL) {
@@ -78,6 +80,8 @@ type FormData = z.infer<typeof MediationEvidenceFormSchema>
 
 interface MediationEvidenceFormProps {
 	disputeId: string
+	contractId: string
+	milestoneId: string
 	onSubmit: (data: CreateMediationEvidenceSubmissionInput) => Promise<void>
 	onCancel: () => void
 	isLoading?: boolean
@@ -93,8 +97,141 @@ const sourceTypeOptions = [
 	{ value: MediationEvidenceSourceType.CONTRACT_DOCUMENT, label: 'Contract Document', icon: FileText }
 ]
 
+interface MilestoneAssetSelectorProps {
+	contractId: string
+	milestoneId: string
+	selectedAssetId?: string
+	onSelect: (assetId: string, assetInfo: { fileName?: string, fileSize?: number, mimeType?: string }) => void
+}
+
+function MilestoneAssetSelector({ contractId, milestoneId, selectedAssetId, onSelect }: MilestoneAssetSelectorProps) {
+	const { data: resources, isLoading, error } = useQuery({
+		queryKey: ['milestone-resources', contractId, milestoneId],
+		queryFn: async () => {
+			console.log('MilestoneAssetSelector - Calling API with:', { contractId, milestoneId })
+			const result = await listMilestoneResources(contractId, milestoneId)
+			console.log('MilestoneAssetSelector - API result:', result)
+			return result
+		},
+		enabled: Boolean(contractId && milestoneId),
+		retry: 1
+	})
+
+	// Enhanced debug logging
+	console.log('MilestoneAssetSelector - Props:', { contractId, milestoneId, selectedAssetId })
+	console.log('MilestoneAssetSelector - Query state:', { isLoading, error })
+	console.log('MilestoneAssetSelector - Resources:', resources, 'type:', typeof resources, 'isArray:', Array.isArray(resources))
+	console.log('MilestoneAssetSelector - Query enabled:', Boolean(contractId && milestoneId))
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center py-4">
+				<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+				<span className="ml-2 text-sm text-gray-600">Đang tải assets...</span>
+			</div>
+		)
+	}
+
+	if (error) {
+		console.error('MilestoneAssetSelector error:', error)
+		return (
+			<div className="text-red-600 text-sm py-2">
+				Không thể tải danh sách assets: {error instanceof Error ? error.message : 'Lỗi không xác định'}
+			</div>
+		)
+	}
+
+	// Check if resources is valid and has data
+	const hasValidResources = resources && Array.isArray(resources) && resources.length > 0
+	
+	console.log('MilestoneAssetSelector - Resource validation:', {
+		hasResources: !!resources,
+		isArray: Array.isArray(resources),
+		length: resources?.length,
+		hasValidResources,
+		firstResource: resources?.[0]
+	})
+
+	if (!hasValidResources) {
+		return (
+			<div className="text-gray-500 text-sm py-4 text-center">
+				Milestone này chưa có assets nào
+				<div className="text-xs mt-2 font-mono text-gray-400">
+					Debug: {JSON.stringify({ 
+						hasResources: !!resources, 
+						isArray: Array.isArray(resources), 
+						length: resources?.length,
+						type: typeof resources
+					})}
+				</div>
+			</div>
+		)
+	}
+
+	return (
+		<div className="space-y-2">
+			<label className="block text-sm font-medium text-gray-700">
+				Chọn Asset từ Milestone
+			</label>
+			<div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md">
+				{resources.map((resource) => {
+					// Use resource.id as fallback if asset.id doesn't exist
+					const assetId = resource.asset?.id || resource.assetId || resource.id
+					const isSelected = selectedAssetId === assetId
+					
+					console.log('Resource item:', { 
+						resourceId: resource.id, 
+						assetId, 
+						selectedAssetId, 
+						isSelected,
+						resource 
+					})
+					
+					return (
+						<div
+							key={resource.id}
+							className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+								isSelected ? 'bg-blue-50 border-blue-200' : ''
+							}`}
+							onClick={() => {
+								console.log('Selecting asset:', assetId, resource)
+								onSelect(assetId, {
+									fileName: resource.fileName || resource.name || undefined,
+									fileSize: resource.fileSize || resource.size || undefined,
+									mimeType: resource.mimeType || undefined
+								})
+							}}
+						>
+							<div className="flex items-center space-x-3">
+								<File className="w-4 h-4 text-gray-500" />
+								<div className="flex-1 min-w-0">
+									<p className="text-sm font-medium text-gray-900 truncate">
+										{resource.fileName || resource.name || `Asset ${resource.id}`}
+									</p>
+									{(resource.fileSize || resource.size) && (
+										<p className="text-xs text-gray-500">
+											{((resource.fileSize || resource.size || 0) / 1024).toFixed(1)} KB
+										</p>
+									)}
+								</div>
+								{isSelected && (
+									<div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+										<div className="w-2 h-2 bg-white rounded-full"></div>
+									</div>
+								)}
+							</div>
+						</div>
+					)
+				})}
+			</div>
+		</div>
+	)
+}
+
 export default function MediationEvidenceForm({
-	disputeId, // eslint-disable-line @typescript-eslint/no-unused-vars
+	disputeId: _disputeId, // Renamed to indicate it's intentionally unused
+	contractId,
+	milestoneId,
 	onSubmit,
 	onCancel,
 	isLoading = false,
@@ -292,7 +429,10 @@ export default function MediationEvidenceForm({
 									register={register}
 									watch={watch}
 									setValue={setValue}
+									trigger={trigger}
 									errors={errors}
+									contractId={contractId}
+									milestoneId={milestoneId}
 									onFileUpload={handleFileUpload}
 									onRemove={() => removeEvidenceItem(index)}
 									canRemove={fields.length > 1}
@@ -360,7 +500,10 @@ interface EvidenceItemFormProps {
 	register: any
 	watch: any
 	setValue: any
+	trigger: any
 	errors: any
+	contractId: string
+	milestoneId: string
 	onFileUpload: (file: File, index: number) => Promise<void>
 	onRemove: () => void
 	canRemove: boolean
@@ -372,7 +515,10 @@ function EvidenceItemForm({
 	register,
 	watch,
 	setValue,
+	trigger,
 	errors,
+	contractId,
+	milestoneId,
 	onFileUpload,
 	onRemove,
 	canRemove,
@@ -515,20 +661,40 @@ function EvidenceItemForm({
 					</div>
 				)}
 
-				{(sourceType === MediationEvidenceSourceType.MILESTONE_ATTACHMENT ||
-				  sourceType === MediationEvidenceSourceType.CHAT_ATTACHMENT) && (
+				{sourceType === MediationEvidenceSourceType.MILESTONE_ATTACHMENT && (
+					<MilestoneAssetSelector
+						contractId={contractId}
+						milestoneId={milestoneId}
+						selectedAssetId={watch(`items.${index}.sourceId`)}
+						onSelect={(assetId, assetInfo) => {
+							setValue(`items.${index}.sourceId`, assetId)
+							if (assetInfo.fileName) {
+								setValue(`items.${index}.fileName`, assetInfo.fileName)
+							}
+							if (assetInfo.fileSize) {
+								setValue(`items.${index}.fileSize`, assetInfo.fileSize)
+							}
+							if (assetInfo.mimeType) {
+								setValue(`items.${index}.mimeType`, assetInfo.mimeType)
+							}
+							trigger(`items.${index}.sourceId`)
+						}}
+					/>
+				)}
+
+				{sourceType === MediationEvidenceSourceType.CHAT_ATTACHMENT && (
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Source ID
+							Chat Message ID
 						</label>
 						<input
 							{...register(`items.${index}.sourceId`)}
 							type="text"
 							className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="ID of the milestone or chat message"
+							placeholder="ID of the chat message"
 						/>
 						<p className="text-xs text-gray-500 mt-1">
-							Reference to existing {sourceType === MediationEvidenceSourceType.MILESTONE_ATTACHMENT ? 'milestone' : 'chat message'}
+							Reference to existing chat message
 						</p>
 						{errors.items?.[index]?.sourceId && (
 							<p className="text-red-500 text-xs mt-1">{errors.items[index].sourceId.message}</p>

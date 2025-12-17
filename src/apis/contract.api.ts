@@ -8,6 +8,7 @@ import type {
         ContractFeedbackListResponse,
         ContractListFilterInput,
         ContractMilestone,
+        ContractMilestoneResource,
         CreateContractMilestoneInput,
         DeclineMilestoneSubmissionInput,
         EndContractInput,
@@ -571,6 +572,42 @@ export const respondMilestoneCancellation = async (
                 `${baseUrl}/${contractId}/milestones/${milestoneId}/cancel/respond`,
                 payload
         )
+}
+
+export const listMilestoneResources = async (contractId: string, milestoneId: string): Promise<ContractMilestoneResource[]> => {
+        try {
+                const response = await authorizeAxiosInstance.get(`${baseUrl}/${contractId}/milestones/${milestoneId}/resources`)
+                console.log('listMilestoneResources RAW response:', response)
+                console.log('listMilestoneResources response.data:', response.data)
+                console.log('listMilestoneResources response.data type:', typeof response.data)
+                console.log('listMilestoneResources response.data isArray:', Array.isArray(response.data))
+                
+                // Ensure we return an array
+                if (Array.isArray(response.data)) {
+                        console.log('listMilestoneResources returning array directly, length:', response.data.length)
+                        return response.data
+                } else if (response.data && Array.isArray(response.data.data)) {
+                        console.log('listMilestoneResources returning response.data.data, length:', response.data.data.length)
+                        return response.data.data
+                } else if (response.data && typeof response.data === 'object') {
+                        // Try to find array in common property names
+                        const possibleArrayKeys = ['data', 'items', 'resources', 'results']
+                        for (const key of possibleArrayKeys) {
+                                if (Array.isArray(response.data[key])) {
+                                        console.log(`listMilestoneResources found array in response.data.${key}, length:`, response.data[key].length)
+                                        return response.data[key]
+                                }
+                        }
+                        console.warn('listMilestoneResources: could not find array in response.data:', response.data)
+                        return []
+                } else {
+                        console.warn('listMilestoneResources: response.data is not an array or object:', response.data)
+                        return []
+                }
+        } catch (error) {
+                console.error('listMilestoneResources error:', error)
+                return []
+        }
 }
 
 export const deleteContractMilestoneResource = async (contractId: string, milestoneId: string, resourceId: string) => {

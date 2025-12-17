@@ -209,9 +209,11 @@ export type ContractMilestoneResource = {
         milestoneId?: string | null
         assetId?: string | null
         name?: string | null
+        fileName?: string | null // Added for compatibility with backend response
         url?: string | null
         mimeType?: string | null
         size?: number | null
+        fileSize?: number | null // Added for compatibility with backend response
         createdAt?: string | null
         updatedAt?: string | null
         asset?: ContractMilestoneResourceAsset | null

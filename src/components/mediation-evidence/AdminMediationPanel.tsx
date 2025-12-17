@@ -20,6 +20,7 @@ import {
 	MediationProposalStatus,
 	MediationResponse
 } from '~/types/mediation-evidence'
+import DisputeExportPanel from '~/components/dispute-export/DisputeExportPanel'
 
 // Utility functions for formatting
 const formatCurrency = (amount: number, currency: string) => {
@@ -46,6 +47,8 @@ const CreateProposalSchema = z.object({
 type CreateProposalFormData = z.infer<typeof CreateProposalSchema>
 
 interface AdminMediationPanelProps {
+	disputeId: string
+	disputeStatus: string
 	escrowAmount: number
 	currency: string
 	proposals: MediationProposal[]
@@ -56,6 +59,8 @@ interface AdminMediationPanelProps {
 }
 
 export default function AdminMediationPanel({
+	disputeId,
+	disputeStatus,
 	escrowAmount,
 	currency,
 	proposals,
@@ -92,7 +97,8 @@ export default function AdminMediationPanel({
 	// Check if there's an active proposal or accepted proposal
 	const activeProposal = proposals.find(p => p.status === MediationProposalStatus.PENDING)
 	const acceptedProposal = proposals.find(p => p.status === MediationProposalStatus.ACCEPTED_BY_ALL)
-	const canCreateProposal = hasJoinedChat && !activeProposal && !acceptedProposal
+	const isInternalMediationStage = disputeStatus === 'INTERNAL_MEDIATION'
+	const canCreateProposal = hasJoinedChat && !activeProposal && !acceptedProposal && isInternalMediationStage
 
 	useEffect(() => {
 		if (proposals.length > 0) {
@@ -146,6 +152,25 @@ export default function AdminMediationPanel({
 		)
 	}
 
+	if (!isInternalMediationStage) {
+		return (
+			<div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+				<div className="flex items-center gap-3">
+					<Scale className="w-6 h-6 text-blue-600" />
+					<div>
+						<h3 className="font-medium text-blue-800">Chưa tới giai đoạn hòa giải</h3>
+						<p className="text-sm text-blue-700 mt-1">
+							Dispute chưa chuyển sang giai đoạn hòa giải nội bộ. Admin chỉ có thể tạo đề xuất khi dispute ở trạng thái "INTERNAL_MEDIATION".
+						</p>
+						<p className="text-xs text-blue-600 mt-2">
+							Trạng thái hiện tại: {disputeStatus || 'Không xác định'}
+						</p>
+					</div>
+				</div>
+			</div>
+		)
+	}
+
 	return (
 		<div className="bg-white rounded-lg shadow-sm border border-gray-200">
 			<div className="px-6 py-4 border-b border-gray-200">
@@ -159,7 +184,7 @@ export default function AdminMediationPanel({
 							</p>
 						</div>
 					</div>
-					{canCreateProposal && (
+					{canCreateProposal ? (
 						<button
 							onClick={() => setShowCreateForm(true)}
 							className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -167,7 +192,13 @@ export default function AdminMediationPanel({
 						>
 							Tạo đề xuất
 						</button>
-					)}
+					) : isInternalMediationStage && hasJoinedChat ? (
+						<div className="text-sm text-gray-500">
+							{activeProposal ? 'Có đề xuất đang chờ phản hồi' : 
+							 acceptedProposal ? 'Đã có đề xuất được chấp nhận' : 
+							 'Không thể tạo đề xuất'}
+						</div>
+					) : null}
 				</div>
 			</div>
 
@@ -221,6 +252,14 @@ export default function AdminMediationPanel({
 					isValidSplit={isValidSplit}
 				/>
 			)}
+
+			{/* Dispute Export Panel */}
+			<div className="mt-6 px-6 pb-6">
+				<DisputeExportPanel 
+					disputeId={disputeId}
+					disputeStatus={disputeStatus}
+				/>
+			</div>
 		</div>
 	)
 }

@@ -1098,7 +1098,7 @@ const ContractDisputeRoomPage = () => {
     (item) => item.status === DisputeNegotiationStatus.PENDING,
   );
   const hasDispute = Boolean(dispute);
-  const isNegotiationLocked = isFinalDispute;
+  const isNegotiationLocked = isFinalDispute || isMediationStage;
   const shouldShowEvidenceTab = Boolean(dispute?.id && (isEvidenceSubmissionStage || currentUser?.role === 'ADMIN'));
   const tabItems = useMemo(() => {
     const items: { id: DisputeTabId; label: string }[] = [
@@ -1571,11 +1571,15 @@ const ContractDisputeRoomPage = () => {
                       className={`rounded-2xl px-5 py-4 text-sm ${
                         isFinalDispute
                           ? "border border-success/40 bg-success/10 text-success"
+                          : isMediationStage
+                          ? "border border-blue-200/70 bg-blue-50/70 text-blue-700"
                           : "border border-violet-200/70 bg-violet-50/70 text-violet-700"
                       }`}
                     >
                       {isFinalDispute
                         ? "Dispute đã kết thúc. Bạn vẫn có thể xem lại lịch sử thương lượng bên dưới."
+                        : isMediationStage
+                        ? "Dispute đã chuyển sang giai đoạn hòa giải nội bộ. Admin sẽ xem xét bằng chứng và đưa ra đề xuất hòa giải."
                         : "Dispute tạm thời bị khóa. Vui lòng liên hệ bộ phận hỗ trợ nếu cần thêm giúp đỡ."}
                     </div>
                   ) : (
@@ -1848,8 +1852,8 @@ const ContractDisputeRoomPage = () => {
                                 <div className="flex flex-wrap items-center gap-2">
                                   {(() => {
                                     // Check if current user is the counterparty (receiver of the negotiation)
-                                    const isCounterparty = negotiation.counterparty?.id === currentUserId;
-                                    const isProposer = negotiation.proposer?.id === currentUserId;
+                                    const isCounterparty = negotiation.counterpartyId === currentUserId;
+                                    const isProposer = negotiation.proposerId === currentUserId;
                                     
                                     // Only counterparty can respond to negotiation
                                     if (isPending && isCounterparty) {
@@ -1873,7 +1877,7 @@ const ContractDisputeRoomPage = () => {
                                   })()}
                                   {(() => {
                                     // Check if current user is the counterparty (receiver of the negotiation)
-                                    const isCounterparty = negotiation.counterparty?.id === currentUserId;
+                                    const isCounterparty = negotiation.counterpartyId === currentUserId;
                                     
                                     // Only counterparty can respond to negotiation
                                     if (isPending && isCounterparty) {
@@ -1897,7 +1901,7 @@ const ContractDisputeRoomPage = () => {
                                   })()}
                                   {(() => {
                                     // Only proposer can edit their own negotiation
-                                    const isProposer = negotiation.proposer?.id === currentUserId;
+                                    const isProposer = negotiation.proposerId === currentUserId;
                                     
                                     if (isPending && isProposer) {
                                       return (
@@ -1937,7 +1941,7 @@ const ContractDisputeRoomPage = () => {
                                     )}
                                   {(() => {
                                     // Only proposer can delete their own negotiation
-                                    const isProposer = negotiation.proposer?.id === currentUserId;
+                                    const isProposer = negotiation.proposerId === currentUserId;
                                     
                                     if (isPending && isProposer) {
                                       return (
@@ -2172,6 +2176,8 @@ const ContractDisputeRoomPage = () => {
               
               <MediationEvidenceSection
                 disputeId={dispute.id}
+                contractId={contractId || ''}
+                milestoneId={milestoneId || ''}
                 userRole={
                   currentUser?.role === 'ADMIN' 
                     ? 'ADMIN' 
@@ -2190,6 +2196,7 @@ const ContractDisputeRoomPage = () => {
                   contractEntity?.currency ?? 
                   'USD') as string
                 }
+                disputeStatus={dispute?.status || ''}
               />
             </div>
           )}
