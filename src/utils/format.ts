@@ -1,37 +1,95 @@
 /**
  * Format currency with locale support
  */
-export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  }).format(amount)
+export const formatCurrency = (amount?: number | string | null, currency: string = 'USD'): string => {
+  // Handle null, undefined, or invalid values
+  if (amount == null || amount === '' || (typeof amount === 'string' && amount.trim() === '')) {
+    return ''
+  }
+  
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  
+  // Check if the parsed number is valid
+  if (isNaN(numericAmount) || !isFinite(numericAmount)) {
+    return ''
+  }
+  
+  try {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(numericAmount)
+  } catch (error) {
+    // Fallback if currency is invalid
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(numericAmount)
+  }
 }
 
 /**
  * Format date and time
  */
-export const formatDateTime = (dateString: string): string => {
-  return new Date(dateString).toLocaleString('vi-VN', {
+export const formatDateTime = (dateString?: string | null, options?: Intl.DateTimeFormatOptions): string => {
+  // Handle null, undefined, or empty values
+  if (!dateString || dateString.trim() === '') {
+    return ''
+  }
+  
+  const date = new Date(dateString)
+  
+  // Check if the date is valid
+  if (isNaN(date.getTime())) {
+    return ''
+  }
+  
+  const defaultOptions: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
-  })
+  }
+  
+  try {
+    return date.toLocaleString('vi-VN', { ...defaultOptions, ...options })
+  } catch (error) {
+    // Fallback to ISO string if locale formatting fails
+    return date.toISOString()
+  }
 }
 
 /**
  * Format date only
  */
-export const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
+export const formatDate = (dateString?: string | null): string => {
+  // Handle null, undefined, or empty values
+  if (!dateString || dateString.trim() === '') {
+    return ''
+  }
+  
+  const date = new Date(dateString)
+  
+  // Check if the date is valid
+  if (isNaN(date.getTime())) {
+    return ''
+  }
+  
+  try {
+    return date.toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  } catch (error) {
+    // Fallback to ISO date string if locale formatting fails
+    return date.toISOString().split('T')[0]
+  }
 }
 
 /**
@@ -51,14 +109,26 @@ export const formatPercentage = (value: number, decimals: number = 1): string =>
 /**
  * Format file size
  */
-export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes'
+export const formatFileSize = (bytes?: number | string | null): string => {
+  // Handle null, undefined, or invalid values
+  if (bytes == null || bytes === '' || (typeof bytes === 'string' && bytes.trim() === '')) {
+    return ''
+  }
+  
+  const numericBytes = typeof bytes === 'string' ? parseFloat(bytes) : bytes
+  
+  // Check if the parsed number is valid
+  if (isNaN(numericBytes) || !isFinite(numericBytes) || numericBytes < 0) {
+    return ''
+  }
+  
+  if (numericBytes === 0) return '0 Bytes'
   
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  const i = Math.floor(Math.log(numericBytes) / Math.log(k))
   
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  return parseFloat((numericBytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 /**

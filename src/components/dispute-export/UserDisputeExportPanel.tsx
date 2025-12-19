@@ -1,30 +1,30 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { 
   FileText, 
   Download, 
   AlertTriangle, 
   CheckCircle, 
-  XCircle,
   Loader2,
-  ExternalLink,
-  FileDown
+  FileDown,
+  ExternalLink
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import disputeDocumentExportApi from '~/apis/dispute-document-export.api'
 import { generateDisputeHtml } from '~/utils/disputeHtmlGenerator'
 
-interface DisputeExportPanelProps {
+interface UserDisputeExportPanelProps {
   disputeId: string
   disputeStatus: string
+  userRole: 'CLIENT' | 'FREELANCER'
 }
 
-export default function DisputeExportPanel({ disputeId, disputeStatus }: DisputeExportPanelProps) {
-  const [showCloseModal, setShowCloseModal] = useState(false)
-  const [closeReason, setCloseReason] = useState('')
-  const queryClient = useQueryClient()
-
+export default function UserDisputeExportPanel({ 
+  disputeId, 
+  disputeStatus, 
+  userRole 
+}: UserDisputeExportPanelProps) {
   // Check export eligibility
   const { data: eligibility, isLoading: checkingEligibility } = useQuery({
     queryKey: ['dispute-export-eligibility', disputeId],
@@ -38,30 +38,6 @@ export default function DisputeExportPanel({ disputeId, disputeStatus }: Dispute
     queryFn: () => disputeDocumentExportApi.getDisputeDocumentPackage(disputeId),
     enabled: eligibility?.isEligible === true
   })
-
-  // Close mediation mutation
-  const closeMediationMutation = useMutation({
-    mutationFn: (reason: string) => 
-      disputeDocumentExportApi.closeMediationForExternalResolution(disputeId, { reason }),
-    onSuccess: () => {
-      toast.success('Đã đóng hồ sơ hòa giải và chuyển sang giải quyết bên ngoài')
-      setShowCloseModal(false)
-      setCloseReason('')
-      queryClient.invalidateQueries({ queryKey: ['dispute', disputeId] })
-      queryClient.invalidateQueries({ queryKey: ['admin-disputes'] })
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi đóng hồ sơ')
-    }
-  })
-
-  const handleCloseMediation = () => {
-    if (closeReason.trim().length < 10) {
-      toast.error('Lý do phải có ít nhất 10 ký tự')
-      return
-    }
-    closeMediationMutation.mutate(closeReason.trim())
-  }
 
   const handleDownloadPackage = () => {
     if (!documentPackage) return
@@ -133,7 +109,12 @@ export default function DisputeExportPanel({ disputeId, disputeStatus }: Dispute
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex items-center gap-3 mb-4">
         <FileText className="w-6 h-6 text-blue-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Xuất tài liệu tranh chấp</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Xuất tài liệu tranh chấp</h3>
+          <p className="text-sm text-gray-600">
+            Tải xuống hồ sơ tranh chấp để sử dụng cho các thủ tục pháp lý bên ngoài
+          </p>
+        </div>
       </div>
 
       {checkingEligibility ? (
@@ -154,7 +135,14 @@ export default function DisputeExportPanel({ disputeId, disputeStatus }: Dispute
             ) : (
               <AlertTriangle className="w-5 h-5" />
             )}
-            <span className="text-sm font-medium">{eligibility.message}</span>
+            <div className="flex-1">
+              <span className="text-sm font-medium">{eligibility.message}</span>
+              {!eligibility.isEligible && (
+                <p className="text-xs mt-1 opacity-80">
+                  Bạn có thể xuất tài liệu sau khi admin đã đề xuất hòa giải ít nhất 2 lần mà không được chấp nhận.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Export Actions */}
@@ -207,71 +195,26 @@ export default function DisputeExportPanel({ disputeId, disputeStatus }: Dispute
                 </button>
               </div>
 
-              {/* Close Mediation */}
-              <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
-                <div>
-                  <h4 className="font-medium text-red-900">Đóng hồ sơ hòa giải</h4>
-                  <p className="text-sm text-red-700 mt-1">
-                    Chuyển tranh chấp sang giải quyết bên ngoài (tòa án, trọng tài)
-                  </p>
+              {/* Information about external resolution */}
+              <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-amber-900">Thông tin quan trọng</h4>
+                    <p className="text-sm text-amber-800 mt-1">
+                      Tài liệu này có thể được sử dụng để giải quyết tranh chấp thông qua các cơ quan có thẩm quyền 
+                      như tòa án hoặc trung tâm trọng tài khi hòa giải nội bộ không thành công.
+                    </p>
+                    <p className="text-xs text-amber-700 mt-2">
+                      Vui lòng tham khảo ý kiến luật sư trước khi tiến hành các thủ tục pháp lý.
+                    </p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setShowCloseModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Đóng hồ sơ
-                </button>
               </div>
             </div>
           )}
         </div>
       ) : null}
-
-      {/* Close Mediation Modal */}
-      {showCloseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Đóng hồ sơ hòa giải</h3>
-            </div>
-            
-            <p className="text-gray-600 mb-4">
-              Hành động này sẽ đóng hồ sơ hòa giải và chuyển tranh chấp sang giải quyết bên ngoài. 
-              Vui lòng nhập lý do:
-            </p>
-            
-            <textarea
-              value={closeReason}
-              onChange={(e) => setCloseReason(e.target.value)}
-              placeholder="Nhập lý do đóng hồ sơ (ít nhất 10 ký tự)..."
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none h-24 mb-4"
-            />
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCloseModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleCloseMediation}
-                disabled={closeMediationMutation.isPending || closeReason.trim().length < 10}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {closeMediationMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <XCircle className="w-4 h-4" />
-                )}
-                Đóng hồ sơ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

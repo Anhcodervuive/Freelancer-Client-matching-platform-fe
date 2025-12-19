@@ -55,6 +55,7 @@ import {
   type RejectNegotiationFormValues,
 } from "./schemas";
 import MediationEvidenceSection from "~/components/mediation-evidence/MediationEvidenceSection";
+import UserDisputeExportPanel from "~/components/dispute-export/UserDisputeExportPanel";
 
 const DISPUTE_FINAL_STATUSES = new Set<DisputeStatus | string>([
   DisputeStatus.RESOLVED_RELEASE_ALL,
@@ -2155,12 +2156,6 @@ const ContractDisputeRoomPage = () => {
 
           {activeTab === "evidence" && dispute?.id && (
             <div className="space-y-6">
-              {console.log('Rendering Evidence Tab', {
-                activeTab,
-                disputeId: dispute?.id,
-                userRole: currentUser?.role,
-                shouldShowEvidenceTab
-              })}
               
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <h3 className="font-medium text-blue-800">
@@ -2173,6 +2168,15 @@ const ContractDisputeRoomPage = () => {
                   }
                 </p>
               </div>
+
+              {/* User Export Panel - Only show for CLIENT and FREELANCER */}
+              {currentUser?.role !== 'ADMIN' && (isClientParty || isFreelancerParty) && (
+                <UserDisputeExportPanel
+                  disputeId={dispute.id}
+                  disputeStatus={dispute?.status || ''}
+                  userRole={isClientParty ? 'CLIENT' : 'FREELANCER'}
+                />
+              )}
               
               <MediationEvidenceSection
                 disputeId={dispute.id}
