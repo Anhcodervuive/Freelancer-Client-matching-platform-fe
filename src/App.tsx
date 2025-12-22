@@ -44,6 +44,7 @@ import CategorySkillsPage from './pages/Admin/category/CategorySkillsPage'
 import SpecialtySkillsPage from './pages/Admin/specialty/SpecialtySkillPage'
 import AdminDisputeListPage from './pages/Admin/dispute/List'
 import AdminContractListPage from './pages/Admin/contracts/List'
+import AdminReviewListPage from './pages/Admin/reviews/List'
 import AdminChatPage from './pages/Admin/chat/AdminChatPage'
 import AdminUserListPage from './pages/Admin/users/AdminUserListPage'
 import AdminPlatformTermsPage from './pages/Admin/platform-terms/AdminPlatformTermsPage'
@@ -326,6 +327,10 @@ const router = createBrowserRouter([
                         {
                                 path: 'contracts',
                                 element: <AdminContractListPage />
+                        },
+                        {
+                                path: 'reviews',
+                                element: <AdminReviewListPage />
                         },
                         {
                                 path: 'categories',

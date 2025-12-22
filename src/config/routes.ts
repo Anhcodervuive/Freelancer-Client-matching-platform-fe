@@ -89,6 +89,9 @@ export const routes = {
 		contracts: {
 			list: '/admin/contracts'
 		},
+		reviews: {
+			list: '/admin/reviews'
+		},
 		platformTerms: {
 			list: '/admin/platform-terms'
 		},

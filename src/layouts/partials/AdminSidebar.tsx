@@ -16,7 +16,8 @@ import {
         MessageSquare,
         FileText,
         Briefcase,
-        DollarSign
+        DollarSign,
+        Star
 } from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
 import { routes } from '~/config/routes'
@@ -48,6 +49,7 @@ const NAV: Item[] = [
         { label: 'Platform terms', to: routes.admin.platformTerms.list, icon: <FileText size={18} /> },
         { label: 'Disputes', to: routes.admin.dispute.list, icon: <BadgeDollarSign size={18} /> },
         { label: 'Contracts', to: routes.admin.contracts.list, icon: <Briefcase size={18} /> },
+        { label: 'Reviews', to: routes.admin.reviews.list, icon: <Star size={18} /> },
         {
                 label: 'Taxonomy',
                 to: '#',
