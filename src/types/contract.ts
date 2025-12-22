@@ -493,3 +493,60 @@ export type PaginatedContractResponse = {
 	page: number
 	limit: number
 }
+
+// Payment Details Types
+export type ContractPaymentOverview = {
+	totalContractValue: number
+	totalFunded: number
+	totalReleased: number
+	totalRefunded: number
+	outstandingBalance: number
+	inEscrow: number
+	totalPlatformFee: number
+	totalProcessingFee: number
+	netToFreelancer: number
+	currency: string
+}
+
+export type ContractMilestonePayment = {
+	milestoneId: string
+	milestoneTitle: string
+	milestoneStatus: string
+	amount: number
+	currency: string
+	escrowStatus: string
+	funded: number
+	released: number
+	refunded: number
+	platformFee: number
+	processingFee: number
+	netToFreelancer: number
+	approvedAt?: string | null
+	releasedAt?: string | null
+}
+
+export type ContractPaymentTransaction = {
+	id: string
+	type: 'PAYMENT' | 'TRANSFER' | 'REFUND'
+	amount: number
+	currency: string
+	status: string
+	description: string
+	milestoneTitle: string
+	cardInfo?: string
+	createdAt: string
+}
+
+export type ContractPaymentSummary = {
+	totalMilestones: number
+	fundedMilestones: number
+	releasedMilestones: number
+	pendingMilestones: number
+}
+
+export type ContractPaymentDetailsResponse = {
+	paymentOverview: ContractPaymentOverview
+	milestonePayments: ContractMilestonePayment[]
+	transactions: ContractPaymentTransaction[]
+	summary: ContractPaymentSummary
+}

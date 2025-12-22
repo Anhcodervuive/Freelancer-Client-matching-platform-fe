@@ -1067,6 +1067,16 @@ signatureResendError
                 enabled: Boolean(contractId) && isContractFinalized
         })
 
+        const paymentDetailsQuery = useQuery({
+                queryKey: ['contract-payment-details', contractId],
+                queryFn: async () => {
+                        if (!contractId) throw new Error('Missing contract ID')
+                        const { getContractPaymentDetails } = await import('~/apis/contract.api')
+                        return getContractPaymentDetails(contractId)
+                },
+                enabled: Boolean(contractId) && activeTab === 'payments'
+        })
+
         const milestoneQuery = useQuery({
                 queryKey: ['contract-milestones', contractId],
                 queryFn: () => {
@@ -3552,40 +3562,218 @@ const renderOverview = () => (
 		)
 	}
 
-        const renderPayments = () => (
-                <div className='grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]'>
-			<div className='space-y-6 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
-                                <h3 className='text-sm font-semibold text-slate-800'>Payment overview</h3>
-				<div className='grid gap-4 md:grid-cols-2'>
-					<div className='rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-emerald-700'>
-                                                <p className='text-xs font-semibold uppercase tracking-[0.3em]'>Paid</p>
-						<p className='mt-2 text-2xl font-semibold text-emerald-900'>{totalPaid ?? '—'}</p>
-                                                <p className='text-xs text-emerald-700/80'>Includes milestones that have been approved and released.</p>
-					</div>
-					<div className='rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-amber-700'>
-                                                <p className='text-xs font-semibold uppercase tracking-[0.3em]'>Outstanding balance</p>
-						<p className='mt-2 text-2xl font-semibold text-amber-900'>{outstanding ?? '—'}</p>
-                                                <p className='text-xs text-amber-700/80'>Will be paid after milestones are completed.</p>
-					</div>
-				</div>
-                                <div className='space-y-3 rounded-2xl border border-white/70 bg-white/80 p-4 text-sm text-slate-600'>
-                                        <p className='text-xs font-semibold uppercase tracking-[0.3em] text-slate-400'>Payment method</p>
-                                        <p>
-                                                Manage payments directly in the Workroom. Transactions will appear here when you release a milestone.
-                                        </p>
-                                        <p className='text-xs text-slate-400'>
-                                                Note: payment processing is being integrated; the current data is for illustration only.
-                                        </p>
+        const renderPayments = () => {
+                const paymentData = paymentDetailsQuery.data as {
+                        paymentOverview?: {
+                                totalContractValue: number
+                                totalFunded: number
+                                totalReleased: number
+                                totalRefunded: number
+                                outstandingBalance: number
+                                inEscrow: number
+                                totalPlatformFee: number
+                                totalProcessingFee: number
+                                netToFreelancer: number
+                                currency: string
+                        }
+                        milestonePayments?: Array<{
+                                milestoneId: string
+                                milestoneTitle: string
+                                milestoneStatus: string
+                                amount: number
+                                currency: string
+                                escrowStatus: string
+                                funded: number
+                                released: number
+                                refunded: number
+                                platformFee: number
+                                processingFee: number
+                                netToFreelancer: number
+                                approvedAt?: string | null
+                                releasedAt?: string | null
+                        }>
+                        transactions?: Array<{
+                                id: string
+                                type: 'PAYMENT' | 'TRANSFER' | 'REFUND'
+                                amount: number
+                                currency: string
+                                status: string
+                                description: string
+                                milestoneTitle: string
+                                cardInfo?: string
+                                createdAt: string
+                        }>
+                        summary?: {
+                                totalMilestones: number
+                                fundedMilestones: number
+                                releasedMilestones: number
+                                pendingMilestones: number
+                        }
+                } | undefined
+
+                const overview = paymentData?.paymentOverview
+                const milestonePayments = paymentData?.milestonePayments ?? []
+                const transactions = paymentData?.transactions ?? []
+                const summary = paymentData?.summary
+
+                const paymentCurrency = overview?.currency ?? currency ?? 'USD'
+                const displayTotalReleased = formatCurrency(overview?.totalReleased, paymentCurrency)
+                const displayOutstanding = formatCurrency(overview?.outstandingBalance, paymentCurrency)
+                const displayInEscrow = formatCurrency(overview?.inEscrow, paymentCurrency)
+                const displayTotalValue = formatCurrency(overview?.totalContractValue, paymentCurrency)
+
+                if (paymentDetailsQuery.isLoading) {
+                        return (
+                                <div className='flex items-center justify-center py-12'>
+                                        <Loader2 className='size-6 animate-spin text-slate-400' />
+                                        <span className='ml-2 text-sm text-slate-500'>Đang tải thông tin thanh toán...</span>
                                 </div>
-			</div>
-			<div className='space-y-4 rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-6 text-sm text-slate-500 shadow-inner shadow-white/30'>
-                                <h3 className='text-sm font-semibold text-slate-800'>Recent activity</h3>
-                                <p>
-                                        No transactions have been recorded yet. Once milestones are approved and released, their details will appear here.
-                                </p>
-			</div>
-                </div>
-        )
+                        )
+                }
+
+                return (
+                        <div className='space-y-6'>
+                                {/* Payment Overview Cards */}
+                                <div className='grid gap-4 md:grid-cols-4'>
+                                        <div className='rounded-2xl border border-slate-200 bg-white/85 p-4'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-slate-400'>Tổng giá trị</p>
+                                                <p className='mt-2 text-2xl font-semibold text-slate-900'>{displayTotalValue ?? '—'}</p>
+                                                <p className='mt-1 text-xs text-slate-500'>{summary?.totalMilestones ?? 0} milestones</p>
+                                        </div>
+                                        <div className='rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600'>Đã thanh toán</p>
+                                                <p className='mt-2 text-2xl font-semibold text-emerald-900'>{displayTotalReleased ?? '—'}</p>
+                                                <p className='mt-1 text-xs text-emerald-700/80'>{summary?.releasedMilestones ?? 0} milestones released</p>
+                                        </div>
+                                        <div className='rounded-2xl border border-sky-200 bg-sky-50/60 p-4'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-sky-600'>Trong Escrow</p>
+                                                <p className='mt-2 text-2xl font-semibold text-sky-900'>{displayInEscrow ?? '—'}</p>
+                                                <p className='mt-1 text-xs text-sky-700/80'>{summary?.fundedMilestones ?? 0} milestones funded</p>
+                                        </div>
+                                        <div className='rounded-2xl border border-amber-200 bg-amber-50/60 p-4'>
+                                                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-amber-600'>Còn lại</p>
+                                                <p className='mt-2 text-2xl font-semibold text-amber-900'>{displayOutstanding ?? '—'}</p>
+                                                <p className='mt-1 text-xs text-amber-700/80'>{summary?.pendingMilestones ?? 0} milestones pending</p>
+                                        </div>
+                                </div>
+
+                                <div className='grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]'>
+                                        {/* Milestone Payments Breakdown */}
+                                        <div className='space-y-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                                <h3 className='text-sm font-semibold text-slate-800'>Chi tiết thanh toán theo Milestone</h3>
+                                                {milestonePayments.length === 0 ? (
+                                                        <p className='text-sm text-slate-500'>Chưa có milestone nào được tạo.</p>
+                                                ) : (
+                                                        <div className='space-y-3'>
+                                                                {milestonePayments.map(mp => {
+                                                                        const statusColors: Record<string, string> = {
+                                                                                RELEASED: 'bg-emerald-100 text-emerald-700',
+                                                                                APPROVED: 'bg-sky-100 text-sky-700',
+                                                                                SUBMITTED: 'bg-amber-100 text-amber-700',
+                                                                                OPEN: 'bg-slate-100 text-slate-600',
+                                                                                CANCELED: 'bg-rose-100 text-rose-700'
+                                                                        }
+                                                                        const escrowColors: Record<string, string> = {
+                                                                                FUNDED: 'text-sky-600',
+                                                                                RELEASED: 'text-emerald-600',
+                                                                                REFUNDED: 'text-amber-600',
+                                                                                DISPUTED: 'text-rose-600',
+                                                                                UNFUNDED: 'text-slate-400'
+                                                                        }
+                                                                        return (
+                                                                                <div key={mp.milestoneId} className='rounded-xl border border-slate-200 bg-white/60 p-4'>
+                                                                                        <div className='flex items-start justify-between gap-3'>
+                                                                                                <div className='min-w-0 flex-1'>
+                                                                                                        <p className='truncate font-medium text-slate-800'>{mp.milestoneTitle}</p>
+                                                                                                        <p className='mt-1 text-sm text-slate-500'>
+                                                                                                                {formatCurrency(mp.amount, mp.currency)}
+                                                                                                        </p>
+                                                                                                </div>
+                                                                                                <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${statusColors[mp.milestoneStatus] ?? 'bg-slate-100 text-slate-600'}`}>
+                                                                                                        {mp.milestoneStatus}
+                                                                                                </span>
+                                                                                        </div>
+                                                                                        <div className='mt-3 grid grid-cols-3 gap-2 text-xs'>
+                                                                                                <div>
+                                                                                                        <span className='text-slate-400'>Funded:</span>
+                                                                                                        <span className={`ml-1 font-medium ${escrowColors[mp.escrowStatus] ?? 'text-slate-600'}`}>
+                                                                                                                {formatCurrency(mp.funded, mp.currency) ?? '—'}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <span className='text-slate-400'>Released:</span>
+                                                                                                        <span className='ml-1 font-medium text-emerald-600'>
+                                                                                                                {formatCurrency(mp.released, mp.currency) ?? '—'}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                        <span className='text-slate-400'>Refunded:</span>
+                                                                                                        <span className='ml-1 font-medium text-amber-600'>
+                                                                                                                {formatCurrency(mp.refunded, mp.currency) ?? '—'}
+                                                                                                        </span>
+                                                                                                </div>
+                                                                                        </div>
+                                                                                        {mp.releasedAt && (
+                                                                                                <p className='mt-2 text-xs text-slate-400'>
+                                                                                                        Released: {formatDateTime(mp.releasedAt, { dateStyle: 'medium' })}
+                                                                                                </p>
+                                                                                        )}
+                                                                                </div>
+                                                                        )
+                                                                })}
+                                                        </div>
+                                                )}
+                                        </div>
+
+                                        {/* Transaction History */}
+                                        <div className='space-y-4 rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)]'>
+                                                <h3 className='text-sm font-semibold text-slate-800'>Lịch sử giao dịch</h3>
+                                                {transactions.length === 0 ? (
+                                                        <p className='text-sm text-slate-500'>
+                                                                Chưa có giao dịch nào. Giao dịch sẽ xuất hiện khi milestone được fund hoặc release.
+                                                        </p>
+                                                ) : (
+                                                        <div className='space-y-3'>
+                                                                {transactions.slice(0, 10).map(tx => {
+                                                                        const typeIcons: Record<string, { icon: LucideIcon; color: string }> = {
+                                                                                PAYMENT: { icon: CreditCard, color: 'text-sky-600' },
+                                                                                TRANSFER: { icon: CheckCircle2, color: 'text-emerald-600' },
+                                                                                REFUND: { icon: History, color: 'text-amber-600' }
+                                                                        }
+                                                                        const { icon: TxIcon, color } = typeIcons[tx.type] ?? { icon: Wallet2, color: 'text-slate-600' }
+                                                                        return (
+                                                                                <div key={tx.id} className='flex items-start gap-3 rounded-xl border border-slate-100 bg-white/60 p-3'>
+                                                                                        <div className={`mt-0.5 shrink-0 ${color}`}>
+                                                                                                <TxIcon className='size-4' />
+                                                                                        </div>
+                                                                                        <div className='min-w-0 flex-1'>
+                                                                                                <p className='text-sm font-medium text-slate-700'>{tx.description}</p>
+                                                                                                <p className='mt-0.5 text-xs text-slate-400'>
+                                                                                                        {formatDateTime(tx.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                                                        {tx.cardInfo && ` • ${tx.cardInfo}`}
+                                                                                                </p>
+                                                                                        </div>
+                                                                                        <div className='shrink-0 text-right'>
+                                                                                                <p className={`text-sm font-semibold ${tx.type === 'REFUND' ? 'text-amber-600' : tx.type === 'TRANSFER' ? 'text-emerald-600' : 'text-slate-700'}`}>
+                                                                                                        {tx.type === 'REFUND' ? '-' : ''}{formatCurrency(tx.amount, tx.currency)}
+                                                                                                </p>
+                                                                                                <p className='text-xs text-slate-400'>{tx.status}</p>
+                                                                                        </div>
+                                                                                </div>
+                                                                        )
+                                                                })}
+                                                                {transactions.length > 10 && (
+                                                                        <p className='text-center text-xs text-slate-400'>
+                                                                                Và {transactions.length - 10} giao dịch khác...
+                                                                        </p>
+                                                                )}
+                                                        </div>
+                                                )}
+                                        </div>
+                                </div>
+                        </div>
+                )
+        }
 
         const renderReadiness = () => {
                 const acceptanceRows = [

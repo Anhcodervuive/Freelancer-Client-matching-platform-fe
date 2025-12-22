@@ -476,6 +476,11 @@ export const getContractDetail = async (contractId: string): Promise<Contract> =
         return response.data
 }
 
+export const getContractPaymentDetails = async (contractId: string) => {
+        const response = await authorizeAxiosInstance.get(`${baseUrl}/${contractId}/payments`)
+        return response.data
+}
+
 export const acceptContractTerms = async (
         contractId: string,
         payload: AcceptContractTermsInput

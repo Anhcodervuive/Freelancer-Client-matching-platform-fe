@@ -164,3 +164,109 @@ export enum AdminContractStatus {
 	COMPLETED = 'COMPLETED',
 	CANCELLED = 'CANCELLED'
 }
+
+// ============================================================================
+// PAYMENT DETAILS TYPES
+// ============================================================================
+
+export type AdminPaymentTransaction = {
+	id: string
+	type: 'PAYMENT' | 'TRANSFER' | 'REFUND'
+	amount: number
+	currency: string
+	status: string
+	description: string
+	milestoneTitle: string
+	cardInfo?: string
+	createdAt: string
+}
+
+export type AdminMilestonePayment = {
+	milestoneId: string
+	milestoneTitle: string
+	milestoneStatus: string
+	amount: number
+	currency: string
+	escrowStatus: string
+	funded: number
+	released: number
+	refunded: number
+	platformFee: number
+	processingFee: number
+	netToFreelancer: number
+	approvedAt?: string | null
+	releasedAt?: string | null
+	payments: Array<{
+		id: string
+		amount: number
+		currency: string
+		status: string
+		type: string
+		cardBrand?: string | null
+		cardLast4?: string | null
+		createdAt: string
+	}>
+	transfers: Array<{
+		id: string
+		amount: number
+		currency: string
+		status: string
+		createdAt: string
+	}>
+	refunds: Array<{
+		id: string
+		amount: number
+		currency: string
+		status: string
+		createdAt: string
+	}>
+}
+
+export type AdminPaymentOverview = {
+	totalContractValue: number
+	totalFunded: number
+	totalReleased: number
+	totalRefunded: number
+	outstandingBalance: number
+	inEscrow: number
+	totalPlatformFee: number
+	totalProcessingFee: number
+	netToFreelancer: number
+	currency: string
+}
+
+export type AdminContractPaymentDetails = {
+	contract: {
+		id: string
+		title: string
+		status: string
+		currency: string
+		createdAt: string
+		client: {
+			userId: string
+			companyName?: string | null
+			profile?: {
+				firstName?: string | null
+				lastName?: string | null
+			} | null
+		}
+		freelancer: {
+			userId: string
+			title?: string | null
+			profile?: {
+				firstName?: string | null
+				lastName?: string | null
+			} | null
+			payoutsEnabled: boolean
+		}
+	}
+	paymentOverview: AdminPaymentOverview
+	milestonePayments: AdminMilestonePayment[]
+	transactions: AdminPaymentTransaction[]
+	summary: {
+		totalMilestones: number
+		fundedMilestones: number
+		releasedMilestones: number
+		pendingMilestones: number
+	}
+}

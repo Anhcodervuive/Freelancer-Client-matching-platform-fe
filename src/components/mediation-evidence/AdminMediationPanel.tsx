@@ -510,8 +510,12 @@ function CreateProposalModal({
 	isValidSplit
 }: CreateProposalModalProps) {
 	return (
-		<div className="fixed inset-0 bg-gray-900 bg-opacity-20 flex items-center justify-center z-50">
-			<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+		<div className="fixed inset-0 z-50 flex items-center justify-center">
+			{/* Backdrop */}
+			<div className="absolute inset-0 bg-black/30" onClick={onCancel} />
+			
+			{/* Modal Content */}
+			<div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
 				<div className="px-6 py-4 border-b border-gray-200">
 					<h3 className="text-lg font-semibold text-gray-900">Tạo đề xuất hòa giải</h3>
 					<p className="text-sm text-gray-600 mt-1">

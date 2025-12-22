@@ -2,7 +2,8 @@ import type {
 	AdminContractListFilters,
 	AdminContractListResponse,
 	AdminContractDetail,
-	AdminContractStats
+	AdminContractStats,
+	AdminContractPaymentDetails
 } from '~/types/admin-contract'
 import authorizeAxiosInstance from '~/utils/authorizeAxios'
 
@@ -35,5 +36,10 @@ export const getAdminContractDetail = async (contractId: string): Promise<AdminC
 
 export const getAdminContractStats = async (): Promise<AdminContractStats> => {
 	const response = await authorizeAxiosInstance.get(`${baseUrl}/stats`)
+	return response.data
+}
+
+export const getAdminContractPaymentDetails = async (contractId: string): Promise<AdminContractPaymentDetails> => {
+	const response = await authorizeAxiosInstance.get(`${baseUrl}/${contractId}/payments`)
 	return response.data
 }
