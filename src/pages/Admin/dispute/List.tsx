@@ -63,13 +63,18 @@ const negotiationStatusClassMap: Partial<Record<DisputeNegotiationStatus, string
 
 
 
-const ADMIN_JOIN_WAIT_MS = 5 * 24 * 60 * 60 * 1000
+// NOTE: Set to 0 for demo purposes - allows admin to join dispute immediately
+// Original value: 5 * 24 * 60 * 60 * 1000 (5 days)
+const ADMIN_JOIN_WAIT_MS = 0
 
 const hasAdminJoinWindowElapsed = (createdAt?: string | null) => {
-	if (!createdAt) return true
-	const createdAtDate = new Date(createdAt)
-	if (Number.isNaN(createdAtDate.getTime())) return true
-	return Date.now() - createdAtDate.getTime() >= ADMIN_JOIN_WAIT_MS
+	// NOTE: Always return true for demo purposes - allows admin to join immediately
+	return true
+	// Original logic:
+	// if (!createdAt) return true
+	// const createdAtDate = new Date(createdAt)
+	// if (Number.isNaN(createdAtDate.getTime())) return true
+	// return Date.now() - createdAtDate.getTime() >= ADMIN_JOIN_WAIT_MS
 }
 
 const formatDateTime = (value?: string | null) => {
@@ -642,21 +647,60 @@ export default function AdminDisputeListPage() {
 	const detailMilestoneStart = detailMilestoneSummary?.startAt ?? detailEscrow?.milestone?.startAt ?? null
 	const detailMilestoneEnd = detailMilestoneSummary?.endAt ?? detailEscrow?.milestone?.endAt ?? null
 	const detailCanJoin = hasAdminJoinWindowElapsed(detailOpenedAt)
-	const detailShowJoin = detailHasJoined || detailCanJoin
+	
+	// Check if dispute is resolved/ended - hide join button for these statuses
+	const isDisputeEnded = detailStatus && [
+		DisputeStatus.RESOLVED_RELEASE_ALL,
+		DisputeStatus.RESOLVED_REFUND_ALL,
+		DisputeStatus.RESOLVED_SPLIT,
+		DisputeStatus.CANCELED,
+		DisputeStatus.EXPIRED
+	].includes(detailStatus)
+	
+	// Only show join button if dispute is not ended
+	const detailShowJoin = !isDisputeEnded && (detailHasJoined || detailCanJoin)
 	const detailJoinDisabled = detailHasJoined || joinMutation.isPending || !detailCanJoin
 
 
 
 	const detailTabItems = useMemo(
-		() =>
-			[
+		() => {
+			const baseTabs = [
 				{ id: 'overview', label: 'Tổng quan' },
 				{ id: 'negotiations', label: 'Thương lượng' },
 				{ id: 'payments', label: 'Phí & thanh toán' },
-				{ id: 'evidence', label: 'Hồ sơ & chứng cứ' },
 				{ id: 'activity', label: 'Hoạt động' }
-			] satisfies Array<{ id: AdminDetailTabId; label: string }>,
-		[]
+			] satisfies Array<{ id: AdminDetailTabId; label: string }>
+			
+			// Only show evidence tab when dispute is in mediation stage or later (resolved states)
+			const resolvedStatuses = [
+				DisputeStatus.RESOLVED_RELEASE_ALL,
+				DisputeStatus.RESOLVED_REFUND_ALL,
+				DisputeStatus.RESOLVED_SPLIT,
+				DisputeStatus.CANCELED,
+				DisputeStatus.EXPIRED
+			]
+			const mediationOrLaterStatuses = [
+				DisputeStatus.INTERNAL_MEDIATION,
+				DisputeStatus.AWAITING_ARBITRATION_FEES,
+				DisputeStatus.ARBITRATION_READY,
+				DisputeStatus.ARBITRATION,
+				...resolvedStatuses
+			]
+			
+			const shouldShowEvidenceTab = detailStatus && mediationOrLaterStatuses.includes(detailStatus)
+			
+			if (shouldShowEvidenceTab) {
+				return [
+					...baseTabs.slice(0, 3),
+					{ id: 'evidence' as AdminDetailTabId, label: 'Hồ sơ & chứng cứ' },
+					baseTabs[3]
+				]
+			}
+			
+			return baseTabs
+		},
+		[detailStatus]
 	)
 
 	return (
@@ -904,7 +948,17 @@ export default function AdminDisputeListPage() {
 									? 'Đã tham gia'
 									: 'Chưa tham gia'
 								const canAdminJoin = hasAdminJoinWindowElapsed(item.createdAt)
-								const showJoinButton = hasAdminJoinedFlag || canAdminJoin
+								
+								// Check if dispute is resolved/ended - hide join button for these statuses
+								const isItemDisputeEnded = status && [
+									DisputeStatus.RESOLVED_RELEASE_ALL,
+									DisputeStatus.RESOLVED_REFUND_ALL,
+									DisputeStatus.RESOLVED_SPLIT,
+									DisputeStatus.CANCELED,
+									DisputeStatus.EXPIRED
+								].includes(status)
+								
+								const showJoinButton = !isItemDisputeEnded && (hasAdminJoinedFlag || canAdminJoin)
 								const joinDisabled = hasAdminJoinedFlag || joinMutation.isPending || !canAdminJoin
 
 								const createdAt = item.createdAt ?? baseDispute?.createdAt ?? null

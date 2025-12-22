@@ -1100,7 +1100,7 @@ const ContractDisputeRoomPage = () => {
   );
   const hasDispute = Boolean(dispute);
   const isNegotiationLocked = isFinalDispute || isMediationStage;
-  const shouldShowEvidenceTab = Boolean(dispute?.id && (isEvidenceSubmissionStage || currentUser?.role === 'ADMIN'));
+  const shouldShowEvidenceTab = Boolean(dispute?.id && (isMediationStage || currentUser?.role === 'ADMIN'));
   const tabItems = useMemo(() => {
     const items: { id: DisputeTabId; label: string }[] = [
       { id: "overview", label: "Tổng quan" },

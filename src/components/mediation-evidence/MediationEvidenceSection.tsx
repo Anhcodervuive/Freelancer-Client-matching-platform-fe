@@ -323,22 +323,22 @@ export default function MediationEvidenceSection({
 					{showEvidenceForm &&
 						createPortal(
 							<div
-								className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-sm'
+								className='fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 py-8 backdrop-blur-sm'
 								onClick={() => setShowEvidenceForm(false)}>
 								<div
-									className='w-full max-w-2xl rounded-3xl border border-base-200 bg-base-100 shadow-xl'
+									className='w-full max-w-2xl rounded-3xl border border-base-200 bg-white shadow-xl'
 									onClick={e => e.stopPropagation()}>
 									{/* Modal Header */}
 									<div className='flex items-start justify-between gap-4 border-b border-base-200 px-6 py-4'>
 										<div>
-											<h2 className='text-xl font-semibold text-base-content'>Nộp bằng chứng hòa giải</h2>
-											<p className='text-sm text-base-content/70 mt-1'>
+											<h2 className='text-xl font-semibold text-gray-900'>Nộp bằng chứng hòa giải</h2>
+											<p className='text-sm text-gray-600 mt-1'>
 												Cung cấp tài liệu và thông tin để hỗ trợ quá trình hòa giải
 											</p>
 										</div>
 										<button
 											onClick={() => setShowEvidenceForm(false)}
-											className='text-base-content/50 hover:text-base-content transition-colors p-1 rounded-md hover:bg-base-200 flex-shrink-0'>
+											className='text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100 flex-shrink-0'>
 											<X className='w-6 h-6' />
 										</button>
 									</div>
@@ -407,33 +407,6 @@ export default function MediationEvidenceSection({
 						</>
 					)}
 				</div>
-			)}
-
-			{/* Evidence Form Modal */}
-			{showEvidenceForm && createPortal(
-				<div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-					<div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-						<div className="flex items-center justify-between p-6 border-b border-gray-200">
-							<h2 className="text-xl font-semibold text-gray-900">Nộp bằng chứng hòa giải</h2>
-							<button
-								onClick={() => setShowEvidenceForm(false)}
-								className="text-gray-400 hover:text-gray-600"
-							>
-								<X className="w-6 h-6" />
-							</button>
-						</div>
-						<MediationEvidenceForm
-							disputeId={disputeId}
-							contractId={contractId}
-							milestoneId={milestoneId}
-							onSubmit={handleSubmitEvidence}
-							onCancel={() => setShowEvidenceForm(false)}
-							isLoading={submitEvidenceMutation.isPending}
-							isModal={true}
-						/>
-					</div>
-				</div>,
-				document.body
 			)}
 		</div>
 	)

@@ -90,11 +90,8 @@ interface MediationEvidenceFormProps {
 
 const sourceTypeOptions = [
 	{ value: MediationEvidenceSourceType.DOCUMENT_UPLOAD, label: 'Upload Document', icon: FileText },
-	{ value: MediationEvidenceSourceType.SCREENSHOT, label: 'Screenshot', icon: Camera },
 	{ value: MediationEvidenceSourceType.EXTERNAL_URL, label: 'External Link', icon: Link },
-	{ value: MediationEvidenceSourceType.MILESTONE_ATTACHMENT, label: 'Milestone Attachment', icon: File },
-	{ value: MediationEvidenceSourceType.CHAT_ATTACHMENT, label: 'Chat Attachment', icon: File },
-	{ value: MediationEvidenceSourceType.CONTRACT_DOCUMENT, label: 'Contract Document', icon: FileText }
+	{ value: MediationEvidenceSourceType.MILESTONE_ATTACHMENT, label: 'Milestone Attachment', icon: File }
 ]
 
 interface MilestoneAssetSelectorProps {

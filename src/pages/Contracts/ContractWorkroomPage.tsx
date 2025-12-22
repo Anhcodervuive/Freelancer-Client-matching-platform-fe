@@ -2643,7 +2643,8 @@ const renderOverview = () => (
                                                 const EscrowIcon = escrowMeta.icon
                                                 const isEscrowDisputed = normalizedEscrowStatus === 'DISPUTED'
                                                 const hasActiveDispute = isEscrowDisputed
-                                                const canVisitDisputeCenter = hasActiveDispute || (!isMilestoneReleased && !isMilestoneCancelled)
+                                                const hasAtLeastOneSubmission = submissions.length > 0
+                                                const canVisitDisputeCenter = hasActiveDispute || (hasAtLeastOneSubmission && !isMilestoneReleased && !isMilestoneCancelled)
                                                 const cancellationStatus = (milestone.cancellationStatus ?? '').toUpperCase()
                                                 const isCancellationPending = cancellationStatus === 'PENDING'
                                                 const isCancellationAccepted = cancellationStatus === 'ACCEPTED'
@@ -2757,6 +2758,7 @@ const renderOverview = () => (
                                                         !isContractFinalized &&
                                                         !isMilestoneReleased &&
                                                         !isMilestoneCancelled &&
+                                                        !isEscrowDisputed &&
                                                         (milestone.amount ?? 0) > 0 &&
                                                         !['FUNDED', 'RELEASED', 'PENDING'].includes(normalizedEscrowStatus) &&
                                                         !isCancellationPending
@@ -2814,9 +2816,13 @@ const renderOverview = () => (
                                                                                                         Trung tâm dispute
                                                                                                 </Link>
                                                                                         ) : null}
-                                                                                        {contractId && !canVisitDisputeCenter && !isEscrowDisputed ? (
+                                                                                        {isMilestoneCancelled ? (
                                                                                                 <span className='inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500'>
-                                                                                                        {isMilestoneCancelled ? 'Milestone đã hủy' : 'Đã giải ngân'}
+                                                                                                        Milestone đã hủy
+                                                                                                </span>
+                                                                                        ) : isMilestoneReleased ? (
+                                                                                                <span className='inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500'>
+                                                                                                        Đã giải ngân
                                                                                                 </span>
                                                                                         ) : null}
                                                                                         {hasPendingSubmission && (
@@ -3982,7 +3988,7 @@ const renderOverview = () => (
                                                                         : 'Chưa có nội dung để hiển thị'}
                                                         </button>
                                                         <Link
-                                                                to={routes.platformTerms}
+                                                                to={routes.comons.platformTerms}
                                                                 target='_blank'
                                                                 rel='noreferrer'
                                                                 className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
