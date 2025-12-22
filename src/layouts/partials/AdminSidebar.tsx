@@ -47,6 +47,7 @@ const NAV: Item[] = [
         { label: 'Projects', to: '/admin/projects', icon: <FolderKanban size={18} /> },
         { label: 'Platform terms', to: routes.admin.platformTerms.list, icon: <FileText size={18} /> },
         { label: 'Disputes', to: routes.admin.dispute.list, icon: <BadgeDollarSign size={18} /> },
+        { label: 'Contracts', to: routes.admin.contracts.list, icon: <Briefcase size={18} /> },
         {
                 label: 'Taxonomy',
                 to: '#',

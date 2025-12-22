@@ -86,6 +86,9 @@ export const routes = {
 		dispute: {
 			list: '/admin/disputes'
 		},
+		contracts: {
+			list: '/admin/contracts'
+		},
 		platformTerms: {
 			list: '/admin/platform-terms'
 		},
